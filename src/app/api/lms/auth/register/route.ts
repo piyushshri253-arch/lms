@@ -120,8 +120,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'LMS_ADMIN') {
+      return NextResponse.json(
+        {
+          error:
+            'Administrator accounts cannot be self-registered through public registration. Please create an academy workspace or request an administrator invitation.'
+        },
+        { status: 403 }
+      );
+    }
+
     const passwordHash = await hashPassword(password);
-    const assignedRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : role === 'ADMIN' ? 'LMS_ADMIN' : 'STUDENT';
+    const assignedRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT';
 
     const user = await prisma.user.create({
       data: {

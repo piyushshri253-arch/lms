@@ -10,7 +10,7 @@ export default function LmsRegisterPage() {
   const router = useRouter();
   const { showToast } = useApp();
 
-  const [role, setRole] = useState<'STUDENT' | 'INSTRUCTOR' | 'ADMIN'>('STUDENT');
+  const [role, setRole] = useState<'STUDENT' | 'INSTRUCTOR'>('STUDENT');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -188,7 +188,7 @@ export default function LmsRegisterPage() {
             </div>
 
             {/* Role Switcher */}
-            <div className="flex items-center rounded-xl bg-white/[0.04] border border-white/10 p-1 mb-5">
+            <div className="flex items-center rounded-xl bg-white/[0.04] border border-white/10 p-1 mb-4">
               <button
                 type="button"
                 onClick={() => setRole('STUDENT')}
@@ -198,7 +198,7 @@ export default function LmsRegisterPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                🎓 Student
+                🎓 Student Account
               </button>
               <button
                 type="button"
@@ -209,39 +209,22 @@ export default function LmsRegisterPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                👨‍🏫 Instructor
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('ADMIN')}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  role === 'ADMIN'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                ⚙️ LMS Admin
+                👨‍🏫 Instructor Account
               </button>
             </div>
 
-            {role === 'ADMIN' && (
-              <div className="mb-4 p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs text-emerald-300 flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="font-bold text-white flex items-center gap-1.5">
-                    <span>🏛️</span> Academy / School Administrator
-                  </p>
-                  <p className="text-[11px] text-slate-300">
-                    Creates an LMS Admin with course builder, student roster & certificate controls.
-                  </p>
-                </div>
-                <Link
-                  href="/company-signup"
-                  className="shrink-0 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 transition-all text-center"
-                >
-                  Create Academy Workspace →
-                </Link>
+            <div className="mb-4 p-3 rounded-2xl bg-white/[0.03] border border-white/10 text-xs flex items-center justify-between gap-3">
+              <div className="text-slate-300">
+                <span className="font-bold text-white">Need an LMS Academy Workspace?</span>
+                <p className="text-[11px] text-slate-400">School &amp; Admin workspaces require organization verification.</p>
               </div>
-            )}
+              <Link
+                href="/company-signup"
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-500/40 transition-all text-center"
+              >
+                Create Workspace &rarr;
+              </Link>
+            </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">

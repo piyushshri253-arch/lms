@@ -75,19 +75,27 @@ export async function verifySessionToken(token: string): Promise<AuthSessionUser
 
 export async function setSalesSessionCookie(user: AuthSessionUser) {
   const token = await createSessionToken({ ...user, platform: 'SALES' });
-  const cookieStore = await cookies();
-  cookieStore.set(SALES_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7 // 7 days
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(SALES_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+  } catch {
+    // Gracefully handle calls outside Next.js request scope (e.g. test runners)
+  }
 }
 
 export async function clearSalesSessionCookie() {
-  const cookieStore = await cookies();
-  cookieStore.delete(SALES_COOKIE_NAME);
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(SALES_COOKIE_NAME);
+  } catch {
+    // Gracefully handle calls outside Next.js request scope
+  }
 }
 
 export async function getSalesCurrentUser(): Promise<AuthSessionUser | null> {
@@ -178,29 +186,37 @@ export async function getSalesCurrentUser(): Promise<AuthSessionUser | null> {
 
 export async function setLmsSessionCookie(user: AuthSessionUser) {
   const token = await createSessionToken({ ...user, platform: 'LMS' });
-  const cookieStore = await cookies();
-  cookieStore.set(LMS_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7 // 7 days
-  });
-  // Also set legacy cookie for backwards compatibility
-  cookieStore.set(LEGACY_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(LMS_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+    // Also set legacy cookie for backwards compatibility
+    cookieStore.set(LEGACY_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7
+    });
+  } catch {
+    // Gracefully handle calls outside Next.js request scope (e.g. test runners)
+  }
 }
 
 export async function clearLmsSessionCookie() {
-  const cookieStore = await cookies();
-  cookieStore.delete(LMS_COOKIE_NAME);
-  cookieStore.delete(LEGACY_COOKIE_NAME);
-  cookieStore.delete(IMPERSONATION_COOKIE);
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(LMS_COOKIE_NAME);
+    cookieStore.delete(LEGACY_COOKIE_NAME);
+    cookieStore.delete(IMPERSONATION_COOKIE);
+  } catch {
+    // Gracefully handle calls outside Next.js request scope
+  }
 }
 
 export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {

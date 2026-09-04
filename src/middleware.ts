@@ -275,6 +275,26 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    // Role boundary: /instructor/* requires INSTRUCTOR, ADMIN, or SUPER_ADMIN
+    if (pathname.startsWith('/instructor')) {
+      const lmsRole = lmsSession?.role;
+      const canAccessInstructor =
+        lmsRole === 'INSTRUCTOR' ||
+        lmsRole === 'ADMIN' ||
+        lmsRole === 'LMS_ADMIN' ||
+        lmsRole === 'SUPER_ADMIN';
+
+      if (!canAccessInstructor) {
+        return NextResponse.redirect(
+          new URL(
+            '/unauthorized?msg=' +
+              encodeURIComponent('Access denied: Student accounts cannot access instructor portals.'),
+            request.url
+          )
+        );
+      }
+    }
+
     // Canonicalize legacy /dashboard and /student paths to isolated /lms/* routes
     if (pathname === '/dashboard/courses') {
       return NextResponse.redirect(new URL('/lms/my-courses', request.url));

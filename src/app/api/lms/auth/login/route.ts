@@ -162,11 +162,75 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Determine LMS Redirect URL
+    // 5. Server-Side Role & Portal Validation (Database role is source of truth)
+    const portal = String(requestedPortal || (body as any).selectedRole || 'STUDENT').toUpperCase();
+    const dbRole = user.role;
+
+    if (portal === 'STUDENT') {
+      if (dbRole !== 'STUDENT') {
+        await logSecurityEvent({
+          userId: user.id,
+          email: normalizedEmail,
+          platform: 'LMS',
+          eventType: 'LMS_LOGIN_PORTAL_MISMATCH',
+          req,
+          metadata: { requestedPortal: portal, actualRole: dbRole }
+        }).catch(() => {});
+
+        return NextResponse.json(
+          { error: 'This account is not registered as a Student. Please select the correct login type.' },
+          { status: 403 }
+        );
+      }
+    } else if (portal === 'INSTRUCTOR') {
+      if (dbRole !== 'INSTRUCTOR') {
+        await logSecurityEvent({
+          userId: user.id,
+          email: normalizedEmail,
+          platform: 'LMS',
+          eventType: 'LMS_LOGIN_PORTAL_MISMATCH',
+          req,
+          metadata: { requestedPortal: portal, actualRole: dbRole }
+        }).catch(() => {});
+
+        return NextResponse.json(
+          { error: 'This account is not registered as an Instructor. Please select the correct login type.' },
+          { status: 403 }
+        );
+      }
+    } else if (portal === 'ADMIN' || portal === 'LMS_ADMIN') {
+      const isAuthorizedAdmin =
+        dbRole === 'ADMIN' ||
+        dbRole === 'LMS_ADMIN' ||
+        dbRole === 'SUPER_ADMIN';
+
+      if (!isAuthorizedAdmin) {
+        await logSecurityEvent({
+          userId: user.id,
+          email: normalizedEmail,
+          platform: 'LMS',
+          eventType: 'LMS_LOGIN_PORTAL_MISMATCH',
+          req,
+          metadata: { requestedPortal: portal, actualRole: dbRole }
+        }).catch(() => {});
+
+        return NextResponse.json(
+          { error: 'This account does not have LMS Admin access.' },
+          { status: 403 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid login portal selected.' },
+        { status: 400 }
+      );
+    }
+
+    // 6. Determine LMS Redirect URL based on REAL database role
     let redirectUrl = '/lms/dashboard';
-    const isSuperAdmin = user.role === 'SUPER_ADMIN';
-    const isAdmin = user.role === 'ADMIN' || user.role === 'LMS_ADMIN';
-    const isInstructor = user.role === 'INSTRUCTOR';
+    const isSuperAdmin = dbRole === 'SUPER_ADMIN';
+    const isAdmin = dbRole === 'ADMIN' || dbRole === 'LMS_ADMIN';
+    const isInstructor = dbRole === 'INSTRUCTOR';
 
     if (isSuperAdmin) {
       redirectUrl = '/super-admin';
@@ -184,11 +248,14 @@ export async function POST(req: NextRequest) {
       !callbackUrl.startsWith('//')
     ) {
       if (callbackUrl.startsWith('/admin')) {
-        // Only authorized administrators can redirect into /admin/*
         if (isSuperAdmin || isAdmin) {
           redirectUrl = callbackUrl;
         } else if (isInstructor && callbackUrl.startsWith('/admin/courses/builder')) {
           redirectUrl = '/instructor/courses/builder';
+        }
+      } else if (callbackUrl.startsWith('/instructor')) {
+        if (isSuperAdmin || isAdmin || isInstructor) {
+          redirectUrl = callbackUrl;
         }
       } else if (callbackUrl.startsWith('/super-admin')) {
         if (isSuperAdmin) {

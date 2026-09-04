@@ -171,6 +171,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 6. Role & Portal Validation (if portal specified)
+    const portal = (requestedPortal || (body as any).selectedRole)?.toUpperCase();
+    if (portal) {
+      const dbRole = user.role;
+      if (portal === 'STUDENT') {
+        if (dbRole !== 'STUDENT') {
+          return NextResponse.json(
+            { error: 'This account is not registered as a Student. Please select the correct login type.' },
+            { status: 403 }
+          );
+        }
+      } else if (portal === 'INSTRUCTOR') {
+        if (dbRole !== 'INSTRUCTOR') {
+          return NextResponse.json(
+            { error: 'This account is not registered as an Instructor. Please select the correct login type.' },
+            { status: 403 }
+          );
+        }
+      } else if (portal === 'ADMIN' || portal === 'LMS_ADMIN') {
+        const isAuthorizedAdmin =
+          dbRole === 'ADMIN' ||
+          dbRole === 'LMS_ADMIN' ||
+          dbRole === 'SUPER_ADMIN';
+
+        if (!isAuthorizedAdmin) {
+          return NextResponse.json(
+            { error: 'This account does not have LMS Admin access.' },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     // 7. Determine Centralized Redirect URL based on Product Portal & Role
     let redirectUrl = '/learning/dashboard';
 

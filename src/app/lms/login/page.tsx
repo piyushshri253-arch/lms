@@ -46,7 +46,8 @@ function LmsLoginContent() {
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           password,
-          requestedPortal: roleType === 'ADMIN' ? 'ADMIN' : 'STUDENT',
+          requestedPortal: roleType,
+          rememberMe,
           callbackUrl: callbackUrl || undefined
         })
       });
@@ -169,7 +170,9 @@ function LmsLoginContent() {
                   Welcome to AADHYARA Learning
                 </h1>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Sign in to your learning account.
+                  {roleType === 'STUDENT' && 'Sign in to your Student account.'}
+                  {roleType === 'INSTRUCTOR' && 'Sign in to your Instructor account.'}
+                  {roleType === 'ADMIN' && 'Sign in to your LMS Admin account.'}
                 </p>
               </div>
 
@@ -229,7 +232,13 @@ function LmsLoginContent() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@example.com"
+                    placeholder={
+                      roleType === 'STUDENT'
+                        ? 'student@example.com'
+                        : roleType === 'INSTRUCTOR'
+                        ? 'instructor@example.com'
+                        : 'admin@example.com'
+                    }
                     className="w-full bg-white/[0.04] border border-white/15 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium placeholder:text-slate-500"
                   />
                 </div>
@@ -295,7 +304,15 @@ function LmsLoginContent() {
                   size={18}
                   className={isLoading ? 'animate-spin' : ''}
                 />
-                <span>{isLoading ? 'Authenticating...' : 'Sign In to AADHYARA Learning'}</span>
+                <span>
+                  {isLoading
+                    ? 'Authenticating...'
+                    : roleType === 'STUDENT'
+                    ? 'Sign In as Student'
+                    : roleType === 'INSTRUCTOR'
+                    ? 'Sign In as Instructor'
+                    : 'Sign In as LMS Admin'}
+                </span>
               </button>
             </form>
           </div>

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -45,11 +45,6 @@ export default function SuperAdminLoginPage() {
     }
   };
 
-  const fillSuperAdmin = () => {
-    setEmail('superadmin@aadhyara.com');
-    setPassword('superadmin123');
-  };
-
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden text-white">
       {/* Background ambient lighting */}
@@ -72,27 +67,6 @@ export default function SuperAdminLoginPage() {
 
         {/* Card Form */}
         <div className="bg-slate-900/80 backdrop-blur-2xl p-6 sm:p-8 rounded-3xl border border-slate-700/80 shadow-2xl space-y-6">
-          {/* Quick Demo Credentials Box */}
-          <div className="p-4 bg-primary/10 border border-primary/30 rounded-2xl space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
-                <Icon name="key" size={16} />
-                <span>Super Admin Credentials</span>
-              </span>
-              <button
-                type="button"
-                onClick={fillSuperAdmin}
-                className="text-[10px] bg-primary text-on-primary px-2.5 py-1 rounded-lg font-mono font-bold hover:bg-primary-container transition-colors cursor-pointer shadow-xs"
-              >
-                1-Click Autofill
-              </button>
-            </div>
-            <p className="text-[11px] text-slate-300 font-mono">
-              Email: <span className="text-white font-bold">superadmin@aadhyara.com</span> • Pass:{' '}
-              <span className="text-white font-bold">superadmin123</span>
-            </p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-[11px] font-mono font-extrabold uppercase tracking-wider text-slate-300">
