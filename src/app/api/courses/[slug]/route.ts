@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser, requireTenantRole, validateTenantOwnership } from '@/lib/auth';
+import { getCurrentUser, requireTenantRole, validateTenantOwnership, handleAuthError } from '@/lib/auth';
 
 export async function GET(
   request: Request,
@@ -389,10 +389,7 @@ export async function PUT(
 
     return NextResponse.json({ course: updated, message: 'Course updated successfully.' });
   } catch (err: any) {
-    const isAuth = err.message?.includes('Authentication');
-    const isForbidden = err.message?.includes('forbidden') || err.message?.includes('Insufficient') || err.message?.includes('permissions');
-    const status = isAuth ? 401 : isForbidden ? 403 : 400;
-    return NextResponse.json({ error: err.message || 'Failed to update course' }, { status });
+    return handleAuthError(err);
   }
 }
 
@@ -447,9 +444,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Course deleted successfully.' });
   } catch (err: any) {
-    const isAuth = err.message?.includes('Authentication');
-    const isForbidden = err.message?.includes('forbidden') || err.message?.includes('Insufficient') || err.message?.includes('permissions');
-    const status = isAuth ? 401 : isForbidden ? 403 : 400;
-    return NextResponse.json({ error: err.message || 'Failed to delete course' }, { status });
+    return handleAuthError(err);
   }
 }

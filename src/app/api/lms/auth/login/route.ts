@@ -9,7 +9,7 @@ import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/lib/permissions';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, password, requestedPortal } = body;
+    const { email, password, requestedPortal, callbackUrl } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -164,12 +164,39 @@ export async function POST(req: NextRequest) {
 
     // 5. Determine LMS Redirect URL
     let redirectUrl = '/lms/dashboard';
-    if (user.role === 'SUPER_ADMIN') {
+    const isSuperAdmin = user.role === 'SUPER_ADMIN';
+    const isAdmin = user.role === 'ADMIN' || user.role === 'LMS_ADMIN';
+    const isInstructor = user.role === 'INSTRUCTOR';
+
+    if (isSuperAdmin) {
       redirectUrl = '/super-admin';
-    } else if (user.role === 'ADMIN' || user.role === 'LMS_ADMIN') {
+    } else if (isAdmin) {
       redirectUrl = '/lms/admin';
-    } else if (user.role === 'INSTRUCTOR') {
+    } else if (isInstructor) {
       redirectUrl = '/instructor/dashboard';
+    }
+
+    // Safely evaluate callbackUrl if provided
+    if (
+      callbackUrl &&
+      typeof callbackUrl === 'string' &&
+      callbackUrl.startsWith('/') &&
+      !callbackUrl.startsWith('//')
+    ) {
+      if (callbackUrl.startsWith('/admin')) {
+        // Only authorized administrators can redirect into /admin/*
+        if (isSuperAdmin || isAdmin) {
+          redirectUrl = callbackUrl;
+        } else if (isInstructor && callbackUrl.startsWith('/admin/courses/builder')) {
+          redirectUrl = '/instructor/courses/builder';
+        }
+      } else if (callbackUrl.startsWith('/super-admin')) {
+        if (isSuperAdmin) {
+          redirectUrl = callbackUrl;
+        }
+      } else {
+        redirectUrl = callbackUrl;
+      }
     }
 
     // 6. Build Permissions

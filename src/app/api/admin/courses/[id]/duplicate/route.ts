@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantRole, validateTenantOwnership } from '@/lib/auth';
+import { requireTenantRole, validateTenantOwnership, handleAuthError } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 
 export async function POST(
@@ -154,6 +154,6 @@ export async function POST(
       course: duplicatedCourse
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return handleAuthError(err);
   }
 }

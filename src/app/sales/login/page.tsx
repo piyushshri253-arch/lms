@@ -34,12 +34,14 @@ function SalesLoginContent() {
     setUnauthNotice(null);
 
     try {
+      const callbackUrl = searchParams.get('callbackUrl');
       const res = await fetch('/api/sales/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
-          password
+          password,
+          callbackUrl: callbackUrl || undefined
         })
       });
 

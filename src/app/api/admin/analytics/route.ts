@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantRole } from '@/lib/auth';
+import { requireTenantRole, handleAuthError } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
@@ -259,7 +259,6 @@ export async function GET(request: Request) {
       auditLogs
     });
   } catch (err: any) {
-    const isForbidden = err.message?.includes('forbidden') || err.message?.includes('Insufficient');
-    return NextResponse.json({ error: err.message }, { status: isForbidden ? 403 : 500 });
+    return handleAuthError(err);
   }
 }

@@ -1,10 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 
-export default function LoginSelectionPage() {
+function LoginSelectionContent() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl');
+  const callbackQuery = callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : '';
+
   return (
     <div className="min-h-screen w-full bg-[#060814] text-white flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
       {/* Background Ambient Glows & Grid */}
@@ -50,6 +55,12 @@ export default function LoginSelectionPage() {
           <p className="text-xs sm:text-sm text-slate-400">
             AADHYARA provides two dedicated product environments. Select the platform you want to sign into.
           </p>
+          {callbackUrl && (
+            <div className="inline-flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full text-xs text-indigo-300 mt-2">
+              <Icon name="lock" size={12} />
+              <span>Authentication required to continue to your requested page</span>
+            </div>
+          )}
         </div>
 
         {/* 2 Primary Choice Cards */}
@@ -83,7 +94,7 @@ export default function LoginSelectionPage() {
 
             <div className="space-y-2 pt-4 border-t border-white/10">
               <Link
-                href="/learning/login"
+                href={`/learning/login${callbackQuery}`}
                 className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
               >
                 <span>Learning Login</span>
@@ -129,7 +140,7 @@ export default function LoginSelectionPage() {
 
             <div className="space-y-2 pt-4 border-t border-white/10">
               <Link
-                href="/sales/login"
+                href={`/sales/login${callbackQuery}`}
                 className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
               >
                 <span>Sales Login</span>
@@ -153,5 +164,19 @@ export default function LoginSelectionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginSelectionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full bg-[#060814] flex items-center justify-center text-slate-400 text-sm">
+          Loading...
+        </div>
+      }
+    >
+      <LoginSelectionContent />
+    </Suspense>
   );
 }

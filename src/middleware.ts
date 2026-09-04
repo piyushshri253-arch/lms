@@ -29,8 +29,17 @@ async function verifyToken(token?: string): Promise<TokenPayload | null> {
   }
 }
 
+function isAuthorizedAdminRole(role?: string): boolean {
+  return (
+    role === 'SUPER_ADMIN' ||
+    role === 'ADMIN' ||
+    role === 'LMS_ADMIN' ||
+    role === 'SALES_ADMIN'
+  );
+}
+
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
   const salesCookieVal = request.cookies.get(SALES_COOKIE)?.value;
   const lmsCookieVal =
@@ -44,16 +53,121 @@ export async function middleware(request: NextRequest) {
   const isLmsValid =
     !!lmsSession && (lmsSession.platform === 'LMS' || lmsSession.role === 'SUPER_ADMIN' || !lmsSession.platform);
 
+  // Clone headers and forward current pathname for Server Components
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+
   // -------------------------------------------------------------------------
   // 1. GENERAL / ENTRY ACCESS
   // -------------------------------------------------------------------------
   if (pathname === '/login') {
-    // If logged into both, or specifically Sales/LMS, keep on selection or direct
-    return createSecureResponse(NextResponse.next());
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
   }
 
   // -------------------------------------------------------------------------
-  // 2. SALES PLATFORM ROUTING & PROTECTION (/sales/* and /admin/*)
+  // 2. ADMIN ROUTE PROTECTION (/admin and /admin/*)
+  // -------------------------------------------------------------------------
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    const adminSession = lmsSession || salesSession;
+    const isAuth = isLmsValid || isSalesValid;
+
+    // A. Unauthenticated visitor: immediately redirect to /login with callbackUrl
+    if (!isAuth || !adminSession) {
+      const callback = encodeURIComponent(pathname + (search || ''));
+      return NextResponse.redirect(new URL(`/login?callbackUrl=${callback}`, request.url));
+    }
+
+    const role = adminSession.role;
+
+    // B. Student account: forbid admin access
+    if (role === 'STUDENT') {
+      return NextResponse.redirect(
+        new URL(
+          '/unauthorized?msg=' +
+            encodeURIComponent('Access denied: Student accounts cannot access administrative portals.'),
+          request.url
+        )
+      );
+    }
+
+    // C. Instructor account: redirect builder or forbid general admin access
+    if (role === 'INSTRUCTOR') {
+      if (pathname === '/admin/courses/builder' || pathname.startsWith('/admin/courses/builder/')) {
+        const target = new URL('/instructor/courses/builder', request.url);
+        target.search = request.nextUrl.search;
+        return NextResponse.redirect(target);
+      }
+      return NextResponse.redirect(
+        new URL(
+          '/unauthorized?msg=' +
+            encodeURIComponent('Access denied: Instructor accounts do not have general administrative access.'),
+          request.url
+        )
+      );
+    }
+
+    // D. Enforce authorized admin roles (SUPER_ADMIN, ADMIN, LMS_ADMIN, SALES_ADMIN)
+    if (!isAuthorizedAdminRole(role)) {
+      return NextResponse.redirect(
+        new URL(
+          '/unauthorized?msg=' +
+            encodeURIComponent('Access denied: Administrator privileges required.'),
+          request.url
+        )
+      );
+    }
+
+    // E. Canonicalize base /admin and /admin/dashboard to specific platform dashboards
+    if (pathname === '/admin' || pathname === '/admin/dashboard') {
+      if (role === 'SUPER_ADMIN') {
+        return NextResponse.redirect(new URL('/super-admin', request.url));
+      }
+      if (isLmsValid) {
+        return NextResponse.redirect(new URL('/lms/admin', request.url));
+      }
+      if (isSalesValid) {
+        return NextResponse.redirect(new URL('/sales/dashboard', request.url));
+      }
+    }
+
+    // F. Authorized admin visiting sub-routes (/admin/courses/builder, etc.) -> allow through
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 3. ADMIN API PROTECTION (/api/admin and /api/admin/*)
+  // -------------------------------------------------------------------------
+  if (pathname.startsWith('/api/admin')) {
+    const adminSession = lmsSession || salesSession;
+    if (!adminSession) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please log into an administrator account.' },
+        { status: 401 }
+      );
+    }
+
+    if (!isAuthorizedAdminRole(adminSession.role)) {
+      return NextResponse.json(
+        { error: 'Access denied: Insufficient administrative privileges.' },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.next({
+      request: { headers: requestHeaders }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // 4. SALES PLATFORM ROUTING & PROTECTION (/sales/*)
   // -------------------------------------------------------------------------
   const isSalesAuthRoute =
     pathname === '/sales/login' ||
@@ -77,27 +191,23 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/sales/roles') ||
     pathname.startsWith('/sales/integrations');
 
-  // Handle generic /admin alias routing
-  if (pathname === '/admin' || pathname === '/admin/dashboard') {
-    if (isLmsValid) {
-      return NextResponse.redirect(new URL('/lms/admin', request.url));
-    }
-    if (isSalesValid) {
-      return NextResponse.redirect(new URL('/sales/dashboard', request.url));
-    }
-    return NextResponse.redirect(new URL('/lms/login?callbackUrl=' + encodeURIComponent(pathname), request.url));
-  }
-
   if (isSalesAuthRoute) {
     if (isSalesValid) {
+      const callback = request.nextUrl.searchParams.get('callbackUrl');
+      if (callback && callback.startsWith('/') && !callback.startsWith('//')) {
+        return NextResponse.redirect(new URL(callback, request.url));
+      }
       return NextResponse.redirect(new URL('/sales/dashboard', request.url));
     }
-    return createSecureResponse(NextResponse.next());
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
   }
 
   if (isSalesProtectedRoute) {
     if (!isSalesValid) {
-      // If user only has an LMS session, show clear platform separation notice
       if (isLmsValid) {
         return NextResponse.redirect(
           new URL(
@@ -108,13 +218,13 @@ export async function middleware(request: NextRequest) {
         );
       }
       return NextResponse.redirect(
-        new URL('/sales/login?callbackUrl=' + encodeURIComponent(pathname), request.url)
+        new URL('/sales/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
       );
     }
   }
 
   // -------------------------------------------------------------------------
-  // 3. LMS PLATFORM ROUTING & PROTECTION (/lms/*, /learning/*, /dashboard/*, /student/*, /instructor/*, /learn/*)
+  // 5. LMS PLATFORM ROUTING & PROTECTION (/lms/*, /learning/*, /dashboard/*, /student/*, /instructor/*, /learn/*)
   // -------------------------------------------------------------------------
   const isLmsAuthRoute =
     pathname === '/lms/login' ||
@@ -134,14 +244,23 @@ export async function middleware(request: NextRequest) {
 
   if (isLmsAuthRoute) {
     if (isLmsValid) {
+      const callback = request.nextUrl.searchParams.get('callbackUrl');
+      if (callback && callback.startsWith('/') && !callback.startsWith('//')) {
+        if (!callback.startsWith('/admin') || isAuthorizedAdminRole(lmsSession?.role)) {
+          return NextResponse.redirect(new URL(callback, request.url));
+        }
+      }
       return NextResponse.redirect(new URL('/lms/dashboard', request.url));
     }
-    return createSecureResponse(NextResponse.next());
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
   }
 
   if (isLmsProtectedRoute) {
     if (!isLmsValid) {
-      // If user only has a Sales session, show clear platform separation notice
       if (isSalesValid) {
         return NextResponse.redirect(
           new URL(
@@ -152,11 +271,11 @@ export async function middleware(request: NextRequest) {
         );
       }
       return NextResponse.redirect(
-        new URL('/lms/login?callbackUrl=' + encodeURIComponent(pathname), request.url)
+        new URL('/lms/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
       );
     }
 
-    // Canonicalize legacy /dashboard and /student paths to isolated /lms/* routes for authenticated LMS users
+    // Canonicalize legacy /dashboard and /student paths to isolated /lms/* routes
     if (pathname === '/dashboard/courses') {
       return NextResponse.redirect(new URL('/lms/my-courses', request.url));
     }
@@ -195,24 +314,32 @@ export async function middleware(request: NextRequest) {
   }
 
   // -------------------------------------------------------------------------
-  // 4. SUPER ADMIN CONTROL CENTER (/super-admin/*)
+  // 6. SUPER ADMIN CONTROL CENTER (/super-admin/*)
   // -------------------------------------------------------------------------
   if (pathname.startsWith('/super-admin')) {
     if (pathname === '/super-admin/login') {
       if (lmsSession && lmsSession.role === 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL('/super-admin', request.url));
       }
-      return createSecureResponse(NextResponse.next());
+      return createSecureResponse(
+        NextResponse.next({
+          request: { headers: requestHeaders }
+        })
+      );
     }
 
     if (!lmsSession || lmsSession.role !== 'SUPER_ADMIN') {
       return NextResponse.redirect(
-        new URL('/super-admin/login?callbackUrl=' + encodeURIComponent(pathname), request.url)
+        new URL('/super-admin/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
       );
     }
   }
 
-  return createSecureResponse(NextResponse.next());
+  return createSecureResponse(
+    NextResponse.next({
+      request: { headers: requestHeaders }
+    })
+  );
 }
 
 function createSecureResponse(response: NextResponse): NextResponse {
@@ -227,8 +354,10 @@ function createSecureResponse(response: NextResponse): NextResponse {
 export const config = {
   matcher: [
     '/login',
-    '/sales/:path*',
+    '/admin',
     '/admin/:path*',
+    '/api/admin/:path*',
+    '/sales/:path*',
     '/lms/:path*',
     '/learning/:path*',
     '/super-admin/:path*',

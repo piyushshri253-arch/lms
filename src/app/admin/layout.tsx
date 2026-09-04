@@ -1,47 +1,22 @@
-'use client';
+import React from 'react';
+import { headers } from 'next/headers';
+import { requireAdmin } from '@/lib/auth';
+import { AdminLayoutClient } from '@/components/layout/AdminLayoutClient';
 
-import React, { useState } from 'react';
-import { AdminSidebar } from '@/components/layout/AdminSidebar';
-import { AdminHeader } from '@/components/layout/AdminHeader';
-import { MobileNav } from '@/components/layout/MobileNav';
+export const dynamic = 'force-dynamic';
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const headersList = await headers();
+  const currentPath = headersList.get('x-pathname') || '/admin';
 
-  return (
-    <div className="bg-surface text-on-surface font-body-md min-h-screen flex antialiased">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block">
-        <AdminSidebar />
-      </div>
+  // Server Component authentication & authorization check:
+  // Immediately redirects unauthenticated users to /login?callbackUrl=...
+  // and non-admin users to /unauthorized before ANY page HTML or data is rendered.
+  await requireAdmin(currentPath);
 
-      {/* Mobile Drawer Sidebar */}
-      {isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsMobileSidebarOpen(false)}
-          />
-          <div className="relative w-[280px] h-full">
-            <AdminSidebar onClose={() => setIsMobileSidebarOpen(false)} />
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Shell */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        <AdminHeader onMenuToggle={() => setIsMobileSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-12 max-w-container-max mx-auto w-full">
-          {children}
-        </main>
-      </div>
-
-      {/* Bottom Mobile Bar */}
-      <MobileNav />
-    </div>
-  );
+  return <AdminLayoutClient>{children}</AdminLayoutClient>;
 }

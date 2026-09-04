@@ -1,5 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 import { UserRole, PlatformType, DEFAULT_ROLE_PERMISSIONS } from './permissions';
@@ -432,3 +434,112 @@ export async function resolveAdminOrganization(user: AuthSessionUser): Promise<a
   }
   return prisma.organization.findFirst();
 }
+
+// ---------------------------------------------------------------------------
+// CENTRALIZED ADMIN AUTHORIZATION HELPERS
+// ---------------------------------------------------------------------------
+
+export class AuthError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number = 401) {
+    super(message);
+    this.name = 'AuthError';
+    this.statusCode = statusCode;
+  }
+}
+
+export function isAdminRole(role?: string): boolean {
+  if (!role) return false;
+  return (
+    role === 'SUPER_ADMIN' ||
+    role === 'ADMIN' ||
+    role === 'LMS_ADMIN' ||
+    role === 'SALES_ADMIN'
+  );
+}
+
+/**
+ * Server Component Guard for /admin/* and other administrative layouts/pages.
+ * Must be used in Server Component layouts and pages.
+ * Rejects unauthenticated users (redirects to /login?callbackUrl=...).
+ * Rejects non-admin users (e.g. STUDENT, regular INSTRUCTOR).
+ */
+export async function requireAdmin(callbackUrl?: string): Promise<AuthSessionUser> {
+  const user = await getCurrentUser();
+  if (!user) {
+    const target = callbackUrl
+      ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+      : '/login';
+    redirect(target);
+  }
+
+  if (!isAdminRole(user.role)) {
+    redirect(
+      '/unauthorized?msg=' +
+        encodeURIComponent('Access denied: Administrator privileges required.')
+    );
+  }
+
+  return user;
+}
+
+/**
+ * API Route Guard for sensitive admin endpoints.
+ * Throws typed AuthError with semantic status code (401 or 403).
+ */
+export async function requireAdminApi(req?: Request): Promise<AuthSessionUser> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AuthError(
+      'Authentication required. Please log into an administrator account.',
+      401
+    );
+  }
+
+  if (!isAdminRole(user.role)) {
+    throw new AuthError(
+      'Access denied: Insufficient administrative privileges.',
+      403
+    );
+  }
+
+  return user;
+}
+
+/**
+ * Handles error responses in API routes returning proper HTTP 401 / 403 / 500 JSON.
+ */
+export function handleAuthError(err: any): NextResponse {
+  if (err instanceof AuthError) {
+    return NextResponse.json({ error: err.message }, { status: err.statusCode });
+  }
+  const msg = String(err?.message || '');
+  if (
+    msg === 'UNAUTHORIZED' ||
+    msg.includes('UNAUTHORIZED') ||
+    msg.toLowerCase().includes('authentication required')
+  ) {
+    return NextResponse.json(
+      { error: 'Authentication required. Please log in.' },
+      { status: 401 }
+    );
+  }
+  if (
+    msg === 'FORBIDDEN' ||
+    msg.includes('FORBIDDEN') ||
+    msg.includes('INSUFFICIENT_PERMISSIONS') ||
+    msg.includes('SUPER_ADMIN_REQUIRED') ||
+    msg.toLowerCase().includes('access denied') ||
+    msg.toLowerCase().includes('insufficient')
+  ) {
+    return NextResponse.json(
+      { error: 'Access denied: Insufficient administrative privileges.' },
+      { status: 403 }
+    );
+  }
+  return NextResponse.json(
+    { error: err?.message || 'An unexpected error occurred.' },
+    { status: 500 }
+  );
+}
+

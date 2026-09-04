@@ -9,7 +9,7 @@ import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/lib/permissions';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, password } = body;
+    const { email, password, callbackUrl } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -154,10 +154,19 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Determine Redirect
-    const redirectUrl =
+    let redirectUrl =
       !user.organizationId || !user.organization?.onboardingCompleted
         ? '/sales/onboarding'
         : '/sales/dashboard';
+
+    if (
+      callbackUrl &&
+      typeof callbackUrl === 'string' &&
+      callbackUrl.startsWith('/') &&
+      !callbackUrl.startsWith('//')
+    ) {
+      redirectUrl = callbackUrl;
+    }
 
     // 6. Build Permissions
     let parsedPermissions: string[] = [];

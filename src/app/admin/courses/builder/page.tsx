@@ -95,6 +95,13 @@ function CourseBuilderContent() {
     ]
   });
 
+  // Client-side role safeguard
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'STUDENT') {
+      router.replace('/unauthorized?msg=' + encodeURIComponent('Students cannot access the course builder.'));
+    }
+  }, [currentUser, router]);
+
   // Load existing course if editing
   useEffect(() => {
     if (editSlugOrId) {

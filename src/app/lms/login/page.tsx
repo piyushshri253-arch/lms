@@ -22,10 +22,14 @@ function LmsLoginContent() {
   useEffect(() => {
     const msg = searchParams.get('msg');
     const unauthorized = searchParams.get('unauthorized');
+    const callback = searchParams.get('callbackUrl');
     if (msg) {
       setUnauthNotice(msg);
     } else if (unauthorized === 'sales_user') {
       setUnauthNotice('You are currently logged into a Sales account. Accessing the LMS requires logging into or creating a separate LMS account.');
+    }
+    if (callback && callback.startsWith('/admin')) {
+      setRoleType('ADMIN');
     }
   }, [searchParams]);
 
@@ -35,13 +39,15 @@ function LmsLoginContent() {
     setUnauthNotice(null);
 
     try {
+      const callbackUrl = searchParams.get('callbackUrl');
       const res = await fetch('/api/lms/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           password,
-          requestedPortal: roleType === 'ADMIN' ? 'ADMIN' : 'STUDENT'
+          requestedPortal: roleType === 'ADMIN' ? 'ADMIN' : 'STUDENT',
+          callbackUrl: callbackUrl || undefined
         })
       });
 

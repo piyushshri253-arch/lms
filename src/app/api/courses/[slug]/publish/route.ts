@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireRole } from '@/lib/auth';
+import { requireRole, validateTenantOwnership, handleAuthError } from '@/lib/auth';
 
 export async function POST(
   request: Request,
@@ -32,6 +32,14 @@ export async function POST(
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
+    // Tenant Isolation Check
+    if (!validateTenantOwnership(course.organizationId, user)) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not have permission to publish courses outside your organization.' },
+        { status: 403 }
+      );
     }
 
     if (user.role === 'INSTRUCTOR' && course.instructorId !== user.id) {
@@ -153,9 +161,6 @@ export async function POST(
       message: 'Course published successfully and is now live on AADHYARA!'
     });
   } catch (err: any) {
-    const isAuth = err.message?.includes('Authentication');
-    const isForbidden = err.message?.includes('forbidden') || err.message?.includes('Insufficient') || err.message?.includes('permissions');
-    const status = isAuth ? 401 : isForbidden ? 403 : 400;
-    return NextResponse.json({ error: err.message || 'Publishing failed' }, { status });
+    return handleAuthError(err);
   }
 }

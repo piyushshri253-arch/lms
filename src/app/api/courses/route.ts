@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantRole, getCurrentUser, enforceTenantPlanLimits } from '@/lib/auth';
+import { requireTenantRole, getCurrentUser, enforceTenantPlanLimits, handleAuthError } from '@/lib/auth';
 import { z } from 'zod';
 
 export async function GET(request: Request) {
@@ -355,9 +355,6 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (err: any) {
-    const isAuth = err.message?.includes('Authentication');
-    const isForbidden = err.message?.includes('forbidden') || err.message?.includes('Insufficient') || err.message?.includes('permissions');
-    const status = isAuth ? 401 : isForbidden ? 403 : 400;
-    return NextResponse.json({ error: err.message || 'Course creation failed' }, { status });
+    return handleAuthError(err);
   }
 }
