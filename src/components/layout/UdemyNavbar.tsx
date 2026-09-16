@@ -232,6 +232,16 @@ export const UdemyNavbar: React.FC = () => {
             Teach on TEACH
           </Link>
 
+          {/* My learning Link for Logged In Students */}
+          {currentUser && currentUser.role === 'STUDENT' && (
+            <Link
+              href="/student/learning"
+              className="hidden md:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
+            >
+              My learning
+            </Link>
+          )}
+
           {/* Wishlist Icon */}
           <Link
             href="/student/wishlist"
@@ -570,14 +580,22 @@ export const UdemyNavbar: React.FC = () => {
 
                   {/* Staff shortcuts if ADMIN or SUPER_ADMIN */}
                   {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
-                    <div className="p-2 bg-purple-50 border-t border-purple-100">
+                    <div className="p-3 bg-purple-50/80 border-t border-purple-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#5022c3]">
+                          {currentUser.role === 'SUPER_ADMIN' ? 'Super Admin Mode' : 'Admin Mode'}
+                        </span>
+                        <span className="bg-purple-200/60 text-[#5022c3] text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          Staff
+                        </span>
+                      </div>
                       <Link
-                        href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin/courses' : '/admin/courses/builder'}
+                        href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-[#5022c3] hover:bg-purple-100 rounded transition-colors"
+                        className="flex items-center justify-center gap-1.5 w-full h-8 bg-[#5022c3] hover:bg-[#401b9c] text-white text-xs font-bold rounded transition-colors"
                       >
-                        <Icon name="admin_panel_settings" size={16} />
-                        <span>Admin Course Studio</span>
+                        <Icon name="admin_panel_settings" size={15} />
+                        <span>Go to Admin Portal</span>
                       </Link>
                     </div>
                   )}

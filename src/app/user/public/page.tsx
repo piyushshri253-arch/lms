@@ -8,11 +8,11 @@ import { useApp } from '@/context/AppContext';
 export default function UserPublicProfilePage() {
   const { currentUser } = useApp();
 
-  const fullName = currentUser?.name || 'Piyush Srivastava';
-  const headline = 'Educator & Early Childhood Curriculum Specialist';
+  const fullName = currentUser?.name || 'Student Learner';
+  const headline = 'Enthusiastic Learner & Professional Student';
   const bio =
     currentUser?.bio ||
-    'Dedicated to advancing progressive pedagogical approaches and early literacy development. Lifelong learner exploring modern web, AI, and classroom education.';
+    'Dedicated to continuous growth, mastering new skills, and advancing through interactive learning on Morena Teach.';
 
   const initials = fullName
     .split(' ')

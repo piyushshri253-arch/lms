@@ -18,7 +18,7 @@ function CheckoutContent() {
 
   // Card Form State
   const [cardNumber, setCardNumber] = useState('4532 8921 7734 9012');
-  const [cardName, setCardName] = useState(currentUser?.name || 'Piyush Sharma');
+  const [cardName, setCardName] = useState(currentUser?.name || '');
   const [cardExpiry, setCardExpiry] = useState('08/29');
   const [cardCvv, setCardCvv] = useState('883');
 
@@ -46,7 +46,7 @@ function CheckoutContent() {
 
   // Ensure card name syncs with user
   useEffect(() => {
-    if (currentUser?.name && cardName === 'Piyush Sharma') {
+    if (currentUser?.name && !cardName) {
       setCardName(currentUser.name);
     }
   }, [currentUser]);
@@ -383,7 +383,7 @@ function CheckoutContent() {
                       type="text"
                       value={cardName}
                       onChange={(e) => setCardName(e.target.value)}
-                      placeholder="e.g. Piyush Sharma"
+                      placeholder="e.g. Full Name on Card"
                       className="w-full px-3.5 py-2.5 border border-[#d1d7dc] rounded-md text-sm text-[#1c1d1f] focus:outline-none focus:border-[#5624d0] transition-colors"
                     />
                   </div>

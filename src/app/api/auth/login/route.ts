@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, setSessionCookie, AuthSessionUser } from '@/lib/auth';
+import { verifyPassword, setSessionCookie, clearSessionCookie, AuthSessionUser } from '@/lib/auth';
 import { checkRateLimit, logSecurityEvent, generateOtp } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
@@ -104,8 +104,9 @@ export async function POST(req: NextRequest) {
 
     // 5. Enforce Strict Portal Intent Boundaries:
     // Landing page /login is strictly reserved for Students only.
-    if (requestedPortal === 'STUDENT' && user.role !== 'STUDENT') {
-      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+    const effectivePortal = (requestedPortal || 'STUDENT').toUpperCase();
+    if (effectivePortal === 'STUDENT' && user.role !== 'STUDENT') {
+      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'LMS_ADMIN') {
         return NextResponse.json(
           {
             error:
@@ -235,10 +236,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 7. Determine Centralized Redirect URL based on Product Portal & Role
-    let redirectUrl = '/learning/dashboard';
+    let redirectUrl = '/student/learning';
 
-    if (productPortal === 'LEARNING') {
-      redirectUrl = '/learning/dashboard';
+    if (user.role === 'STUDENT') {
+      redirectUrl = '/student/learning';
     } else if (productPortal === 'SALES') {
       if (!user.organizationId || !user.organization?.onboardingCompleted) {
         redirectUrl = '/sales/onboarding';
@@ -249,16 +250,12 @@ export async function POST(req: NextRequest) {
       // General fallback based on database role
       if (user.role === 'SUPER_ADMIN') {
         redirectUrl = '/super-admin';
-      } else if (user.role === 'ADMIN') {
-        if (!user.organizationId || !user.organization?.onboardingCompleted) {
-          redirectUrl = '/sales/onboarding';
-        } else {
-          redirectUrl = '/sales/dashboard';
-        }
+      } else if (user.role === 'ADMIN' || user.role === 'LMS_ADMIN') {
+        redirectUrl = '/admin';
       } else if (user.role === 'INSTRUCTOR') {
         redirectUrl = '/instructor';
       } else {
-        redirectUrl = '/learning/dashboard';
+        redirectUrl = '/student/learning';
       }
     }
 
@@ -293,6 +290,8 @@ export async function POST(req: NextRequest) {
       sessionVersion: user.sessionVersion
     };
 
+    // Purge any preexisting session from other portals before setting new session
+    await clearSessionCookie();
     await setSessionCookie(sessionUser);
 
     // 9. Record Audit Log & Security Events

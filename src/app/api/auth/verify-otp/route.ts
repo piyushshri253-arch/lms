@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashToken, logSecurityEvent } from '@/lib/security';
-import { setSessionCookie, AuthSessionUser } from '@/lib/auth';
+import { setSessionCookie, clearSessionCookie, AuthSessionUser } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
 import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/lib/permissions';
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
         title: 'Welcome to MORENA TEACH!',
         message: 'Your email address has been verified. Welcome aboard!',
         type: 'ACCOUNT',
-        link: user.role === 'ADMIN' ? '/sales/dashboard' : user.role === 'INSTRUCTOR' ? '/instructor' : '/learning/dashboard'
+        link: user.role === 'ADMIN' ? '/sales/dashboard' : user.role === 'INSTRUCTOR' ? '/instructor' : '/student/learning'
       }
     }).catch(() => {});
 
@@ -181,8 +181,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 7. Determine correct redirect URL
-    let redirectUrl = '/learning/dashboard';
+    // 7. Determine correct redirect URL - Students ALWAYS redirect to /student/learning
+    let redirectUrl = '/student/learning';
     if (updatedUser.role === 'SUPER_ADMIN') {
       redirectUrl = '/super-admin';
     } else if (updatedUser.role === 'ADMIN' || updatedUser.role === 'SALES_ADMIN') {
@@ -190,12 +190,14 @@ export async function POST(req: NextRequest) {
     } else if (updatedUser.role === 'INSTRUCTOR') {
       redirectUrl = '/instructor';
     } else if (updatedUser.role === 'STUDENT') {
-      redirectUrl = '/learning/dashboard';
-    } else if (!updatedUser.organizationId) {
-      redirectUrl = '/sales/onboarding';
+      redirectUrl = '/student/learning';
+    } else {
+      redirectUrl = '/student/learning';
     }
 
-    // 8. Create Authenticated Session Cookie
+    // 8. Create Authenticated Session Cookie (Clean state: purge any prior admin/sales session)
+    await clearSessionCookie();
+
     const sessionPayload: AuthSessionUser = {
       id: updatedUser.id,
       name: updatedUser.name,

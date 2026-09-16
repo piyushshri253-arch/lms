@@ -77,6 +77,11 @@ export async function setSalesSessionCookie(user: AuthSessionUser) {
   const token = await createSessionToken({ ...user, platform: 'SALES' });
   try {
     const cookieStore = await cookies();
+    // Delete any active LMS and impersonation tokens to prevent session collisions
+    cookieStore.delete(LMS_COOKIE_NAME);
+    cookieStore.delete(LEGACY_COOKIE_NAME);
+    cookieStore.delete(IMPERSONATION_COOKIE);
+
     cookieStore.set(SALES_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -188,6 +193,10 @@ export async function setLmsSessionCookie(user: AuthSessionUser) {
   const token = await createSessionToken({ ...user, platform: 'LMS' });
   try {
     const cookieStore = await cookies();
+    // Actively purge any sales and impersonation tokens to prevent admin/sales session bleeding into student sessions
+    cookieStore.delete(SALES_COOKIE_NAME);
+    cookieStore.delete(IMPERSONATION_COOKIE);
+
     cookieStore.set(LMS_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -322,9 +331,10 @@ export async function clearSessionCookie() {
 }
 
 export async function getCurrentUser(): Promise<AuthSessionUser | null> {
-  const salesUser = await getSalesCurrentUser();
-  if (salesUser) return salesUser;
-  return getLmsCurrentUser();
+  // LMS (Student / Storefront / Teacher) session takes top precedence for Morena Teach
+  const lmsUser = await getLmsCurrentUser();
+  if (lmsUser) return lmsUser;
+  return getSalesCurrentUser();
 }
 
 export async function requireAuth(req?: Request): Promise<AuthSessionUser> {

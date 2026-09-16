@@ -250,7 +250,8 @@ export async function middleware(request: NextRequest) {
           return NextResponse.redirect(new URL(callback, request.url));
         }
       }
-      return NextResponse.redirect(new URL('/lms/dashboard', request.url));
+      const targetUrl = lmsSession?.role === 'STUDENT' ? '/student/learning' : '/lms/dashboard';
+      return NextResponse.redirect(new URL(targetUrl, request.url));
     }
     return createSecureResponse(
       NextResponse.next({
@@ -300,33 +301,33 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Canonicalize legacy /dashboard and /student paths to isolated /lms/* routes
+    // Canonicalize legacy /dashboard and /student paths to designated student learning routes
     if (pathname === '/dashboard/courses') {
-      return NextResponse.redirect(new URL('/lms/my-courses', request.url));
+      return NextResponse.redirect(new URL('/student/learning', request.url));
     }
     if (pathname === '/dashboard/certificates') {
-      return NextResponse.redirect(new URL('/lms/certificates', request.url));
+      return NextResponse.redirect(new URL('/student/learning?tab=certificates', request.url));
     }
     if (pathname === '/dashboard/notifications') {
-      return NextResponse.redirect(new URL('/lms/notifications', request.url));
+      return NextResponse.redirect(new URL('/student/learning?tab=notifications', request.url));
     }
     if (pathname === '/dashboard/orders') {
-      return NextResponse.redirect(new URL('/lms/orders', request.url));
+      return NextResponse.redirect(new URL('/student/orders', request.url));
     }
     if (pathname === '/dashboard/profile' || pathname === '/student/profile') {
-      return NextResponse.redirect(new URL('/lms/profile', request.url));
+      return NextResponse.redirect(new URL('/user/public', request.url));
     }
     if (pathname === '/dashboard/settings') {
-      return NextResponse.redirect(new URL('/lms/settings', request.url));
+      return NextResponse.redirect(new URL('/user/edit-account', request.url));
     }
     if (pathname === '/dashboard/wishlist') {
-      return NextResponse.redirect(new URL('/lms/wishlist', request.url));
+      return NextResponse.redirect(new URL('/student/wishlist', request.url));
     }
     if (pathname === '/dashboard/reviews') {
-      return NextResponse.redirect(new URL('/lms/reviews', request.url));
+      return NextResponse.redirect(new URL('/student/learning', request.url));
     }
     if (pathname === '/dashboard/explore') {
-      return NextResponse.redirect(new URL('/lms/courses', request.url));
+      return NextResponse.redirect(new URL('/courses', request.url));
     }
     if (
       pathname === '/dashboard' ||
@@ -334,7 +335,7 @@ export async function middleware(request: NextRequest) {
       pathname === '/student' ||
       pathname === '/student/dashboard'
     ) {
-      return NextResponse.redirect(new URL('/lms/dashboard', request.url));
+      return NextResponse.redirect(new URL('/student/learning', request.url));
     }
   }
 

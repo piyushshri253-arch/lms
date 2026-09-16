@@ -70,12 +70,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for existing account on LMS
+    // Check for existing account
     const existingUser = await prisma.user.findFirst({
-      where: { email: normalizedEmail, platform: 'LMS' }
+      where: { email: normalizedEmail }
     });
 
     if (existingUser) {
+      if (existingUser.role !== 'STUDENT') {
+        return NextResponse.json(
+          {
+            error:
+              'An administrative or instructor account already exists with this email address. Please sign in through the designated Admin Portal at /admin/login.'
+          },
+          { status: 400 }
+        );
+      }
+
       if (!existingUser.emailVerified) {
         // If user already registered but unverified, generate a fresh OTP and allow them to verify!
         const { otp, hash: otpHash } = generateOtp(6);

@@ -37,15 +37,28 @@ export function UdemyUserSettings({ initialTab = 'account-security' }: UdemyUser
   }, [queryTab]);
 
   // Profile fields
-  const [fullName, setFullName] = useState(currentUser?.name || 'Piyush Srivastava');
-  const [headline, setHeadline] = useState('Educator & Early Childhood Curriculum Specialist');
-  const [bio, setBio] = useState('Dedicated to advancing progressive pedagogical approaches and early literacy development.');
+  const [fullName, setFullName] = useState(currentUser?.name || 'Student Learner');
+  const [headline, setHeadline] = useState('Enthusiastic Learner & Professional Student');
+  const [bio, setBio] = useState('Dedicated to continuous growth, mastering new skills, and advancing through interactive learning on Morena Teach.');
   const [language, setLanguage] = useState('English (US)');
-  const [website, setWebsite] = useState('https://teachhub.org');
+  const [website, setWebsite] = useState('');
   const [twitter, setTwitter] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [youtube, setYoutube] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.name) {
+      setFullName(currentUser.name);
+    }
+    if (currentUser?.avatar) {
+      setAvatarUrl(currentUser.avatar);
+    }
+    if (currentUser?.phone) {
+      setPhone(currentUser.phone);
+      setPhoneInput(currentUser.phone);
+    }
+  }, [currentUser]);
 
   // Photo
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || '');
@@ -539,7 +552,7 @@ export function UdemyUserSettings({ initialTab = 'account-security' }: UdemyUser
                     <p className="text-sm text-[#2d2f31] mt-1">
                       Your email address is{' '}
                       <span className="font-semibold text-[#1c1d1f]">
-                        {currentUser?.email || 'piyushshri253@gmail.com'}
+                        {currentUser?.email || 'student@example.com'}
                       </span>
                     </p>
                   </div>
@@ -1369,7 +1382,7 @@ export function UdemyUserSettings({ initialTab = 'account-security' }: UdemyUser
               <p className="text-xs text-[#6a6f73] leading-relaxed">
                 A 6-digit verification code has been dispatched to{' '}
                 <strong className="text-[#1c1d1f]">
-                  {currentUser?.email || 'piyushshri253@gmail.com'}
+                  {currentUser?.email || 'your registered email'}
                 </strong>
                 . Enter the code below to finalize multi-factor authentication.
               </p>
@@ -1510,7 +1523,7 @@ export function UdemyUserSettings({ initialTab = 'account-security' }: UdemyUser
                       required
                       value={cardName}
                       onChange={(e) => setCardName(e.target.value)}
-                      placeholder="Piyush Srivastava"
+                      placeholder="e.g. Full Name on Card"
                       className="w-full h-10 px-3 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
                     />
                   </div>
