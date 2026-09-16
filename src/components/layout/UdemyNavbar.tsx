@@ -89,7 +89,7 @@ export const UdemyNavbar: React.FC = () => {
     <header className="sticky top-0 z-50 bg-white border-b border-[#d1d7dc]">
       {/* 1. Top Announcement Bar (Udemy Style) */}
       {showPromoBanner && (
-        <div className="bg-[#5022c3] text-white text-xs sm:text-sm py-2 px-4 font-semibold flex items-center justify-between">
+        <div className="bg-[#4e8d98] text-white text-xs sm:text-sm py-2 px-4 font-semibold flex items-center justify-between">
           <div className="flex-1 text-center flex items-center justify-center gap-2">
             <span>
               <strong>Teacher Excellence Month</strong> | Upskill your classroom with certified educator courses up to 80% off.
