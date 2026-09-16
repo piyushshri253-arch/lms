@@ -132,8 +132,8 @@ export async function POST(req: NextRequest) {
         phone: phone?.trim() || null,
         avatar: avatar || null,
         role: 'STUDENT',
-        status: 'ACTIVE',
-        emailVerified: true,
+        status: 'PENDING_VERIFICATION',
+        emailVerified: false,
         sessionVersion: 1
       }
     });

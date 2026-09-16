@@ -155,29 +155,22 @@ export async function POST(req: NextRequest) {
 
     // 6. Check Email Verification Status
     if (!user.emailVerified) {
-      if (user.role === 'STUDENT') {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { emailVerified: true, status: 'ACTIVE' }
-        });
-        user.emailVerified = true;
-      } else {
-        const { otp, hash: otpHash } = generateOtp(6);
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const { otp, hash: otpHash } = generateOtp(6);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-        await prisma.emailVerificationToken.updateMany({
-          where: { userId: user.id, usedAt: null },
-          data: { usedAt: new Date() }
-        });
+      await prisma.emailVerificationToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() }
+      });
 
-        await prisma.emailVerificationToken.create({
-          data: {
-            userId: user.id,
-            email: normalizedEmail,
-            otpHash,
-            expiresAt
-          }
-        });
+      await prisma.emailVerificationToken.create({
+        data: {
+          userId: user.id,
+          email: normalizedEmail,
+          otpHash,
+          expiresAt
+        }
+      });
 
         await sendEmail({
           to: normalizedEmail,
@@ -206,7 +199,6 @@ export async function POST(req: NextRequest) {
           },
           { status: 403 }
         );
-      }
     }
 
     // 6. Role & Portal Validation (if portal specified)

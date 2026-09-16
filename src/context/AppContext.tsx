@@ -209,7 +209,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Authentication failed');
+      const err: any = new Error(data.error || 'Authentication failed');
+      err.requiresEmailVerification = data.requiresEmailVerification;
+      err.email = data.email;
+      throw err;
     }
 
     setCurrentUser(data.user);

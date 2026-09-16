@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { calculateOrderPricing, grantOrderEntitlements, recordAffiliateConversion, createGiftCourse } from '@/lib/commerce';
+import { dispatchOrderPurchasedNotifications } from '@/lib/order-notifications';
 
 export async function POST(request: Request) {
   try {
@@ -205,6 +206,9 @@ export async function POST(request: Request) {
         description: `Student "${user.name}" completed zero-cost enrollment for order ${order.orderNumber}.`,
         req: request
       });
+
+      // Send Multi-Party Notifications: Student (Receipt + Access), Instructor (New Student Alert), Admin (Order Alert)
+      await dispatchOrderPurchasedNotifications(order.id);
 
       return NextResponse.json({
         success: true,

@@ -7,6 +7,7 @@ import { issueSoftwareLicense } from '@/lib/license';
 import { bookService } from '@/lib/services';
 import { creditSellerWallet } from '@/lib/wallet';
 import { sendEmail } from '@/lib/email';
+import { dispatchOrderPurchasedNotifications } from '@/lib/order-notifications';
 
 export async function POST(request: Request) {
   try {
@@ -186,33 +187,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send In-App Notification
-    await prisma.notification.create({
-      data: {
-        organizationId: order.organizationId,
-        userId: user.id,
-        title: '🎉 Payment Successful!',
-        message: `Order #${order.orderNumber} for ₹${order.total} has been confirmed. Access granted.`,
-        type: 'PAYMENT',
-        link: '/student/dashboard'
-      }
-    });
-
-    // Send Tenant-Scoped Order & Enrollment Confirmation Email
-    await sendEmail({
-      to: user.email,
-      subject: `Order Confirmed: #${order.orderNumber} — Course Access Granted`,
-      template: 'ENROLLMENT',
-      userId: user.id,
-      organizationId: order.organizationId,
-      data: {
-        name: user.name,
-        courseTitle: order.course?.title || order.items[0]?.productTitle || 'Course Masterclass',
-        orderNumber: order.orderNumber,
-        total: order.total,
-        currency: order.currency
-      }
-    }).catch((err) => console.error('[Enrollment Email Error]:', err));
+    // Send Multi-Party Notifications: Student (Receipt + Course Access), Instructor (New Student Alert), Admin (Order Alert)
+    await dispatchOrderPurchasedNotifications(order.id);
 
     await createAuditLog({
       organizationId: order.organizationId,

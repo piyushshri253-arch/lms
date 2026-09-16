@@ -71,6 +71,19 @@ function LoginContent() {
         router.push('/student/learning');
       }
     } catch (err: any) {
+      if (err.requiresEmailVerification) {
+        showToast({
+          title: 'Email Verification Required 📩',
+          description: 'A 6-digit code has been sent to your inbox. Please verify to continue.',
+          type: 'info'
+        });
+        router.push(
+          `/register?verifyEmail=${encodeURIComponent(email.trim().toLowerCase())}${
+            callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''
+          }`
+        );
+        return;
+      }
       showToast({
         title: 'Sign In Failed',
         description: err.message || 'Incorrect email or password.',

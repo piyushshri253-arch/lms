@@ -19,6 +19,8 @@ export type EmailTemplateType =
   | 'ANNOUNCEMENT'
   | 'OFFER'
   | 'TEST_EMAIL'
+  | 'INSTRUCTOR_ENROLLMENT_ALERT'
+  | 'ADMIN_ORDER_ALERT'
   | 'NOTIFICATION';
 
 export interface SmtpConfigData {
@@ -60,9 +62,9 @@ export function renderEmailHtml(
   data: Record<string, any> = {},
   branding?: { name?: string; logo?: string; primaryColor?: string }
 ): string {
-  const brandPrimary = branding?.primaryColor || '#4f46e5';
-  const brandDark = '#070913';
-  const platformName = branding?.name || 'AADHYARA';
+  const brandPrimary = branding?.primaryColor || '#5624d0';
+  const brandDark = '#1c1d1f';
+  const platformName = branding?.name || 'Morena Teach';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   let bodyContent = '';
@@ -144,18 +146,157 @@ export function renderEmailHtml(
       `;
       break;
 
+    case 'WELCOME':
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🚀
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">Welcome to ${platformName}!</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'Learner'}</strong>, your student account has been successfully verified and activated.
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          You can now explore thousands of expert-led courses, learn at your own pace with lifetime access, and earn verified certificates of completion.
+        </p>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${data.exploreUrl || baseUrl + '/courses'}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.2);">
+            Explore Top Courses →
+          </a>
+        </div>
+      `;
+      break;
+
+    case 'PAYMENT_SUCCESS':
     case 'ENROLLMENT':
       bodyContent = `
-        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px;">Enrollment Confirmed! 🎓</h2>
-        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-          Hi <strong>${data.name || 'Student'}</strong>, you are now successfully enrolled in:
-        </p>
-        <div style="background: #f1f5f9; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 14px; font-weight: bold; color: #1e293b;">
-          ${data.courseTitle || 'New Course'}
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🎉
+          </div>
         </div>
-        <div style="margin: 25px 0; text-align: center;">
-          <a href="${data.courseUrl || baseUrl + '/lms/my-courses'}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: bold; font-size: 14px;">
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">Payment Successful &amp; Enrollment Confirmed!</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+          Hi <strong>${data.name || 'Student'}</strong>, thank you for investing in your skills. Your course access is activated!
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; font-size: 13px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Order Number:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-family: monospace; font-weight: bold;">${data.orderNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Course:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-weight: bold;">${data.courseTitle || 'Masterclass Course'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Amount Paid:</strong></td>
+              <td style="padding: 6px 0; color: #059669; text-align: right; font-size: 16px; font-weight: 900;">₹${Number(data.total || 0).toLocaleString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Payment Mode:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right;">${data.provider || 'Trial Sandbox / Card / UPI'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Access Validity:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right;">Full Lifetime Access</td>
+            </tr>
+          </table>
+        </div>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${data.courseUrl || baseUrl + '/student/learning'}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.25);">
             Start Learning Now →
+          </a>
+        </div>
+      `;
+      break;
+
+    case 'INSTRUCTOR_ENROLLMENT_ALERT':
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 30px;">
+            👨‍🏫
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">New Student Enrolled in Your Course!</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+          Hi <strong>${data.instructorName || 'Instructor'}</strong>, congratulations! A new student just enrolled in your course.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; font-size: 13px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Course:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-weight: bold;">${data.courseTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Student Name:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-weight: bold;">${data.studentName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Student Email:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right;">${data.studentEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Order Number:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-family: monospace;">${data.orderNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Price:</strong></td>
+              <td style="padding: 6px 0; color: #059669; text-align: right; font-weight: bold;">₹${Number(data.total || 0).toLocaleString('en-IN')}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${data.dashboardUrl || baseUrl + '/instructor'}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px;">
+            View Instructor Studio →
+          </a>
+        </div>
+      `;
+      break;
+
+    case 'ADMIN_ORDER_ALERT':
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 30px;">
+            🛒
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">New Course Order #${data.orderNumber}</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+          A student has just purchased a course on ${platformName}.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; font-size: 13px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Order Number:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-family: monospace; font-weight: bold;">${data.orderNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Course:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-weight: bold;">${data.courseTitle}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Student:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right;">${data.studentName} (${data.studentEmail})</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Instructor:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right;">${data.instructorName || 'Platform Faculty'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Total Revenue:</strong></td>
+              <td style="padding: 6px 0; color: #059669; text-align: right; font-size: 16px; font-weight: 900;">₹${Number(data.total || 0).toLocaleString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Payment Mode:</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right;">${data.provider || 'Trial Sandbox / UPI / Card'}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${data.adminUrl || baseUrl + '/admin'}" style="display: inline-block; background: #1c1d1f; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px;">
+            Open Admin Cockpit →
           </a>
         </div>
       `;
@@ -294,15 +435,16 @@ export class EmailService {
 
     // 3. Check Environment Variables
     if (process.env.SMTP_HOST && process.env.SMTP_USER && (process.env.SMTP_PASSWORD || process.env.SMTP_PASS)) {
+      const rawPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '';
       return {
         config: {
           smtpHost: process.env.SMTP_HOST,
           smtpPort: Number(process.env.SMTP_PORT) || 587,
           smtpEncryption: process.env.SMTP_PORT === '465' ? 'SSL' : 'TLS',
           smtpUsername: process.env.SMTP_USER,
-          smtpPassword: process.env.SMTP_PASSWORD || process.env.SMTP_PASS,
-          fromName: process.env.EMAIL_FROM_NAME || 'AADHYARA',
-          fromEmail: process.env.EMAIL_FROM || 'noreply@aadhyara.com'
+          smtpPassword: rawPass.replace(/\s+/g, ''),
+          fromName: process.env.EMAIL_FROM_NAME || 'Morena Teach',
+          fromEmail: process.env.EMAIL_FROM || process.env.SMTP_USER || 'morena@morenateach.com'
         },
         providerType: 'ENV_SMTP',
         isFallback: true
@@ -313,12 +455,12 @@ export class EmailService {
       return {
         config: {
           smtpHost: 'smtp.gmail.com',
-          smtpPort: 465,
-          smtpEncryption: 'SSL',
+          smtpPort: 587,
+          smtpEncryption: 'TLS',
           smtpUsername: process.env.GMAIL_USER,
-          smtpPassword: process.env.GMAIL_APP_PASSWORD,
-          fromName: process.env.EMAIL_FROM_NAME || 'AADHYARA',
-          fromEmail: process.env.GMAIL_USER
+          smtpPassword: process.env.GMAIL_APP_PASSWORD.replace(/\s+/g, ''),
+          fromName: process.env.EMAIL_FROM_NAME || 'Morena Teach',
+          fromEmail: process.env.EMAIL_FROM || process.env.GMAIL_USER
         },
         providerType: 'GMAIL',
         isFallback: true
@@ -502,27 +644,26 @@ export class EmailService {
           host: config.smtpHost,
           port: config.smtpPort,
           secure: isSsl,
-          connectionTimeout: 10000,
+          requireTLS: !isSsl,
+          connectionTimeout: 15000,
           tls: { rejectUnauthorized: false }
         };
 
         if (config.authEnabled !== false && config.smtpUsername && config.smtpPassword) {
           transportOpts.auth = {
             user: config.smtpUsername,
-            pass: config.smtpPassword
+            pass: config.smtpPassword.replace(/\s+/g, '')
           };
         }
 
-        // Mock / Test Domain simulation (e.g. .test or placeholder domains in development)
+        // Mock / Test Domain simulation (only if explicitly simulationMode or placeholder test domains)
         const isMockHost =
           options.simulationMode ||
           config.smtpHost.includes('.test') ||
           config.smtpHost.includes('-test') ||
           config.smtpHost.includes('example.com') ||
-          config.smtpHost.includes('aadhyara-platform.com') ||
           config.smtpHost.includes('xyzgraphics.com') ||
-          process.env.EMAIL_SIMULATE === 'true' ||
-          process.env.NODE_ENV === 'test';
+          (process.env.EMAIL_SIMULATE === 'true' && !config.smtpHost.includes('gmail.com'));
 
         if (!isMockHost) {
           const transporter = nodemailer.createTransport(transportOpts);

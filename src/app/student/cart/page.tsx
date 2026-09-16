@@ -76,9 +76,9 @@ export default function StudentCartPage() {
   const handleInitiateCheckout = () => {
     if (cartItems.length === 0) return;
 
-    // If guest, show quick student auth modal
+    // If guest, route to student login with return callback
     if (!currentUser) {
-      setIsAuthModalOpen(true);
+      router.push('/login?callbackUrl=/checkout');
       return;
     }
 
