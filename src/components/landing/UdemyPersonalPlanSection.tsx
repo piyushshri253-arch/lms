@@ -18,19 +18,19 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                 Build your career with a Personal Plan subscription
               </h2>
 
-              {/* Value Proposition Subtitle */}
-              <p className="text-[#c1c4d6] text-sm sm:text-base leading-relaxed mb-8 max-w-xl">
+              {/* Value Proposition Subtitle in Pure White */}
+              <p className="text-white text-sm sm:text-base leading-relaxed mb-8 max-w-xl font-normal">
                 Subscribers save an average of ₹4,000 in their first month, stop paying per course. Join 5 lakh+ learners, starting at ₹500/month.
               </p>
 
-              {/* 4 Feature Points in 2x2 Grid */}
+              {/* 4 Feature Points in 2x2 Grid with Pure White Text */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-6 mb-9">
                 {/* Feature 1: Course Access */}
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-[#7c3aed]/25 text-[#d8b4fe] flex items-center justify-center shrink-0 border border-[#a855f7]/30 mt-0.5">
                     <Icon name="auto_awesome" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-medium text-white/95 leading-snug">
+                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
                     Get access to 28,000+ top-rated courses
                   </span>
                 </div>
@@ -40,7 +40,7 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#0284c7]/25 text-[#7dd3fc] flex items-center justify-center shrink-0 border border-[#38bdf8]/30 mt-0.5">
                     <Icon name="lightbulb" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-medium text-white/95 leading-snug">
+                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
                     Learn from 9,000+ expert instructors
                   </span>
                 </div>
@@ -50,7 +50,7 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#e11d48]/25 text-[#fda4af] flex items-center justify-center shrink-0 border border-[#fb7185]/30 mt-0.5">
                     <Icon name="terminal" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-medium text-white/95 leading-snug">
+                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
                     Dev, IT, Business, Design and 50+ more topics
                   </span>
                 </div>
@@ -60,7 +60,7 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#059669]/25 text-[#6ee7b7] flex items-center justify-center shrink-0 border border-[#34d399]/30 mt-0.5">
                     <Icon name="emoji_events" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-medium text-white/95 leading-snug">
+                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
                     Certification prep for AWS, Microsoft, PMI, and more
                   </span>
                 </div>

@@ -2,9 +2,8 @@ import React from 'react';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyHeroBillboard } from '@/components/landing/UdemyHeroBillboard';
 import { UdemyCourseSelection } from '@/components/landing/UdemyCourseSelection';
-import { UdemyPlansComparison } from '@/components/landing/UdemyPlansComparison';
-import { UdemyLearnersViewing } from '@/components/landing/UdemyLearnersViewing';
 import { UdemyPersonalPlanSection } from '@/components/landing/UdemyPersonalPlanSection';
+import { UdemyLearnersViewing } from '@/components/landing/UdemyLearnersViewing';
 import { UdemyTopCategories } from '@/components/landing/UdemyTopCategories';
 import { UdemyFeaturedTopics } from '@/components/landing/UdemyFeaturedTopics';
 import { UdemyWhyUs } from '@/components/landing/UdemyWhyUs';
@@ -37,16 +36,13 @@ export default async function HomePage() {
           initialCategories={categories}
         />
 
-        {/* 03. "Accelerate growth — for you or your organization" 3-Plan Comparison */}
-        <UdemyPlansComparison />
+        {/* 03. "Build your career with a Personal Plan subscription" Feature Billboard */}
+        <UdemyPersonalPlanSection />
 
         {/* 04. "Learners are viewing" Trending Course Showcase */}
         <UdemyLearnersViewing courses={courses} />
 
-        {/* 05. "Build your career with a Personal Plan subscription" Feature Billboard */}
-        <UdemyPersonalPlanSection />
-
-        {/* 06. Top Categories 8-Card Grid */}
+        {/* 05. Top Categories 8-Card Grid */}
         <UdemyTopCategories />
 
         {/* 07. "Featured topics by category" 4-Column Directory */}
