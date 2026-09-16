@@ -112,7 +112,9 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({ course, cardIn
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-[#6a6f73] p-4 text-center">
               <Icon name="school" size={32} />
-              <span className="text-[11px] mt-1 font-medium">{course.category}</span>
+              <span className="text-[11px] mt-1 font-medium">
+                {typeof (course.category as any) === 'object' && (course.category as any) !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
+              </span>
             </div>
           )}
 

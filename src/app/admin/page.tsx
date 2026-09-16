@@ -466,7 +466,7 @@ export default function AdminDashboardPage() {
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-on-surface truncate">{course.title}</p>
                         <p className="text-[11px] text-outline font-mono mt-0.5">
-                          {course.category} • <span className={course.status === 'PUBLISHED' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{course.status}</span>
+                          {typeof course.category === 'object' && course.category !== null ? (course.category.name || 'General') : (course.category || 'General')} • <span className={course.status === 'PUBLISHED' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{course.status}</span>
                         </p>
                       </div>
                       <div className="text-right shrink-0">

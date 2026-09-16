@@ -163,7 +163,26 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ course }, { status: 201 });
+    const mappedCourse = {
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      price: course.price,
+      level: course.level,
+      category: course.category?.name || 'General',
+      instructor: course.instructor?.name || 'Academic Faculty',
+      instructorAvatar: course.instructor?.avatar,
+      isPublished: course.status === 'PUBLISHED',
+      status: course.status,
+      studentsCount: 0,
+      reviewsCount: 0,
+      modulesCount: 0,
+      rating: 5.0,
+      createdAt: course.createdAt
+    };
+
+    return NextResponse.json({ course: mappedCourse }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating admin course:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
@@ -207,7 +226,26 @@ export async function PATCH(request: Request) {
       }
     });
 
-    return NextResponse.json({ course: updated });
+    const mappedUpdated = {
+      id: updated.id,
+      title: updated.title,
+      slug: updated.slug,
+      description: updated.description,
+      price: updated.price,
+      level: updated.level,
+      category: updated.category?.name || 'General',
+      instructor: updated.instructor?.name || 'Academic Faculty',
+      instructorAvatar: updated.instructor?.avatar,
+      isPublished: updated.status === 'PUBLISHED',
+      status: updated.status,
+      studentsCount: 0,
+      reviewsCount: 0,
+      modulesCount: 0,
+      rating: 5.0,
+      createdAt: updated.createdAt
+    };
+
+    return NextResponse.json({ course: mappedUpdated });
   } catch (error: any) {
     console.error('Error updating admin course:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

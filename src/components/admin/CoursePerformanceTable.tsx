@@ -109,7 +109,7 @@ export const CoursePerformanceTable: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <span className="bg-surface-container text-on-surface-variant px-2.5 py-1 rounded-full text-xs font-medium">
-                      {row.category}
+                      {typeof row.category === 'object' && row.category !== null ? (row.category.name || 'General') : (row.category || 'General')}
                     </span>
                   </td>
                   <td className="p-4 font-mono font-bold text-on-surface">

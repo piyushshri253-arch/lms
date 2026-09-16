@@ -304,7 +304,9 @@ function StudentLearningContent() {
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
                               <Icon name="school" size={36} />
-                              <span className="text-[11px] mt-1 font-semibold">{c.category}</span>
+                              <span className="text-[11px] mt-1 font-semibold">
+                                {typeof c.category === 'object' && c.category !== null ? (c.category.name || 'General') : (c.category || 'General')}
+                              </span>
                             </div>
                           )}
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
@@ -318,7 +320,7 @@ function StudentLearningContent() {
                         <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                           <div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-[#6a6f73]">
-                              {c.category}
+                              {typeof c.category === 'object' && c.category !== null ? (c.category.name || 'General') : (c.category || 'General')}
                             </span>
                             <Link
                               href={`/learn/${c.slug || c.id}`}

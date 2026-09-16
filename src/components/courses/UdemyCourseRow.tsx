@@ -32,7 +32,9 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-[#6a6f73]">
             <Icon name="school" size={32} />
-            <span className="text-[11px] mt-1">{course.category}</span>
+            <span className="text-[11px] mt-1">
+              {typeof (course.category as any) === 'object' && (course.category as any) !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
+            </span>
           </div>
         )}
       </Link>

@@ -7,6 +7,20 @@ import { Icon } from '@/components/ui/Icon';
 import { useAdmin } from '@/context/AdminContext';
 import { useApp } from '@/context/AppContext';
 
+function getCategoryName(category: any): string {
+  if (!category) return 'General';
+  if (typeof category === 'string') return category;
+  if (typeof category === 'object' && category.name) return category.name;
+  return 'General';
+}
+
+function getInstructorName(instructor: any): string {
+  if (!instructor) return 'Academic Faculty';
+  if (typeof instructor === 'string') return instructor;
+  if (typeof instructor === 'object' && instructor.name) return instructor.name;
+  return 'Academic Faculty';
+}
+
 function CoursesPageContent() {
   const searchParams = useSearchParams();
   const { hasPermission, isSuperAdmin } = useAdmin();
@@ -47,8 +61,14 @@ function CoursesPageContent() {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        // REAL DATA ONLY: loaded directly from PostgreSQL via Prisma
-        setCourses(data.courses || []);
+        const rawCourses = data.courses || [];
+        const sanitized = rawCourses.map((c: any) => ({
+          ...c,
+          category: getCategoryName(c.category),
+          instructor: getInstructorName(c.instructor),
+          price: Number(c.price) || 0
+        }));
+        setCourses(sanitized);
       } else {
         setCourses([]);
       }
@@ -87,20 +107,34 @@ function CoursesPageContent() {
 
       if (res.ok) {
         const data = await res.json();
-        const created = data.course || {
-          id: `c-${Date.now()}`,
-          title: courseFormData.title.trim(),
-          instructor: courseFormData.instructor,
-          category: courseFormData.category,
-          level: courseFormData.level,
-          price: Number(courseFormData.price) || 0,
-          studentsCount: 0,
-          rating: 5.0,
-          reviewsCount: 0,
-          status: courseFormData.status,
-          isPublished: courseFormData.status === 'PUBLISHED',
-          createdAt: new Date().toISOString()
-        };
+        const raw = data.course;
+        const created = raw
+          ? {
+              ...raw,
+              category: getCategoryName(raw.category || courseFormData.category),
+              instructor: getInstructorName(raw.instructor || courseFormData.instructor),
+              price: Number(raw.price) || Number(courseFormData.price) || 0,
+              studentsCount: raw.studentsCount ?? 0,
+              rating: raw.rating ?? 5.0,
+              reviewsCount: raw.reviewsCount ?? 0,
+              status: raw.status || courseFormData.status,
+              isPublished: (raw.status || courseFormData.status) === 'PUBLISHED',
+              createdAt: raw.createdAt || new Date().toISOString()
+            }
+          : {
+              id: `c-${Date.now()}`,
+              title: courseFormData.title.trim(),
+              instructor: courseFormData.instructor,
+              category: courseFormData.category,
+              level: courseFormData.level,
+              price: Number(courseFormData.price) || 0,
+              studentsCount: 0,
+              rating: 5.0,
+              reviewsCount: 0,
+              status: courseFormData.status,
+              isPublished: courseFormData.status === 'PUBLISHED',
+              createdAt: new Date().toISOString()
+            };
         setCourses((prev) => [created, ...prev]);
         showToast('Course published directly to catalog & landing page!', 'success');
       } else {
@@ -364,7 +398,7 @@ function CoursesPageContent() {
                       </td>
                       <td className="p-3">
                         <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-container">
-                          {course.category} • {course.level}
+                          {getCategoryName(course.category)} • {course.level}
                         </span>
                       </td>
                       <td className="p-3">
@@ -377,15 +411,15 @@ function CoursesPageContent() {
                           className="flex items-center gap-1 text-xs font-semibold text-on-surface hover:text-primary transition-colors cursor-pointer group"
                           title="Click to change or assign faculty"
                         >
-                          <span>{course.instructor}</span>
+                          <span>{getInstructorName(course.instructor)}</span>
                           <Icon name="edit" size={13} className="text-outline group-hover:text-primary transition-colors" />
                         </button>
                       </td>
                       <td className="p-3 text-center font-mono font-bold">
-                        {course.studentsCount}
+                        {course.studentsCount ?? 0}
                       </td>
                       <td className="p-3 font-mono font-bold text-emerald-600">
-                        ₹{course.price.toLocaleString('en-IN')}
+                        ₹{(Number(course.price) || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="p-3">
                         <span
@@ -544,13 +578,13 @@ function CoursesPageContent() {
                     showToast(`Assigned ${facultyName} to course`, 'success');
                   }}
                   className={`w-full p-2.5 rounded-xl border text-xs font-bold text-left flex items-center justify-between transition-colors cursor-pointer ${
-                    selectedCourseForInstructor.instructor === facultyName
+                    getInstructorName(selectedCourseForInstructor.instructor) === facultyName
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-outline-variant hover:bg-surface-container text-on-surface'
                   }`}
                 >
                   <span>{facultyName}</span>
-                  {selectedCourseForInstructor.instructor === facultyName && (
+                  {getInstructorName(selectedCourseForInstructor.instructor) === facultyName && (
                     <Icon name="check" size={16} className="text-primary" />
                   )}
                 </button>
