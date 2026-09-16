@@ -21,52 +21,37 @@ const SLIDES: SlideData[] = [
     id: 1,
     title: 'Build in-demand skills',
     description:
-      'Get access to 26,000 courses from real-world experts with one subscription on Morena Teach.',
-    ctaText: 'Learn more',
+      'Get unlimited access to top accredited courses taught by industry leaders and master educators on Morena Teach.',
+    ctaText: 'Explore Courses',
     ctaLink: '/courses',
-    bgImage: '/images/udemy-red-hero-clean.png',
-    bgColor: '#ea2b2b',
+    bgImage: '/images/hero-red-student.jpg',
+    bgColor: '#dc2626',
     bgPosition: 'center right',
     hasGradientOverlay: false
   },
   {
     id: 2,
-    title: 'Skills for your teaching journey',
+    title: 'Learn from industry experts',
     description:
-      'Master modern classroom pedagogy, early childhood brain development, and inclusive teaching models with accredited educator courses.',
-    ctaText: 'Explore Courses',
+      'Empower your teaching career with modern pedagogy, hands-on child psychology, and international certifications.',
+    ctaText: 'Meet Instructors',
     ctaLink: '/courses',
-    bgImage:
-      'https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=1600&auto=format&fit=crop',
-    bgColor: '#1e293b',
-    bgPosition: 'center',
-    hasGradientOverlay: true
+    bgImage: '/images/hero-violet-teacher.jpg',
+    bgColor: '#4c1d95',
+    bgPosition: 'center right',
+    hasGradientOverlay: false
   },
   {
     id: 3,
-    title: 'Inspire young minds with confidence',
+    title: 'Accelerate your career',
     description:
-      'Hands-on multisensory apparatus, phonics fluency, and sensory regulation strategies to elevate every child’s potential.',
-    ctaText: 'Explore Montessori',
-    ctaLink: '/courses?category=Montessori%20%26%20Child%20Psychology',
-    bgImage:
-      'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1600&auto=format&fit=crop',
+      'Gain real-world practical skills, build verified portfolio projects, and earn recognized professional credentials.',
+    ctaText: 'Get Started Today',
+    ctaLink: '/courses',
+    bgImage: '/images/hero-teal-tech.jpg',
     bgColor: '#0f766e',
-    bgPosition: 'center',
-    hasGradientOverlay: true
-  },
-  {
-    id: 4,
-    title: 'Transform your classroom leadership',
-    description:
-      'Empower diverse learners with neurodiversity support, active learning protocols, and accredited teaching standards.',
-    ctaText: 'View Masterclasses',
-    ctaLink: '/courses?category=Pedagogy%20%26%20Teaching%20Methods',
-    bgImage:
-      'https://images.unsplash.com/photo-1580582932707-520aed937b7b?q=80&w=1600&auto=format&fit=crop',
-    bgColor: '#4c1d95',
-    bgPosition: 'center',
-    hasGradientOverlay: true
+    bgPosition: 'center right',
+    hasGradientOverlay: false
   }
 ];
 
