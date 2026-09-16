@@ -145,10 +145,21 @@ function CoursesCatalogContent() {
 
         // 2. Category Filter
         if (filters.category !== 'all') {
-          const catLower = filters.category.toLowerCase();
-          const matchCatName = (course.category || '').toLowerCase() === catLower;
-          const matchCatObj = (course as any).category?.name?.toLowerCase() === catLower;
-          if (!matchCatName && !matchCatObj) return false;
+          const catLower = filters.category.toLowerCase().trim();
+          const courseCat = (
+            typeof course.category === 'string'
+              ? course.category
+              : (course as any).category?.name || ''
+          ).toLowerCase().trim();
+
+          const matchExact = courseCat === catLower;
+          const matchSub = courseCat && (courseCat.includes(catLower) || catLower.includes(courseCat));
+          const cWords = courseCat.split(/[\s&,/_-]+/).filter((w: string) => w.length > 3);
+          const fWords = catLower.split(/[\s&,/_-]+/).filter((w: string) => w.length > 3);
+          const matchKeywords = cWords.some((w: string) => fWords.includes(w));
+          const matchId = (course as any).categoryId === filters.category;
+
+          if (!matchExact && !matchSub && !matchKeywords && !matchId) return false;
         }
 
         // 3. Rating Filter

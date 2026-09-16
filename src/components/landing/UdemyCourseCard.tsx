@@ -10,9 +10,14 @@ import { useApp } from '@/context/AppContext';
 interface UdemyCourseCardProps {
   course: Course;
   cardIndex?: number;
+  totalCards?: number;
 }
 
-export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({ course, cardIndex = 0 }) => {
+export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
+  course,
+  cardIndex = 0,
+  totalCards = 4
+}) => {
   const router = useRouter();
   const { wishlistCourseIds, toggleWishlist, addToCart, isInCart, showToast } = useApp();
   const [isHovered, setIsHovered] = useState(false);
@@ -58,7 +63,7 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({ course, cardIn
   const handleMouseEnter = () => {
     hoverTimeoutRef.current = setTimeout(() => {
       setIsHovered(true);
-    }, 300);
+    }, 250);
   };
 
   const handleMouseLeave = () => {
@@ -87,12 +92,13 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({ course, cardIn
     }
   };
 
-  // Determine popover position based on card index in grid
-  const isRightSide = cardIndex % 4 >= 2;
+  // Determine popover position based on card index in grid:
+  // If fewer than 3 total cards, prefer opening to the right. Otherwise columns 3 & 4 open to the left.
+  const isRightSide = totalCards <= 2 ? false : cardIndex % 4 >= 2;
 
   return (
     <div
-      className="relative flex flex-col h-full bg-white"
+      className={`relative flex flex-col h-full bg-white ${isHovered ? 'z-40' : 'z-10'}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -238,7 +244,7 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({ course, cardIn
       {/* 2. Udemy-Style Desktop Hover Popover */}
       {isHovered && (
         <div
-          className={`hidden xl:block absolute z-50 top-0 w-80 p-5 bg-white shadow-2xl border border-[#d1d7dc] pointer-events-auto ${
+          className={`hidden lg:block absolute z-[80] top-0 w-80 p-5 bg-white shadow-2xl border border-[#d1d7dc] pointer-events-auto rounded-[4px] ring-1 ring-black/5 animate-in fade-in duration-150 ${
             isRightSide ? 'right-full mr-3' : 'left-full ml-3'
           }`}
         >

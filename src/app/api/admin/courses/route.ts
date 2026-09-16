@@ -192,7 +192,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, title, price, level, description, facilityId } = body;
+    const { id, status, title, price, level, description, facilityId, category, categoryId, thumbnail, shortDescription, durationHours } = body;
 
     let auth = await requireAdminApiGuard('course.edit', facilityId);
     if (auth.errorResponse && status !== undefined) {
@@ -216,6 +216,35 @@ export async function PATCH(request: Request) {
     if (price !== undefined) updateData.price = Number(price);
     if (level !== undefined) updateData.level = level;
     if (description !== undefined) updateData.description = description.trim();
+    if (shortDescription !== undefined) updateData.shortDescription = shortDescription.trim();
+    if (thumbnail !== undefined) updateData.thumbnail = thumbnail.trim();
+    if (durationHours !== undefined) updateData.durationHours = Number(durationHours);
+
+    // Resolve category if provided
+    if (categoryId) {
+      updateData.categoryId = categoryId;
+    } else if (category && typeof category === 'string' && category.trim()) {
+      const catTrimmed = category.trim();
+      let matchedCat = await prisma.category.findFirst({
+        where: {
+          OR: [
+            { name: { equals: catTrimmed, mode: 'insensitive' } },
+            { name: { contains: catTrimmed, mode: 'insensitive' } },
+            { slug: { equals: catTrimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-'), mode: 'insensitive' } }
+          ]
+        }
+      });
+      if (!matchedCat) {
+        matchedCat = await prisma.category.create({
+          data: {
+            name: catTrimmed,
+            slug: `${catTrimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`,
+            organizationId: auth.sessionData?.activeFacilityId || null
+          }
+        });
+      }
+      updateData.categoryId = matchedCat.id;
+    }
 
     const updated = await prisma.course.update({
       where: { id },

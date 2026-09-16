@@ -37,7 +37,7 @@ export default async function HomePage() {
         <UdemyPersonalPlanSection />
 
         {/* 04. "Skills to transform your career and life" Interactive Tabs */}
-        <UdemySkillsTransform courses={courses} />
+        <UdemySkillsTransform courses={courses} initialCategories={categories} />
 
         {/* 05. Top Categories 8-Card Grid */}
         <UdemyTopCategories />

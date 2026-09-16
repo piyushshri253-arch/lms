@@ -56,6 +56,7 @@ export interface Course {
   subtitle?: string;
   description: string;
   category: CourseCategory | string;
+  categoryId?: string;
   level: CourseLevel | string;
   rating: number;
   reviewsCount: number;
