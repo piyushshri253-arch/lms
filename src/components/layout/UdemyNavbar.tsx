@@ -346,9 +346,19 @@ export const UdemyNavbar: React.FC = () => {
             )}
           </div>
 
-          {/* Auth State */}
-          {!currentUser ? (
+          {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
+          {(!currentUser || currentUser.role !== 'STUDENT') ? (
             <div className="flex items-center gap-2 ml-1">
+              {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+                <Link
+                  href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
+                  className="hidden xl:inline-flex items-center gap-1.5 h-10 px-3 text-xs font-bold text-[#5022c3] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-none sm:rounded-[4px] transition-colors"
+                  title="Open Admin Console"
+                >
+                  <Icon name="admin_panel_settings" size={16} />
+                  <span>Admin Console</span>
+                </Link>
+              )}
               <Link
                 href="/login"
                 className="h-10 px-4 text-sm font-bold text-[#2d2f31] border border-[#2d2f31] bg-white hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center"
@@ -577,28 +587,6 @@ export const UdemyNavbar: React.FC = () => {
                       </p>
                     </Link>
                   </div>
-
-                  {/* Staff shortcuts if ADMIN or SUPER_ADMIN */}
-                  {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
-                    <div className="p-3 bg-purple-50/80 border-t border-purple-100">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#5022c3]">
-                          {currentUser.role === 'SUPER_ADMIN' ? 'Super Admin Mode' : 'Admin Mode'}
-                        </span>
-                        <span className="bg-purple-200/60 text-[#5022c3] text-[10px] font-bold px-1.5 py-0.5 rounded">
-                          Staff
-                        </span>
-                      </div>
-                      <Link
-                        href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center justify-center gap-1.5 w-full h-8 bg-[#5022c3] hover:bg-[#401b9c] text-white text-xs font-bold rounded transition-colors"
-                      >
-                        <Icon name="admin_panel_settings" size={15} />
-                        <span>Go to Admin Portal</span>
-                      </Link>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -609,6 +597,69 @@ export const UdemyNavbar: React.FC = () => {
       {/* 3. Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
         <div className="lg:hidden border-t border-[#d1d7dc] bg-white px-4 pt-3 pb-6 space-y-4">
+          {/* Mobile Auth State */}
+          {(!currentUser || currentUser.role !== 'STUDENT') ? (
+            <div className="flex flex-col gap-2 pb-3 border-b border-gray-100">
+              <Link
+                href="/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full py-2.5 text-center text-sm font-bold text-[#2d2f31] border border-[#2d2f31] rounded-[4px] hover:bg-gray-50 transition-colors"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full py-2.5 text-center text-sm font-bold text-white bg-[#2d2f31] rounded-[4px] hover:bg-[#1c1d1f] transition-colors"
+              >
+                Sign up
+              </Link>
+            </div>
+          ) : (
+            <div className="pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-[#1c1d1f] text-white font-bold text-sm flex items-center justify-center shrink-0">
+                  {currentUser.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase() || 'ST'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#1c1d1f] truncate">{currentUser.name}</p>
+                  <p className="text-xs text-[#6a6f73] truncate">{currentUser.email}</p>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Link
+                  href="/student/learning"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block py-1.5 text-sm font-medium text-[#2d2f31] hover:text-[#5022c3]"
+                >
+                  My learning
+                </Link>
+                <Link
+                  href="/student/wishlist"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block py-1.5 text-sm font-medium text-[#2d2f31] hover:text-[#5022c3]"
+                >
+                  Wishlist
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left py-1.5 text-sm font-medium text-red-600 hover:text-red-700"
+                >
+                  Log out
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Mobile Search */}
           <form onSubmit={handleSearchSubmit} className="relative">
             <input

@@ -1,9 +1,9 @@
 import React from 'react';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyHeroBillboard } from '@/components/landing/UdemyHeroBillboard';
-import { UdemyCourseSelection } from '@/components/landing/UdemyCourseSelection';
+import { UdemyTrendingCourses } from '@/components/landing/UdemyTrendingCourses';
 import { UdemyPersonalPlanSection } from '@/components/landing/UdemyPersonalPlanSection';
-import { UdemyLearnersViewing } from '@/components/landing/UdemyLearnersViewing';
+import { UdemySkillsTransform } from '@/components/landing/UdemySkillsTransform';
 import { UdemyTopCategories } from '@/components/landing/UdemyTopCategories';
 import { UdemyFeaturedTopics } from '@/components/landing/UdemyFeaturedTopics';
 import { UdemyWhyUs } from '@/components/landing/UdemyWhyUs';
@@ -30,17 +30,14 @@ export default async function HomePage() {
         {/* 01. Hero Billboard Carousel + Trust Metric Badges */}
         <UdemyHeroBillboard />
 
-        {/* 02. "All the skills you need in one place" / "A broad selection of courses" */}
-        <UdemyCourseSelection
-          initialCourses={courses}
-          initialCategories={categories}
-        />
+        {/* 02. "Trending Courses" Showcase Carousel */}
+        <UdemyTrendingCourses courses={courses} />
 
         {/* 03. "Build your career with a Personal Plan subscription" Feature Billboard */}
         <UdemyPersonalPlanSection />
 
-        {/* 04. "Learners are viewing" Trending Course Showcase */}
-        <UdemyLearnersViewing courses={courses} />
+        {/* 04. "Skills to transform your career and life" Interactive Tabs */}
+        <UdemySkillsTransform courses={courses} />
 
         {/* 05. Top Categories 8-Card Grid */}
         <UdemyTopCategories />
