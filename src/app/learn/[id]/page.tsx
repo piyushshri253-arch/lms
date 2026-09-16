@@ -10,6 +10,7 @@ import { LessonTabs } from '@/components/player/LessonTabs';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { AiLessonTutorDrawer } from '@/components/player/AiLessonTutorDrawer';
+import { CertificateModal } from '@/components/student/CertificateModal';
 import { useApp } from '@/context/AppContext';
 import confetti from 'canvas-confetti';
 
@@ -144,9 +145,9 @@ export default function LearnPlayerPage() {
       <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 sm:px-8 py-3 bg-surface-container-lowest border-b border-outline-variant shadow-xs h-16 shrink-0">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <Link
-            href="/lms/my-courses"
+            href="/student/learning"
             className="text-on-surface-variant hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-surface-container shrink-0 cursor-pointer"
-            title="Back to My Courses"
+            title="Back to My Learning"
           >
             <Icon name="arrow_back" size={20} />
           </Link>
@@ -377,78 +378,17 @@ export default function LearnPlayerPage() {
       </div>
 
       {/* Verified Certificate Modal */}
-      <Modal
+      <CertificateModal
         isOpen={isCertificateOpen}
         onClose={() => setIsCertificateOpen(false)}
-        maxWidth="lg"
-        title="Verified Diploma of Technical Mastery"
-        subtitle="Congratulations! You have completed 100% of this curriculum."
-      >
-        <div className="space-y-6">
-          <div className="p-8 sm:p-10 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl border-4 border-amber-400/80 shadow-2xl relative overflow-hidden text-center space-y-4">
-            <div className="w-14 h-14 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center mx-auto font-bold shadow-lg">
-              <Icon name="workspace_premium" fill size={32} />
-            </div>
-
-            <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-amber-400 font-extrabold block">
-              Certificate of Technical Mastery
-            </span>
-
-            <p className="text-xs text-slate-300">This certifies that</p>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide font-display">
-              {currentUser?.name || 'Graduate'}
-            </h3>
-            <p className="text-xs text-slate-300 max-w-md mx-auto">
-              has successfully fulfilled all curriculum requirements and examinations for:
-            </p>
-
-            <h4 className="text-lg font-bold text-amber-300 max-w-lg mx-auto">
-              {course?.title}
-            </h4>
-
-            <div className="pt-6 border-t border-slate-700/60 flex justify-between items-end text-left text-xs font-mono text-slate-300">
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase font-bold">Faculty Lead</p>
-                <p className="font-bold text-white mt-0.5">{course?.instructor?.name}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-slate-400 uppercase font-bold">Verification ID</p>
-                <p className="font-bold text-amber-400 mt-0.5">
-                  {certificateData?.certificateNumber || 'MT-2026-VERIFIED'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center pt-2 border-t border-outline-variant/40">
-            {certificateData?.certificateNumber && (
-              <Link
-                href={`/certificate/${certificateData.certificateNumber}`}
-                target="_blank"
-                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-              >
-                <span>View Public Verification Link</span>
-                <Icon name="open_in_new" size={14} />
-              </Link>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={() => setIsCertificateOpen(false)}
-                className="px-4 py-2 text-xs rounded-xl border border-outline-variant cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-primary text-on-primary hover:bg-primary-container shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <Icon name="print" size={16} />
-                <span>Print Diploma</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
+        certificate={{
+          certificateNumber: certificateData?.certificateNumber || course?.certificates?.[0]?.certificateNumber,
+          courseTitle: course?.title,
+          studentName: currentUser?.name || 'Verified Student',
+          instructorName: course?.instructor?.name,
+          issuedAt: certificateData?.issuedAt || new Date().toISOString()
+        }}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { useAdmin } from '@/context/AdminContext';
 import { Icon } from '@/components/ui/Icon';
 import { CompanyEmailSettingsTab } from '@/components/admin/CompanyEmailSettingsTab';
 
@@ -14,6 +15,7 @@ function AdminSettingsContent() {
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'profile';
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const { showToast } = useApp();
+  const { hasPermission, activeFacility } = useAdmin();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -181,6 +183,21 @@ function AdminSettingsContent() {
       <div className="p-12 text-center text-slate-400 font-mono text-xs flex items-center justify-center gap-2">
         <Icon name="sync" size={18} className="animate-spin text-primary" />
         <span>Loading Organization Settings...</span>
+      </div>
+    );
+  }
+
+  if (!hasPermission('setting.view')) {
+    return (
+      <div className="p-8 text-center bg-surface-container-lowest border border-outline-variant rounded-3xl space-y-3 max-w-lg mx-auto mt-12">
+        <div className="w-12 h-12 rounded-full bg-error-container/30 text-error flex items-center justify-center mx-auto">
+          <Icon name="lock" size={24} />
+        </div>
+        <h2 className="text-base font-extrabold text-on-surface">Access Denied</h2>
+        <p className="text-xs text-outline">
+          Your administrator account does not possess the <strong>setting.view</strong> permission for{' '}
+          {activeFacility?.name || 'this facility'}.
+        </p>
       </div>
     );
   }

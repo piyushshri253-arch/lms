@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { PublicNavbar } from '@/components/layout/PublicNavbar';
-import { MobileNav } from '@/components/layout/MobileNav';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
 import { Modal } from '@/components/ui/Modal';
 import { Icon } from '@/components/ui/Icon';
@@ -14,7 +14,7 @@ import { useApp } from '@/context/AppContext';
 export default function CourseDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { currentUser, wishlistCourseIds, toggleWishlist, processCheckout, showToast } = useApp();
+  const { currentUser, wishlistCourseIds, toggleWishlist, processCheckout, showToast, addToCart, isInCart } = useApp();
 
   const [courseData, setCourseData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +41,22 @@ export default function CourseDetailsPage() {
         const data = await res.json();
         if (data.course) {
           setCourseData(data.course);
+          return;
+        }
+      }
+
+      // If course was not found, check if it's a category slug (e.g., /courses/marketing or /courses/early-childhood-education)
+      const catRes = await fetch('/api/categories');
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        const matchedCat = catData.categories?.find((c: any) =>
+          c.slug.toLowerCase() === courseSlug.toLowerCase() ||
+          c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === courseSlug.toLowerCase() ||
+          c.name.toLowerCase() === courseSlug.toLowerCase()
+        );
+        if (matchedCat) {
+          router.replace(`/courses?category=${encodeURIComponent(matchedCat.name)}`);
+          return;
         }
       }
     } catch {
@@ -150,36 +166,36 @@ export default function CourseDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-background text-on-background min-h-screen flex flex-col antialiased">
-        <PublicNavbar />
+      <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
+        <UdemyNavbar />
         <div className="flex-1 flex items-center justify-center py-24">
-          <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-3 border-[#5022c3] border-t-transparent rounded-full animate-spin" />
         </div>
-        <MobileNav />
+        <UdemyFooter />
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div className="bg-background text-on-background min-h-screen flex flex-col antialiased">
-        <PublicNavbar />
+      <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
+        <UdemyNavbar />
         <div className="flex-1 flex flex-col items-center justify-center py-24 px-4 text-center space-y-4 max-w-md mx-auto">
-          <div className="w-16 h-16 rounded-3xl bg-surface-container flex items-center justify-center text-outline">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-[#6a6f73]">
             <Icon name="search_off" size={36} />
           </div>
-          <h1 className="text-2xl font-black text-on-surface">Course Not Found</h1>
-          <p className="text-xs text-on-surface-variant leading-relaxed">
-            The requested course could not be located in our curriculum catalog or has been archived.
+          <h1 className="text-2xl font-bold text-[#2d2f31]">Course Not Found</h1>
+          <p className="text-sm text-[#6a6f73] leading-relaxed">
+            The requested course could not be located in our curriculum catalog or has been moved.
           </p>
           <Link
             href="/courses"
-            className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-xs hover:bg-primary-container transition-all"
+            className="px-6 py-2.5 bg-[#2d2f31] text-white font-bold text-sm rounded hover:bg-[#1c1d1f] transition-all"
           >
             Browse All Available Courses
           </Link>
         </div>
-        <MobileNav />
+        <UdemyFooter />
       </div>
     );
   }
@@ -205,8 +221,8 @@ export default function CourseDetailsPage() {
   }));
 
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col antialiased">
-      <PublicNavbar />
+    <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
+      <UdemyNavbar />
 
       <main className="w-full max-w-container-max mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative pb-24 md:pb-16">
         {/* Left Column: Course Details */}
@@ -442,19 +458,37 @@ export default function CourseDetailsPage() {
               {isEnrolled ? (
                 <Link
                   href={`/learn/${course.slug || course.id}`}
-                  className="w-full bg-primary text-on-primary font-bold text-center py-3.5 rounded-xl hover:bg-primary-container transition-all shadow-md flex items-center justify-center gap-2"
+                  className="w-full bg-[#a435f0] text-white font-bold text-center py-3.5 rounded hover:bg-[#8710d8] transition-all shadow-md flex items-center justify-center gap-2"
                 >
                   <Icon name="play_circle" fill size={20} />
-                  <span>Resume Learning</span>
+                  <span>Go to course</span>
                 </Link>
               ) : (
-                <button
-                  onClick={() => setIsCheckoutOpen(true)}
-                  className="w-full bg-primary text-on-primary font-bold py-3.5 rounded-xl hover:bg-primary-container transition-all shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Icon name="shopping_cart" size={18} />
-                  <span>Enroll in Course</span>
-                </button>
+                <div className="space-y-2.5">
+                  {isInCart(course.id) ? (
+                    <Link
+                      href="/student/cart"
+                      className="w-full bg-[#a435f0] text-white font-bold py-3.5 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 text-center"
+                    >
+                      <Icon name="shopping_cart" size={18} />
+                      <span>Go to cart</span>
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => addToCart(course)}
+                      className="w-full bg-[#a435f0] text-white font-bold py-3.5 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Icon name="shopping_cart" size={18} />
+                      <span>Add to cart</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsCheckoutOpen(true)}
+                    className="w-full bg-white text-[#2d2f31] border border-[#2d2f31] font-bold py-3.5 rounded hover:bg-[#f7f9fa] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Buy now</span>
+                  </button>
+                </div>
               )}
 
               <p className="text-center text-xs text-on-surface-variant font-medium">
@@ -590,7 +624,7 @@ export default function CourseDetailsPage() {
         </div>
       </Modal>
 
-      <MobileNav />
+      <UdemyFooter />
     </div>
   );
 }

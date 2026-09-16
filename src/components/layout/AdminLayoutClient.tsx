@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AdminProvider } from '@/context/AdminContext';
 import { AdminSidebar } from '@/components/layout/AdminSidebar';
 import { AdminHeader } from '@/components/layout/AdminHeader';
 import { MobileNav } from '@/components/layout/MobileNav';
@@ -13,10 +14,13 @@ export function AdminLayoutClient({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="bg-surface text-on-surface font-body-md min-h-screen flex antialiased">
+    <AdminProvider>
+      <div className="bg-surface text-on-surface font-body-md min-h-screen flex antialiased">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AdminSidebar />
+        <React.Suspense fallback={<div className="w-[280px] h-screen bg-surface-container-lowest" />}>
+          <AdminSidebar />
+        </React.Suspense>
       </div>
 
       {/* Mobile Drawer Sidebar */}
@@ -27,7 +31,9 @@ export function AdminLayoutClient({
             onClick={() => setIsMobileSidebarOpen(false)}
           />
           <div className="relative w-[280px] h-full">
-            <AdminSidebar onClose={() => setIsMobileSidebarOpen(false)} />
+            <React.Suspense fallback={<div className="w-[280px] h-full bg-surface-container-lowest" />}>
+              <AdminSidebar onClose={() => setIsMobileSidebarOpen(false)} />
+            </React.Suspense>
           </div>
         </div>
       )}
@@ -43,5 +49,6 @@ export function AdminLayoutClient({
       {/* Bottom Mobile Bar */}
       <MobileNav />
     </div>
+    </AdminProvider>
   );
 }

@@ -50,7 +50,7 @@ export default async function CertificateVerificationPage({ params }: PageProps)
     year: 'numeric'
   });
 
-  const orgName = certificate.organization?.name || 'AADHYARA Academy';
+  const orgName = certificate.organization?.name || 'Morena Teach Academy';
   const isValid = certificate.status === 'VALID';
 
   return (

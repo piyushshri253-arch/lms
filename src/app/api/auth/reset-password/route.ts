@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashToken, hashPassword, evaluatePasswordStrength, logSecurityEvent } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     // Send Password Changed Alert Email
     await sendEmail({
       to: resetRecord.user.email,
-      subject: 'Your AADHYARA password was changed',
+      subject: 'Your Morena Teach password was changed',
       template: 'PASSWORD_CHANGED',
       userId: resetRecord.user.id,
       data: {

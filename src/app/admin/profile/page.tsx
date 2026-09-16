@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { useAdmin } from '@/context/AdminContext';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function AdminProfilePage() {
   const { currentUser, refreshUser, showToast, logout } = useApp();
+  const { activeFacility, facilities, switchFacility, permissions } = useAdmin();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -180,10 +182,88 @@ export default function AdminProfilePage() {
               </button>
             </div>
           </div>
+
+          {/* Assigned Educational Facilities Card */}
+          <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Icon name="domain" size={18} className="text-primary" />
+                <h3 className="font-extrabold text-xs text-on-surface uppercase tracking-wider">Assigned Facilities</h3>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-outline">{facilities.length} Assigned</span>
+            </div>
+            <div className="space-y-2">
+              {facilities.map((f) => (
+                <div
+                  key={f.id}
+                  onClick={() => switchFacility(f.id)}
+                  className={`p-3 rounded-2xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                    f.id === activeFacility?.id
+                      ? 'border-primary bg-primary/10 font-bold text-primary'
+                      : 'border-outline-variant hover:bg-surface-container-low text-on-surface'
+                  }`}
+                >
+                  <div className="truncate pr-2">
+                    <p className="truncate">{f.name}</p>
+                    <p className="text-[10px] text-outline font-mono">{f.slug}</p>
+                  </div>
+                  {f.id === activeFacility?.id && (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary text-on-primary font-bold shrink-0">
+                      ACTIVE
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Profile Edit & Password Forms (8 Cols) */}
+        {/* Right Column: Permissions Badges & Profile Edit & Password Forms (8 Cols) */}
         <div className="lg:col-span-8 space-y-6">
+          {/* Permissions Badges */}
+          <div className="bg-surface-container-lowest p-6 sm:p-8 rounded-3xl border border-outline-variant/80 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Icon name="verified_user" size={20} className="text-emerald-600" />
+                <h3 className="text-base font-extrabold text-on-surface">You have access to:</h3>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">
+                {permissions.length > 0 ? `${permissions.length} PERMISSIONS GRANTED` : 'ADMIN SCOPE'}
+              </span>
+            </div>
+            <p className="text-xs text-outline">
+              Your administrative credentials provide the following cryptographic role and policy capabilities within <strong>{activeFacility?.name}</strong>:
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {(permissions.length > 0 ? permissions : [
+                'student.view', 'student.create', 'student.edit', 'student.delete', 'student.import', 'student.export',
+                'course.view', 'course.create', 'course.edit', 'course.publish', 'course.delete', 'course.archive',
+                'content.view', 'content.create', 'content.edit', 'content.delete', 'content.upload',
+                'enrollment.view', 'enrollment.create', 'enrollment.edit', 'enrollment.cancel',
+                'payment.view', 'payment.export', 'payment.refund',
+                'certificate.view', 'certificate.issue', 'certificate.revoke', 'certificate.export',
+                'coupon.view', 'coupon.create', 'coupon.edit', 'coupon.delete',
+                'report.student', 'report.course', 'report.enrollment', 'report.payment', 'report.learning', 'report.certificate',
+                'notification.view', 'notification.send',
+                'setting.view', 'setting.edit'
+              ]).map((perm) => (
+                <span
+                  key={perm}
+                  className={`text-[11px] font-mono font-bold px-2.5 py-1 rounded-xl border ${
+                    perm.includes('publish') || perm.includes('refund')
+                      ? 'bg-amber-500/10 text-amber-700 border-amber-300 dark:border-amber-800'
+                      : perm.includes('delete') || perm.includes('cancel') || perm.includes('revoke')
+                      ? 'bg-rose-500/10 text-rose-700 border-rose-300 dark:border-rose-800'
+                      : 'bg-surface-container-low text-on-surface border-outline-variant/80'
+                  }`}
+                >
+                  ✓ {perm}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {/* Identity Form */}
           <div className="bg-surface-container-lowest p-6 sm:p-8 rounded-3xl border border-outline-variant/80 shadow-xs space-y-6">
             <h3 className="text-base font-extrabold text-on-surface flex items-center gap-2">

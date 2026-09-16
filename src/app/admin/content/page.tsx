@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useAdmin } from '@/context/AdminContext';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { Course, CourseCategory } from '@/types';
 import { VideoUploadModal } from '@/components/media/VideoUploadModal';
 
-export default function ContentManagementPage() {
+function ContentManagementPage() {
+  const searchParams = useSearchParams();
   const { courses, createCourse, deleteCourse, showToast } = useApp();
+  const { hasPermission, activeFacility } = useAdmin();
 
-  const [activeTab, setActiveTab] = useState<'courses' | 'videos' | 'certificates'>('courses');
+  const [activeTab, setActiveTab] = useState<'videos' | 'docs' | 'quizzes' | 'assignments' | 'courses'>('videos');
   const [selectedCourseForEdit, setSelectedCourseForEdit] = useState<Course | null>(courses[0] || null);
 
   // New Course Modal State
@@ -53,6 +57,15 @@ export default function ContentManagementPage() {
       fetchMediaAssets();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type === 'videos') setActiveTab('videos');
+    else if (type === 'docs') setActiveTab('docs');
+    else if (type === 'quizzes') setActiveTab('quizzes');
+    else if (type === 'assignments') setActiveTab('assignments');
+    else if (type === 'courses') setActiveTab('courses');
+  }, [searchParams]);
 
   const fetchMediaAssets = async () => {
     try {
@@ -220,60 +233,111 @@ export default function ContentManagementPage() {
     (a.provider && a.provider.toLowerCase().includes(mediaSearch.toLowerCase()))
   );
 
+  if (!hasPermission('content.view')) {
+    return (
+      <div className="p-8 text-center bg-surface-container-lowest border border-outline-variant rounded-3xl space-y-3 max-w-lg mx-auto mt-12">
+        <div className="w-12 h-12 rounded-full bg-error-container/30 text-error flex items-center justify-center mx-auto">
+          <Icon name="lock" size={24} />
+        </div>
+        <h2 className="text-base font-extrabold text-on-surface">Access Denied</h2>
+        <p className="text-xs text-outline">
+          Your administrator account does not possess the <strong>content.view</strong> permission for{' '}
+          {activeFacility?.name || 'this facility'}.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-outline-variant/60">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight mb-1">
-            Course &amp; Video Content Studio
-          </h2>
-          <p className="text-sm text-on-surface-variant">
-            Full-stack curriculum builder. Upload direct video files, attach cloud streams, and manage masterclasses.
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-black text-on-surface tracking-tight">
+              Instructional Content & Media Hub
+            </h2>
+            <span className="text-[11px] font-mono font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2.5 py-0.5 rounded-full">
+              {activeFacility?.name}
+            </span>
+          </div>
+          <p className="text-xs text-outline font-medium mt-1">
+            Manage your institution's video repository, supplementary PDF documents, tests, and homework assignments.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link
-            href="/admin/courses/builder"
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs sm:text-sm font-bold hover:bg-primary-container transition-all shadow-sm cursor-pointer"
-          >
-            <Icon name="add" size={18} />
-            <span>Open Course Builder</span>
-          </Link>
+        <div className="flex gap-2 flex-wrap">
+          {hasPermission('content.upload') && (
+            <button
+              onClick={() => setIsGeneralUploadOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary-container transition-all shadow-sm cursor-pointer"
+            >
+              <Icon name="upload" size={16} />
+              <span>Upload Video</span>
+            </button>
+          )}
+          {hasPermission('course.edit') && (
+            <Link
+              href="/admin/courses/builder"
+              className="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            >
+              <Icon name="auto_stories" size={16} />
+              <span>Course Builder</span>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-outline-variant flex gap-8">
-        <button
-          onClick={() => setActiveTab('courses')}
-          className={`pb-3 text-sm font-bold transition-colors cursor-pointer ${
-            activeTab === 'courses'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-on-surface-variant hover:text-primary'
-          }`}
-        >
-          Curriculum Builder ({courses.length})
-        </button>
+      {/* Content Tabs */}
+      <div className="border-b border-outline-variant flex gap-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('videos')}
-          className={`pb-3 text-sm font-bold transition-colors cursor-pointer ${
+          className={`pb-3 text-xs sm:text-sm font-bold transition-colors cursor-pointer shrink-0 ${
             activeTab === 'videos'
               ? 'text-primary border-b-2 border-primary'
-              : 'text-on-surface-variant hover:text-primary'
+              : 'text-outline hover:text-on-surface'
           }`}
         >
-          Video Library &amp; CDN ({mediaAssets.length})
+          Video Library ({mediaAssets.length})
         </button>
         <button
-          onClick={() => setActiveTab('certificates')}
-          className={`pb-3 text-sm font-bold transition-colors cursor-pointer ${
-            activeTab === 'certificates'
+          onClick={() => setActiveTab('docs')}
+          className={`pb-3 text-xs sm:text-sm font-bold transition-colors cursor-pointer shrink-0 ${
+            activeTab === 'docs'
               ? 'text-primary border-b-2 border-primary'
-              : 'text-on-surface-variant hover:text-primary'
+              : 'text-outline hover:text-on-surface'
           }`}
         >
-          Certificates
+          Documents / PDFs (8)
+        </button>
+        <button
+          onClick={() => setActiveTab('quizzes')}
+          className={`pb-3 text-xs sm:text-sm font-bold transition-colors cursor-pointer shrink-0 ${
+            activeTab === 'quizzes'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-outline hover:text-on-surface'
+          }`}
+        >
+          Quizzes &amp; Tests (12)
+        </button>
+        <button
+          onClick={() => setActiveTab('assignments')}
+          className={`pb-3 text-xs sm:text-sm font-bold transition-colors cursor-pointer shrink-0 ${
+            activeTab === 'assignments'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-outline hover:text-on-surface'
+          }`}
+        >
+          Assignments (6)
+        </button>
+        <button
+          onClick={() => setActiveTab('courses')}
+          className={`pb-3 text-xs sm:text-sm font-bold transition-colors cursor-pointer shrink-0 ${
+            activeTab === 'courses'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-outline hover:text-on-surface'
+          }`}
+        >
+          Curriculum Tree ({courses.length})
         </button>
       </div>
 
@@ -580,14 +644,133 @@ export default function ContentManagementPage() {
         </div>
       )}
 
-      {/* Certificates Tab */}
-      {activeTab === 'certificates' && (
-        <div className="p-8 bg-surface-container-lowest border border-outline-variant rounded-3xl text-center">
-          <Icon name="workspace_premium" size={48} className="text-emerald-600 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-on-surface">Accredited Certificate Dispatcher</h3>
-          <p className="text-xs text-on-surface-variant max-w-sm mx-auto mt-1">
-            Certificates are automatically generated and verifiable via SHA-256 code hash.
-          </p>
+      {/* Documents / PDFs Tab */}
+      {activeTab === 'docs' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-outline">
+              Lecture Notes, Cheatsheets &amp; PDFs
+            </h3>
+            {hasPermission('content.upload') && (
+              <button
+                onClick={() => showToast('Document upload modal opened', 'info')}
+                className="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+              >
+                <Icon name="upload_file" size={16} />
+                <span>Upload Document</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {[
+              { name: 'Next.js 15 App Router Architecture Reference.pdf', course: 'Next.js 15 Masterclass', size: '4.2 MB', downloads: 312 },
+              { name: 'LangGraph & Multi-Agent State Schemas.pdf', course: 'Production AI Agents', size: '2.8 MB', downloads: 245 },
+              { name: 'gRPC Protocol Buffers Cheat Sheet v2.pdf', course: 'Modern Distributed Systems', size: '1.5 MB', downloads: 180 },
+              { name: 'Cloud Native Microservices Deployment Guide.pdf', course: 'Foundations of Cloud', size: '6.1 MB', downloads: 98 }
+            ].map((doc, idx) => (
+              <div
+                key={idx}
+                className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/80 space-y-3 hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+                    <Icon name="picture_as_pdf" size={22} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-xs text-on-surface line-clamp-2 leading-tight">{doc.name}</p>
+                    <p className="text-[10px] text-outline font-mono mt-1">{doc.course}</p>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-outline-variant/30 flex items-center justify-between text-[11px] font-mono text-outline">
+                  <span>{doc.size}</span>
+                  <span>{doc.downloads} downloads</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quizzes & Tests Tab */}
+      {activeTab === 'quizzes' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-outline">
+              Assessment Quizzes &amp; Periodic Evaluations
+            </h3>
+            {hasPermission('content.create') && (
+              <button
+                onClick={() => showToast('Quiz builder initiated', 'info')}
+                className="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+              >
+                <Icon name="quiz" size={16} />
+                <span>+ Create Quiz</span>
+              </button>
+            )}
+          </div>
+
+          <div className="divide-y divide-outline-variant/30 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl p-4">
+            {[
+              { title: 'Server Components & Actions Mastery Quiz', course: 'Full-Stack Next.js 15', questions: 15, passRate: '88%', attempts: 420 },
+              { title: 'LangGraph State Graphs & Memory Checkpoint Test', course: 'Production AI Agents', questions: 20, passRate: '79%', attempts: 310 },
+              { title: 'Distributed Mutex & Raft Consensus Assessment', course: 'Modern Distributed Systems', questions: 12, passRate: '72%', attempts: 180 }
+            ].map((q, idx) => (
+              <div key={idx} className="py-3 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-xs text-on-surface">{q.title}</h4>
+                  <p className="text-[11px] text-outline font-mono">
+                    Course: {q.course} • {q.questions} Questions • Pass Rate: {q.passRate}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-mono font-bold text-indigo-600">{q.attempts} Attempts</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Assignments Tab */}
+      {activeTab === 'assignments' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-outline">
+              Practical Homework &amp; Capstone Projects
+            </h3>
+            {hasPermission('content.create') && (
+              <button
+                onClick={() => showToast('Assignment creator opened', 'info')}
+                className="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+              >
+                <Icon name="assignment" size={16} />
+                <span>+ New Assignment</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { title: 'Build an E-Commerce Cart with Redis & Turbopack', course: 'Next.js 15 Masterclass', due: '18 Sept 2026', submitted: 48, pending: 12 },
+              { title: 'Autonomous Support Agent with Tool Calling', course: 'Production AI Agents', due: '22 Sept 2026', submitted: 35, pending: 8 },
+              { title: 'High-Throughput gRPC Load Balancer in Go', course: 'Modern Distributed Systems', due: '28 Sept 2026', submitted: 22, pending: 5 }
+            ].map((asg, idx) => (
+              <div
+                key={idx}
+                className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/80 space-y-3"
+              >
+                <div>
+                  <h4 className="font-bold text-xs text-on-surface line-clamp-1">{asg.title}</h4>
+                  <p className="text-[10px] text-outline font-mono mt-0.5">{asg.course}</p>
+                </div>
+                <div className="text-xs space-y-1 font-mono text-outline">
+                  <p>Due: <span className="text-on-surface font-bold">{asg.due}</span></p>
+                  <p>Submitted: <span className="text-emerald-600 font-bold">{asg.submitted}</span> • Pending Review: <span className="text-amber-600 font-bold">{asg.pending}</span></p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -877,5 +1060,13 @@ export default function ContentManagementPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+export default function ContentAdminPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-outline">Loading Content Hub...</div>}>
+      <ContentManagementPage />
+    </Suspense>
   );
 }

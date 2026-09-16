@@ -1,84 +1,57 @@
-'use client';
-
 import React from 'react';
-import { PublicNavbar } from '@/components/layout/PublicNavbar';
-import { AadhyaraHeroSection } from '@/components/landing/AadhyaraHeroSection';
-import { ProductSwitcherSection } from '@/components/landing/ProductSwitcherSection';
-import { SalesValuePropSection } from '@/components/landing/SalesValuePropSection';
-import { CustomDomainSection } from '@/components/landing/CustomDomainSection';
-import { AiBuilderSection } from '@/components/landing/AiBuilderSection';
-import { SalesFlowSection } from '@/components/landing/SalesFlowSection';
-import { LmsFeaturesSection } from '@/components/landing/LmsFeaturesSection';
-import { SalesLmsConnectionSection } from '@/components/landing/SalesLmsConnectionSection';
-import { BusinessTypesSection } from '@/components/landing/BusinessTypesSection';
-import { BusinessAnalyticsSection } from '@/components/landing/BusinessAnalyticsSection';
-import { MarketingGrowthSection } from '@/components/landing/MarketingGrowthSection';
-import { EnterpriseTrustSection } from '@/components/landing/EnterpriseTrustSection';
-import { AadhyaraPricingSection } from '@/components/landing/AadhyaraPricingSection';
-import { AadhyaraFaqSection } from '@/components/landing/AadhyaraFaqSection';
-import { AadhyaraFinalCtaSection } from '@/components/landing/AadhyaraFinalCtaSection';
-import { LandingFooter } from '@/components/landing/LandingFooter';
-import { AmbientCursorGlow } from '@/components/ui/AmbientCursorGlow';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyHeroBillboard } from '@/components/landing/UdemyHeroBillboard';
+import { UdemyCourseSelection } from '@/components/landing/UdemyCourseSelection';
+import { UdemyLearnersViewing } from '@/components/landing/UdemyLearnersViewing';
+import { UdemyTopCategories } from '@/components/landing/UdemyTopCategories';
+import { UdemyWhyUs } from '@/components/landing/UdemyWhyUs';
+import { UdemyInstructorCta } from '@/components/landing/UdemyInstructorCta';
+import { UdemyTestimonials } from '@/components/landing/UdemyTestimonials';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
+import { getPublishedCourses, getActiveCategories } from '@/lib/courses';
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const [courses, categories] = await Promise.all([
+    getPublishedCourses(),
+    getActiveCategories()
+  ]);
+
   return (
-    <div className="bg-[#060814] text-white min-h-screen flex flex-col antialiased selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
-      {/* Dynamic Ambient Cursor Follower */}
-      <AmbientCursorGlow />
+    <div className="bg-white text-[#1c1d1f] min-h-screen flex flex-col antialiased selection:bg-purple-100 selection:text-purple-900 font-sans">
+      {/* 1. Header with Categories Dropdown, Wide Search & Cart */}
+      <UdemyNavbar />
 
-      {/* 1. Header with Sales Mega-Menu & Dual Product Entry */}
-      <PublicNavbar />
-
-      {/* Main High-Conversion Storytelling Canvas */}
+      {/* Main Educational Course Marketplace */}
       <main className="flex-grow">
-        {/* 01. Hero Section + Business OS Product Visual */}
-        <AadhyaraHeroSection />
+        {/* 01. Hero Billboard Carousel + Trust Metric Badges */}
+        <UdemyHeroBillboard />
 
-        {/* 02. Product Switcher: One Ecosystem, Two Powerful Platforms */}
-        <ProductSwitcherSection />
+        {/* 02. "A broad selection of courses" (Category Tabs + Filtered Dynamic Courses Grid) */}
+        <UdemyCourseSelection
+          initialCourses={courses}
+          initialCategories={categories}
+        />
 
-        {/* 03. Sales Value Proposition: Everything You Need to Sell Online (7 Features) */}
-        <SalesValuePropSection />
+        {/* 03. "Learners are viewing" Trending Course Showcase */}
+        <UdemyLearnersViewing courses={courses} />
 
-        {/* 04. Custom Domain Feature: Your Brand. Your Domain. Your Business. */}
-        <CustomDomainSection />
+        {/* 04. Top Categories 8-Card Grid */}
+        <UdemyTopCategories />
 
-        {/* 05. AI Business Foundation: Interactive Generative Prompt Simulator */}
-        <AiBuilderSection />
+        {/* 05. Why Learn With T.E.A.C.H (4 Value Pillars) */}
+        <UdemyWhyUs />
 
-        {/* 06. The 8-Step Sales Flow Roadmap */}
-        <SalesFlowSection />
+        {/* 06. Become an Instructor & Institutional Training Banners */}
+        <UdemyInstructorCta />
 
-        {/* 07. LMS Section: Teach With AADHYARA Learning */}
-        <LmsFeaturesSection />
-
-        {/* 08. Sales + LMS Connection Pipeline */}
-        <SalesLmsConnectionSection />
-
-        {/* 09. Business Types & Industry Solutions */}
-        <BusinessTypesSection />
-
-        {/* 10. Analytics & Predictive AI Insight Dashboard */}
-        <BusinessAnalyticsSection />
-
-        {/* 11. Marketing, Attribution & Conversion Tools */}
-        <MarketingGrowthSection />
-
-        {/* 12. Enterprise Trust, RBAC & Multi-Tenant Security */}
-        <EnterpriseTrustSection />
-
-        {/* 13. Transparent SaaS Pricing Tiers */}
-        <AadhyaraPricingSection />
-
-        {/* 14. 10-Question Comprehensive Architecture FAQ */}
-        <AadhyaraFaqSection />
-
-        {/* 15. Cosmic Final Conversion Call-To-Action */}
-        <AadhyaraFinalCtaSection />
+        {/* 07. Verified Learner Testimonials */}
+        <UdemyTestimonials />
       </main>
 
-      {/* Comprehensive 5-Column SaaS Footer */}
-      <LandingFooter />
+      {/* 08. Comprehensive Multi-Column Footer with T.E.A.C.H Logo */}
+      <UdemyFooter />
     </div>
   );
 }

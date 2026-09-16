@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     // Resolve tenant organization if applicable
     let effectiveOrgId = organizationId || null;
-    let orgBrandingName = 'AADHYARA';
+    let orgBrandingName = 'MORENA TEACH';
 
     if (!effectiveOrgId && orgSlug) {
       const org = await prisma.organization.findUnique({
@@ -132,8 +132,8 @@ export async function POST(req: NextRequest) {
         phone: phone?.trim() || null,
         avatar: avatar || null,
         role: 'STUDENT',
-        status: 'PENDING_VERIFICATION',
-        emailVerified: false,
+        status: 'ACTIVE',
+        emailVerified: true,
         sessionVersion: 1
       }
     });

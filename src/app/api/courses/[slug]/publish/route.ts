@@ -134,11 +134,27 @@ export async function POST(
       );
     }
 
-    // Update course status to PUBLISHED
+    // Determine target status according to approval workflow:
+    // Instructor submission sets status to IN_REVIEW.
+    // Super Admin / Admin review sets status to PUBLISHED (or REJECTED).
+    let targetStatus = 'PUBLISHED';
+    let responseMessage = 'Course approved and published live to existing landing page!';
+
+    if (user.role === 'INSTRUCTOR') {
+      targetStatus = 'IN_REVIEW';
+      responseMessage = 'Course submitted for Super Admin approval! Once approved, it will automatically appear on the landing page.';
+    } else if (body.status === 'REJECTED') {
+      targetStatus = 'REJECTED';
+      responseMessage = 'Course submission rejected with reviewer feedback.';
+    } else {
+      targetStatus = 'PUBLISHED';
+    }
+
+    // Update course status
     const updated = await prisma.course.update({
       where: { id: course.id },
       data: {
-        status: 'PUBLISHED'
+        status: targetStatus
       }
     });
 
@@ -146,19 +162,20 @@ export async function POST(
       data: {
         adminId: user.id,
         adminEmail: user.email,
-        action: 'PUBLISH_COURSE',
+        action: targetStatus === 'IN_REVIEW' ? 'SUBMIT_COURSE_REVIEW' : 'PUBLISH_COURSE',
         entity: 'Course',
         entityId: course.id,
-        description: `${user.role} published master course "${course.title}".`
+        description: `${user.role} set course "${course.title}" status to ${targetStatus}.`
       }
     });
 
     return NextResponse.json({
       success: true,
       canPublish: true,
+      status: targetStatus,
       course: updated,
       checklist,
-      message: 'Course published successfully and is now live on AADHYARA!'
+      message: responseMessage
     });
   } catch (err: any) {
     return handleAuthError(err);

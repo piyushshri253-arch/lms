@@ -16,36 +16,36 @@ export async function GET(request: Request) {
 
     const where: any = {};
 
-    // Organization resolution for multi-tenancy
-    if (organizationSlug) {
-      const targetOrg = await prisma.organization.findUnique({
-        where: { slug: organizationSlug }
-      });
-      if (targetOrg) {
-        where.organizationId = targetOrg.id;
-      }
-    } else if (currentUser?.organizationId && currentUser.role !== 'SUPER_ADMIN') {
-      where.organizationId = currentUser.organizationId;
+    const manage = searchParams.get('manage') === 'true';
+
+    // In single-company LMS, instructors manage their authored courses
+    if (manage && currentUser?.role === 'INSTRUCTOR') {
+      where.instructorId = currentUser.id;
     }
 
-    if (category && category !== 'All') {
-      where.category = { name: { contains: category } };
+    if (category && category !== 'All' && category !== 'all') {
+      where.category = {
+        OR: [
+          { name: { contains: category, mode: 'insensitive' } },
+          { slug: { contains: category, mode: 'insensitive' } }
+        ]
+      };
     }
     if (level && level !== 'ALL_LEVELS') {
       where.level = level;
     }
     if (status) {
       where.status = status;
-    } else if (!currentUser || currentUser.role === 'STUDENT') {
-      // Students and unauthenticated visitors only see PUBLISHED courses
+    } else if (!currentUser || currentUser.role === 'STUDENT' || !manage) {
+      // Students and public landing visitors only view PUBLISHED courses
       where.status = 'PUBLISHED';
     }
 
     if (search) {
       where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
-        { shortDescription: { contains: search } }
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { shortDescription: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -111,6 +111,8 @@ export async function GET(request: Request) {
         bestseller: course.bestseller,
         isNew: course.isNew,
         status: course.status,
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt,
         accessType: (course as any).accessType || 'LIFETIME',
         accessDays: (course as any).accessDays || null,
         seoTitle: (course as any).seoTitle || null,
@@ -171,7 +173,7 @@ const createCourseSchema = z.object({
   banner: z.string().optional(),
   language: z.string().optional().default('English'),
   durationHours: z.coerce.number().optional().default(0),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional().default('DRAFT'),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED', 'IN_REVIEW', 'REJECTED']).optional().default('DRAFT'),
   whatYouWillLearn: z.array(z.string()).optional(),
   requirements: z.array(z.string()).optional(),
   targetAudience: z.array(z.string()).optional(),
@@ -186,21 +188,16 @@ export async function POST(request: Request) {
   try {
     const user = await requireTenantRole(['INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN']);
     const authorId = user.id;
-    const orgId = user.organizationId;
+    let orgId = user.organizationId;
 
-    if (!orgId && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { error: 'Cannot create course without an assigned organization.' },
-        { status: 403 }
-      );
-    }
-
-    // Enforce Tenant SaaS Plan Limit
-    if (orgId) {
-      const planCheck = await enforceTenantPlanLimits(orgId, 'COURSES');
-      if (!planCheck.allowed) {
-        return NextResponse.json({ error: planCheck.message }, { status: 403 });
+    if (!orgId) {
+      let companyOrg = await prisma.organization.findFirst();
+      if (!companyOrg) {
+        companyOrg = await prisma.organization.create({
+          data: { name: 'AADHYARA LMS', slug: 'aadhyara' }
+        });
       }
+      orgId = companyOrg.id;
     }
 
     const body = await request.json();

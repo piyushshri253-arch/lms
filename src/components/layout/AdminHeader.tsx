@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useAdmin } from '@/context/AdminContext';
 import { Icon } from '../ui/Icon';
 import { UserAvatar } from '../ui/UserAvatar';
 
@@ -13,7 +14,7 @@ interface AdminHeaderProps {
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
   const router = useRouter();
-  const { currentUser, logout, showToast } = useApp();
+  const { currentUser, logout } = useApp();
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,6 +32,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Help & Support Modal State
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
     // Fetch notifications for the admin
@@ -85,12 +89,11 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
     }
   }, [searchQuery]);
 
-  const companySlug = currentUser?.organizationSlug || 'academy';
-  const companyName = currentUser?.organizationName || 'Company Admin Portal';
+  const companySlug = currentUser?.organizationSlug || 'aadhyara';
 
   return (
     <header className="sticky top-0 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 h-16 shadow-xs select-none">
-      {/* Left: Mobile Menu Toggle & Tenant Title */}
+      {/* Left: Mobile Menu Toggle, AADHYARA Brand & Facility Switcher */}
       <div className="flex items-center gap-3">
         {onMenuToggle && (
           <button
@@ -103,19 +106,26 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
           </button>
         )}
 
-        {/* Dynamic Tenant Title Badge */}
-        <div className="hidden sm:flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-black text-on-surface tracking-tight truncate max-w-[200px]">
-            {companyName}
+        {/* Brand Logo & Name */}
+        <Link href="/admin" className="flex items-center gap-2 mr-1">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center font-black text-sm shadow-sm tracking-tighter">
+            M
+          </div>
+          <span className="font-black text-sm text-on-surface tracking-tight hidden sm:inline-block">
+            MORENA TEACH <span className="text-primary font-bold">LMS</span>
           </span>
-          <span className="text-[10px] font-mono font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700">
-            {currentUser?.plan || 'PRO'} ADMIN
+        </Link>
+
+        {/* Platform Role Badge */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-xs font-semibold text-on-surface">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className="font-bold text-[11px] uppercase tracking-wider text-on-surface-variant">
+            {currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin Portal' : 'Admin Console'}
           </span>
         </div>
       </div>
 
-      {/* Center: Search Bar */}
+      {/* Center: Global Search Bar */}
       <div ref={searchRef} className="relative flex-1 max-w-md hidden md:block">
         <div className="relative">
           <Icon
@@ -128,7 +138,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-            placeholder="Search courses, curriculum, students..."
+            placeholder="Search students, courses, enrollments, reports..."
             className="w-full bg-surface-container-low border border-outline-variant/80 rounded-2xl pl-10 pr-10 py-2 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline"
           />
           {isSearching && (
@@ -151,7 +161,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
               {searchResults.map((c) => (
                 <Link
                   key={c.id}
-                  href={`/admin?tab=courses&search=${encodeURIComponent(c.title)}`}
+                  href={`/admin/courses?search=${encodeURIComponent(c.title)}`}
                   onClick={() => setShowSearchResults(false)}
                   className="p-3 flex items-center justify-between hover:bg-surface-container-low transition-colors block group"
                 >
@@ -171,28 +181,29 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
         )}
       </div>
 
-      {/* Right Controls: Storefront Link, Create Course, Notifications & Admin Profile */}
+      {/* Right Controls: Storefront, Help/Support, Notifications & Admin Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Live Storefront Link */}
         <Link
           href={`/org/${companySlug}`}
           target="_blank"
           className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline-variant/80 hover:border-primary text-xs font-bold text-on-surface hover:text-primary bg-surface-container-lowest hover:bg-surface-container-low transition-all"
-          title="View your public company website & course catalog"
+          title="View your public institution course catalog"
         >
           <Icon name="visibility" size={15} />
           <span>Live Storefront</span>
           <Icon name="north_east" size={12} className="text-outline" />
         </Link>
 
-        {/* Website Builder Shortcut */}
-        <Link
-          href="/admin/website/builder"
-          className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all"
+        {/* Help & Support Button */}
+        <button
+          type="button"
+          onClick={() => setIsHelpOpen(true)}
+          className="p-2 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+          title="Help & Support"
         >
-          <Icon name="palette" size={15} />
-          <span>Website Builder</span>
-        </Link>
+          <Icon name="help_outline" size={20} />
+        </button>
 
         {/* Notifications Bell */}
         <div ref={notifRef} className="relative">
@@ -212,7 +223,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
             <div className="absolute right-0 top-12 w-80 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl shadow-2xl z-50 p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="p-2.5 bg-surface-container-low rounded-xl flex items-center justify-between mb-1">
                 <span className="font-extrabold text-xs text-on-surface">Notifications</span>
-                <span className="text-[10px] font-mono text-outline">{notifications.length} Total</span>
+                <Link
+                  href="/admin/notifications"
+                  onClick={() => setIsNotifOpen(false)}
+                  className="text-[10px] font-mono text-primary font-bold hover:underline"
+                >
+                  View All ({notifications.length})
+                </Link>
               </div>
               <div className="max-h-60 overflow-y-auto divide-y divide-outline-variant/20">
                 {notifications.length === 0 ? (
@@ -271,10 +288,11 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
                   </span>
                 </div>
                 <p className="text-[10px] text-outline font-mono truncate">
-                  {currentUser?.email || 'admin@company.com'}
+                  {currentUser?.email || 'admin@morenateach.com'}
                 </p>
-                <p className="text-[10px] font-semibold text-primary truncate pt-0.5">
-                  {companyName}
+                <p className="text-[10px] font-semibold text-primary truncate pt-0.5 flex items-center gap-1">
+                  <Icon name="verified" size={12} />
+                  <span>MORENA TEACH LMS</span>
                 </p>
               </div>
 
@@ -285,46 +303,27 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
                 className="px-3 py-2.5 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors group"
               >
                 <Icon name="badge" size={17} className="text-primary group-hover:scale-110 transition-transform" />
-                <span>My Profile</span>
+                <span>My Profile & Permissions</span>
               </Link>
 
-              {/* Company Profile & Branding */}
-              <Link
-                href="/admin/settings?tab=profile"
-                onClick={() => setIsProfileOpen(false)}
-                className="px-3 py-2.5 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors group"
-              >
-                <Icon name="business" size={17} className="text-primary group-hover:scale-110 transition-transform" />
-                <span>Company Profile</span>
-              </Link>
-
-              {/* Website Builder */}
-              <Link
-                href="/admin/website/builder"
-                onClick={() => setIsProfileOpen(false)}
-                className="px-3 py-2.5 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors group"
-              >
-                <Icon name="palette" size={17} className="text-primary group-hover:scale-110 transition-transform" />
-                <span>Website Builder</span>
-              </Link>
-
-              {/* Settings */}
+              {/* Platform Settings */}
               <Link
                 href="/admin/settings"
                 onClick={() => setIsProfileOpen(false)}
                 className="px-3 py-2.5 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors group"
               >
                 <Icon name="settings" size={17} className="text-primary group-hover:scale-110 transition-transform" />
-                <span>Company Settings</span>
+                <span>Platform Settings</span>
               </Link>
 
               {/* Sign Out */}
               <div className="pt-1 border-t border-outline-variant/40">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     setIsProfileOpen(false);
-                    logout();
+                    await logout();
+                    window.location.href = '/admin/login';
                   }}
                   className="w-full px-3 py-2.5 rounded-xl text-xs font-bold text-error hover:bg-error-container/20 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
@@ -336,6 +335,66 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
           )}
         </div>
       </div>
+
+      {/* Help & Support Modal */}
+      {isHelpOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-outline-variant/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                  <Icon name="help_outline" size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-on-surface">MORENA TEACH Help & Support</h3>
+                  <p className="text-[11px] text-outline font-mono">Documentation & LMS Assistance</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container cursor-pointer"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-on-surface-variant">
+              <div className="p-3 bg-surface-container-low rounded-xl space-y-1">
+                <p className="font-bold text-on-surface">MORENA TEACH LMS Operations</p>
+                <p className="text-[11px]">
+                  MORENA TEACH LMS operates as a single unified educational ecosystem. All approved courses automatically connect to the main landing page.
+                </p>
+              </div>
+
+              <div className="p-3 bg-surface-container-low rounded-xl space-y-1">
+                <p className="font-bold text-on-surface">Role-Based Access (RBAC)</p>
+                <p className="text-[11px]">
+                  Your actions are strictly governed by your assigned permissions. Check your accessible roles and granted permissions in <Link href="/admin/profile" onClick={() => setIsHelpOpen(false)} className="text-primary underline font-bold">My Profile</Link>.
+                </p>
+              </div>
+
+              <div className="p-3 bg-surface-container-low rounded-xl space-y-1">
+                <p className="font-bold text-on-surface">Contact Platform Support</p>
+                <p className="text-[11px]">
+                  Direct Support Desk: <strong className="font-mono text-on-surface">support@morenateach.com</strong><br />
+                  Emergency Hotline: <strong className="font-mono text-on-surface">+91 1800-MORENA</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                Close Support
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

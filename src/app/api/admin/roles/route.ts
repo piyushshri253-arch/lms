@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireTenantRole } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 
-export const ALL_AVAILABLE_PERMISSIONS = [
+const ALL_AVAILABLE_PERMISSIONS = [
   'courses.view',
   'courses.create',
   'courses.edit',

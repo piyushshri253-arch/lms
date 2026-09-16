@@ -58,9 +58,25 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-pathname', pathname);
 
   // -------------------------------------------------------------------------
-  // 1. GENERAL / ENTRY ACCESS
+  // 1. GENERAL / ENTRY ACCESS & DEDICATED ADMIN LOGIN
   // -------------------------------------------------------------------------
   if (pathname === '/login') {
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
+  // Dedicated Admin Login Page (/admin/login)
+  if (pathname === '/admin/login') {
+    const adminSession = lmsSession || salesSession;
+    const isAuth = isLmsValid || isSalesValid;
+    // If already logged in as authorized admin, redirect directly to /admin dashboard
+    if (isAuth && adminSession && isAuthorizedAdminRole(adminSession.role)) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+    // Otherwise allow unauthenticated access to /admin/login
     return createSecureResponse(
       NextResponse.next({
         request: { headers: requestHeaders }
@@ -75,66 +91,37 @@ export async function middleware(request: NextRequest) {
     const adminSession = lmsSession || salesSession;
     const isAuth = isLmsValid || isSalesValid;
 
-    // A. Unauthenticated visitor: immediately redirect to /login with callbackUrl
+    // A. Unauthenticated visitor: immediately redirect to /admin/login with callbackUrl
     if (!isAuth || !adminSession) {
       const callback = encodeURIComponent(pathname + (search || ''));
-      return NextResponse.redirect(new URL(`/login?callbackUrl=${callback}`, request.url));
+      return NextResponse.redirect(new URL(`/admin/login?callbackUrl=${callback}`, request.url));
     }
 
     const role = adminSession.role;
 
-    // B. Student account: forbid admin access
+    // B. Student account: forbid admin access and redirect to admin login with notice
     if (role === 'STUDENT') {
       return NextResponse.redirect(
         new URL(
-          '/unauthorized?msg=' +
-            encodeURIComponent('Access denied: Student accounts cannot access administrative portals.'),
+          '/admin/login?error=' +
+            encodeURIComponent('Access denied: Student accounts cannot access the administrative portal.'),
           request.url
         )
       );
     }
 
-    // C. Instructor account: redirect builder or forbid general admin access
-    if (role === 'INSTRUCTOR') {
-      if (pathname === '/admin/courses/builder' || pathname.startsWith('/admin/courses/builder/')) {
-        const target = new URL('/instructor/courses/builder', request.url);
-        target.search = request.nextUrl.search;
-        return NextResponse.redirect(target);
-      }
+    // C. Enforce authorized admin roles (SUPER_ADMIN, ADMIN, LMS_ADMIN, SALES_ADMIN, INSTRUCTOR)
+    if (!isAuthorizedAdminRole(role) && role !== 'INSTRUCTOR') {
       return NextResponse.redirect(
         new URL(
-          '/unauthorized?msg=' +
-            encodeURIComponent('Access denied: Instructor accounts do not have general administrative access.'),
-          request.url
-        )
-      );
-    }
-
-    // D. Enforce authorized admin roles (SUPER_ADMIN, ADMIN, LMS_ADMIN, SALES_ADMIN)
-    if (!isAuthorizedAdminRole(role)) {
-      return NextResponse.redirect(
-        new URL(
-          '/unauthorized?msg=' +
+          '/admin/login?error=' +
             encodeURIComponent('Access denied: Administrator privileges required.'),
           request.url
         )
       );
     }
 
-    // E. Canonicalize base /admin and /admin/dashboard to specific platform dashboards
-    if (pathname === '/admin' || pathname === '/admin/dashboard') {
-      if (role === 'SUPER_ADMIN') {
-        return NextResponse.redirect(new URL('/super-admin', request.url));
-      }
-      if (isLmsValid) {
-        return NextResponse.redirect(new URL('/lms/admin', request.url));
-      }
-      if (isSalesValid) {
-        return NextResponse.redirect(new URL('/sales/dashboard', request.url));
-      }
-    }
-
-    // F. Authorized admin visiting sub-routes (/admin/courses/builder, etc.) -> allow through
+    // D. Authorized admin visiting /admin or sub-routes -> allow through directly
     return createSecureResponse(
       NextResponse.next({
         request: { headers: requestHeaders }
@@ -238,7 +225,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/lms') ||
     pathname.startsWith('/learning/dashboard') ||
     pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/student') ||
+    (pathname.startsWith('/student') && !pathname.startsWith('/student/cart')) ||
+    (pathname.startsWith('/user') && !pathname.startsWith('/user/public')) ||
     pathname.startsWith('/instructor') ||
     pathname.startsWith('/learn');
 
@@ -264,14 +252,14 @@ export async function middleware(request: NextRequest) {
       if (isSalesValid) {
         return NextResponse.redirect(
           new URL(
-            '/lms/login?unauthorized=sales_user&msg=' +
-              encodeURIComponent('Please create or log into your LMS account to access the Learning Management System.'),
+            '/login?unauthorized=sales_user&msg=' +
+              encodeURIComponent('Please create or log into your account to access the Learning Management System.'),
             request.url
           )
         );
       }
       return NextResponse.redirect(
-        new URL('/lms/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
+        new URL('/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
       );
     }
 

@@ -39,7 +39,7 @@ function CourseBuilderContent() {
     price: number;
     discountPrice: number | null;
     currency: string;
-    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'IN_REVIEW' | 'REJECTED';
     accessType: string;
     accessDays: number | null;
     whatYouWillLearn: string[];
@@ -274,10 +274,13 @@ function CourseBuilderContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to publish course');
 
-      setCourseState((prev) => ({ ...prev, status: 'PUBLISHED' }));
+      const isInstructor = currentUser?.role === 'INSTRUCTOR';
+      setCourseState((prev) => ({ ...prev, status: isInstructor ? 'IN_REVIEW' : 'PUBLISHED' }));
       showToast({
-        title: 'Course Published Live! 🚀',
-        description: 'Your masterclass is now live and available for student enrollment.',
+        title: isInstructor ? 'Course Submitted for Approval! 📋' : 'Course Published Live! 🚀',
+        description: isInstructor
+          ? 'Your course has been submitted for Super Admin review. Once approved, it will automatically appear on the landing page.'
+          : 'Your masterclass is now live on the landing page and available for student enrollment.',
         type: 'success'
       });
     } catch (err: any) {
@@ -287,12 +290,14 @@ function CourseBuilderContent() {
     }
   };
 
+  const isInstructor = currentUser?.role === 'INSTRUCTOR';
+
   const steps = [
     { title: '1. Basic Information', icon: 'info' },
     { title: '2. Media & Thumbnail', icon: 'image' },
     { title: '3. Curriculum & Syllabus', icon: 'view_timeline' },
     { title: '4. Pricing & Access', icon: 'payments' },
-    { title: '5. Publish & Review', icon: 'verified' }
+    { title: isInstructor ? '5. Review & Submit' : '5. Publish & Review', icon: 'verified' }
   ];
 
   if (isLoading) {
@@ -310,7 +315,7 @@ function CourseBuilderContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant shadow-xs">
         <div className="flex items-center gap-3">
           <Link
-            href="/admin/content"
+            href={isInstructor ? '/instructor' : '/admin/courses'}
             className="p-2 rounded-xl bg-surface border border-outline-variant hover:bg-surface-container text-on-surface-variant cursor-pointer"
             title="Back to courses list"
           >
@@ -318,17 +323,19 @@ function CourseBuilderContent() {
           </Link>
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
-              <span>Course Builder</span>
+              <span>{isInstructor ? 'Instructor Studio' : 'Course Builder'}</span>
               <span>/</span>
               <span className="text-primary font-bold">{courseState.category}</span>
               <span
                 className={`text-[9px] font-bold uppercase font-mono px-2 py-0.2 rounded-full border ${
                   courseState.status === 'PUBLISHED'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                    : courseState.status === 'IN_REVIEW'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-surface-container text-outline border-outline-variant'
                 }`}
               >
-                {courseState.status}
+                {courseState.status === 'IN_REVIEW' ? 'Pending Approval' : courseState.status}
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-on-surface tracking-tight mt-0.5">
@@ -364,8 +371,16 @@ function CourseBuilderContent() {
               onClick={handlePublishCourse}
               className="px-6 py-2.5 bg-primary text-on-primary font-black text-xs rounded-xl hover:bg-primary-container shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Icon name="rocket_launch" size={16} />
-              <span>{isPublishing ? 'Publishing...' : 'Publish Course'}</span>
+              <Icon name={isInstructor ? 'send' : 'rocket_launch'} size={16} />
+              <span>
+                {isPublishing
+                  ? isInstructor
+                    ? 'Submitting...'
+                    : 'Publishing...'
+                  : isInstructor
+                  ? 'Submit for Approval'
+                  : 'Publish Course Live'}
+              </span>
             </button>
           )}
         </div>
@@ -463,6 +478,7 @@ function CourseBuilderContent() {
       {currentStep === 4 && (
         <CoursePublishStep
           courseData={courseState}
+          userRole={currentUser?.role}
           onJumpToStep={(stepIdx) => setCurrentStep(stepIdx)}
           onPublish={handlePublishCourse}
           isPublishing={isPublishing}

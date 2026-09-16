@@ -78,6 +78,8 @@ export interface Course {
   isEnrolled?: boolean;
   isWishlisted?: boolean;
   status?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface VideoLibraryItem {

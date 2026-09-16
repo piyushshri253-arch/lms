@@ -1,8 +1,12 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Course } from '@/types';
 import { Icon } from '../ui/Icon';
 import { UserAvatar } from '../ui/UserAvatar';
+import { useApp } from '@/context/AppContext';
 
 interface CourseCardProps {
   course: Course;
@@ -10,7 +14,25 @@ interface CourseCardProps {
 }
 
 export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'standard' }) => {
+  const router = useRouter();
+  const { addToCart, isInCart } = useApp();
+  const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
+
+  const formattedDateTime = React.useMemo(() => {
+    const rawDate = course.createdAt || (course as any).updatedAt;
+    if (!rawDate) return null;
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  }, [course.createdAt, (course as any).updatedAt]);
 
   if (variant === 'featured') {
     return (
@@ -66,7 +88,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
                 {course.instructor.name}
               </span>
             </div>
-            <span className="text-lg font-bold text-on-surface">${course.price}</span>
+            <span className="text-lg font-bold text-on-surface">₹{course.price.toLocaleString('en-IN')}</span>
           </div>
         </div>
       </Link>
@@ -158,6 +180,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
           {course.title}
         </h3>
 
+        {/* Published Date & Time */}
+        {formattedDateTime && (
+          <div className="flex items-center gap-1 text-[11px] text-primary font-medium mb-2 bg-primary/5 border border-primary/10 px-2 py-0.5 rounded w-fit">
+            <Icon name="schedule" size={12} className="text-primary shrink-0" />
+            <span>Published: {formattedDateTime}</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 mb-3">
           <UserAvatar
             avatar={course.instructor.avatar}
@@ -172,12 +202,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
 
         <div className="mt-auto pt-3 border-t border-outline-variant/60 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="text-base font-bold text-on-surface font-mono">
-              ${course.price}
+            <span className="text-base font-bold text-on-surface">
+              {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
             </span>
             {discountPrice && (
-              <span className="text-xs text-on-surface-variant line-through font-mono">
-                ${discountPrice}
+              <span className="text-xs text-on-surface-variant line-through">
+                ₹{discountPrice.toLocaleString('en-IN')}
               </span>
             )}
           </div>
@@ -185,6 +215,29 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
             <Icon name="schedule" size={13} />
             <span>{course.durationHours}h</span>
           </div>
+        </div>
+
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (inCart) {
+                router.push('/student/cart');
+              } else {
+                addToCart(course);
+              }
+            }}
+            className={`w-full py-1.5 px-3 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+              inCart
+                ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
+                : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
+            }`}
+          >
+            <Icon name={inCart ? 'check' : 'shopping_cart'} size={14} />
+            <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
+          </button>
         </div>
       </div>
     </Link>

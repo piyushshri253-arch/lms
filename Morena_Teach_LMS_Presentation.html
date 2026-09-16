@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MORENA TEACH LMS - Architecture, Workflow & System Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --primary: #6366f1;
+      --cyan: #06b6d4;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text: #f9fafb;
+      --muted: #9ca3af;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    header {
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      color: #fff;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .nav-btn {
+      background: #1f2937;
+      color: var(--text);
+      border: 1px solid #374151;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      background: #374151;
+      border-color: #4b5563;
+    }
+    .slide-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-width: 60px;
+      text-align: center;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .slide-container {
+      width: 100%;
+      max-width: 1200px;
+      aspect-ratio: 16 / 9;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 3rem;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    .slide-container.active {
+      display: flex;
+      animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .category-pill {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1rem;
+      border: 1px solid currentColor;
+    }
+    h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      font-size: 1rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      flex: 1;
+      align-items: stretch;
+    }
+    .card {
+      background: rgba(31, 41, 55, 0.4);
+      border: 1px solid #1f2937;
+      border-radius: 14px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent-color, var(--primary));
+    }
+    .card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+    .card p, .card li {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .card ul {
+      list-style: none;
+      margin-top: 0.5rem;
+    }
+    .card li {
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .card li::before {
+      content: '✓';
+      color: var(--accent-color, var(--primary));
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #1f2937;
+    }
+    th {
+      background: rgba(31, 41, 55, 0.8);
+      color: var(--text);
+      font-weight: 700;
+    }
+    td {
+      color: var(--muted);
+    }
+    .pipeline-step {
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+    }
+    .step-number {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--accent-color, var(--cyan));
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-top: 0.5rem;
+      align-self: flex-start;
+    }
+    footer {
+      padding: 1rem 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--card-border);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>MORENA TEACH LMS</span>
+      <span class="brand-badge">ARCHITECTURE & WORKFLOW</span>
+    </div>
+    <div class="controls">
+      <button class="nav-btn" onclick="prevSlide()">← Prev</button>
+      <span class="slide-counter" id="counter">1 / 8</span>
+      <button class="nav-btn" onclick="nextSlide()">Next →</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Slide 1: Hero -->
+    <div class="slide-container active" style="justify-content: center; text-align: center; align-items: center;">
+      <span class="category-pill" style="color: var(--cyan); border-color: var(--cyan);">SYSTEM OVERVIEW</span>
+      <h2 style="font-size: 3rem; margin-bottom: 1rem;">MORENA TEACH LMS</h2>
+      <p class="subtitle" style="font-size: 1.25rem; max-width: 800px; margin: 0 auto 2rem;">
+        Complete System Architecture, Role Hierarchy, Publishing Pipeline & Security Boundary Documentation
+      </p>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+        <span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid #6366f1; padding: 0.5rem 1rem; font-size: 0.85rem;">Single-Business Architecture</span>
+        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 0.5rem 1rem; font-size: 0.85rem;">Strict Dual-Portal Security</span>
+        <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 0.5rem 1rem; font-size: 0.85rem;">4-Tier RBAC</span>
+        <span class="badge" style="background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid #06b6d4; padding: 0.5rem 1rem; font-size: 0.85rem;">Real Data Storefront</span>
+      </div>
+    </div>
+
+    <!-- Slide 2: Single-Business & Storefront Vision -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--primary); border-color: var(--primary);">FOUNDATION</span>
+      <h2>Single-Business Architecture & Unified Website</h2>
+      <p class="subtitle">Designed specifically for your company's own courses with zero third-party multi-tenant clutter</p>
+      <div class="content-grid">
+        <div class="card" style="--accent-color: var(--primary);">
+          <h3>No Facility Clutter</h3>
+          <p>Completely removed Facility Management. Your LMS is tailored for your personal business brand with direct, unified operational governance.</p>
+        </div>
+        <div class="card" style="--accent-color: var(--cyan);">
+          <h3>Existing Landing Page as Storefront</h3>
+          <p>The main website (/) is the central storefront. All approved courses created by teachers or administrators automatically appear here.</p>
+        </div>
+        <div class="card" style="--accent-color: var(--green);">
+          <h3>Zero Mock Data Policy</h3>
+          <p>Dashboard statistics, courses, and enrollments reflect 100% real live database data. No dummy/fake records interfere with your reports.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 3: Dual-Portal Security Boundary -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--rose); border-color: var(--rose);">SECURITY BOUNDARY</span>
+      <h2>Strict Dual-Portal Boundary Enforcement</h2>
+      <p class="subtitle">Complete isolation between the Student Storefront and Administrative Command Center</p>
+      <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="card" style="--accent-color: var(--green);">
+          <h3 style="color: #34d399;">Student Portal (/login & /register)</h3>
+          <ul>
+            <li>Public registration is strictly hardcoded to role <strong>STUDENT</strong>.</li>
+            <li>Admins & Super Admins attempting to login here receive <strong>HTTP 403 Forbidden</strong>.</li>
+            <li>Shows clear guidance: <em>"Platform Staff? Use Admin Portal →"</em>.</li>
+            <li>Students browse courses, purchase in INR (₹), and access their learning cockpit.</li>
+          </ul>
+        </div>
+        <div class="card" style="--accent-color: var(--rose);">
+          <h3 style="color: #f87171;">Admin Backend (/admin/login)</h3>
+          <ul>
+            <li>Restricted strictly to roles <strong>SUPER_ADMIN</strong> and <strong>ADMIN</strong>.</li>
+            <li>Students attempting to login here receive <strong>HTTP 403 Forbidden</strong>.</li>
+            <li>Zero public discoverability — hidden cockpit for business operations.</li>
+            <li>Audit logs, course approvals, staff role assignment, and financial analytics.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 4: 4-Tier RBAC -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--amber); border-color: var(--amber);">ROLE MATRIX</span>
+      <h2>4-Tier Role-Based Access Control (RBAC)</h2>
+      <p class="subtitle">Granular privilege segmentation ensuring operational clarity and safety</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Role Tier</th>
+            <th>Primary Access URL</th>
+            <th>Operational Responsibility</th>
+            <th>Privilege Scope</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight: 700; color: #f43f5e;">SUPER ADMIN</td>
+            <td><code>/admin/*</code></td>
+            <td>Platform owner, manages administrator accounts, configures platform policies</td>
+            <td>Full Unrestricted Control</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #f59e0b;">ADMIN</td>
+            <td><code>/admin/*</code></td>
+            <td>Course approval, student enrollments, certificates, announcements, revenue audits</td>
+            <td>Operational Staff Privileges</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #8b5cf6;">INSTRUCTOR</td>
+            <td><code>/instructor/*</code></td>
+            <td>Builds course curriculum, uploads video lectures/PDFs, quizzes, monitors student progress</td>
+            <td>Own Course Catalog Only</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; color: #10b981;">STUDENT</td>
+            <td><code>/</code> & <code>/dashboard</code></td>
+            <td>Browses storefront, enrolls in courses, streams lessons, downloads verified certificates</td>
+            <td>Consumer / Student Access</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Slide 5: Course Publishing Pipeline -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--cyan); border-color: var(--cyan);">WORKFLOW</span>
+      <h2>5-Step Course Publishing Pipeline</h2>
+      <p class="subtitle">How a course travels from draft creation to live storefront showcase</p>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; flex: 1;">
+        <div class="pipeline-step" style="--accent-color: var(--cyan);">
+          <span class="step-number">01</span>
+          <strong style="color:#fff; margin-bottom: 0.25rem;">Draft Creation</strong>
+          <p style="font-size: 0.8rem; color: var(--muted);">Instructor sets title, description, thumbnail, INR price.</p>
+          <span class="badge" style="background:#1e293b; color:var(--cyan);">Instructor</span>
+        </div>
+        <div class="pipeline-step" style="--accent-color: var(--primary);">
+          <span class="step-number">02</span>
+          <strong style="color:#fff; margin-bottom: 0.25rem;">Curriculum</strong>
+          <p style="font-size: 0.8rem; color: var(--muted);">Builds modules, uploads video lectures, PDF notes & quizzes.</p>
+          <span class="badge" style="background:#1e293b; color:var(--primary);">Instructor</span>
+        </div>
+        <div class="pipeline-step" style="--accent-color: var(--amber);">
+          <span class="step-number">03</span>
+          <strong style="color:#fff; margin-bottom: 0.25rem;">Submission</strong>
+          <p style="font-size: 0.8rem; color: var(--muted);">Submits course for quality audit (Status: IN_REVIEW).</p>
+          <span class="badge" style="background:#1e293b; color:var(--amber);">Instructor</span>
+        </div>
+        <div class="pipeline-step" style="--accent-color: var(--rose);">
+          <span class="step-number">04</span>
+          <strong style="color:#fff; margin-bottom: 0.25rem;">Admin Audit</strong>
+          <p style="font-size: 0.8rem; color: var(--muted);">Admin reviews course in /admin/courses and approves.</p>
+          <span class="badge" style="background:#1e293b; color:var(--rose);">Admin Staff</span>
+        </div>
+        <div class="pipeline-step" style="--accent-color: var(--green);">
+          <span class="step-number">05</span>
+          <strong style="color:#fff; margin-bottom: 0.25rem;">Instant Live</strong>
+          <p style="font-size: 0.8rem; color: var(--muted);">Course automatically appears on landing page storefront.</p>
+          <span class="badge" style="background:#1e293b; color:var(--green);">Automation</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 6: Public Storefront -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--green); border-color: var(--green);">STOREFRONT</span>
+      <h2>Public Storefront (Landing Page) & Purchasing</h2>
+      <p class="subtitle">Directly connected to real live database with zero mock data</p>
+      <div class="content-grid">
+        <div class="card" style="--accent-color: var(--green);">
+          <h3>Real Database Stream</h3>
+          <p>Every course displayed on the homepage is pulled live from Prisma ORM. Drafts and unapproved courses are strictly hidden from visitors.</p>
+        </div>
+        <div class="card" style="--accent-color: var(--cyan);">
+          <h3>Date & Time Badges</h3>
+          <p>Each card displays dynamic created/updated timestamps, allowing students to identify newly published courses.</p>
+        </div>
+        <div class="card" style="--accent-color: var(--amber);">
+          <h3>Instant INR (₹) Checkout</h3>
+          <p>Students can view curriculum outlines, preview lessons, and purchase directly with automated instant enrollment.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 7: Technical Stack -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--primary); border-color: var(--primary);">ARCHITECTURE</span>
+      <h2>Full-Stack Technology Architecture</h2>
+      <p class="subtitle">Built with enterprise modern web standards for high performance and scalability</p>
+      <div class="content-grid">
+        <div class="card" style="--accent-color: var(--cyan);">
+          <h3>Frontend</h3>
+          <p>Next.js 14 App Router, React 18 Server & Client Components, Tailwind CSS, Lucide React icons, and accessible Radix primitives.</p>
+        </div>
+        <div class="card" style="--accent-color: var(--primary);">
+          <h3>API & Auth</h3>
+          <p>Next.js Route Handlers, NextAuth.js JWT authentication, bcrypt password hashing, and cookie-based role session verification.</p>
+        </div>
+        <div class="card" style="--accent-color: var(--green);">
+          <h3>Database & Media</h3>
+          <p>Prisma ORM with PostgreSQL database, relational integrity constraints, and scalable cloud storage for course media assets.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 8: Verified Credentials & Status -->
+    <div class="slide-container">
+      <span class="category-pill" style="color: var(--green); border-color: var(--green);">VERIFICATION</span>
+      <h2>Verified Test Credentials & Readiness</h2>
+      <p class="subtitle">End-to-end verified with 0 TypeScript errors and full portal separation</p>
+      <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="card" style="--accent-color: var(--green);">
+          <h3 style="color: #34d399;">Security Validation</h3>
+          <ul>
+            <li>Student sign-in on public page (/login): <strong>PASSED</strong></li>
+            <li>Admin sign-in on public page (/login): <strong>BLOCKED (403)</strong></li>
+            <li>Admin sign-in on admin backend (/admin/login): <strong>PASSED</strong></li>
+            <li>Student sign-in on admin backend (/admin/login): <strong>BLOCKED (403)</strong></li>
+            <li>TypeScript Compilation (<code>npx tsc --noEmit</code>): <strong>0 ERRORS</strong></li>
+          </ul>
+        </div>
+        <div class="card" style="--accent-color: var(--cyan);">
+          <h3 style="color: #22d3ee;">Access Matrix</h3>
+          <div style="font-size: 0.85rem; line-height: 1.8;">
+            <p><strong>Super Admin:</strong> <code>admin@morenateach.com / admin123</code><br>Portal: <code>http://localhost:3000/admin/login</code></p>
+            <p style="margin-top: 0.5rem;"><strong>Operations Admin:</strong> <code>ops@morenateach.com / ops123</code><br>Portal: <code>http://localhost:3000/admin/login</code></p>
+            <p style="margin-top: 0.5rem;"><strong>Instructor:</strong> <code>instructor@morenateach.com / inst123</code><br>Portal: <code>http://localhost:3000/login</code></p>
+            <p style="margin-top: 0.5rem;"><strong>Student:</strong> <code>student@morenateach.com / student123</code><br>Portal: <code>http://localhost:3000/login</code></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    MORENA TEACH LMS Engineering Documentation & Presentation • Press [←] or [→] arrow keys to navigate slides
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide-container');
+    const counter = document.getElementById('counter');
+    let currentSlide = 0;
+
+    function updateSlide() {
+      slides.forEach((s, idx) => {
+        s.classList.toggle('active', idx === currentSlide);
+      });
+      counter.textContent = (currentSlide + 1) + ' / ' + slides.length;
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    updateSlide();
+  </script>
+</body>
+</html>

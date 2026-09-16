@@ -20,16 +20,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'AADHYARA — Learning. Built Better.',
-  description: 'Enterprise multi-tenant B2B SaaS LMS platform for organizations, institutes, and creators to build, monetize, and scale online academies.',
+  title: 'Morena Teach — Online Courses, Certifications & Learning Management System',
+  description: 'Master in-demand skills and certified masterclasses with Morena Teach LMS.',
   openGraph: {
-    title: 'AADHYARA — Learning. Built Better.',
-    description: 'Enterprise multi-tenant B2B SaaS LMS platform with complete tenant isolation and dedicated organization workspaces.',
-    siteName: 'AADHYARA',
+    title: 'Morena Teach — Modern Learning Platform',
+    description: 'Premier online academy for professional training, masterclasses, and certified education.',
+    siteName: 'Morena Teach',
     type: 'website'
   },
   icons: {
-    icon: '/favicon.ico'
+    icon: '/logo.png'
   }
 };
 
@@ -46,12 +46,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         />
       </head>
-      <body className="min-h-screen bg-background text-on-background flex flex-col selection:bg-primary/20 selection:text-primary">
+      <body className="min-h-screen bg-white text-[#2d2f31] flex flex-col antialiased">
         <AppProvider>
-          <SuperAdminSupportBanner />
           {children}
-          <AiSupportFloatingBot />
-          <RoleSwitcher />
           <ToastContainer />
         </AppProvider>
       </body>

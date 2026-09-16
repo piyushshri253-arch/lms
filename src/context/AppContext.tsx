@@ -28,6 +28,19 @@ export interface UserSession {
   coursesAuthoredCount?: number;
 }
 
+export interface CartItem {
+  id: string;
+  slug?: string;
+  title: string;
+  price: number;
+  discountPrice?: number;
+  thumbnail?: string | null;
+  instructorName?: string;
+  rating?: number;
+  totalHours?: number;
+  totalLessons?: number;
+}
+
 export interface ToastMessage {
   id: string;
   title: string;
@@ -38,7 +51,7 @@ export interface ToastMessage {
 interface AppContextType {
   currentUser: UserSession | null;
   isLoadingUser: boolean;
-  login: (email: string, pass: string) => Promise<UserSession>;
+  login: (email: string, pass: string, requestedPortal?: string) => Promise<UserSession>;
   register: (name: string, email: string, pass: string, role?: 'STUDENT' | 'INSTRUCTOR') => Promise<UserSession>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -58,6 +71,12 @@ interface AppContextType {
   wishlistCourseIds: string[];
   toggleWishlist: (courseId: string) => Promise<void>;
 
+  cartItems: CartItem[];
+  addToCart: (course: any) => void;
+  removeFromCart: (courseId: string) => void;
+  clearCart: () => void;
+  isInCart: (courseId: string) => boolean;
+
   enrolledCourseIds: string[];
   completedLessonIds: string[];
   processCheckout: (courseId: string, couponCode?: string, provider?: string) => Promise<any>;
@@ -76,13 +95,13 @@ interface AppContextType {
   setSearchQuery: (query: string) => void;
 
   toasts: ToastMessage[];
-  showToast: (toast: Omit<ToastMessage, 'id'>) => void;
+  showToast: (toastOrTitle: string | Omit<ToastMessage, 'id'>, type?: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
 }
 
 const DEFAULT_SETTINGS: PlatformSettings = {
-  platformName: 'AADHYARA',
-  supportEmail: 'support@aadhyara.com',
+  platformName: 'MORENA TEACH',
+  supportEmail: 'support@morenateach.com',
   defaultLanguage: 'English (US)',
   twoFactorAuth: true,
   sessionTimeoutMinutes: 60,
@@ -181,11 +200,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveRoleState(role);
   };
 
-  const login = async (email: string, pass: string): Promise<UserSession> => {
+  const login = async (email: string, pass: string, requestedPortal?: string): Promise<UserSession> => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pass })
+      body: JSON.stringify({ email, password: pass, requestedPortal })
     });
 
     const data = await res.json();
@@ -230,7 +249,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     showToast({
       title: 'Account Created!',
-      description: `Welcome to AADHYARA, ${data.user.name}.`,
+      description: `Welcome to MORENA TEACH, ${data.user.name}.`,
       type: 'success'
     });
 
@@ -456,9 +475,116 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
-  const showToast = (toast: Omit<ToastMessage, 'id'>) => {
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('teach_cart_items');
+      if (saved) {
+        setCartItems(JSON.parse(saved));
+      }
+    } catch {}
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'teach_cart_items' && e.newValue) {
+        try {
+          setCartItems(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const addToCart = (course: any) => {
+    if (!course) return;
+    const courseId = course.id;
+    const courseSlug = course.slug;
+    
+    // Check if already in cart by ID or slug
+    if (cartItems.some((item) => item.id === courseId || (courseSlug && item.slug === courseSlug))) {
+      showToast({
+        title: 'Already in cart',
+        description: `"${course.title}" is already in your cart.`,
+        type: 'info'
+      });
+      return;
+    }
+
+    // Safely parse price
+    let parsedPrice = 0;
+    if (typeof course.price === 'number') {
+      parsedPrice = course.price;
+    } else if (course.price) {
+      parsedPrice = parseFloat(String(course.price).replace(/[^0-9.]/g, '')) || 0;
+    }
+
+    let parsedDiscount: number | undefined = undefined;
+    if (typeof course.discountPrice === 'number') {
+      parsedDiscount = course.discountPrice;
+    } else if (course.discountPrice) {
+      parsedDiscount = parseFloat(String(course.discountPrice).replace(/[^0-9.]/g, '')) || undefined;
+    }
+
+    const newItem: CartItem = {
+      id: course.id || course.slug || `course-${Date.now()}`,
+      slug: course.slug || course.id,
+      title: course.title || 'Curriculum Program',
+      price: parsedPrice,
+      discountPrice: parsedDiscount,
+      thumbnail: course.thumbnail || course.imageUrl || null,
+      instructorName: course.instructor?.name || course.instructorName || 'Faculty of Teacher Excellence',
+      rating: typeof course.rating === 'number' ? course.rating : 4.8,
+      totalHours: course.durationHours || 24,
+      totalLessons: course.totalLessons || (course.sections ? course.sections.flatMap((s: any) => s.lessons || []).length : 20)
+    };
+
+    const updated = [...cartItems, newItem];
+    setCartItems(updated);
+    try {
+      localStorage.setItem('teach_cart_items', JSON.stringify(updated));
+    } catch {}
+    showToast({
+      title: 'Added to cart! 🛒',
+      description: `"${course.title}" added to your cart.`,
+      type: 'success'
+    });
+  };
+
+  const removeFromCart = (courseId: string) => {
+    const updated = cartItems.filter((item) => item.id !== courseId && item.slug !== courseId);
+    setCartItems(updated);
+    try {
+      localStorage.setItem('teach_cart_items', JSON.stringify(updated));
+    } catch {}
+    showToast({
+      title: 'Item removed',
+      description: 'Course removed from your cart.',
+      type: 'info'
+    });
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    try {
+      localStorage.removeItem('teach_cart_items');
+    } catch {}
+  };
+
+  const isInCart = (courseIdOrSlug: string) => {
+    if (!courseIdOrSlug) return false;
+    return cartItems.some((item) => item.id === courseIdOrSlug || item.slug === courseIdOrSlug);
+  };
+
+  const showToast = (toastOrTitle: string | Omit<ToastMessage, 'id'>, type?: 'success' | 'error' | 'info') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    setToasts((prev) => [...prev, { ...toast, id }]);
+    let toastObj: ToastMessage;
+    if (typeof toastOrTitle === 'string') {
+      toastObj = { id, title: toastOrTitle, type: type || 'info' };
+    } else {
+      toastObj = { ...toastOrTitle, id };
+    }
+    setToasts((prev) => [...prev, toastObj]);
     setTimeout(() => {
       removeToast(id);
     }, 4000);
@@ -489,6 +615,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteCourse,
         wishlistCourseIds,
         toggleWishlist,
+        cartItems,
+        addToCart,
+        removeFromCart,
+        clearCart,
+        isInCart,
         enrolledCourseIds,
         completedLessonIds,
         processCheckout,

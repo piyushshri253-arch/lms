@@ -102,22 +102,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Enforce Portal Intent Boundaries if requested
-    if (requestedPortal === 'STUDENT' && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && !productPortal) {
+    // 5. Enforce Portal Intent Boundaries:
+    // Students must use /login, Super Admin & Admin must use /admin/login
+    if (requestedPortal === 'STUDENT' && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
       return NextResponse.json(
         {
           error:
-            'This account is registered as an Administrator. Please switch to the "LOGIN AS ADMIN" tab or sign in through AADHYARA Sales.'
+            'Administrative accounts are not permitted on the Student portal. Please sign in through the Admin Backend Portal at /admin/login.'
         },
         { status: 403 }
       );
     }
 
-    if (requestedPortal === 'ADMIN' && user.role === 'STUDENT' && !productPortal) {
+    if (requestedPortal === 'ADMIN' && user.role === 'STUDENT') {
       return NextResponse.json(
         {
           error:
-            'This account is registered as a Student. Please sign in through AADHYARA Learning.'
+            'Student accounts cannot access the Administrator Backend. Please sign in through the Student portal at /login.'
         },
         { status: 403 }
       );
@@ -125,50 +126,58 @@ export async function POST(req: NextRequest) {
 
     // 6. Check Email Verification Status
     if (!user.emailVerified) {
-      const { otp, hash: otpHash } = generateOtp(6);
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      if (user.role === 'STUDENT') {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { emailVerified: true, status: 'ACTIVE' }
+        });
+        user.emailVerified = true;
+      } else {
+        const { otp, hash: otpHash } = generateOtp(6);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      await prisma.emailVerificationToken.updateMany({
-        where: { userId: user.id, usedAt: null },
-        data: { usedAt: new Date() }
-      });
+        await prisma.emailVerificationToken.updateMany({
+          where: { userId: user.id, usedAt: null },
+          data: { usedAt: new Date() }
+        });
 
-      await prisma.emailVerificationToken.create({
-        data: {
+        await prisma.emailVerificationToken.create({
+          data: {
+            userId: user.id,
+            email: normalizedEmail,
+            otpHash,
+            expiresAt
+          }
+        });
+
+        await sendEmail({
+          to: normalizedEmail,
+          subject: 'Verify your Morena Teach account',
+          template: 'OTP_VERIFY',
+          userId: user.id,
+          data: {
+            name: user.name,
+            otp,
+            expiresInMinutes: 10
+          }
+        }).catch(() => {});
+
+        await logSecurityEvent({
           userId: user.id,
           email: normalizedEmail,
-          otpHash,
-          expiresAt
-        }
-      });
+          eventType: 'LOGIN_CHALLENGED_UNVERIFIED',
+          req
+        });
 
-      await sendEmail({
-        to: normalizedEmail,
-        subject: 'Verify your AADHYARA account',
-        template: 'OTP_VERIFY',
-        userId: user.id,
-        data: {
-          name: user.name,
-          otp,
-          expiresInMinutes: 10
-        }
-      }).catch(() => {});
-
-      await logSecurityEvent({
-        userId: user.id,
-        email: normalizedEmail,
-        eventType: 'LOGIN_CHALLENGED_UNVERIFIED',
-        req
-      });
-
-      return NextResponse.json(
-        {
-          requiresEmailVerification: true,
-          email: user.email,
-          message: 'Please verify your email before accessing your account.'
-        },
-        { status: 403 }
-      );
+        return NextResponse.json(
+          {
+            requiresEmailVerification: true,
+            email: user.email,
+            message: 'Please verify your email before accessing your account.'
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // 6. Role & Portal Validation (if portal specified)
@@ -290,7 +299,7 @@ export async function POST(req: NextRequest) {
     const userAgent = req.headers.get('user-agent') || 'Browser';
     sendEmail({
       to: normalizedEmail,
-      subject: 'New login to your AADHYARA account',
+      subject: 'New login to your Morena Teach account',
       template: 'LOGIN_ALERT',
       userId: user.id,
       data: {

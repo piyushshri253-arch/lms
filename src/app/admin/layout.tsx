@@ -13,9 +13,12 @@ export default async function AdminLayout({
   const headersList = await headers();
   const currentPath = headersList.get('x-pathname') || '/admin';
 
+  // Dedicated Admin Login page does not require existing admin session or dashboard chrome
+  if (currentPath.startsWith('/admin/login')) {
+    return <>{children}</>;
+  }
+
   // Server Component authentication & authorization check:
-  // Immediately redirects unauthenticated users to /login?callbackUrl=...
-  // and non-admin users to /unauthorized before ANY page HTML or data is rendered.
   await requireAdmin(currentPath);
 
   return <AdminLayoutClient>{children}</AdminLayoutClient>;

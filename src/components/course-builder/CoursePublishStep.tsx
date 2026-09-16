@@ -15,6 +15,7 @@ interface ChecklistItem {
 
 interface CoursePublishStepProps {
   courseData: any;
+  userRole?: string;
   onJumpToStep: (stepIndex: number) => void;
   onPublish: () => Promise<void>;
   isPublishing: boolean;
@@ -22,6 +23,7 @@ interface CoursePublishStepProps {
 
 export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
   courseData,
+  userRole = 'ADMIN',
   onJumpToStep,
   onPublish,
   isPublishing
@@ -113,16 +115,26 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               }`}
             />
             <span className="text-xs font-bold uppercase tracking-wider font-mono">
-              {canPublish ? 'Ready for Live Platform Release' : 'Action Required Before Publishing'}
+              {canPublish
+                ? userRole === 'INSTRUCTOR'
+                  ? 'Ready for Super Admin Review'
+                  : 'Ready for Live Platform Release'
+                : 'Action Required Before Submitting'}
             </span>
           </div>
           <h3 className="text-2xl font-black tracking-tight text-on-surface">
-            {canPublish ? 'All Systems Go! 🚀' : 'Complete Required Pre-Flight Checklist'}
+            {canPublish
+              ? userRole === 'INSTRUCTOR'
+                ? 'Ready for Review! 📋'
+                : 'All Systems Go! 🚀'
+              : 'Complete Required Pre-Flight Checklist'}
           </h3>
           <p className="text-xs text-on-surface-variant max-w-lg">
             {canPublish
-              ? 'Your masterclass curriculum is fully configured and ready to be enrolled by students globally.'
-              : `${passedCount} of ${checklist.length} publishing criteria met. Resolve the remaining items below to publish.`}
+              ? userRole === 'INSTRUCTOR'
+                ? 'Your course curriculum meets all criteria. Submit it for Super Admin review to publish it to the landing page.'
+                : 'Your masterclass curriculum is fully configured and ready to be enrolled by students globally.'
+              : `${passedCount} of ${checklist.length} criteria met. Resolve the remaining items below to proceed.`}
           </p>
         </div>
 
@@ -145,7 +157,12 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             {isPublishing ? (
               <>
                 <Icon name="sync" size={16} className="animate-spin" />
-                <span>Publishing...</span>
+                <span>{userRole === 'INSTRUCTOR' ? 'Submitting...' : 'Publishing...'}</span>
+              </>
+            ) : userRole === 'INSTRUCTOR' ? (
+              <>
+                <Icon name="send" size={16} />
+                <span>Submit for Approval</span>
               </>
             ) : (
               <>

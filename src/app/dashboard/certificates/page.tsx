@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -51,7 +51,7 @@ export default function StudentCertificatesPage() {
             Accredited Diplomas &amp; Credentials
           </h1>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Verified diplomas issued by AADHYARA upon 100% curriculum completion
+            Verified diplomas issued by Morena Teach upon 100% curriculum completion
           </p>
         </div>
 

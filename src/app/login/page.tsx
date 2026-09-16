@@ -1,182 +1,193 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { Icon } from '@/components/ui/Icon';
+import { useApp } from '@/context/AppContext';
 
-function LoginSelectionContent() {
+function LoginContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { login, showToast } = useApp();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   const callbackUrl = searchParams.get('callbackUrl');
-  const callbackQuery = callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : '';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+
+    setIsLoading(true);
+    try {
+      const user = await login(email.trim().toLowerCase(), password, 'STUDENT');
+
+      // Reject Admin & Super Admin accounts from student storefront login
+      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+        showToast({
+          title: 'Admin Account Detected',
+          description: 'Please sign in through the dedicated Admin Backend Portal at /admin/login.',
+          type: 'error'
+        });
+        router.push('/admin/login');
+        return;
+      }
+
+      showToast({
+        title: 'Welcome Back!',
+        description: `Logged in as ${user.name}.`,
+        type: 'success'
+      });
+
+      // Redirect student to their learning workspace (or instructor to studio)
+      if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+        router.push(callbackUrl);
+      } else if (user.role === 'INSTRUCTOR') {
+        router.push('/instructor');
+      } else {
+        router.push('/student/learning');
+      }
+    } catch (err: any) {
+      showToast({
+        title: 'Sign In Failed',
+        description: err.message || 'Incorrect email or password.',
+        type: 'error'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen w-full bg-[#060814] text-white flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Background Ambient Glows & Grid */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
-      <div className="absolute -top-32 -left-32 w-[550px] h-[550px] bg-indigo-600/15 blur-[140px] rounded-full pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-[550px] h-[550px] bg-purple-600/15 blur-[140px] rounded-full pointer-events-none" />
+    <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col font-sans antialiased">
+      <UdemyNavbar />
 
-      {/* Main Card Container */}
-      <div className="w-full max-w-4xl bg-[#0c1024] border border-white/15 rounded-3xl sm:rounded-[36px] shadow-2xl shadow-black/80 overflow-hidden p-6 sm:p-10 lg:p-12 relative z-10 backdrop-blur-xl space-y-8">
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <div className="w-11 h-11 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg group-hover:scale-105 transition-transform border border-white/20">
-              A
-            </div>
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-8 py-12">
+        <div className="w-full max-w-[400px] space-y-6">
+          {/* Header */}
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#1c1d1f] tracking-tight">
+              Log in to continue your learning journey
+            </h1>
+            <p className="text-xs text-[#6a6f73]">
+              Access your enrolled courses, certifications, and learning progress.
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <span className="font-black text-xl text-white tracking-tight block">
-                AADHYARA
-              </span>
-              <span className="text-[10px] text-indigo-300 font-mono uppercase font-bold tracking-wider">
-                Create &bull; Learn &bull; Sell
-              </span>
-            </div>
-          </Link>
-
-          <Link
-            href="/"
-            className="text-xs font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 bg-white/[0.04] px-3.5 py-2 rounded-xl border border-white/10 self-start sm:self-auto"
-          >
-            <Icon name="arrow_back" size={14} />
-            <span>Back to Home</span>
-          </Link>
-        </div>
-
-        {/* Hero Title */}
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-3 py-1 rounded-full">
-            Product Access Portal
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            What do you want to access?
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
-            AADHYARA provides two dedicated product environments. Select the platform you want to sign into.
-          </p>
-          {callbackUrl && (
-            <div className="inline-flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full text-xs text-indigo-300 mt-2">
-              <Icon name="lock" size={12} />
-              <span>Authentication required to continue to your requested page</span>
-            </div>
-          )}
-        </div>
-
-        {/* 2 Primary Choice Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          {/* Card 1: AADHYARA Learning */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-emerald-950/20 via-slate-900 to-[#0c1024] border border-emerald-500/30 hover:border-emerald-400 transition-all duration-300 flex flex-col justify-between space-y-6 group shadow-xl hover:scale-[1.01]">
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform">
-                🎓
-              </div>
-
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-emerald-300 transition-colors">
-                  AADHYARA Learning
-                </h2>
-                <div className="text-xs font-mono font-bold text-emerald-400 uppercase mt-0.5">
-                  Learn &bull; Teach &bull; Excel
-                </div>
-                <p className="text-xs sm:text-sm text-slate-300 mt-2.5 leading-relaxed">
-                  Access your enrolled courses, video lessons, quiz assessments, certificates, study streaks, and instructor teaching tools.
-                </p>
-              </div>
-
-              {/* Roles badge */}
-              <div className="pt-2 flex flex-wrap gap-1.5 text-[11px] font-mono text-slate-400">
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">Students</span>
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">Instructors</span>
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">LMS Admins</span>
-              </div>
+              <label className="block text-xs font-bold text-[#1c1d1f] mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full h-11 px-3 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
+              />
             </div>
 
-            <div className="space-y-2 pt-4 border-t border-white/10">
-              <Link
-                href={`/learning/login${callbackQuery}`}
-                className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
-              >
-                <span>Learning Login</span>
-                <Icon name="arrow_forward" size={16} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <div className="text-center">
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-[#1c1d1f]">
+                  Password
+                </label>
                 <Link
-                  href="/learning/register"
-                  className="text-xs text-slate-400 hover:text-emerald-300 transition-colors"
+                  href="/forgot-password"
+                  className="text-xs text-[#5022c3] hover:underline font-semibold"
                 >
-                  New learner? Create Learning Account &rarr;
+                  Forgot password?
                 </Link>
               </div>
-            </div>
-          </div>
-
-          {/* Card 2: AADHYARA Sales */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-indigo-950/30 via-slate-900 to-[#0c1024] border border-indigo-500/30 hover:border-indigo-400 transition-all duration-300 flex flex-col justify-between space-y-6 group shadow-xl hover:scale-[1.01]">
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform">
-                🚀
-              </div>
-
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-indigo-300 transition-colors">
-                  AADHYARA Sales
-                </h2>
-                <div className="text-xs font-mono font-bold text-indigo-400 uppercase mt-0.5">
-                  Build &bull; Sell &bull; Grow
-                </div>
-                <p className="text-xs sm:text-sm text-slate-300 mt-2.5 leading-relaxed">
-                  Manage your business website storefront, digital products, checkout orders, customer leads, campaigns, and AI growth copilot.
-                </p>
-              </div>
-
-              {/* Roles badge */}
-              <div className="pt-2 flex flex-wrap gap-1.5 text-[11px] font-mono text-slate-400">
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">Business Owners</span>
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">Creators</span>
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">Coaches</span>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-white/10">
-              <Link
-                href={`/sales/login${callbackQuery}`}
-                className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
-              >
-                <span>Sales Login</span>
-                <Icon name="arrow_forward" size={16} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <div className="text-center">
-                <Link
-                  href="/sales/register"
-                  className="text-xs text-slate-400 hover:text-indigo-300 transition-colors"
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="w-full h-11 pl-3 pr-10 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
                 >
-                  New business? Create Sales Workspace &rarr;
-                </Link>
+                  <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={18} />
+                </button>
               </div>
             </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-12 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-sm rounded-[2px] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Logging in...</span>
+                </>
+              ) : (
+                <span>Log in</span>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Note */}
+          <div className="pt-4 border-t border-[#d1d7dc] text-center text-xs text-[#6a6f73] space-y-2">
+            <p>
+              Don&apos;t have an account?{' '}
+              <Link
+                href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+                className="text-[#5022c3] font-bold hover:underline ml-1"
+              >
+                Sign up
+              </Link>
+            </p>
+
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-1.5 text-[11px] text-[#6a6f73]">
+              <Icon name="admin_panel_settings" size={15} className="text-[#5022c3]" />
+              <span>Platform Staff or Super Admin?</span>
+              <Link
+                href="/admin/login"
+                className="text-[#5022c3] font-bold hover:underline ml-0.5"
+              >
+                Admin Portal &rarr;
+              </Link>
+            </div>
+
+            <p className="text-[11px] text-gray-400 pt-1">
+              By logging in, you agree to our Terms of Use and Privacy Policy.
+            </p>
           </div>
         </div>
+      </main>
 
-        {/* Bottom Helper Note */}
-        <div className="pt-4 border-t border-white/10 text-center text-xs text-slate-500">
-          Need assistance with your account? <Link href="/support" className="text-indigo-400 hover:underline">Contact Platform Support</Link>
-        </div>
-      </div>
+      <UdemyFooter />
     </div>
   );
 }
 
-export default function LoginSelectionPage() {
+export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen w-full bg-[#060814] flex items-center justify-center text-slate-400 text-sm">
-          Loading...
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#5022c3] border-t-transparent rounded-full animate-spin" />
         </div>
       }
     >
-      <LoginSelectionContent />
+      <LoginContent />
     </Suspense>
   );
 }

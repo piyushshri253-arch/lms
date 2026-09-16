@@ -484,14 +484,14 @@ export async function requireAdmin(callbackUrl?: string): Promise<AuthSessionUse
   const user = await getCurrentUser();
   if (!user) {
     const target = callbackUrl
-      ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
-      : '/login';
+      ? `/admin/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+      : '/admin/login';
     redirect(target);
   }
 
   if (!isAdminRole(user.role)) {
     redirect(
-      '/unauthorized?msg=' +
+      '/admin/login?error=' +
         encodeURIComponent('Access denied: Administrator privileges required.')
     );
   }

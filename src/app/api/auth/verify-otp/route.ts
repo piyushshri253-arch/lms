@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         organizationId: user.organizationId || null,
-        title: 'Welcome to AADHYARA!',
+        title: 'Welcome to MORENA TEACH!',
         message: 'Your email address has been verified. Welcome aboard!',
         type: 'ACCOUNT',
         link: user.role === 'ADMIN' ? '/sales/dashboard' : user.role === 'INSTRUCTOR' ? '/instructor' : '/learning/dashboard'
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     // 5. Send Welcome Email
     await sendEmail({
       to: normalizedEmail,
-      subject: 'Welcome to AADHYARA! 🚀',
+      subject: 'Welcome to MORENA TEACH! 🚀',
       template: 'WELCOME',
       userId: user.id,
       data: {

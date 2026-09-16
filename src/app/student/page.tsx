@@ -1,3 +1,3 @@
-import LmsDashboardPage from '@/app/lms/dashboard/page';
+import StudentLearningPage from '@/app/student/learning/page';
 
-export default LmsDashboardPage;
+export default StudentLearningPage;

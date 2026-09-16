@@ -131,7 +131,7 @@ function VerifyEmailContent() {
 
       showToast({
         title: 'Email Verified Successfully! 🎉',
-        description: 'Welcome to AADHYARA! Redirecting to your workspace...',
+        description: 'Welcome to Morena Teach! Redirecting to your workspace...',
         type: 'success'
       });
 
