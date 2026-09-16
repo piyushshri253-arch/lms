@@ -3,6 +3,7 @@ import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyHeroBillboard } from '@/components/landing/UdemyHeroBillboard';
 import { UdemyCourseSelection } from '@/components/landing/UdemyCourseSelection';
 import { UdemyLearnersViewing } from '@/components/landing/UdemyLearnersViewing';
+import { UdemyPersonalPlanSection } from '@/components/landing/UdemyPersonalPlanSection';
 import { UdemyTopCategories } from '@/components/landing/UdemyTopCategories';
 import { UdemyWhyUs } from '@/components/landing/UdemyWhyUs';
 import { UdemyInstructorCta } from '@/components/landing/UdemyInstructorCta';
@@ -37,7 +38,10 @@ export default async function HomePage() {
         {/* 03. "Learners are viewing" Trending Course Showcase */}
         <UdemyLearnersViewing courses={courses} />
 
-        {/* 04. Top Categories 8-Card Grid */}
+        {/* 04. "Build your career with a Personal Plan subscription" Feature Billboard */}
+        <UdemyPersonalPlanSection />
+
+        {/* 05. Top Categories 8-Card Grid */}
         <UdemyTopCategories />
 
         {/* 05. Why Learn With T.E.A.C.H (4 Value Pillars) */}
