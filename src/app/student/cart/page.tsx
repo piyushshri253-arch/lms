@@ -73,44 +73,16 @@ export default function StudentCartPage() {
     }
   };
 
-  const handleInitiateCheckout = async () => {
+  const handleInitiateCheckout = () => {
     if (cartItems.length === 0) return;
 
-    // If guest, show quick auth modal
+    // If guest, show quick student auth modal
     if (!currentUser) {
       setIsAuthModalOpen(true);
       return;
     }
 
-    await completeEnrollment();
-  };
-
-  const completeEnrollment = async () => {
-    setIsProcessingCheckout(true);
-    try {
-      // Process checkout for each course in cart
-      for (const item of cartItems) {
-        await processCheckout(item.id, couponCode);
-      }
-
-      clearCart();
-      showToast({
-        title: 'Order Confirmed! 🎉',
-        description: 'You are now enrolled in your selected curriculum. Happy learning!',
-        type: 'success'
-      });
-
-      router.push('/student/learning');
-    } catch (err: any) {
-      showToast({
-        title: 'Checkout Incomplete',
-        description: err.message || 'Payment or enrollment could not be processed.',
-        type: 'error'
-      });
-    } finally {
-      setIsProcessingCheckout(false);
-      setIsAuthModalOpen(false);
-    }
+    router.push('/checkout');
   };
 
   const handleGuestAuthSubmit = async (e: React.FormEvent) => {
@@ -140,23 +112,23 @@ export default function StudentCartPage() {
           throw new Error(data.error || 'Registration failed.');
         }
 
-        // Auto login with the newly created account
-        await login(authEmail.trim().toLowerCase(), authPassword);
+        // Auto login with the newly created student account
+        await login(authEmail.trim().toLowerCase(), authPassword, 'STUDENT');
       } else {
         if (!authEmail.trim() || !authPassword) {
           throw new Error('Please enter your email and password.');
         }
-        await login(authEmail.trim().toLowerCase(), authPassword);
+        await login(authEmail.trim().toLowerCase(), authPassword, 'STUDENT');
       }
 
       showToast({
         title: authMode === 'signup' ? 'Account Created!' : 'Signed In!',
-        description: 'Proceeding with your course enrollment...',
+        description: 'Redirecting to secure checkout...',
         type: 'success'
       });
 
-      // Proceed immediately to complete checkout
-      await completeEnrollment();
+      setIsAuthModalOpen(false);
+      router.push('/checkout');
     } catch (err: any) {
       showToast({
         title: 'Authentication Error',

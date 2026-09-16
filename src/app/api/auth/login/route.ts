@@ -102,13 +102,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Enforce Portal Intent Boundaries:
-    // Students must use /login, Super Admin & Admin must use /admin/login
-    if (requestedPortal === 'STUDENT' && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+    // 5. Enforce Strict Portal Intent Boundaries:
+    // Landing page /login is strictly reserved for Students only.
+    if (requestedPortal === 'STUDENT' && user.role !== 'STUDENT') {
+      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+        return NextResponse.json(
+          {
+            error:
+              'Administrative accounts are not permitted on the Student storefront. Please sign in through the Admin Backend Portal at /admin/login.'
+          },
+          { status: 403 }
+        );
+      }
+
+      if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
+        return NextResponse.json(
+          {
+            error:
+              'Instructor accounts are not permitted on the Student storefront. Please sign in through the Instructor Portal at /instructor/login.'
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
         {
-          error:
-            'Administrative accounts are not permitted on the Student portal. Please sign in through the Admin Backend Portal at /admin/login.'
+          error: 'This portal is strictly for Students. Please sign in through your designated portal.'
         },
         { status: 403 }
       );
@@ -119,6 +138,16 @@ export async function POST(req: NextRequest) {
         {
           error:
             'Student accounts cannot access the Administrator Backend. Please sign in through the Student portal at /login.'
+        },
+        { status: 403 }
+      );
+    }
+
+    if (requestedPortal === 'INSTRUCTOR' && user.role !== 'INSTRUCTOR' && user.role !== 'TEACHER') {
+      return NextResponse.json(
+        {
+          error:
+            'This portal is reserved for Instructors. Students please sign in at /login, and Admins please use /admin/login.'
         },
         { status: 403 }
       );

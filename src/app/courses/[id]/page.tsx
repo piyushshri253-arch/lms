@@ -483,7 +483,12 @@ export default function CourseDetailsPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => setIsCheckoutOpen(true)}
+                    onClick={() => {
+                      if (!isInCart(course.id)) {
+                        addToCart(course);
+                      }
+                      router.push('/checkout');
+                    }}
                     className="w-full bg-white text-[#2d2f31] border border-[#2d2f31] font-bold py-3.5 rounded hover:bg-[#f7f9fa] transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Buy now</span>

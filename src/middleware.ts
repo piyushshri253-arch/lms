@@ -84,6 +84,18 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // Dedicated Instructor Login Page (/instructor/login)
+  if (pathname === '/instructor/login') {
+    if (isLmsValid && lmsSession && (lmsSession.role === 'INSTRUCTOR' || isAuthorizedAdminRole(lmsSession.role))) {
+      return NextResponse.redirect(new URL('/instructor', request.url));
+    }
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
   // -------------------------------------------------------------------------
   // 2. ADMIN ROUTE PROTECTION (/admin and /admin/*)
   // -------------------------------------------------------------------------
@@ -227,7 +239,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard') ||
     (pathname.startsWith('/student') && !pathname.startsWith('/student/cart')) ||
     (pathname.startsWith('/user') && !pathname.startsWith('/user/public')) ||
-    pathname.startsWith('/instructor') ||
+    (pathname.startsWith('/instructor') && pathname !== '/instructor/login') ||
     pathname.startsWith('/learn');
 
   if (isLmsAuthRoute) {
@@ -249,6 +261,11 @@ export async function middleware(request: NextRequest) {
 
   if (isLmsProtectedRoute) {
     if (!isLmsValid) {
+      if (pathname.startsWith('/instructor')) {
+        return NextResponse.redirect(
+          new URL('/instructor/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
+        );
+      }
       if (isSalesValid) {
         return NextResponse.redirect(
           new URL(
@@ -275,8 +292,8 @@ export async function middleware(request: NextRequest) {
       if (!canAccessInstructor) {
         return NextResponse.redirect(
           new URL(
-            '/unauthorized?msg=' +
-              encodeURIComponent('Access denied: Student accounts cannot access instructor portals.'),
+            '/instructor/login?error=' +
+              encodeURIComponent('Access denied: Only instructor accounts can access the Instructor Studio.'),
             request.url
           )
         );

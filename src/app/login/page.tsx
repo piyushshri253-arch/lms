@@ -28,14 +28,33 @@ function LoginContent() {
     try {
       const user = await login(email.trim().toLowerCase(), password, 'STUDENT');
 
-      // Reject Admin & Super Admin accounts from student storefront login
-      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      // Strictly reject any non-student account from student storefront login
+      if (user.role !== 'STUDENT') {
+        if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+          showToast({
+            title: 'Admin Account Detected',
+            description: 'Please sign in through the dedicated Admin Backend Portal at /admin/login.',
+            type: 'error'
+          });
+          router.push('/admin/login');
+          return;
+        }
+
+        if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
+          showToast({
+            title: 'Instructor Account Detected',
+            description: 'Please sign in through the dedicated Instructor Portal at /instructor/login.',
+            type: 'error'
+          });
+          router.push('/instructor/login');
+          return;
+        }
+
         showToast({
-          title: 'Admin Account Detected',
-          description: 'Please sign in through the dedicated Admin Backend Portal at /admin/login.',
+          title: 'Access Restricted',
+          description: 'This portal is strictly reserved for Student learners.',
           type: 'error'
         });
-        router.push('/admin/login');
         return;
       }
 
@@ -45,11 +64,9 @@ function LoginContent() {
         type: 'success'
       });
 
-      // Redirect student to their learning workspace (or instructor to studio)
+      // Redirect student to requested callback (e.g. /checkout) or learning dashboard
       if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
         router.push(callbackUrl);
-      } else if (user.role === 'INSTRUCTOR') {
-        router.push('/instructor');
       } else {
         router.push('/student/learning');
       }
