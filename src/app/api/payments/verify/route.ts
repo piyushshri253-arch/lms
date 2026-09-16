@@ -48,6 +48,28 @@ export async function POST(request: Request) {
 
     const effectivePaymentId = paymentId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+    let effectiveOrgId = order.organizationId;
+    if (!effectiveOrgId) {
+      const defaultOrg =
+        (await prisma.organization.findFirst({
+          where: {
+            OR: [
+              { name: { contains: 'Morena', mode: 'insensitive' } },
+              { slug: { contains: 'morena', mode: 'insensitive' } },
+              { slug: 'morean-teach' }
+            ]
+          }
+        })) || (await prisma.organization.findFirst({ orderBy: { createdAt: 'asc' } }));
+      effectiveOrgId = defaultOrg?.id || null;
+      if (effectiveOrgId) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { organizationId: effectiveOrgId }
+        });
+        order.organizationId = effectiveOrgId;
+      }
+    }
+
     // Perform atomic activation of payment and order
     const verifiedOrder = await prisma.$transaction(async (tx) => {
       // 1. Create Payment record

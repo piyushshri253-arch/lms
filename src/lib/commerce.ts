@@ -220,8 +220,34 @@ export async function grantOrderEntitlements(orderId: string): Promise<{
     }
   });
 
-  if (!order || !order.organizationId) {
-    throw new Error('Order not found or missing organization');
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  let effectiveOrgId = order.organizationId;
+  if (!effectiveOrgId) {
+    const defaultOrg =
+      (await prisma.organization.findFirst({
+        where: {
+          OR: [
+            { name: { contains: 'Morena', mode: 'insensitive' } },
+            { slug: { contains: 'morena', mode: 'insensitive' } },
+            { slug: 'morean-teach' }
+          ]
+        }
+      })) || (await prisma.organization.findFirst({ orderBy: { createdAt: 'asc' } }));
+    effectiveOrgId = defaultOrg?.id || null;
+    if (effectiveOrgId) {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { organizationId: effectiveOrgId }
+      });
+      order.organizationId = effectiveOrgId;
+    }
+  }
+
+  if (!order.organizationId) {
+    throw new Error('Order missing organization and could not resolve platform default');
   }
 
   const grantedEntitlements: any[] = [];

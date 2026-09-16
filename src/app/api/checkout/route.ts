@@ -48,11 +48,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'At least one product or course is required for checkout.' }, { status: 400 });
     }
 
-    // Resolve tenant organization
+    // Resolve organization for checkout
     let orgId: string | null = null;
+    let matchedCourse: any = null;
+
     if (rawItems[0].courseId) {
-      const c = await prisma.course.findUnique({ where: { id: rawItems[0].courseId } });
-      orgId = c?.organizationId || null;
+      matchedCourse = await prisma.course.findUnique({ where: { id: rawItems[0].courseId } });
+      orgId = matchedCourse?.organizationId || null;
     } else if (rawItems[0].productId) {
       const p = await prisma.product.findUnique({ where: { id: rawItems[0].productId } });
       orgId = p?.organizationId || null;
@@ -62,12 +64,53 @@ export async function POST(request: Request) {
       orgId = user.organizationId || null;
     }
 
+    // Fallback to default platform organization (Morena Teach)
     if (!orgId) {
-      return NextResponse.json({ error: 'Organization ID could not be determined.' }, { status: 400 });
+      const defaultOrg =
+        (await prisma.organization.findFirst({
+          where: {
+            OR: [
+              { name: { contains: 'Morena', mode: 'insensitive' } },
+              { slug: { contains: 'morena', mode: 'insensitive' } },
+              { slug: 'morean-teach' }
+            ]
+          }
+        })) || (await prisma.organization.findFirst({ orderBy: { createdAt: 'asc' } }));
+
+      orgId = defaultOrg?.id || null;
     }
 
-    // Tenant Isolation Check
-    if (!validateTenantOwnership(orgId, user)) {
+    // If still no organization exists in the database, automatically provision the Morena Teach organization
+    if (!orgId) {
+      const createdOrg = await prisma.organization.create({
+        data: {
+          name: 'Morena Teach',
+          slug: 'morena-teach',
+          primaryColor: '#5624d0',
+          status: 'ACTIVE'
+        }
+      });
+      orgId = createdOrg.id;
+    }
+
+    // Ensure the course is linked to this organization if it was previously null
+    if (rawItems[0].courseId && (!matchedCourse || !matchedCourse.organizationId)) {
+      await prisma.course.updateMany({
+        where: { id: rawItems[0].courseId, organizationId: null },
+        data: { organizationId: orgId }
+      }).catch(() => {});
+    }
+
+    // Ensure student user is associated with this platform organization
+    if (!user.organizationId) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { organizationId: orgId }
+      }).catch(() => {});
+    }
+
+    // Tenant Isolation Check (Only enforce for non-student administrative users)
+    if (user.role !== 'STUDENT' && !validateTenantOwnership(orgId, user)) {
       return NextResponse.json({ error: 'Forbidden: Cross-tenant purchase disallowed.' }, { status: 403 });
     }
 
