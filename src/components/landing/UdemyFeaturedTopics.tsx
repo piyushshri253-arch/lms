@@ -39,48 +39,48 @@ const FEATURED_TOPIC_COLUMNS: TopicCategoryColumn[] = [
     ]
   },
   {
-    categoryTitle: 'Montessori & Psychology',
-    subtitle: 'Child brain development & sensory discovery',
-    icon: 'psychology',
+    categoryTitle: 'Early Childhood Education',
+    subtitle: 'Child growth, cognitive & social foundations',
+    icon: 'child_care',
     iconBg: 'bg-teal-50',
     iconColor: 'text-teal-700',
     borderColor: 'group-hover:border-teal-300',
-    categorySlug: 'Montessori & Child Psychology',
+    categorySlug: 'Early Childhood Education',
     topics: [
-      { title: 'Sensory Regulation & Tools', learners: '15,200 learners', categorySlug: 'Montessori & Child Psychology', isTrending: true },
-      { title: 'Child Brain Development', learners: '22,400 learners', categorySlug: 'Montessori & Child Psychology', isTrending: true },
-      { title: 'Practical Life Apparatus', learners: '8,730 learners', categorySlug: 'Montessori & Child Psychology' },
-      { title: 'Emotional Intelligence in Kids', learners: '11,200 learners', categorySlug: 'Montessori & Child Psychology' }
+      { title: 'Early Brain Development', learners: '22,400 learners', categorySlug: 'Early Childhood Education', isTrending: true },
+      { title: 'Sensory & Motor Discovery', learners: '15,200 learners', categorySlug: 'Early Childhood Education', isTrending: true },
+      { title: 'Preschool Administration', learners: '6,500 learners', categorySlug: 'Early Childhood Education' },
+      { title: 'Emotional & Social Intelligence', learners: '11,200 learners', categorySlug: 'Early Childhood Education' }
     ]
   },
   {
-    categoryTitle: 'Phonics & Literacy Arts',
-    subtitle: 'Early reading, speech & phonetic fluency',
-    icon: 'menu_book',
+    categoryTitle: 'Engineering & Tech',
+    subtitle: 'Modern software architecture & cloud systems',
+    icon: 'code',
+    iconBg: 'bg-blue-50',
+    iconColor: 'text-blue-700',
+    borderColor: 'group-hover:border-blue-300',
+    categorySlug: 'Engineering',
+    topics: [
+      { title: 'Full-Stack Next.js 15 Mastery', learners: '19,800 learners', categorySlug: 'Engineering', isTrending: true },
+      { title: 'System Architecture & Scaling', learners: '14,350 learners', categorySlug: 'Engineering' },
+      { title: 'Cloud Infrastructure & DevOps', learners: '10,500 learners', categorySlug: 'Engineering' },
+      { title: 'Production API Engineering', learners: '7,900 learners', categorySlug: 'Engineering' }
+    ]
+  },
+  {
+    categoryTitle: 'Classroom Leadership',
+    subtitle: 'Certified educator mastery & pedagogy',
+    icon: 'verified',
     iconBg: 'bg-amber-50',
     iconColor: 'text-amber-700',
     borderColor: 'group-hover:border-amber-300',
-    categorySlug: 'Phonics & Language Arts',
+    categorySlug: 'Pedagogy & Teaching Methods',
     topics: [
-      { title: 'Jolly Phonics Fluency', learners: '19,800 learners', categorySlug: 'Phonics & Language Arts', isTrending: true },
-      { title: 'Early Speech Mastery', learners: '14,350 learners', categorySlug: 'Phonics & Language Arts' },
-      { title: 'Multisensory Literacy', learners: '10,500 learners', categorySlug: 'Phonics & Language Arts' },
-      { title: 'Storytelling Pedagogy', learners: '7,900 learners', categorySlug: 'Phonics & Language Arts' }
-    ]
-  },
-  {
-    categoryTitle: 'Special Needs & STEM',
-    subtitle: 'Inclusive learning, sensory & hands-on science',
-    icon: 'science',
-    iconBg: 'bg-sky-50',
-    iconColor: 'text-sky-700',
-    borderColor: 'group-hover:border-sky-300',
-    categorySlug: 'Special Needs & Inclusion',
-    topics: [
-      { title: 'Neurodiversity & ADHD Support', learners: '16,400 learners', categorySlug: 'Special Needs & Inclusion', isTrending: true },
-      { title: 'STEM Labs for Young Minds', learners: '13,800 learners', categorySlug: 'STEM for Young Learners' },
-      { title: 'Speech Therapy Foundations', learners: '9,150 learners', categorySlug: 'Special Needs & Inclusion' },
-      { title: 'Preschool Administration', learners: '6,500 learners', categorySlug: 'Early Childhood Education' }
+      { title: 'Differentiated Instruction', learners: '16,400 learners', categorySlug: 'Pedagogy & Teaching Methods', isTrending: true },
+      { title: 'Student Behavior Management', learners: '13,800 learners', categorySlug: 'Pedagogy & Teaching Methods' },
+      { title: 'Curriculum Alignment', learners: '9,150 learners', categorySlug: 'Pedagogy & Teaching Methods' },
+      { title: 'Educational Technology & AI', learners: '12,200 learners', categorySlug: 'Engineering' }
     ]
   }
 ];

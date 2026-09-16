@@ -74,10 +74,7 @@ function CoursesCatalogContent() {
         setCategoriesList([
           { id: '1', name: 'Early Childhood Education', slug: 'early-childhood-education' },
           { id: '2', name: 'Pedagogy & Teaching Methods', slug: 'pedagogy-teaching-methods' },
-          { id: '3', name: 'Montessori & Child Psychology', slug: 'montessori-child-psychology' },
-          { id: '4', name: 'Special Needs & Inclusion', slug: 'special-needs-inclusion' },
-          { id: '5', name: 'STEM for Young Learners', slug: 'stem-young-learners' },
-          { id: '6', name: 'Phonics & Language Arts', slug: 'phonics-language-arts' }
+          { id: '3', name: 'Engineering', slug: 'engineering' }
         ]);
       }
     }

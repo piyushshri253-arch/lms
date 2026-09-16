@@ -100,6 +100,11 @@ export async function getPublishedCourses(): Promise<Course[]> {
 export async function getActiveCategories() {
   try {
     const categories = await prisma.category.findMany({
+      where: {
+        courses: {
+          some: { status: 'PUBLISHED' }
+        }
+      },
       include: {
         _count: {
           select: {

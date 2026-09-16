@@ -39,8 +39,8 @@ export default async function HomePage() {
         {/* 04. "Skills to transform your career and life" Interactive Tabs */}
         <UdemySkillsTransform courses={courses} initialCategories={categories} />
 
-        {/* 05. Top Categories 8-Card Grid */}
-        <UdemyTopCategories />
+        {/* 05. Top Categories Dynamic Grid */}
+        <UdemyTopCategories categories={categories} />
 
         {/* 07. "Featured topics by category" 4-Column Directory */}
         <UdemyFeaturedTopics />

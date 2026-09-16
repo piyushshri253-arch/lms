@@ -217,6 +217,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setCurrentUser(data.user);
     setActiveRoleState(data.user.role === 'ADMIN' ? 'admin' : 'student');
+    
+    // Restore or merge user's personal cart
+    try {
+      const guestSaved = localStorage.getItem('teach_cart_items_guest');
+      const userKey = `teach_cart_items_${data.user.id}`;
+      const userSaved = localStorage.getItem(userKey);
+      let userItems: CartItem[] = userSaved ? JSON.parse(userSaved) : [];
+      if (guestSaved) {
+        const guestItems: CartItem[] = JSON.parse(guestSaved);
+        if (Array.isArray(guestItems) && guestItems.length > 0) {
+          guestItems.forEach((gItem) => {
+            if (!userItems.some((uItem) => uItem.id === gItem.id || (gItem.slug && uItem.slug === gItem.slug))) {
+              userItems.push(gItem);
+            }
+          });
+          localStorage.setItem(userKey, JSON.stringify(userItems));
+          localStorage.removeItem('teach_cart_items_guest');
+        }
+      }
+      setCartItems(userItems);
+    } catch {
+      setCartItems([]);
+    }
+
     await refreshCourses();
     await refreshWishlist();
 
@@ -248,6 +272,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setCurrentUser(data.user);
     setActiveRoleState(data.user.role === 'ADMIN' ? 'admin' : 'student');
+    
+    // Associate any guest cart items with new student account
+    try {
+      const guestSaved = localStorage.getItem('teach_cart_items_guest');
+      const userKey = `teach_cart_items_${data.user.id}`;
+      if (guestSaved) {
+        localStorage.setItem(userKey, guestSaved);
+        localStorage.removeItem('teach_cart_items_guest');
+        setCartItems(JSON.parse(guestSaved));
+      } else {
+        setCartItems([]);
+      }
+    } catch {
+      setCartItems([]);
+    }
+
     await refreshCourses();
 
     showToast({
@@ -266,6 +306,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentUser(null);
     setActiveRoleState('public');
     setWishlistCourseIds([]);
+    // Clear cart on logout so website opens fresh for guest / logged-out user
+    setCartItems([]);
+    try {
+      localStorage.removeItem('teach_cart_items_guest');
+      localStorage.removeItem('teach_cart_items');
+    } catch {}
     showToast({
       title: 'Signed Out',
       description: 'You have been safely signed out.',
@@ -480,16 +526,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
+  // Get active storage key based on authentication state
+  const getActiveCartKey = (user: UserSession | null = currentUser) => {
+    return user?.id ? `teach_cart_items_${user.id}` : 'teach_cart_items_guest';
+  };
+
+  // Load cart on mount or whenever active user changes
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('teach_cart_items');
-      if (saved) {
-        setCartItems(JSON.parse(saved));
+      // Clean legacy anonymous cart if present
+      const legacy = localStorage.getItem('teach_cart_items');
+      if (legacy) {
+        if (currentUser?.id) {
+          localStorage.setItem(`teach_cart_items_${currentUser.id}`, legacy);
+        }
+        localStorage.removeItem('teach_cart_items');
       }
-    } catch {}
+
+      const activeKey = getActiveCartKey(currentUser);
+      const saved = localStorage.getItem(activeKey);
+      setCartItems(saved ? JSON.parse(saved) : []);
+    } catch {
+      setCartItems([]);
+    }
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'teach_cart_items' && e.newValue) {
+      const activeKey = getActiveCartKey(currentUser);
+      if (e.key === activeKey && e.newValue) {
         try {
           setCartItems(JSON.parse(e.newValue));
         } catch {}
@@ -497,7 +560,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [currentUser?.id]);
 
   const addToCart = (course: any) => {
     if (!course) return;
@@ -545,7 +608,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = [...cartItems, newItem];
     setCartItems(updated);
     try {
-      localStorage.setItem('teach_cart_items', JSON.stringify(updated));
+      const activeKey = getActiveCartKey(currentUser);
+      localStorage.setItem(activeKey, JSON.stringify(updated));
     } catch {}
     showToast({
       title: 'Added to cart! 🛒',
@@ -558,7 +622,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = cartItems.filter((item) => item.id !== courseId && item.slug !== courseId);
     setCartItems(updated);
     try {
-      localStorage.setItem('teach_cart_items', JSON.stringify(updated));
+      const activeKey = getActiveCartKey(currentUser);
+      localStorage.setItem(activeKey, JSON.stringify(updated));
     } catch {}
     showToast({
       title: 'Item removed',
@@ -570,7 +635,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const clearCart = () => {
     setCartItems([]);
     try {
-      localStorage.removeItem('teach_cart_items');
+      const activeKey = getActiveCartKey(currentUser);
+      localStorage.removeItem(activeKey);
     } catch {}
   };
 

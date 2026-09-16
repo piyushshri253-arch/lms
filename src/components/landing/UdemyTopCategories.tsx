@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface CategoryCardItem {
@@ -10,58 +10,67 @@ interface CategoryCardItem {
   image: string;
 }
 
-const TOP_CATEGORIES: CategoryCardItem[] = [
-  {
-    id: '1',
-    name: 'Early Childhood Education',
-    slug: 'Early Childhood Education',
-    image: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '2',
-    name: 'Pedagogy & Teaching Methods',
-    slug: 'Pedagogy & Teaching Methods',
-    image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '3',
-    name: 'Montessori & Child Psychology',
-    slug: 'Montessori & Child Psychology',
-    image: 'https://images.unsplash.com/photo-1596495578065-6e0763fa1178?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '4',
-    name: 'Special Needs & Inclusion',
-    slug: 'Special Needs & Inclusion',
-    image: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '5',
-    name: 'Phonics & Language Arts',
-    slug: 'Phonics & Language Arts',
-    image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '6',
-    name: 'STEM for Young Learners',
-    slug: 'STEM for Young Learners',
-    image: 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '7',
-    name: 'Classroom Leadership',
-    slug: 'Pedagogy & Teaching Methods',
-    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=600&auto=format&fit=crop'
-  },
-  {
-    id: '8',
-    name: 'Creative Arts & Motor Skills',
-    slug: 'Early Childhood Education',
-    image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=600&auto=format&fit=crop'
-  }
-];
+const CATEGORY_IMAGE_MAP: Record<string, string> = {
+  pedagogy: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=600&auto=format&fit=crop',
+  'early childhood': 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop',
+  engineering: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=600&auto=format&fit=crop',
+  design: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=600&auto=format&fit=crop',
+  business: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=600&auto=format&fit=crop',
+  science: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=600&auto=format&fit=crop',
+  ai: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=600&auto=format&fit=crop',
+  python: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?q=80&w=600&auto=format&fit=crop'
+};
 
-export const UdemyTopCategories: React.FC = () => {
+function getCategoryImage(name: string): string {
+  const lower = name.toLowerCase();
+  for (const [key, img] of Object.entries(CATEGORY_IMAGE_MAP)) {
+    if (lower.includes(key)) return img;
+  }
+  return 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=600&auto=format&fit=crop';
+}
+
+interface UdemyTopCategoriesProps {
+  categories?: { id: string; name: string; slug: string }[];
+}
+
+export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categories: initialCategories }) => {
+  const [categories, setCategories] = useState<CategoryCardItem[]>([]);
+
+  useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) {
+      setCategories(
+        initialCategories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug || c.name,
+          image: getCategoryImage(c.name)
+        }))
+      );
+      return;
+    }
+
+    // Fetch live published categories
+    fetch('/api/categories')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.categories && data.categories.length > 0) {
+          setCategories(
+            data.categories.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              slug: c.slug || c.name,
+              image: getCategoryImage(c.name)
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [initialCategories]);
+
+  if (categories.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-8 md:py-12 bg-white">
       <div className="max-w-[1340px] mx-auto px-4 sm:px-6">
@@ -69,16 +78,16 @@ export const UdemyTopCategories: React.FC = () => {
           Top categories
         </h2>
 
-        {/* Udemy 4-Column x 2-Row Grid */}
+        {/* Dynamic Responsive Category Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-          {TOP_CATEGORIES.map((item) => (
+          {categories.map((item) => (
             <Link
               key={item.id}
-              href={`/courses?category=${encodeURIComponent(item.slug)}`}
+              href={`/courses?category=${encodeURIComponent(item.name)}`}
               className="group cursor-pointer flex flex-col"
             >
               {/* Square Image Box with subtle hover zoom */}
-              <div className="aspect-square w-full overflow-hidden bg-[#f7f9fa] mb-2.5">
+              <div className="aspect-square w-full overflow-hidden bg-[#f7f9fa] border border-[#d1d7dc] mb-2.5">
                 <img
                   src={item.image}
                   alt={item.name}
@@ -86,7 +95,7 @@ export const UdemyTopCategories: React.FC = () => {
                   loading="lazy"
                 />
               </div>
-              <span className="font-bold text-base text-[#2d2f31] leading-snug group-hover:text-[#2d2f31]">
+              <span className="font-bold text-base text-[#2d2f31] leading-snug group-hover:text-[#5022c3] transition-colors">
                 {item.name}
               </span>
             </Link>
