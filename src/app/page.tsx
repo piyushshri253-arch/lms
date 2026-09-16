@@ -2,9 +2,11 @@ import React from 'react';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyHeroBillboard } from '@/components/landing/UdemyHeroBillboard';
 import { UdemyCourseSelection } from '@/components/landing/UdemyCourseSelection';
+import { UdemyPlansComparison } from '@/components/landing/UdemyPlansComparison';
 import { UdemyLearnersViewing } from '@/components/landing/UdemyLearnersViewing';
 import { UdemyPersonalPlanSection } from '@/components/landing/UdemyPersonalPlanSection';
 import { UdemyTopCategories } from '@/components/landing/UdemyTopCategories';
+import { UdemyFeaturedTopics } from '@/components/landing/UdemyFeaturedTopics';
 import { UdemyWhyUs } from '@/components/landing/UdemyWhyUs';
 import { UdemyInstructorCta } from '@/components/landing/UdemyInstructorCta';
 import { UdemyTestimonials } from '@/components/landing/UdemyTestimonials';
@@ -29,29 +31,35 @@ export default async function HomePage() {
         {/* 01. Hero Billboard Carousel + Trust Metric Badges */}
         <UdemyHeroBillboard />
 
-        {/* 02. "A broad selection of courses" (Category Tabs + Filtered Dynamic Courses Grid) */}
+        {/* 02. "All the skills you need in one place" / "A broad selection of courses" */}
         <UdemyCourseSelection
           initialCourses={courses}
           initialCategories={categories}
         />
 
-        {/* 03. "Learners are viewing" Trending Course Showcase */}
+        {/* 03. "Accelerate growth — for you or your organization" 3-Plan Comparison */}
+        <UdemyPlansComparison />
+
+        {/* 04. "Learners are viewing" Trending Course Showcase */}
         <UdemyLearnersViewing courses={courses} />
 
-        {/* 04. "Build your career with a Personal Plan subscription" Feature Billboard */}
+        {/* 05. "Build your career with a Personal Plan subscription" Feature Billboard */}
         <UdemyPersonalPlanSection />
 
-        {/* 05. Top Categories 8-Card Grid */}
+        {/* 06. Top Categories 8-Card Grid */}
         <UdemyTopCategories />
 
-        {/* 05. Why Learn With T.E.A.C.H (4 Value Pillars) */}
+        {/* 07. "Featured topics by category" 4-Column Directory */}
+        <UdemyFeaturedTopics />
+
+        {/* 08. Why Learn With Morena Teach (4 Value Pillars) */}
         <UdemyWhyUs />
 
-        {/* 06. Become an Instructor & Institutional Training Banners */}
-        <UdemyInstructorCta />
-
-        {/* 07. Verified Learner Testimonials */}
+        {/* 09. Verified Learner Testimonials */}
         <UdemyTestimonials />
+
+        {/* 10. Become an Instructor & Institutional Training Banners */}
+        <UdemyInstructorCta />
       </main>
 
       {/* 08. Comprehensive Multi-Column Footer with T.E.A.C.H Logo */}
