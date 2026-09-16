@@ -14,12 +14,18 @@ export const UdemyPersonalPlanSection: React.FC = () => {
             {/* Left Content Column */}
             <div className="lg:col-span-7 flex flex-col justify-center">
               {/* Main Headline */}
-              <h2 className="text-2xl sm:text-3xl lg:text-[34px] font-black text-white tracking-tight leading-[1.2] mb-3">
+              <h2
+                className="text-2xl sm:text-3xl lg:text-[34px] font-black text-white !text-white tracking-tight leading-[1.2] mb-3"
+                style={{ color: '#ffffff' }}
+              >
                 Build your career with a Personal Plan subscription
               </h2>
 
               {/* Value Proposition Subtitle in Pure White */}
-              <p className="text-white text-sm sm:text-base leading-relaxed mb-8 max-w-xl font-normal">
+              <p
+                className="text-white !text-white text-sm sm:text-base leading-relaxed mb-8 max-w-xl font-normal"
+                style={{ color: '#ffffff' }}
+              >
                 Subscribers save an average of ₹4,000 in their first month, stop paying per course. Join 5 lakh+ learners, starting at ₹500/month.
               </p>
 
@@ -30,7 +36,10 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#7c3aed]/25 text-[#d8b4fe] flex items-center justify-center shrink-0 border border-[#a855f7]/30 mt-0.5">
                     <Icon name="auto_awesome" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
+                  <span
+                    className="text-xs sm:text-sm font-semibold text-white !text-white leading-snug"
+                    style={{ color: '#ffffff' }}
+                  >
                     Get access to 28,000+ top-rated courses
                   </span>
                 </div>
@@ -40,7 +49,10 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#0284c7]/25 text-[#7dd3fc] flex items-center justify-center shrink-0 border border-[#38bdf8]/30 mt-0.5">
                     <Icon name="lightbulb" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
+                  <span
+                    className="text-xs sm:text-sm font-semibold text-white !text-white leading-snug"
+                    style={{ color: '#ffffff' }}
+                  >
                     Learn from 9,000+ expert instructors
                   </span>
                 </div>
@@ -50,7 +62,10 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#e11d48]/25 text-[#fda4af] flex items-center justify-center shrink-0 border border-[#fb7185]/30 mt-0.5">
                     <Icon name="terminal" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
+                  <span
+                    className="text-xs sm:text-sm font-semibold text-white !text-white leading-snug"
+                    style={{ color: '#ffffff' }}
+                  >
                     Dev, IT, Business, Design and 50+ more topics
                   </span>
                 </div>
@@ -60,7 +75,10 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-[#059669]/25 text-[#6ee7b7] flex items-center justify-center shrink-0 border border-[#34d399]/30 mt-0.5">
                     <Icon name="emoji_events" size={17} />
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-white leading-snug">
+                  <span
+                    className="text-xs sm:text-sm font-semibold text-white !text-white leading-snug"
+                    style={{ color: '#ffffff' }}
+                  >
                     Certification prep for AWS, Microsoft, PMI, and more
                   </span>
                 </div>
@@ -77,7 +95,8 @@ export const UdemyPersonalPlanSection: React.FC = () => {
 
                 <Link
                   href="/courses"
-                  className="text-sm font-bold text-white hover:text-purple-300 underline underline-offset-4 transition-colors cursor-pointer"
+                  className="text-sm font-bold text-white !text-white hover:text-purple-300 underline underline-offset-4 transition-colors cursor-pointer"
+                  style={{ color: '#ffffff' }}
                 >
                   Learn more
                 </Link>
