@@ -19,11 +19,10 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
   totalCards = 4
 }) => {
   const router = useRouter();
-  const { wishlistCourseIds, toggleWishlist, addToCart, isInCart, showToast } = useApp();
+  const { addToCart, isInCart } = useApp();
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isWishlisted = wishlistCourseIds.includes(course.id);
   const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
@@ -71,17 +70,6 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
     setIsHovered(false);
   };
 
-  const handleWishlistClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleWishlist(course.id);
-    showToast({
-      title: isWishlisted ? 'Removed from Wishlist' : 'Added to Wishlist',
-      description: course.title,
-      type: 'info'
-    });
-  };
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -123,19 +111,6 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
               </span>
             </div>
           )}
-
-          {/* Quick Wishlist button */}
-          <button
-            onClick={handleWishlistClick}
-            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-all ${
-              isWishlisted
-                ? 'bg-white text-red-500 shadow-sm'
-                : 'bg-white/80 text-[#2d2f31] hover:bg-white hover:text-red-500 shadow-sm'
-            }`}
-          >
-            <Icon name={isWishlisted ? 'favorite' : 'favorite_border'} size={18} fill={isWishlisted} />
-          </button>
         </div>
 
         {/* Details Content */}
@@ -158,9 +133,17 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
             </div>
           )}
 
-          {/* Ratings Row */}
-          <div className="flex items-center gap-1 mb-1 text-xs">
-            <span className="font-extrabold text-[#b4690e]">
+          {/* Ratings Row (Clickable -> direct jump to Reviews) */}
+          <div
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`/courses/${course.slug || course.id}#reviews`);
+            }}
+            className="flex items-center gap-1 mb-1 text-xs cursor-pointer group/rating hover:opacity-90 w-fit transition-all"
+            title="Click to view student reviews & feedback"
+          >
+            <span className="font-extrabold text-[#b4690e] group-hover/rating:underline">
               {(course.rating || 4.8).toFixed(1)}
             </span>
             <div className="flex items-center text-[#b4690e]">
@@ -174,7 +157,7 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
                 />
               ))}
             </div>
-            <span className="text-[#6a6f73] font-normal">
+            <span className="text-[#6a6f73] font-normal group-hover/rating:text-[#5022c3] group-hover/rating:underline">
               ({course.reviewsCount >= 1000 ? `${(course.reviewsCount / 1000).toFixed(1)}k` : course.reviewsCount || 0})
             </span>
           </div>
@@ -283,11 +266,11 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
           )}
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+          <div className="pt-2 border-t border-gray-100">
             <button
               type="button"
               onClick={handleAddToCart}
-              className={`flex-1 py-2.5 font-bold text-xs rounded-none sm:rounded-[4px] transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`w-full py-2.5 font-bold text-xs rounded-none sm:rounded-[4px] transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                 inCart
                   ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-300'
                   : 'bg-[#a435f0] hover:bg-[#8710d8] text-white'
@@ -295,18 +278,6 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
             >
               <Icon name={inCart ? 'check' : 'shopping_cart'} size={15} />
               <span>{inCart ? 'Go to cart' : 'Add to cart'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleWishlistClick}
-              className={`p-2 rounded-none sm:rounded-[4px] border transition-colors cursor-pointer ${
-                isWishlisted
-                  ? 'border-red-500 text-red-500 bg-red-50'
-                  : 'border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa]'
-              }`}
-              title="Add to wishlist"
-            >
-              <Icon name={isWishlisted ? 'favorite' : 'favorite_border'} size={18} fill={isWishlisted} />
             </button>
           </div>
         </div>

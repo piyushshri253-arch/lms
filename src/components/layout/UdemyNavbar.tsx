@@ -239,20 +239,6 @@ export const UdemyNavbar: React.FC = () => {
             </Link>
           )}
 
-          {/* Wishlist Icon */}
-          <Link
-            href="/student/wishlist"
-            className="relative p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors"
-            title="Wishlist"
-          >
-            <Icon name="favorite_border" size={20} />
-            {wishlistCourseIds.length > 0 && (
-              <span className="absolute top-1 right-1 bg-[#a435f0] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {wishlistCourseIds.length}
-              </span>
-            )}
-          </Link>
-
           {/* Cart Icon & Interactive Mini-Cart Popover */}
           <div
             className="relative"
@@ -461,13 +447,6 @@ export const UdemyNavbar: React.FC = () => {
                       )}
                     </Link>
                     <Link
-                      href="/student/wishlist"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Wishlist
-                    </Link>
-                    <Link
                       href="/instructor"
                       onClick={() => setIsUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
@@ -650,13 +629,6 @@ export const UdemyNavbar: React.FC = () => {
                   className="block py-1.5 text-sm font-medium text-[#2d2f31] hover:text-[#5022c3]"
                 >
                   My learning
-                </Link>
-                <Link
-                  href="/student/wishlist"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block py-1.5 text-sm font-medium text-[#2d2f31] hover:text-[#5022c3]"
-                >
-                  Wishlist
                 </Link>
                 <button
                   type="button"

@@ -120,14 +120,13 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
               return (
                 <label
                   key={r.val}
-                  onClick={() => handleRatingSelect(r.val)}
                   className="flex items-center gap-2.5 cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <input
                     type="radio"
                     name="rating_filter"
                     checked={isChecked}
-                    onChange={() => {}}
+                    onChange={() => handleRatingSelect(r.val)}
                     className="w-4 h-4 text-[#2d2f31] border-[#2d2f31] focus:ring-0 cursor-pointer"
                   />
                   <div className="flex items-center text-[#b4690e]">
@@ -176,13 +175,12 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
               return (
                 <label
                   key={d.val}
-                  onClick={() => handleDurationSelect(d.val)}
                   className="flex items-center gap-2.5 cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={() => {}}
+                    onChange={() => handleDurationSelect(d.val)}
                     className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
                   />
                   <span className="font-normal">{d.label}</span>
@@ -215,14 +213,13 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
               return (
                 <label
                   key={cat.id}
-                  onClick={() => handleCategorySelect(cat.name)}
                   className="flex items-center justify-between cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => {}}
+                      onChange={() => handleCategorySelect(cat.name)}
                       className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
                     />
                     <span className="font-normal truncate">{cat.name}</span>
@@ -258,13 +255,12 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
               return (
                 <label
                   key={lvl}
-                  onClick={() => handleLevelSelect(lvl)}
                   className="flex items-center gap-2.5 cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={() => {}}
+                    onChange={() => handleLevelSelect(lvl)}
                     className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
                   />
                   <span className="font-normal">{lvl}</span>
@@ -299,13 +295,12 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
               return (
                 <label
                   key={p.val}
-                  onClick={() => handlePriceSelect(p.val)}
                   className="flex items-center gap-2.5 cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={() => {}}
+                    onChange={() => handlePriceSelect(p.val)}
                     className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
                   />
                   <span className="font-normal">{p.label}</span>
@@ -341,13 +336,12 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
               return (
                 <label
                   key={f.val}
-                  onClick={() => handleFeatureToggle(f.val)}
                   className="flex items-center gap-2.5 cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={() => {}}
+                    onChange={() => handleFeatureToggle(f.val)}
                     className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
                   />
                   <span className="font-normal">{f.label}</span>

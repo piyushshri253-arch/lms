@@ -20,14 +20,16 @@ function CoursesCatalogContent() {
 
   const urlCategory = searchParams.get('category') || 'all';
   const urlSearch = searchParams.get('search') || '';
+  const urlPrice = searchParams.get('price') || 'all';
+  const urlRating = Number(searchParams.get('rating')) || 0;
 
   // Local filter states
   const [filters, setFilters] = useState<FilterState>({
     category: urlCategory,
     level: 'all',
-    rating: 0,
+    rating: urlRating,
     duration: 'all',
-    price: 'all',
+    price: urlPrice,
     features: []
   });
 
@@ -39,12 +41,26 @@ function CoursesCatalogContent() {
   // Dynamic categories from database
   const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; slug: string }[]>([]);
 
-  // Update category when URL search parameter changes
+  // Update category and price when URL search parameters change
   useEffect(() => {
-    if (urlCategory && urlCategory !== filters.category) {
-      setFilters((prev) => ({ ...prev, category: urlCategory }));
-    }
-  }, [urlCategory]);
+    setFilters((prev) => {
+      const updated = { ...prev };
+      let changed = false;
+      if (urlCategory && urlCategory !== prev.category) {
+        updated.category = urlCategory;
+        changed = true;
+      }
+      if (urlPrice && urlPrice !== prev.price) {
+        updated.price = urlPrice;
+        changed = true;
+      }
+      if (urlRating !== undefined && !isNaN(urlRating) && urlRating !== prev.rating) {
+        updated.rating = urlRating;
+        changed = true;
+      }
+      return changed ? updated : prev;
+    });
+  }, [urlCategory, urlPrice, urlRating]);
 
   // Sync search input if provided via URL
   useEffect(() => {

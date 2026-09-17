@@ -222,20 +222,6 @@ export default function StudentCartPage() {
                         >
                           Remove
                         </button>
-                        <button
-                          onClick={() => {
-                            toggleWishlist(item.id);
-                            removeFromCart(item.id);
-                            showToast({
-                              title: 'Moved to Wishlist',
-                              description: `"${item.title}" moved to your saved wishlist.`,
-                              type: 'info'
-                            });
-                          }}
-                          className="hover:underline cursor-pointer"
-                        >
-                          Move to Wishlist
-                        </button>
                       </div>
                     </div>
 

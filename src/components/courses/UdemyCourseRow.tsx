@@ -59,9 +59,17 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
           {course.instructor?.name || 'Faculty of Teacher Excellence'}
         </p>
 
-        {/* Ratings & Students */}
-        <div className="flex items-center gap-1.5 text-xs mb-1">
-          <span className="font-extrabold text-[#b4690e] text-sm">
+        {/* Ratings & Students (Clickable -> direct jump to Reviews) */}
+        <div
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            router.push(`/courses/${course.slug || course.id}#reviews`);
+          }}
+          className="flex items-center gap-1.5 text-xs mb-1 cursor-pointer group/rating hover:opacity-90 w-fit transition-all"
+          title="Click to view student reviews & feedback"
+        >
+          <span className="font-extrabold text-[#b4690e] text-sm group-hover/rating:underline">
             {(course.rating || 4.8).toFixed(1)}
           </span>
           <div className="flex items-center text-[#b4690e]">
@@ -75,7 +83,7 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
               />
             ))}
           </div>
-          <span className="text-[#6a6f73]">
+          <span className="text-[#6a6f73] group-hover/rating:text-[#5022c3] group-hover/rating:underline">
             ({course.reviewsCount >= 1000 ? `${(course.reviewsCount / 1000).toFixed(1)}k` : course.reviewsCount || 420})
           </span>
         </div>

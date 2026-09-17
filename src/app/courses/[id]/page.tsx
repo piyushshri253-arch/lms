@@ -69,6 +69,14 @@ export default function CourseDetailsPage() {
     fetchCourse();
   }, [courseSlug]);
 
+  useEffect(() => {
+    if (courseData && typeof window !== 'undefined' && window.location.hash === '#reviews') {
+      setTimeout(() => {
+        document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' });
+      }, 400);
+    }
+  }, [courseData]);
+
   const course = courseData;
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -251,8 +259,18 @@ export default function CourseDetailsPage() {
 
             {/* Badges & Meta Metrics */}
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2">
-              <div className="flex items-center gap-1.5 bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant">
-                <span className="text-sm font-bold text-on-surface">
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('reviews');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="flex items-center gap-1.5 bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer group/rate"
+                title="Click to jump to student reviews"
+              >
+                <span className="text-sm font-bold text-on-surface group-hover/rate:text-primary">
                   {typeof course.rating === 'number' ? course.rating.toFixed(1) : '5.0'}
                 </span>
                 <div className="flex text-amber-500">
@@ -260,10 +278,10 @@ export default function CourseDetailsPage() {
                     <Icon key={i} name="star" fill size={16} />
                   ))}
                 </div>
-                <span className="text-xs text-on-surface-variant ml-1">
+                <span className="text-xs text-on-surface-variant ml-1 group-hover/rate:underline">
                   ({course.reviews?.length || course.reviewsCount || 0} reviews)
                 </span>
-              </div>
+              </button>
 
               <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
                 <Icon name="group" size={20} />
@@ -327,7 +345,7 @@ export default function CourseDetailsPage() {
           />
 
           {/* Student Reviews & Ratings Section */}
-          <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
+          <section id="reviews" className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 scroll-mt-24">
             <div className="flex justify-between items-center pb-4 border-b border-outline-variant">
               <div>
                 <h3 className="text-xl font-bold text-on-surface">Student Reviews &amp; Feedback</h3>
@@ -446,11 +464,11 @@ export default function CourseDetailsPage() {
             <div className="p-6 sm:p-8 flex flex-col gap-5">
               <div className="flex items-end gap-3">
                 <span className="text-3xl sm:text-4xl font-extrabold text-on-surface leading-none font-mono">
-                  ${course.price}
+                  {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
                 </span>
-                {course.discountPrice && (
+                {course.discountPrice && course.discountPrice > course.price && (
                   <span className="text-base text-outline line-through mb-1 font-mono">
-                    ${course.discountPrice}
+                    ₹{Number(course.discountPrice).toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
@@ -491,7 +509,7 @@ export default function CourseDetailsPage() {
                     }}
                     className="w-full bg-white text-[#2d2f31] border border-[#2d2f31] font-bold py-3.5 rounded hover:bg-[#f7f9fa] transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Buy now</span>
+                    <span>{course.price === 0 ? 'Enroll now (Free)' : 'Buy now'}</span>
                   </button>
                 </div>
               )}
@@ -520,7 +538,7 @@ export default function CourseDetailsPage() {
                 </ul>
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-outline-variant">
+              <div className="flex justify-center items-center pt-4 border-t border-outline-variant">
                 <button
                   onClick={() => {
                     if (typeof window !== 'undefined') {
@@ -528,19 +546,10 @@ export default function CourseDetailsPage() {
                       showToast({ title: 'Copied', description: 'Course link copied.', type: 'success' });
                     }
                   }}
-                  className="text-on-surface-variant text-xs font-semibold hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="text-on-surface-variant text-xs font-semibold hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer py-1 px-3 rounded-lg hover:bg-surface-container-low"
                 >
                   <Icon name="share" size={18} />
-                  <span>Share</span>
-                </button>
-                <button
-                  onClick={() => toggleWishlist(course.id)}
-                  className={`text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
-                    isWishlisted ? 'text-rose-500 font-bold' : 'text-on-surface-variant hover:text-primary'
-                  }`}
-                >
-                  <Icon name={isWishlisted ? 'favorite' : 'favorite_border'} fill={isWishlisted} size={18} />
-                  <span>{isWishlisted ? 'Wishlisted' : 'Wishlist'}</span>
+                  <span>Share this course</span>
                 </button>
               </div>
             </div>

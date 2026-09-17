@@ -160,6 +160,18 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
       });
     }
 
+    // 3. Add Free Courses tab if there are courses with price 0
+    const freeCount = allCourses.filter((c) => c.price === 0).length;
+    if (freeCount > 0) {
+      list.push({
+        id: 'free',
+        name: 'Free Courses',
+        slug: 'free',
+        description: 'Complimentary foundation courses and educator workshops available at zero cost.',
+        count: freeCount
+      });
+    }
+
     return list;
   }, [allCourses, initialCategories]);
 
@@ -170,6 +182,7 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
 
   const filteredCourses = useMemo(() => {
     if (activeTab === 'all') return allCourses;
+    if (activeTab === 'free') return allCourses.filter((course) => course.price === 0);
     return allCourses.filter((course) =>
       isCourseInCategory(course, {
         id: activeCategoryObj.id,
@@ -263,6 +276,8 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
             href={
               activeTab === 'all'
                 ? '/courses'
+                : activeTab === 'free'
+                ? '/courses?price=free'
                 : `/courses?category=${encodeURIComponent(activeCategoryObj.name)}`
             }
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-sm font-bold rounded-[4px] transition-colors"
@@ -270,6 +285,8 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
             <span>
               {activeTab === 'all'
                 ? 'Show all courses'
+                : activeTab === 'free'
+                ? 'Show all free courses'
                 : `Show all ${activeCategoryObj.name} courses`}
             </span>
             <Icon name="arrow_forward" size={16} />
