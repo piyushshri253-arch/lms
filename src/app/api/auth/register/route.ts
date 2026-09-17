@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Password must be at least 8 characters long and contain uppercase, lowercase, and numeric characters.'
+            'Password must be at least 8 characters long and contain at least 1 number and 1 symbol.'
         },
         { status: 400 }
       );

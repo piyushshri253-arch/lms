@@ -54,9 +54,28 @@ function RegisterContent() {
 
   // Dynamic Password Strength Calculations
   const hasMinLength = password.length >= 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+  const passwordRules = [
+    {
+      id: 'length',
+      label: 'At least 8 characters',
+      passed: hasMinLength
+    },
+    {
+      id: 'number',
+      label: 'At least 1 number (0-9)',
+      passed: hasNumber
+    },
+    {
+      id: 'symbol',
+      label: 'At least 1 symbol or special character (@, $, #, %, etc.)',
+      passed: hasSymbol
+    }
+  ];
+
+  const passedChecksCount = passwordRules.filter((r) => r.passed).length;
 
   // Handle Step 1: Initial Registration & OTP Generation
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -70,10 +89,10 @@ function RegisterContent() {
       showToast({ title: 'Invalid Email', description: 'Please enter a valid email address.', type: 'error' });
       return;
     }
-    if (password.length < 8) {
+    if (!hasMinLength || !hasNumber || !hasSymbol) {
       showToast({
-        title: 'Weak Password',
-        description: 'Password must be at least 8 characters long and include numbers.',
+        title: 'Password Incomplete',
+        description: 'Password must be at least 8 characters long and include at least 1 number and 1 symbol.',
         type: 'error'
       });
       return;
@@ -262,7 +281,7 @@ function RegisterContent() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Min. 8 characters with numbers"
+                      placeholder="Min. 8 characters, 1 number & 1 symbol (e.g. Pass@123)"
                       className="w-full h-11 pl-3 pr-10 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
                     />
                     <button
@@ -274,27 +293,59 @@ function RegisterContent() {
                     </button>
                   </div>
 
-                  {/* Password strength checklist */}
-                  {password.length > 0 && (
-                    <div className="mt-2 space-y-1 text-[11px] text-[#6a6f73]">
-                      <div className="flex items-center gap-1.5">
-                        <Icon
-                          name={hasMinLength ? 'check_circle' : 'radio_button_unchecked'}
-                          size={14}
-                          className={hasMinLength ? 'text-emerald-600' : 'text-gray-400'}
-                        />
-                        <span>At least 8 characters</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Icon
-                          name={hasNumber ? 'check_circle' : 'radio_button_unchecked'}
-                          size={14}
-                          className={hasNumber ? 'text-emerald-600' : 'text-gray-400'}
-                        />
-                        <span>Includes at least 1 number</span>
-                      </div>
+                  {/* Password strength checklist with dynamic tick marks */}
+                  <div className="mt-2.5 p-3 bg-[#f7f9fa] border border-[#d1d7dc] rounded-[4px] space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold">
+                      <span className="text-[#2d2f31]">Password Requirements:</span>
+                      <span className={passedChecksCount === 3 ? 'text-emerald-600 font-extrabold' : 'text-[#6a6f73]'}>
+                        {passedChecksCount} of 3 completed
+                      </span>
                     </div>
-                  )}
+
+                    {/* Visual 3-segment progress indicator */}
+                    <div className="flex gap-1.5 h-1.5 w-full rounded-full overflow-hidden bg-gray-200">
+                      <div
+                        className={`flex-1 transition-all duration-300 ${
+                          passedChecksCount >= 1 ? 'bg-amber-500' : 'bg-gray-200'
+                        }`}
+                      />
+                      <div
+                        className={`flex-1 transition-all duration-300 ${
+                          passedChecksCount >= 2 ? 'bg-blue-500' : 'bg-gray-200'
+                        }`}
+                      />
+                      <div
+                        className={`flex-1 transition-all duration-300 ${
+                          passedChecksCount >= 3 ? 'bg-emerald-500' : 'bg-gray-200'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Real-time Checklist with tick tick animation */}
+                    <div className="space-y-1.5 pt-0.5">
+                      {passwordRules.map((rule) => (
+                        <div
+                          key={rule.id}
+                          className={`flex items-center gap-2 text-xs transition-all duration-200 ${
+                            rule.passed
+                              ? 'text-emerald-700 font-bold'
+                              : 'text-[#6a6f73] font-normal'
+                          }`}
+                        >
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${
+                              rule.passed
+                                ? 'bg-emerald-600 text-white shadow-xs scale-105'
+                                : 'border border-gray-300 bg-white text-transparent'
+                            }`}
+                          >
+                            <Icon name="check" size={12} className="stroke-[3]" />
+                          </span>
+                          <span>{rule.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <button

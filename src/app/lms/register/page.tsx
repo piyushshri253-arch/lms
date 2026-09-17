@@ -49,10 +49,14 @@ export default function LmsRegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
+    const hasMinLength = password.length >= 8;
+    const hasNumber = /[0-9]/.test(password);
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+    if (!hasMinLength || !hasNumber || !hasSymbol) {
       showToast({
-        title: 'Password Too Short',
-        description: 'Password must be at least 8 characters long.',
+        title: 'Password Incomplete',
+        description: 'Password must be at least 8 characters long and include at least 1 number and 1 symbol.',
         type: 'error'
       });
       return;
@@ -275,7 +279,7 @@ export default function LmsRegisterPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 8 chars"
+                    placeholder="Min. 8 characters, 1 number & 1 symbol"
                     className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono transition-all placeholder:text-slate-500"
                   />
                 </div>
@@ -292,6 +296,60 @@ export default function LmsRegisterPage() {
                     placeholder="Re-enter password"
                     className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono transition-all placeholder:text-slate-500"
                   />
+                </div>
+              </div>
+
+              {/* Password strength checklist with dynamic tick marks */}
+              <div className="p-3 bg-white/[0.04] border border-white/10 rounded-xl space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold">
+                  <span className="text-slate-300">Password Requirements:</span>
+                  <span className={password.length >= 8 && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? 'text-emerald-400 font-extrabold' : 'text-slate-400'}>
+                    {[password.length >= 8, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length} of 3 completed
+                  </span>
+                </div>
+
+                <div className="flex gap-1.5 h-1.5 w-full rounded-full overflow-hidden bg-white/10">
+                  <div
+                    className={`flex-1 transition-all duration-300 ${
+                      [password.length >= 8, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length >= 1 ? 'bg-amber-500' : 'bg-transparent'
+                    }`}
+                  />
+                  <div
+                    className={`flex-1 transition-all duration-300 ${
+                      [password.length >= 8, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length >= 2 ? 'bg-blue-500' : 'bg-transparent'
+                    }`}
+                  />
+                  <div
+                    className={`flex-1 transition-all duration-300 ${
+                      [password.length >= 8, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length >= 3 ? 'bg-emerald-500' : 'bg-transparent'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1 pt-0.5">
+                  {[
+                    { id: 'length', label: 'At least 8 characters', passed: password.length >= 8 },
+                    { id: 'number', label: 'At least 1 number (0-9)', passed: /[0-9]/.test(password) },
+                    { id: 'symbol', label: 'At least 1 symbol or special character (@, $, #, etc.)', passed: /[^A-Za-z0-9]/.test(password) }
+                  ].map((rule) => (
+                    <div
+                      key={rule.id}
+                      className={`flex items-center gap-2 text-xs transition-all duration-200 ${
+                        rule.passed ? 'text-emerald-400 font-bold' : 'text-slate-400 font-normal'
+                      }`}
+                    >
+                      <span
+                        className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${
+                          rule.passed
+                            ? 'bg-emerald-500 text-white shadow-xs scale-105'
+                            : 'border border-white/20 bg-white/5 text-transparent'
+                        }`}
+                      >
+                        <Icon name="check" size={12} className="stroke-[3]" />
+                      </span>
+                      <span>{rule.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
