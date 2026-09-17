@@ -192,21 +192,35 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
     );
   }, [allCourses, activeTab, activeCategoryObj]);
 
+  // Display only top 4 courses in the grid
+  const displayCourses = useMemo(() => {
+    return filteredCourses.slice(0, 4);
+  }, [filteredCourses]);
+
   if (allCourses.length === 0) {
     return null;
   }
 
   return (
-    <section className="py-8 md:py-12 bg-white">
+    <section id="skills-transform" className="py-8 md:py-12 bg-white">
       <div className="max-w-[1340px] mx-auto px-4 sm:px-6">
         {/* Section Header */}
-        <div className="mb-4">
-          <h2 className="text-2xl sm:text-[28px] font-bold text-[#2d2f31] tracking-tight leading-tight">
-            Skills to transform your career and life
-          </h2>
-          <p className="text-sm sm:text-base text-[#6a6f73] mt-1 font-normal">
-            From critical skills to technical topics, Morena Teach supports your professional development.
-          </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl sm:text-[28px] font-bold text-[#2d2f31] tracking-tight leading-tight">
+              Skills to transform your career and life
+            </h2>
+            <p className="text-sm sm:text-base text-[#6a6f73] mt-1 font-normal">
+              From critical skills to technical topics, Morena Teach supports your professional development.
+            </p>
+          </div>
+          <Link
+            href="/courses"
+            className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1 shrink-0 ml-4"
+          >
+            <span>Explore all courses</span>
+            <Icon name="arrow_forward" size={16} />
+          </Link>
         </div>
 
         {/* 1. Category Filter Pill Tabs */}
@@ -238,15 +252,15 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
           })}
         </div>
 
-        {/* 2. Real Course Cards Grid with Udemy Desktop Hover Popovers */}
+        {/* 2. Real Course Cards Grid with Udemy Desktop Hover Popovers (Top 4) */}
         {filteredCourses.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {filteredCourses.map((course, idx) => (
+            {displayCourses.map((course, idx) => (
               <UdemyCourseCard
                 key={course.id}
                 course={course}
                 cardIndex={idx}
-                totalCards={filteredCourses.length}
+                totalCards={displayCourses.length}
               />
             ))}
           </div>
@@ -280,14 +294,14 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
                 ? '/courses?price=free'
                 : `/courses?category=${encodeURIComponent(activeCategoryObj.name)}`
             }
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-sm font-bold rounded-[4px] transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-sm font-bold rounded-[4px] transition-colors"
           >
             <span>
               {activeTab === 'all'
-                ? 'Show all courses'
+                ? 'Explore all courses'
                 : activeTab === 'free'
-                ? 'Show all free courses'
-                : `Show all ${activeCategoryObj.name} courses`}
+                ? 'Explore all free courses'
+                : `Explore all ${activeCategoryObj.name} courses`}
             </span>
             <Icon name="arrow_forward" size={16} />
           </Link>

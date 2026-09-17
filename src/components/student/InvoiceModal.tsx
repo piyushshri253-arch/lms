@@ -117,15 +117,15 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               <div className="flex items-center gap-2.5">
                 <img
                   src="/logo.png"
-                  alt="MORENA TEACH"
-                  className="h-10 w-auto object-contain"
+                  alt="Morena Teach"
+                  className="h-12 w-auto object-contain"
                 />
                 <span className="text-xl font-black tracking-tight text-[#1c1d1f]">
-                  MORENA TEACH
+                  Morena Teach
                 </span>
               </div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                Learning Management System
+              <p className="text-[11px] font-bold tracking-normal" style={{ color: '#9190b3' }}>
+                Teacher Excellence early childhood hub
               </p>
               <p className="text-xs text-gray-500 pt-1">
                 Morena Teach Technologies Pvt. Ltd.<br />

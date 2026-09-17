@@ -17,9 +17,13 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
   // Prefer live context courses if available, fallback to SSR courses
   const realCourses = React.useMemo(() => {
     const list = contextCourses && contextCourses.length > 0 ? contextCourses : initialCourses;
-    // Only published courses
     return list.filter((c) => c.status === 'PUBLISHED');
   }, [contextCourses, initialCourses]);
+
+  // Display only top 4 courses
+  const displayCourses = React.useMemo(() => {
+    return realCourses.slice(0, 4);
+  }, [realCourses]);
 
   if (realCourses.length === 0) {
     return null;
@@ -40,24 +44,37 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
           </div>
           <Link
             href="/courses"
-            className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1"
+            className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1 shrink-0"
           >
             <span>Explore all courses</span>
             <Icon name="arrow_forward" size={16} />
           </Link>
         </div>
 
-        {/* Real Courses Grid with Udemy Hover Popover */}
+        {/* Real Courses Grid with Udemy Hover Popover (Top 4) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {realCourses.map((course, idx) => (
+          {displayCourses.map((course, idx) => (
             <UdemyCourseCard
               key={course.id}
               course={course}
               cardIndex={idx}
-              totalCards={realCourses.length}
+              totalCards={displayCourses.length}
             />
           ))}
         </div>
+
+        {/* Explore All Courses Action Button */}
+        {realCourses.length > 4 && (
+          <div className="mt-8">
+            <Link
+              href="/courses"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-sm font-bold rounded-[4px] transition-colors"
+            >
+              <span>Explore all courses ({realCourses.length})</span>
+              <Icon name="arrow_forward" size={16} />
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

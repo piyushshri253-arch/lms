@@ -123,18 +123,21 @@ export const UdemyFooter: React.FC = () => {
         {/* Bottom Bar: Logo, Brand & Copyright */}
         <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Brand Logo & Tagline */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3.5">
             <img
               src="/logo.png"
               alt="Morena Teach Logo"
-              className="h-9 w-auto object-contain bg-white rounded p-0.5"
+              className="h-12 w-auto object-contain bg-white rounded p-1"
             />
             <div className="flex flex-col">
               <span className="font-extrabold text-lg text-white tracking-tight leading-none">
-                MORENA TEACH
+                Morena Teach
               </span>
-              <span className="text-[10px] text-gray-400 mt-1">
-                Learning Management System
+              <span
+                className="text-[11px] font-semibold mt-1"
+                style={{ color: '#9190b3' }}
+              >
+                Teacher Excellence early childhood hub
               </span>
             </div>
           </div>

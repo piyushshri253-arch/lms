@@ -112,15 +112,15 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
                 <div className="flex items-center gap-2">
                   <img
                     src="/logo.png"
-                    alt="MORENA TEACH"
-                    className="h-10 w-auto object-contain"
+                    alt="Morena Teach"
+                    className="h-12 w-auto object-contain"
                   />
                   <span className="text-xl font-black tracking-wider text-[#1c1d1f]">
-                    MORENA TEACH
+                    Morena Teach
                   </span>
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6a6f73]">
-                  Learning Management System
+                <p className="text-[10px] font-bold tracking-normal" style={{ color: '#9190b3' }}>
+                  Teacher Excellence early childhood hub
                 </p>
               </div>
 

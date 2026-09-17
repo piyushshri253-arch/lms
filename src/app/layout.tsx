@@ -20,10 +20,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Morena Teach — Online Courses, Certifications & Learning Management System',
-  description: 'Master in-demand skills and certified masterclasses with Morena Teach LMS.',
+  title: 'Morena Teach — Teacher Excellence Early Childhood Hub',
+  description: 'Teacher Excellence early childhood hub — Master in-demand skills and certified educator masterclasses.',
   openGraph: {
-    title: 'Morena Teach — Modern Learning Platform',
+    title: 'Morena Teach — Teacher Excellence Early Childhood Hub',
     description: 'Premier online academy for professional training, masterclasses, and certified education.',
     siteName: 'Morena Teach',
     type: 'website'
