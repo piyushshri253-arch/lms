@@ -347,8 +347,8 @@ export default function StudentCartPage() {
             {/* Modal Header */}
             <div className="text-center mb-6">
               <div className="flex items-center justify-center gap-2 mb-2">
-                <img src="/logo.png" alt="Morena Teach" className="h-8 w-auto" />
-                <span className="font-extrabold text-lg text-[#1c1d1f]">Morena Teach</span>
+                <img src="/logo.png" alt="Morena Teach" className="h-10 w-auto" />
+                <span className="font-extrabold text-lg" style={{ color: '#183257' }}>Morena Teach</span>
               </div>
               <h3 className="text-xl font-bold text-[#1c1d1f]">
                 {authMode === 'signup' ? 'Sign up & complete your enrollment' : 'Log in to your account'}

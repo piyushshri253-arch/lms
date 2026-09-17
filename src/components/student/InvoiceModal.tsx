@@ -118,9 +118,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 <img
                   src="/logo.png"
                   alt="Morena Teach"
-                  className="h-12 w-auto object-contain"
+                  className="h-14 w-auto object-contain"
                 />
-                <span className="text-xl font-black tracking-tight text-[#1c1d1f]">
+                <span className="text-xl font-black tracking-tight" style={{ color: '#183257' }}>
                   Morena Teach
                 </span>
               </div>

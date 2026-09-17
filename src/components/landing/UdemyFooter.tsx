@@ -127,7 +127,7 @@ export const UdemyFooter: React.FC = () => {
             <img
               src="/logo.png"
               alt="Morena Teach Logo"
-              className="h-12 w-auto object-contain bg-white rounded p-1"
+              className="h-14 w-auto object-contain bg-white rounded p-1"
             />
             <div className="flex flex-col">
               <span className="font-extrabold text-lg text-white tracking-tight leading-none">

@@ -113,9 +113,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
                   <img
                     src="/logo.png"
                     alt="Morena Teach"
-                    className="h-12 w-auto object-contain"
+                    className="h-14 w-auto object-contain"
                   />
-                  <span className="text-xl font-black tracking-wider text-[#1c1d1f]">
+                  <span className="text-xl font-black tracking-wider" style={{ color: '#183257' }}>
                     Morena Teach
                   </span>
                 </div>

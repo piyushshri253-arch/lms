@@ -106,7 +106,7 @@ export const UdemyNavbar: React.FC = () => {
       )}
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-[1340px] mx-auto px-4 sm:px-6 h-[76px] sm:h-[82px] flex items-center justify-between gap-3 lg:gap-4">
+      <div className="max-w-[1340px] mx-auto px-4 sm:px-6 h-[84px] sm:h-[92px] flex items-center justify-between gap-3 lg:gap-4">
         {/* Mobile Hamburger Toggle */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -121,14 +121,17 @@ export const UdemyNavbar: React.FC = () => {
           <img
             src="/logo.png"
             alt="Morena Teach"
-            className="h-12 sm:h-14 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+            className="h-14 sm:h-[66px] w-auto object-contain transition-transform duration-200 group-hover:scale-105"
           />
           <div className="flex flex-col justify-center">
-            <span className="text-[20px] sm:text-[23px] font-extrabold tracking-tight text-[#2d2f31] leading-none">
+            <span
+              className="text-[22px] sm:text-[25px] font-extrabold tracking-tight leading-none"
+              style={{ color: '#183257' }}
+            >
               Morena Teach
             </span>
             <span
-              className="text-[10px] sm:text-[11.5px] font-semibold tracking-normal leading-tight mt-1"
+              className="text-[10.5px] sm:text-[12px] font-semibold tracking-normal leading-tight mt-1.5"
               style={{ color: '#9190b3' }}
             >
               Teacher Excellence early childhood hub
