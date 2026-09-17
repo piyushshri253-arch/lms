@@ -7,7 +7,7 @@ export async function POST() {
     success: true,
     platform: 'LMS',
     redirectUrl: '/lms/login',
-    message: 'Logged out of AADHYARA Learning successfully.'
+    message: 'Logged out of MORENA TEACH Learning successfully.'
   });
 }
 

@@ -8,9 +8,9 @@ import { useApp } from '@/context/AppContext';
 export default function SuperAdminSettingsPage() {
   const { showToast } = useApp();
   const [settings, setSettings] = useState<any>({
-    platformName: 'AADHYARA',
-    supportEmail: 'support@aadhyara.com',
-    contactEmail: 'contact@aadhyara.com',
+    platformName: 'MORENA TEACH',
+    supportEmail: 'morena@morenateach.com',
+    contactEmail: 'contact@morenateach.com',
     defaultCurrency: 'USD',
     twoFactorAuth: true,
     maintenanceMode: false,

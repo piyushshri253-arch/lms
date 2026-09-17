@@ -15,8 +15,8 @@ export default function SuperAdminEmailSettingsPage() {
     smtpEncryption: 'TLS',
     smtpUsername: '',
     smtpPassword: '',
-    fromName: 'AADHYARA',
-    fromEmail: 'support@aadhyara.com',
+    fromName: 'MORENA TEACH',
+    fromEmail: 'morena@morenateach.com',
     replyTo: '',
     authEnabled: true,
     isEnabled: false,
@@ -323,7 +323,7 @@ export default function SuperAdminEmailSettingsPage() {
             </label>
             <input
               type="text"
-              placeholder="e.g. apikey, support@aadhyara.com"
+              placeholder="e.g. apikey, morena@morenateach.com"
               value={config.smtpUsername || ''}
               onChange={(e) => setConfig({ ...config, smtpUsername: e.target.value })}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary"
@@ -380,7 +380,7 @@ export default function SuperAdminEmailSettingsPage() {
             <input
               type="text"
               required
-              placeholder="AADHYARA Master Platform"
+              placeholder="MORENA TEACH Master Platform"
               value={config.fromName || ''}
               onChange={(e) => setConfig({ ...config, fromName: e.target.value })}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary"
@@ -394,7 +394,7 @@ export default function SuperAdminEmailSettingsPage() {
             <input
               type="email"
               required
-              placeholder="noreply@aadhyara.com"
+              placeholder="morena@morenateach.com"
               value={config.fromEmail || ''}
               onChange={(e) => setConfig({ ...config, fromEmail: e.target.value })}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary font-mono"
@@ -407,7 +407,7 @@ export default function SuperAdminEmailSettingsPage() {
             </label>
             <input
               type="email"
-              placeholder="support@aadhyara.com"
+              placeholder="morena@morenateach.com"
               value={config.replyTo || ''}
               onChange={(e) => setConfig({ ...config, replyTo: e.target.value })}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary font-mono"

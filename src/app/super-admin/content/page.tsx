@@ -8,9 +8,9 @@ import { useApp } from '@/context/AppContext';
 export default function SuperAdminContentPage() {
   const { showToast } = useApp();
   const [settings, setSettings] = useState<any>({
-    platformName: 'AADHYARA',
-    supportEmail: 'support@aadhyara.com',
-    contactEmail: 'contact@aadhyara.com',
+    platformName: 'MORENA TEACH',
+    supportEmail: 'morena@morenateach.com',
+    contactEmail: 'contact@morenateach.com',
     heroHeadline: 'Where Great Teaching Inspires Great Learning',
     heroSubheadline: 'Learn system design, product leadership, and engineering architecture from distinguished industry leads.',
     primaryCtaText: 'Explore Masterclasses'

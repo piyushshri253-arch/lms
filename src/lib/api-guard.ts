@@ -44,8 +44,8 @@ export async function requireAdminApiGuard(
     if (!companyOrg) {
       companyOrg = await prisma.organization.create({
         data: {
-          name: 'AADHYARA LMS',
-          slug: 'aadhyara'
+          name: 'MORENA TEACH LMS',
+          slug: 'morena-teach'
         },
         select: { id: true, name: true, slug: true }
       });

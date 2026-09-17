@@ -89,11 +89,11 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onMenuToggle }) => {
     }
   }, [searchQuery]);
 
-  const companySlug = currentUser?.organizationSlug || 'aadhyara';
+  const companySlug = currentUser?.organizationSlug || 'morena-teach';
 
   return (
     <header className="sticky top-0 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 h-16 shadow-xs select-none">
-      {/* Left: Mobile Menu Toggle, AADHYARA Brand & Facility Switcher */}
+      {/* Left: Mobile Menu Toggle, MORENA TEACH Brand & Facility Switcher */}
       <div className="flex items-center gap-3">
         {onMenuToggle && (
           <button

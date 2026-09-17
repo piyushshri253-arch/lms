@@ -67,7 +67,7 @@ export const SuperAdminSidebar: React.FC = () => {
           </div>
           <div>
             <span className="font-extrabold text-sm text-on-surface tracking-tight block leading-tight">
-              AADHYARA
+              MORENA TEACH
             </span>
             <span className="text-[10px] font-mono text-outline font-bold">
               SUPER ADMINISTRATOR

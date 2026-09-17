@@ -203,7 +203,7 @@ export const HowWeTeachSection: React.FC = () => {
                 <span className="w-3 h-3 rounded-full bg-amber-500/80" />
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                 <span className="text-xs font-mono text-slate-400 ml-2">
-                  aadhyara://classroom/{current.preview.type}
+                  morena-teach://classroom/{current.preview.type}
                 </span>
               </div>
               <span className="text-[11px] font-bold bg-primary/20 text-primary-fixed border border-primary/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">

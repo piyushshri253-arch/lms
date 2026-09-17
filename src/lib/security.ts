@@ -398,7 +398,7 @@ export async function checkSystemHealth(): Promise<{
 const ENCRYPTION_ALGO = 'aes-256-gcm';
 
 function getEncryptionKey(fallbackSecret?: string): Buffer {
-  const secret = fallbackSecret || process.env.ENCRYPTION_SECRET || process.env.JWT_SECRET || 'aadhyara-production-secure-jwt-key-2026-super-secret';
+  const secret = fallbackSecret || process.env.ENCRYPTION_SECRET || process.env.JWT_SECRET || 'morena-teach-production-secure-jwt-key-2026-super-secret';
   return crypto.createHash('sha256').update(secret).digest();
 }
 
@@ -422,7 +422,7 @@ export function decryptSecret(cipherText: string): string {
 
     const candidateKeys = [
       undefined,
-      'aadhyara-production-secure-jwt-key-2026-super-secret',
+      'morena-teach-production-secure-jwt-key-2026-super-secret',
       'aadhyara-default-secret-key-32b-length-secure!'
     ];
 

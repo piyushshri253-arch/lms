@@ -105,7 +105,7 @@ export const SalesSidebar: React.FC<SalesSidebarProps> = ({
       label: 'AI',
       items: [
         {
-          label: 'AADHYARA AI',
+          label: 'MORENA TEACH AI',
           icon: 'psychology',
           isExpandable: true,
           expandKey: 'ai',
@@ -153,7 +153,7 @@ export const SalesSidebar: React.FC<SalesSidebarProps> = ({
                 🚀
               </div>
               <div className="flex flex-col">
-                <span className="font-black text-sm text-white tracking-tight">AADHYARA</span>
+                <span className="font-black text-sm text-white tracking-tight">MORENA TEACH</span>
                 <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider -mt-1">
                   Sales OS
                 </span>
@@ -186,7 +186,7 @@ export const SalesSidebar: React.FC<SalesSidebarProps> = ({
                   {organization?.name || 'My Business'}
                 </div>
                 <div className="text-[10px] font-mono text-slate-400 truncate">
-                  {organization?.slug || 'workspace'}.aadhyara.com
+                  {organization?.slug || 'workspace'}.morenateach.com
                 </div>
               </div>
             </div>
@@ -313,7 +313,7 @@ export const SalesSidebar: React.FC<SalesSidebarProps> = ({
             >
               <div className="flex items-center gap-2">
                 <span>🎓</span>
-                <span>Switch to AADHYARA Learning</span>
+                <span>Switch to MORENA TEACH Learning</span>
               </div>
               <Icon name="arrow_forward" size={14} className="group-hover:translate-x-1 transition-transform" />
             </button>

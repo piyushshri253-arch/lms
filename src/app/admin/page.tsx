@@ -88,14 +88,14 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                AADHYARA Platform Operations
+                MORENA TEACH Platform Operations
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
               {getGreeting()}, {adminFirstName} 👋
             </h1>
             <p className="text-indigo-200 text-xs sm:text-sm font-medium max-w-xl">
-              Welcome back to your central command center for <strong className="text-white">AADHYARA</strong>.
+              Welcome back to your central command center for <strong className="text-white">MORENA TEACH</strong>.
             </p>
 
             {/* Quick Summary Pill Bar */}
@@ -550,7 +550,7 @@ export default function AdminDashboardPage() {
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-outline">Organization:</span>
-                <span className="font-bold text-on-surface">AADHYARA LMS</span>
+                <span className="font-bold text-on-surface">MORENA TEACH LMS</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-outline">Architecture:</span>

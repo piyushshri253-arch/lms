@@ -64,7 +64,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ onClose }) => {
             </div>
             <div>
               <h1 className="font-extrabold text-base text-primary leading-tight flex items-center gap-1.5">
-                <span>AADHYARA</span>
+                <span>MORENA TEACH</span>
               </h1>
               <p className="text-[11px] text-on-surface-variant font-medium truncate max-w-[150px]">
                 {currentUser?.organizationName || 'Learning Platform'}

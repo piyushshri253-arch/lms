@@ -55,26 +55,26 @@ export const LoginChoiceModal: React.FC<LoginChoiceModalProps> = ({ isOpen, onCl
         {/* Header */}
         <div className="text-center mb-8 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-xs font-mono font-semibold text-indigo-300 uppercase tracking-wider mb-3">
-            <span>AADHYARA Ecosystem</span>
+            <span>MORENA TEACH Ecosystem</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             What do you want to access?
           </h2>
           <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
-            Choose your product portal. AADHYARA keeps learning and sales experiences distinct and secure.
+            Choose your product portal. MORENA TEACH keeps learning and sales experiences distinct and secure.
           </p>
         </div>
 
         {/* Product Choice Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
-          {/* Card 1: AADHYARA Learning */}
+          {/* Card 1: MORENA TEACH Learning */}
           <div className="bg-gradient-to-b from-white/[0.06] to-white/[0.02] hover:from-white/[0.1] hover:to-white/[0.04] border border-white/10 hover:border-emerald-500/40 rounded-2xl p-6 transition-all duration-300 flex flex-col justify-between group shadow-lg">
             <div>
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-2xl mb-4 group-hover:scale-105 transition-transform">
                 🎓
               </div>
               <div className="flex items-center gap-2 mb-1.5">
-                <h3 className="text-lg font-extrabold text-white">AADHYARA Learning</h3>
+                <h3 className="text-lg font-extrabold text-white">MORENA TEACH Learning</h3>
                 <span className="text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-md">
                   LMS
                 </span>
@@ -105,7 +105,7 @@ export const LoginChoiceModal: React.FC<LoginChoiceModalProps> = ({ isOpen, onCl
             </div>
           </div>
 
-          {/* Card 2: AADHYARA Sales */}
+          {/* Card 2: MORENA TEACH Sales */}
           <div className="bg-gradient-to-b from-white/[0.08] to-white/[0.03] hover:from-white/[0.12] hover:to-white/[0.06] border border-indigo-500/40 hover:border-indigo-400 rounded-2xl p-6 transition-all duration-300 flex flex-col justify-between group shadow-xl relative">
             <div className="absolute -top-3 right-5 px-2.5 py-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] font-extrabold uppercase rounded-full shadow-md">
               Business &amp; Sales
@@ -116,7 +116,7 @@ export const LoginChoiceModal: React.FC<LoginChoiceModalProps> = ({ isOpen, onCl
                 🚀
               </div>
               <div className="flex items-center gap-2 mb-1.5">
-                <h3 className="text-lg font-extrabold text-white">AADHYARA Sales</h3>
+                <h3 className="text-lg font-extrabold text-white">MORENA TEACH Sales</h3>
                 <span className="text-[10px] font-mono uppercase bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-md">
                   GROWTH OS
                 </span>

@@ -261,7 +261,7 @@ export const SaaSHeroSection: React.FC = () => {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
           <span className="text-xs font-semibold tracking-wide text-slate-200">
-            AADHYARA 3.0 • Next-Gen LMS Architecture
+            MORENA TEACH 3.0 • Next-Gen LMS Architecture
           </span>
           <span className="text-[10px] font-mono font-bold uppercase bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/30">
             Multi-Tenant
@@ -428,7 +428,7 @@ export const SaaSHeroSection: React.FC = () => {
               <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
               <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
               <span className="ml-2 font-mono text-[11px] text-slate-400 hidden sm:inline">
-                https://academy.aadhyara.com/learn/{activeTheme.toLowerCase()}
+                https://academy.morenateach.com/learn/{activeTheme.toLowerCase()}
               </span>
             </div>
 

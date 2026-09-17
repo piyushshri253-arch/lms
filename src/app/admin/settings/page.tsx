@@ -295,7 +295,7 @@ function AdminSettingsContent() {
                   value={slug}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-outline-variant text-xs text-outline font-mono cursor-not-allowed"
                 />
-                <span className="text-[10px] text-outline mt-1 block">Live URL: aadhyara.com/org/{slug}</span>
+                <span className="text-[10px] text-outline mt-1 block">Live URL: morenateach.com/org/{slug}</span>
               </div>
             </div>
 
@@ -615,7 +615,7 @@ function AdminSettingsContent() {
             </div>
 
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Every course purchase made on your storefront will deposit funds directly into your own Razorpay merchant account. AADHYARA securely encrypts your API secrets.
+              Every course purchase made on your storefront will deposit funds directly into your own Razorpay merchant account. MORENA TEACH securely encrypts your API secrets.
             </p>
 
             <div className="space-y-4">

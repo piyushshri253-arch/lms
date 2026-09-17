@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
     smtpUsername: body.smtpUsername,
     smtpPassword: password,
     authEnabled: body.authEnabled !== false,
-    fromName: body.fromName || 'AADHYARA',
-    fromEmail: body.fromEmail || 'support@aadhyara.com'
+    fromName: body.fromName || 'MORENA TEACH',
+    fromEmail: body.fromEmail || 'morena@morenateach.com'
   });
 
   const existing = await prisma.platformEmailConfig.findFirst();

@@ -63,7 +63,7 @@ export default function SalesResetPasswordPage({ params }: { params: Promise<{ t
           </div>
           <h1 className="text-2xl font-black text-white">Create New Password</h1>
           <p className="text-xs text-slate-400">
-            Set a new master password for your AADHYARA Sales account.
+            Set a new master password for your MORENA TEACH Sales account.
           </p>
         </div>
 

@@ -187,7 +187,7 @@ export async function POST(req: Request) {
     // 4. Send Welcome Email
     await sendEmail({
       to: normalizedEmail,
-      subject: `Welcome to AADHYARA — Your ${platform === 'LMS' ? 'LMS Academy' : 'Sales'} workspace is ready!`,
+      subject: `Welcome to MORENA TEACH — Your ${platform === 'LMS' ? 'LMS Academy' : 'Sales'} workspace is ready!`,
       template: 'COMPANY_WELCOME',
       data: {
         adminName: userRecord.name,

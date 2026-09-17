@@ -17,8 +17,8 @@ export async function GET() {
 
     return NextResponse.json({
       settings: {
-        platformName: 'AADHYARA',
-        supportEmail: 'support@aadhyara.com',
+        platformName: 'MORENA TEACH',
+        supportEmail: 'morena@morenateach.com',
         defaultLanguage: 'English (US)',
         twoFactorAuth: true,
         sessionTimeoutMinutes: 60,

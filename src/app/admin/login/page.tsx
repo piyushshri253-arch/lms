@@ -410,7 +410,7 @@ function AdminLoginContent() {
                 <SvgCheck className="w-3.5 h-3.5 text-emerald-600" />
                 256-Bit SSL Encrypted
               </span>
-              <span className="text-slate-400">AADHYARA v2.6 LMS</span>
+              <span className="text-slate-400">MORENA TEACH v2.6 LMS</span>
             </div>
           </div>
         </div>
@@ -419,7 +419,7 @@ function AdminLoginContent() {
       {/* Global Footer */}
       <footer className="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-500">
         <p>
-          &copy; {new Date().getFullYear()} AADHYARA Educational Technologies &bull; Multi-Tenant Academic
+          &copy; {new Date().getFullYear()} MORENA TEACH Educational Technologies &bull; Multi-Tenant Academic
           Operations &bull; Strictly Confidential
         </p>
       </footer>

@@ -20,7 +20,7 @@ export default function SalesDomainsPage() {
       <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 max-w-2xl space-y-4">
         <h3 className="text-sm font-bold text-white">DNS Configuration (CNAME / A Records)</h3>
         <p className="text-xs text-slate-300">
-          Point your domain's CNAME record to <code className="px-2 py-0.5 rounded bg-white/10 text-indigo-300 font-mono">cname.aadhyara.com</code> or A Record to <code className="px-2 py-0.5 rounded bg-white/10 text-indigo-300 font-mono">76.76.21.21</code>.
+          Point your domain's CNAME record to <code className="px-2 py-0.5 rounded bg-white/10 text-indigo-300 font-mono">cname.morenateach.com</code> or A Record to <code className="px-2 py-0.5 rounded bg-white/10 text-indigo-300 font-mono">76.76.21.21</code>.
         </p>
         <div className="flex gap-2">
           <input

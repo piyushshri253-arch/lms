@@ -44,7 +44,7 @@ export default function SalesForgotPasswordPage() {
           </div>
           <h1 className="text-2xl font-black text-white">Reset Sales Password</h1>
           <p className="text-xs text-slate-400">
-            Enter your work email address associated with your AADHYARA Sales account.
+            Enter your work email address associated with your MORENA TEACH Sales account.
           </p>
         </div>
 

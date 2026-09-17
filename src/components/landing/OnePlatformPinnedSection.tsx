@@ -103,7 +103,7 @@ export const OnePlatformPinnedSection: React.FC = () => {
                 Everything your learning business needs.
               </h2>
               <p className="text-sm sm:text-base text-slate-400">
-                Scroll to see how AADHYARA powers every phase of your educational enterprise.
+                Scroll to see how MORENA TEACH powers every phase of your educational enterprise.
               </p>
             </div>
 
@@ -160,7 +160,7 @@ export const OnePlatformPinnedSection: React.FC = () => {
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
                   <span className="ml-2 font-mono text-[11px] text-slate-400 truncate">
-                    aadhyara.com/app/{STAGES[activeStage].title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+                    morenateach.com/app/{STAGES[activeStage].title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
                   </span>
                 </div>
                 <span className="text-[10px] font-mono uppercase text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded font-bold">

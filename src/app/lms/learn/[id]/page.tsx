@@ -96,7 +96,7 @@ export default function LmsCoursePlayerPage({
           {/* Mock Video Player Canvas */}
           <div className="w-full aspect-video rounded-3xl bg-[#080d20] border border-emerald-500/25 relative overflow-hidden shadow-2xl flex flex-col justify-between p-6">
             <div className="flex items-center justify-between text-xs font-mono text-emerald-400">
-              <span>AADHYARA Player v2.4 (Ultra HD 4K)</span>
+              <span>MORENA TEACH Player v2.4 (Ultra HD 4K)</span>
               <span>1080p 60fps</span>
             </div>
 

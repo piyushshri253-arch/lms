@@ -16,7 +16,7 @@ export const LandingFooter: React.FC = () => {
                 <span className="font-black text-lg">A</span>
               </div>
               <div className="flex flex-col">
-                <span className="font-black text-xl text-white tracking-tight">AADHYARA</span>
+                <span className="font-black text-xl text-white tracking-tight">MORENA TEACH</span>
                 <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase">Build. Learn. Grow.</span>
               </div>
             </Link>
@@ -167,13 +167,13 @@ export const LandingFooter: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-medium">
-          <p>© {new Date().getFullYear()} AADHYARA. All rights reserved. Build. Learn. Grow.</p>
+          <p>© {new Date().getFullYear()} MORENA TEACH. All rights reserved. Build. Learn. Grow.</p>
           <div className="flex items-center gap-5">
             <Link href="/company-signup" className="hover:text-indigo-400 transition-colors">
-              🚀 AADHYARA Sales
+              🚀 MORENA TEACH Sales
             </Link>
             <Link href="/courses" className="hover:text-emerald-400 transition-colors">
-              🎓 AADHYARA Learning
+              🎓 MORENA TEACH Learning
             </Link>
             <Link href="/super-admin/login" className="hover:text-slate-300 transition-colors">
               Platform Admin

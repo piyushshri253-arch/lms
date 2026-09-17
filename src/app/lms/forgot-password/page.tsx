@@ -44,7 +44,7 @@ export default function LmsForgotPasswordPage() {
           </div>
           <h1 className="text-2xl font-black text-white">Reset Learning Password</h1>
           <p className="text-xs text-slate-400">
-            Enter your email address associated with your AADHYARA Learning account.
+            Enter your email address associated with your MORENA TEACH Learning account.
           </p>
         </div>
 

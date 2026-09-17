@@ -279,7 +279,7 @@ export default function SuperAdminInstructorsPage() {
               required
               value={createEmail}
               onChange={(e) => setCreateEmail(e.target.value)}
-              placeholder="alan@aadhyara.com"
+              placeholder="alan@morenateach.com"
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-mono focus:outline-none focus:border-primary"
             />
           </div>

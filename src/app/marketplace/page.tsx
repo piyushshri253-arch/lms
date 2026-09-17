@@ -295,7 +295,7 @@ export default function MarketplacePage() {
                         </div>
 
                         <Link
-                          href={`/store/${product.organization?.slug || 'aadhyara'}`}
+                          href={`/store/${product.organization?.slug || 'morena-teach'}`}
                           className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition shadow-md shadow-indigo-600/20 flex items-center gap-1.5"
                         >
                           {product.type === 'SOFTWARE' ? <Key className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
@@ -423,7 +423,7 @@ export default function MarketplacePage() {
                         </div>
 
                         <Link
-                          href={`/store/${service.organization?.slug || 'aadhyara'}`}
+                          href={`/store/${service.organization?.slug || 'morena-teach'}`}
                           className="px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-medium text-xs transition shadow-md shadow-pink-600/20 flex items-center gap-1.5"
                         >
                           <Briefcase className="w-3.5 h-3.5" />

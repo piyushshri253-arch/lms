@@ -194,7 +194,7 @@ export async function POST(request: Request) {
       let companyOrg = await prisma.organization.findFirst();
       if (!companyOrg) {
         companyOrg = await prisma.organization.create({
-          data: { name: 'AADHYARA LMS', slug: 'aadhyara' }
+          data: { name: 'MORENA TEACH LMS', slug: 'morena-teach' }
         });
       }
       orgId = companyOrg.id;

@@ -75,7 +75,7 @@ export default async function OrgAboutPage({
       </main>
 
       <footer className="border-t border-white/10 bg-[#04060f] py-6 px-6 text-center text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} {org.name}. Powered by AADHYARA Cloud.
+        &copy; {new Date().getFullYear()} {org.name}. Powered by MORENA TEACH Cloud.
       </footer>
     </div>
   );

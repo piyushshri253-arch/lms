@@ -68,7 +68,7 @@ export const AiCommandModal: React.FC<AiCommandModalProps> = ({
         });
       } else {
         setResponse({
-          title: '🤖 AADHYARA AI Business Assistant',
+          title: '🤖 MORENA TEACH AI Business Assistant',
           text: `Based on your request, I have analyzed your storefront and customer data for ${businessName || 'your business'}. Conversion rate is currently ${metrics?.conversionRate || 4.8}%.`,
           actionText: 'Open Full AI Business Hub',
           actionUrl: '/admin/website/builder?mode=ai'
@@ -87,7 +87,7 @@ export const AiCommandModal: React.FC<AiCommandModalProps> = ({
               ✨
             </div>
             <div>
-              <h2 className="text-base font-black text-white">AADHYARA AI Business Copilot</h2>
+              <h2 className="text-base font-black text-white">MORENA TEACH AI Business Copilot</h2>
               <p className="text-[11px] text-slate-400">Ask anything about your revenue, customers, campaigns or launch tools</p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export const AiCommandModal: React.FC<AiCommandModalProps> = ({
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ask AADHYARA AI... (e.g. 'Show me my sales this month')"
+            placeholder="Ask MORENA TEACH AI... (e.g. 'Show me my sales this month')"
             className="w-full pl-5 pr-12 py-3.5 rounded-2xl bg-white/[0.04] border border-white/20 focus:border-purple-500 text-white text-xs placeholder:text-slate-500 focus:outline-none shadow-inner"
           />
           <button

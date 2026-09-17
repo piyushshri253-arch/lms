@@ -72,7 +72,7 @@ export const CinematicFinalCtaSection: React.FC = () => {
             better learning.
           </span>
           <br />
-          <span className="text-white">Build it with AADHYARA.</span>
+          <span className="text-white">Build it with MORENA TEACH.</span>
         </h2>
 
         <p className="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">

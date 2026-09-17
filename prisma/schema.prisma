@@ -1753,8 +1753,8 @@ model PlatformEmailConfig {
   smtpEncryption        String    @default("TLS") // NONE, SSL, TLS
   smtpUsername          String    @default("")
   smtpPasswordEncrypted String?   // AES-256-GCM encrypted
-  fromName              String    @default("AADHYARA")
-  fromEmail             String    @default("support@aadhyara.com")
+  fromName              String    @default("Morena Teach")
+  fromEmail             String    @default("morena@morenateach.com")
   replyTo               String?
   authEnabled           Boolean   @default(true)
   isEnabled             Boolean   @default(false)
@@ -1797,7 +1797,7 @@ model SoftwareLicense {
   order              Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
   userId             String
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  licenseKey         String              @unique // AADHYARA-XXXX-XXXX-XXXX
+  licenseKey         String              @unique // MORENA-XXXX-XXXX-XXXX
   licenseType        String              @default("SINGLE_USER") // SINGLE_USER, MULTI_USER, ENTERPRISE, SUBSCRIPTION
   maxActivations     Int                 @default(1)
   currentActivations Int                 @default(0)

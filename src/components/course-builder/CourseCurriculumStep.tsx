@@ -830,7 +830,7 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
               type="text"
               value={formData.pdfUrl || ''}
               onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
-              placeholder="https://cdn.aadhyara.com/cheatsheet.pdf or /uploads/..."
+              placeholder="https://cdn.morenateach.com/cheatsheet.pdf or /uploads/..."
               className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
             />
           </div>

@@ -65,7 +65,7 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-white truncate">{ws.name}</div>
                     <div className="text-[10px] font-mono text-slate-400 truncate">
-                      {ws.slug}.aadhyara.com
+                      {ws.slug}.morenateach.com
                     </div>
                   </div>
                 </div>

@@ -23,7 +23,7 @@ export const CustomDomainSection: React.FC = () => {
             </h2>
 
             <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-              Build on AADHYARA while keeping your own brand identity. Connect your custom root domain or subdomain
+              Build on MORENA TEACH while keeping your own brand identity. Connect your custom root domain or subdomain
               with automated SSL certificate provisioning.
             </p>
 
@@ -48,7 +48,7 @@ export const CustomDomainSection: React.FC = () => {
             <div className="space-y-2.5 pt-2 text-xs sm:text-sm text-slate-300">
               <div className="flex items-center gap-2.5">
                 <Icon name="check_circle" size={18} className="text-emerald-400 shrink-0" />
-                <span>Zero AADHYARA badges or mandatory branding on your URL</span>
+                <span>Zero MORENA TEACH badges or mandatory branding on your URL</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Icon name="check_circle" size={18} className="text-emerald-400 shrink-0" />
@@ -86,7 +86,7 @@ export const CustomDomainSection: React.FC = () => {
               {/* Connected Flowchart */}
               <div className="space-y-2 font-mono text-xs text-center">
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 font-bold text-slate-200">
-                  ⚡ AADHYARA Core Engine
+                  ⚡ MORENA TEACH Core Engine
                 </div>
                 <div className="text-indigo-400 text-sm font-bold">↓</div>
                 <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 font-bold text-indigo-200">
@@ -115,7 +115,7 @@ export const CustomDomainSection: React.FC = () => {
                   <div className="p-2 rounded-lg bg-black/40 border border-white/5 flex items-center justify-between text-slate-300">
                     <span>CNAME</span>
                     <span className="text-indigo-300">www</span>
-                    <span className="text-emerald-400">cname.aadhyara.com</span>
+                    <span className="text-emerald-400">cname.morenateach.com</span>
                   </div>
                   <div className="p-2 rounded-lg bg-black/40 border border-white/5 flex items-center justify-between text-slate-300">
                     <span>A Record</span>

@@ -50,7 +50,7 @@ export default function LmsProfilePage() {
 
           <div className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-300 flex items-center gap-2 self-start sm:self-auto">
             <span>🎓</span>
-            <span>Platform: AADHYARA Learning</span>
+            <span>Platform: MORENA TEACH Learning</span>
           </div>
         </div>
 

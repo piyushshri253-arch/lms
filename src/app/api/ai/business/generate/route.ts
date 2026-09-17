@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const provider = await AIGateway.resolveProvider(user.organizationId || undefined);
 
-    const systemPrompt = `You are the AADHYARA Enterprise AI Business Architect.
+    const systemPrompt = `You are the MORENA TEACH Enterprise AI Business Architect.
 Your task is to analyze the user's business idea and generate a complete, high-converting digital business architecture.
 You MUST output ONLY a valid JSON object matching this exact schema:
 {

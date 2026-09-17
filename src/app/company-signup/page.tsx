@@ -172,7 +172,7 @@ function CompanySignupWizard() {
       return;
     }
     if (!agreedToTerms) {
-      setError('Please agree to the AADHYARA Terms of Service and Free Trial Agreement.');
+      setError('Please agree to the MORENA TEACH Terms of Service and Free Trial Agreement.');
       return;
     }
 
@@ -347,7 +347,7 @@ function CompanySignupWizard() {
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-black text-xl tracking-tight text-white group-hover:text-indigo-300 transition-colors">
-                  AADHYARA
+                  MORENA TEACH
                 </span>
                 <span className="text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-500/30 uppercase">
                   B2B SaaS
@@ -419,7 +419,7 @@ function CompanySignupWizard() {
                 <span className="text-indigo-300 font-black truncate max-w-[180px]">
                   {slug || 'your-company'}
                 </span>
-                <span className="text-slate-400">.aadhyara.com</span>
+                <span className="text-slate-400">.morenateach.com</span>
               </div>
 
               {/* Dynamic Workspace Snapshot */}
@@ -470,7 +470,7 @@ function CompanySignupWizard() {
             {/* Testimonial Quote */}
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-xs text-slate-400 italic space-y-2">
               <p>
-                &ldquo;AADHYARA gave our global engineering teams an ultra-fast, branded academy with complete data privacy in under five minutes.&rdquo;
+                &ldquo;MORENA TEACH gave our global engineering teams an ultra-fast, branded academy with complete data privacy in under five minutes.&rdquo;
               </p>
               <div className="flex items-center gap-2 not-italic font-bold text-slate-300">
                 <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] text-white">
@@ -621,7 +621,7 @@ function CompanySignupWizard() {
                         placeholder="nexus-institute"
                         className="bg-transparent text-indigo-300 font-bold focus:outline-none px-1 flex-1 min-w-0"
                       />
-                      <span className="text-slate-400 select-none">.aadhyara.com</span>
+                      <span className="text-slate-400 select-none">.morenateach.com</span>
                     </div>
                     <p className="text-[11px] text-slate-500">
                       You can bind your own custom domain (e.g. <code>academy.yourbrand.com</code>) anytime from the Admin settings.
@@ -774,7 +774,7 @@ function CompanySignupWizard() {
                       />
                       <span className="text-xs text-slate-400 leading-relaxed">
                         I agree to the{' '}
-                        <span className="text-slate-200 underline">AADHYARA Terms of Service</span>,{' '}
+                        <span className="text-slate-200 underline">MORENA TEACH Terms of Service</span>,{' '}
                         <span className="text-slate-200 underline">Privacy Policy</span>, and acknowledge the 14-Day Free Enterprise Trial.
                       </span>
                     </label>
@@ -917,7 +917,7 @@ function CompanySignupWizard() {
                       Welcome to {createdOrgData?.organization?.name || companyName}!
                     </h2>
                     <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
-                      Your isolated multi-tenant LMS workspace has been provisioned on the AADHYARA cloud with full 14-day trial entitlements.
+                      Your isolated multi-tenant LMS workspace has been provisioned on the MORENA TEACH cloud with full 14-day trial entitlements.
                     </p>
                   </div>
 
@@ -926,7 +926,7 @@ function CompanySignupWizard() {
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">Workspace URL:</span>
                       <span className="font-mono font-bold text-indigo-300">
-                        https://{createdOrgData?.organization?.slug || slug}.aadhyara.com
+                        https://{createdOrgData?.organization?.slug || slug}.morenateach.com
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -960,7 +960,7 @@ function CompanySignupWizard() {
       {/* Modern Footer Strip */}
       <footer className="relative z-20 border-t border-white/[0.08] bg-[#04060e] py-6 px-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} AADHYARA SaaS Inc. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} MORENA TEACH SaaS Inc. All rights reserved.</p>
           <div className="flex items-center gap-5 text-[11px] font-mono text-slate-400">
             <span className="flex items-center gap-1">
               <Icon name="lock" size={14} className="text-emerald-400" />
@@ -982,7 +982,7 @@ export default function CompanySignupPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#060814] flex items-center justify-center text-white text-xs font-mono">
-          Loading AADHYARA Workspace Provisioning...
+          Loading MORENA TEACH Workspace Provisioning...
         </div>
       }
     >

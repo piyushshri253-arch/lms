@@ -149,7 +149,7 @@ export default function LmsAdminDashboardPage() {
               </div>
               <div>
                 <span className="font-black text-base text-white tracking-tight block">
-                  AADHYARA
+                  MORENA TEACH
                 </span>
                 <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold tracking-wider">
                   LMS Admin Portal
@@ -286,7 +286,7 @@ export default function LmsAdminDashboardPage() {
                   <span>🎓 Academy Administrator</span>
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-black text-white">
-                  Welcome to AADHYARA Learning Admin
+                  Welcome to MORENA TEACH Learning Admin
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
                   Manage courses, lecture videos, enrolled students, quizzes, accredited certificates, and faculty members with total platform isolation.

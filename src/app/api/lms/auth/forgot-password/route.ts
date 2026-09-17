@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
       await sendEmail({
         to: normalizedEmail,
-        subject: 'Reset your AADHYARA Learning password',
+        subject: 'Reset your MORENA TEACH Learning password',
         template: 'PASSWORD_RESET',
         userId: user.id,
         data: {

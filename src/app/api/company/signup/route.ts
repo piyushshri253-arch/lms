@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
     if (existingUser && existingUser.emailVerified) {
       return NextResponse.json(
-        { error: `An account with this email address already exists on ${platform === 'LMS' ? 'AADHYARA Learning' : 'AADHYARA Sales'}. Please log in.` },
+        { error: `An account with this email address already exists on ${platform === 'LMS' ? 'MORENA TEACH Learning' : 'MORENA TEACH Sales'}. Please log in.` },
         { status: 409 }
       );
     }
@@ -167,7 +167,7 @@ export async function POST(req: Request) {
     // Dispatch verification OTP email
     await sendEmail({
       to: email,
-      subject: `Verify your AADHYARA workspace for ${companyName}`,
+      subject: `Verify your MORENA TEACH workspace for ${companyName}`,
       template: 'OTP_VERIFY',
       userId: userRecord.id,
       organizationId: orgRecord?.id,

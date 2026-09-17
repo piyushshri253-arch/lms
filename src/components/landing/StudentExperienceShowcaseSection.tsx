@@ -103,7 +103,7 @@ export const StudentExperienceShowcaseSection: React.FC = () => {
             </span>
           </h2>
           <p className="text-base sm:text-lg text-slate-400 leading-relaxed">
-            AADHYARA boasts a 94.2% course completion rate — 6x higher than traditional platforms.
+            MORENA TEACH boasts a 94.2% course completion rate — 6x higher than traditional platforms.
             Distraction-free theater players, interactive coding checkpoints, and automated accredited diplomas.
           </p>
         </div>

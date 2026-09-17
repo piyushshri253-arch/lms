@@ -642,7 +642,7 @@ export class EmailService {
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     // Fetch organization branding if applicable
-    let orgBranding: any = { name: 'AADHYARA' };
+    let orgBranding: any = { name: 'MORENA TEACH' };
     if (options.organizationId) {
       const org = await prisma.organization.findUnique({
         where: { id: options.organizationId },

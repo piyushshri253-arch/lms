@@ -3,9 +3,9 @@ import crypto from 'crypto';
 
 /**
  * Generates a formatted cryptographic software license key
- * Example: AADHYARA-7K9P-M4W2-8XN1
+ * Example: MORENA TEACH-7K9P-M4W2-8XN1
  */
-export function generateLicenseKey(prefix = 'AADHYARA'): string {
+export function generateLicenseKey(prefix = 'MORENA TEACH'): string {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Exclude ambiguous chars (0, 1, I, O)
   const getRandomSegment = (len = 4) => {
     let res = '';

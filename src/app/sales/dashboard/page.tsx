@@ -192,7 +192,7 @@ function SalesDashboardContent() {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-white group-hover:text-purple-200 transition-colors">
-                      Ask AADHYARA AI... &ldquo;Show me my sales this month&rdquo;
+                      Ask MORENA TEACH AI... &ldquo;Show me my sales this month&rdquo;
                     </div>
                     <div className="text-[11px] text-slate-400">
                       Query metrics, draft promo campaigns, or generate new website landing pages instantly.
@@ -314,7 +314,7 @@ export default function SalesDashboardPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#060814] flex items-center justify-center text-white text-xs font-mono">
-          Loading AADHYARA Sales Command Center...
+          Loading MORENA TEACH Sales Command Center...
         </div>
       }
     >

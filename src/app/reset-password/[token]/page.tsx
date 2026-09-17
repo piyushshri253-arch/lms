@@ -121,7 +121,7 @@ export default function ResetPasswordPage() {
               <Icon name="school" fill size={28} />
             </div>
             <span className="font-extrabold text-2xl sm:text-3xl text-primary tracking-tight">
-              AADHYARA
+              MORENA TEACH
             </span>
           </Link>
 
@@ -129,7 +129,7 @@ export default function ResetPasswordPage() {
             Create New Password
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant max-w-sm mx-auto">
-            Set a new secure password for your AADHYARA account.
+            Set a new secure password for your MORENA TEACH account.
           </p>
         </div>
 

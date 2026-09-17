@@ -65,7 +65,7 @@ export const BusinessTypesSection: React.FC = () => {
             Built For Different Kinds of Businesses
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
-            Whether you teach, consult, design, or write software — AADHYARA scales with your business model.
+            Whether you teach, consult, design, or write software — MORENA TEACH scales with your business model.
           </p>
         </div>
 

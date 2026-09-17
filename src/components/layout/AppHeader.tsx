@@ -235,7 +235,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
               <div className="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-black">
                 A
               </div>
-              <span className="font-display">AADHYARA</span>
+              <span className="font-display">MORENA TEACH</span>
             </Link>
 
             {/* Desktop Instant Search */}
@@ -439,7 +439,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
                 {isAppsOpen && (
                   <div className="absolute right-0 top-12 w-72 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl shadow-2xl z-50 p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-outline px-2 block">
-                      AADHYARA Ecosystem
+                      MORENA TEACH Ecosystem
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                       <Link
@@ -718,7 +718,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
         isOpen={isDocsOpen}
         onClose={() => setIsDocsOpen(false)}
         maxWidth="lg"
-        title="AADHYARA Platform Documentation"
+        title="MORENA TEACH Platform Documentation"
         subtitle="Organization LMS &amp; Multi-Tenant Reference Guide"
       >
         <div className="space-y-4 text-xs text-on-surface leading-relaxed max-h-[400px] overflow-y-auto pr-2 font-body-md">

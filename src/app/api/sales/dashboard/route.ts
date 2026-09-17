@@ -172,7 +172,7 @@ export async function GET(req: Request) {
         id: organization.id,
         name: organization.name,
         slug: organization.slug,
-        subdomainUrl: `${organization.slug}.aadhyara.com`,
+        subdomainUrl: `${organization.slug}.morenateach.com`,
         customDomain: organization.customDomain || null,
         domainVerified: organization.domainVerified,
         businessType: organization.businessType || 'ACADEMY',

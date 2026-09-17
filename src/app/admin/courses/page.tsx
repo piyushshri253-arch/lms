@@ -216,7 +216,7 @@ function CoursesPageContent() {
               Course Catalog & Curriculum Studio
             </h1>
             <span className="text-[11px] font-mono font-bold bg-purple-500/10 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-full">
-              AADHYARA LMS
+              MORENA TEACH LMS
             </span>
           </div>
           <p className="text-xs text-outline font-medium mt-1">
@@ -608,7 +608,7 @@ function CoursesPageContent() {
                 </div>
                 <div>
                   <h3 className="font-black text-sm text-on-surface">Create New Course</h3>
-                  <p className="text-[11px] text-outline">Provision course syllabus into AADHYARA LMS catalog</p>
+                  <p className="text-[11px] text-outline">Provision course syllabus into MORENA TEACH LMS catalog</p>
                 </div>
               </div>
               <button

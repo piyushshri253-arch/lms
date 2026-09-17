@@ -16,7 +16,7 @@ const TESTIMONIALS = [
     role: 'Creator & Founder, CloudScale Academy',
     type: 'CREATOR',
     quote:
-      'We migrated 14,000 engineers from a fragmented 6-tool stack to AADHYARA in a weekend. Direct UPI and Stripe checkout generated ₹48 Lakhs in the first month with 0% platform take.',
+      'We migrated 14,000 engineers from a fragmented 6-tool stack to MORENA TEACH in a weekend. Direct UPI and Stripe checkout generated ₹48 Lakhs in the first month with 0% platform take.',
     metric: '₹48L+ Revenue',
     avatar: 'VA'
   },
@@ -25,7 +25,7 @@ const TESTIMONIALS = [
     role: 'Distributed Systems Professor',
     type: 'EDUCATOR',
     quote:
-      'Our students love the distraction-free theater player and interactive coding assessments. Course completion rates increased from 38% on legacy LMS to 92.4% on AADHYARA.',
+      'Our students love the distraction-free theater player and interactive coding assessments. Course completion rates increased from 38% on legacy LMS to 92.4% on MORENA TEACH.',
     metric: '92.4% Completion',
     avatar: 'ER'
   },
@@ -93,7 +93,7 @@ export const SocialProofTestimonialsSection: React.FC = () => {
           </h2>
           <p className="text-base sm:text-lg text-slate-400 leading-relaxed">
             Over 50,000+ courses delivered. Hear from industry-leading instructors and engineering bootcamps running on
-            AADHYARA.
+            MORENA TEACH.
           </p>
         </div>
 

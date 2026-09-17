@@ -33,13 +33,13 @@ export async function POST(req: NextRequest) {
       smtpEncryption: smtpEncryption || 'TLS',
       smtpUsername,
       smtpPassword: pass,
-      fromName: fromName || 'AADHYARA Platform',
-      fromEmail: fromEmail || 'support@aadhyara.com',
+      fromName: fromName || 'MORENA TEACH Platform',
+      fromEmail: fromEmail || 'morena@morenateach.com',
       replyTo: replyTo || fromEmail,
       authEnabled: authEnabled !== false
     },
     recipientEmail,
-    { isPlatform: true, organizationName: 'AADHYARA Master Platform' }
+    { isPlatform: true, organizationName: 'MORENA TEACH Master Platform' }
   );
 
   if (result.success) {

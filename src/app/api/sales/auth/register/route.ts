@@ -166,7 +166,7 @@ export async function POST(req: Request) {
     // Send verification OTP email
     await sendEmail({
       to: email,
-      subject: `Verify your AADHYARA Sales Workspace for ${companyName}`,
+      subject: `Verify your MORENA TEACH Sales Workspace for ${companyName}`,
       template: 'OTP_VERIFY',
       userId: userRecord.id,
       organizationId: orgRecord?.id,

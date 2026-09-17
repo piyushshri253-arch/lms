@@ -70,7 +70,7 @@ function LmsLoginContent() {
 
       showToast({
         title: 'Sign In Successful',
-        description: `Welcome back to AADHYARA Learning, ${data.user.name}!`,
+        description: `Welcome back to MORENA TEACH Learning, ${data.user.name}!`,
         type: 'success'
       });
 
@@ -106,7 +106,7 @@ function LmsLoginContent() {
               </div>
               <div>
                 <span className="font-black text-xl text-white tracking-tight block">
-                  AADHYARA
+                  MORENA TEACH
                 </span>
                 <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold tracking-wider">
                   Learning Platform
@@ -167,7 +167,7 @@ function LmsLoginContent() {
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  Welcome to AADHYARA Learning
+                  Welcome to MORENA TEACH Learning
                 </h1>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {roleType === 'STUDENT' && 'Sign in to your Student account.'}
@@ -320,7 +320,7 @@ function LmsLoginContent() {
           {/* Footer */}
           <div className="pt-6 mt-6 border-t border-white/10 text-center text-xs text-slate-400 space-y-2">
             <div>
-              <span>New to AADHYARA Learning? </span>
+              <span>New to MORENA TEACH Learning? </span>
               <Link href="/lms/register" className="text-emerald-400 font-bold hover:underline ml-1">
                 Create LMS Student Account &rarr;
               </Link>
@@ -328,7 +328,7 @@ function LmsLoginContent() {
             <div>
               <span>Looking for business / sales management? </span>
               <Link href="/sales/login" className="text-indigo-400 font-bold hover:underline ml-1">
-                Go to AADHYARA Sales &rarr;
+                Go to MORENA TEACH Sales &rarr;
               </Link>
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function LmsLoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#060814] flex items-center justify-center text-white text-xs font-mono">
-          Loading AADHYARA Learning Login...
+          Loading MORENA TEACH Learning Login...
         </div>
       }
     >

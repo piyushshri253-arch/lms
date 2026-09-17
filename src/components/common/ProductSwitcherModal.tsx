@@ -27,7 +27,7 @@ export const ProductSwitcherModal: React.FC<ProductSwitcherModalProps> = ({
               A
             </div>
             <div>
-              <h2 className="text-base font-black text-white">AADHYARA Products</h2>
+              <h2 className="text-base font-black text-white">MORENA TEACH Products</h2>
               <p className="text-[11px] text-slate-400">Switch between isolated product ecosystems</p>
             </div>
           </div>
@@ -42,7 +42,7 @@ export const ProductSwitcherModal: React.FC<ProductSwitcherModalProps> = ({
 
         {/* 2 Dedicated Product Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Product 1: AADHYARA Learning */}
+          {/* Product 1: MORENA TEACH Learning */}
           <Link
             href="/lms/dashboard"
             onClick={onClose}
@@ -66,7 +66,7 @@ export const ProductSwitcherModal: React.FC<ProductSwitcherModalProps> = ({
 
               <div>
                 <h3 className="text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
-                  AADHYARA Learning
+                  MORENA TEACH Learning
                 </h3>
                 <p className="text-[11px] text-emerald-400 font-mono font-semibold">
                   Learn &amp; Teach
@@ -83,7 +83,7 @@ export const ProductSwitcherModal: React.FC<ProductSwitcherModalProps> = ({
             </div>
           </Link>
 
-          {/* Product 2: AADHYARA Sales */}
+          {/* Product 2: MORENA TEACH Sales */}
           <Link
             href="/sales/dashboard"
             onClick={onClose}
@@ -107,7 +107,7 @@ export const ProductSwitcherModal: React.FC<ProductSwitcherModalProps> = ({
 
               <div>
                 <h3 className="text-sm font-black text-white group-hover:text-indigo-300 transition-colors">
-                  AADHYARA Sales
+                  MORENA TEACH Sales
                 </h3>
                 <p className="text-[11px] text-indigo-400 font-mono font-semibold">
                   Build. Sell. Grow.

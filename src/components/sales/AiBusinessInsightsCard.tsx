@@ -23,7 +23,7 @@ export const AiBusinessInsightsCard: React.FC<AiBusinessInsightsCardProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl">✨</span>
-            <h2 className="text-lg font-black text-white">AADHYARA AI Business Insights</h2>
+            <h2 className="text-lg font-black text-white">MORENA TEACH AI Business Insights</h2>
             <span className="text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 px-2.5 py-0.5 rounded-full border border-purple-500/30">
               Live Engine
             </span>

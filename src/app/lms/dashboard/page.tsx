@@ -139,7 +139,7 @@ export default function LmsDashboardPage() {
                 🎓
               </div>
               <div className="flex flex-col">
-                <span className="font-black text-sm text-white tracking-tight">AADHYARA</span>
+                <span className="font-black text-sm text-white tracking-tight">MORENA TEACH</span>
                 <span className="text-[9px] font-mono text-emerald-400 font-bold uppercase tracking-wider -mt-1">
                   Learning Platform
                 </span>
@@ -217,7 +217,7 @@ export default function LmsDashboardPage() {
           >
             <div className="flex items-center gap-2">
               <span>🚀</span>
-              <span>Switch to AADHYARA Sales</span>
+              <span>Switch to MORENA TEACH Sales</span>
             </div>
             <Icon name="arrow_forward" size={14} className="group-hover:translate-x-1 transition-transform" />
           </button>
@@ -246,7 +246,7 @@ export default function LmsDashboardPage() {
               <Icon name="menu" size={20} />
             </button>
             <span className="text-xs font-mono font-bold text-slate-400">
-              AADHYARA Learning &gt; Learner Workspace
+              MORENA TEACH Learning &gt; Learner Workspace
             </span>
           </div>
 
@@ -343,7 +343,7 @@ export default function LmsDashboardPage() {
               </div>
               <div>
                 <div className="text-sm font-black text-white flex items-center gap-2">
-                  <span>AADHYARA AI Study Assistant</span>
+                  <span>MORENA TEACH AI Study Assistant</span>
                   <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/40">
                     24/7 COPILOT
                   </span>
@@ -512,7 +512,7 @@ export default function LmsDashboardPage() {
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <span className="text-xl">✨</span>
-                <h3 className="text-base font-black text-white">AADHYARA AI Learning Tutor</h3>
+                <h3 className="text-base font-black text-white">MORENA TEACH AI Learning Tutor</h3>
               </div>
               <button
                 onClick={() => setIsTutorModalOpen(false)}

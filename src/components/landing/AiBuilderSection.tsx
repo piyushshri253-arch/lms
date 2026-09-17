@@ -36,7 +36,7 @@ export const AiBuilderSection: React.FC = () => {
       industry: 'Software & Tech Bootcamps',
       checklist: [
         'Developer dark-mode storefront & code snippet previews created',
-        'Cryptographic software licensing system (AADHYARA-XXXX-XXXX-XXXX) enabled',
+        'Cryptographic software licensing system (MORENA TEACH-XXXX-XXXX-XXXX) enabled',
         'Hardware device fingerprinting & activation APIs wired',
         '10-module full-stack curriculum with code assignments configured',
         'Automated developer community invite emails setup'
@@ -62,7 +62,7 @@ export const AiBuilderSection: React.FC = () => {
             Let AI Build the Foundation
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
-            Describe what you want. AADHYARA AI helps create it. From product catalogs to complete curricula and landing pages.
+            Describe what you want. MORENA TEACH AI helps create it. From product catalogs to complete curricula and landing pages.
           </p>
         </div>
 
@@ -105,7 +105,7 @@ export const AiBuilderSection: React.FC = () => {
           <div className="space-y-3 pt-2">
             <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase text-purple-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>AADHYARA AI Generative Execution Engine:</span>
+              <span>MORENA TEACH AI Generative Execution Engine:</span>
             </div>
 
             <div className="p-5 rounded-2xl bg-black/50 border border-white/10 space-y-2.5 font-mono text-xs sm:text-sm">

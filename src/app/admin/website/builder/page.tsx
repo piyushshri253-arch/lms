@@ -621,7 +621,7 @@ export default function WebsiteBuilderPage() {
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
               </div>
               <div className="font-mono text-[10px] bg-slate-950 px-3 py-1 rounded-full border border-white/10 text-slate-300">
-                https://{orgSettings?.slug || 'academy'}.aadhyara.com/{activePageSlug === 'home' ? '' : activePageSlug}
+                https://{orgSettings?.slug || 'academy'}.morenateach.com/{activePageSlug === 'home' ? '' : activePageSlug}
               </div>
               <div className="text-[10px] font-mono text-emerald-400 font-bold">
                 {activePage?.status || 'PUBLISHED'}

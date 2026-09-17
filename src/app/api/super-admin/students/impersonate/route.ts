@@ -41,6 +41,13 @@ export async function POST(request: Request) {
     // Save super admin original token in impersonation cookie
     const cookieStore = await cookies();
     const superAdminToken = await createSessionToken(superAdmin);
+    cookieStore.set('morena_impersonation_token', superAdminToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 2
+    });
     cookieStore.set('aadhyara_impersonation_token', superAdminToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

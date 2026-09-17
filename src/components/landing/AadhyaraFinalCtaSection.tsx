@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Icon } from '../ui/Icon';
 
-export const AadhyaraFinalCtaSection: React.FC = () => {
+export const MorenaFinalCtaSection: React.FC = () => {
   return (
     <section className="py-24 sm:py-32 bg-[#060814] text-white border-t border-white/10 relative overflow-hidden text-center">
       {/* Background Cosmic Glows */}
@@ -33,7 +33,7 @@ export const AadhyaraFinalCtaSection: React.FC = () => {
             className="w-full sm:w-auto px-9 py-4 rounded-2xl font-extrabold text-sm text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-2xl shadow-indigo-600/40 hover:shadow-indigo-600/70 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border border-white/20 flex items-center justify-center gap-2.5 cursor-pointer group"
           >
             <span>🚀</span>
-            <span>Start with AADHYARA Sales</span>
+            <span>Start with MORENA TEACH Sales</span>
             <Icon name="arrow_forward" size={16} className="group-hover:translate-x-1 transition-transform" />
           </Link>
 
@@ -58,3 +58,6 @@ export const AadhyaraFinalCtaSection: React.FC = () => {
     </section>
   );
 };
+
+export const AadhyaraFinalCtaSection = MorenaFinalCtaSection;
+export default MorenaFinalCtaSection;

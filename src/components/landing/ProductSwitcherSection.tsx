@@ -21,14 +21,14 @@ export const ProductSwitcherSection: React.FC = () => {
             One ecosystem. Two powerful platforms.
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
-            Whether you are teaching courses or scaling a full-fledged digital commerce business, AADHYARA provides
+            Whether you are teaching courses or scaling a full-fledged digital commerce business, MORENA TEACH provides
             dedicated, specialized platforms built to work seamlessly together.
           </p>
         </div>
 
         {/* 2 Large Product Cards Side-by-Side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-          {/* Card 1: 🎓 AADHYARA Learning */}
+          {/* Card 1: 🎓 MORENA TEACH Learning */}
           <div
             id="learning-overview"
             className="rounded-3xl bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/15 hover:border-emerald-500/40 p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 shadow-xl group hover:shadow-emerald-950/20"
@@ -46,7 +46,7 @@ export const ProductSwitcherSection: React.FC = () => {
 
               {/* Title & Description */}
               <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                AADHYARA Learning
+                MORENA TEACH Learning
               </h3>
               <p className="text-sm font-semibold text-emerald-400 mt-1">
                 Your complete learning platform.
@@ -116,7 +116,7 @@ export const ProductSwitcherSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: 🚀 AADHYARA Sales (Featured Standout) */}
+          {/* Card 2: 🚀 MORENA TEACH Sales (Featured Standout) */}
           <div
             id="sales-overview"
             className="rounded-3xl bg-gradient-to-b from-indigo-950/40 via-purple-950/20 to-slate-950 border-2 border-indigo-500/50 hover:border-indigo-400 p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 shadow-2xl shadow-indigo-950/40 relative group"
@@ -139,7 +139,7 @@ export const ProductSwitcherSection: React.FC = () => {
 
               {/* Title & Description */}
               <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                AADHYARA Sales
+                MORENA TEACH Sales
               </h3>
               <p className="text-sm font-semibold text-indigo-400 mt-1">
                 Build and grow your online business.

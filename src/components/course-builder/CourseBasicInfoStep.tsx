@@ -458,7 +458,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
               type="text"
               value={data.seoTitle}
               onChange={(e) => onChange('seoTitle', e.target.value)}
-              placeholder="AI & Generative Agents Masterclass | AADHYARA"
+              placeholder="AI & Generative Agents Masterclass | MORENA TEACH"
               className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
             />
           </div>

@@ -194,7 +194,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
           </div>
           <div className="min-w-0">
             <h1 className="font-extrabold text-sm text-on-surface leading-tight truncate">
-              AADHYARA LMS
+              MORENA TEACH LMS
             </h1>
             <p className="text-[11px] text-emerald-600 font-bold truncate flex items-center gap-1 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -336,7 +336,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
             <div className="min-w-0">
               <p className="text-xs font-bold text-on-surface truncate">{currentUser?.name || 'Administrator'}</p>
               <p className="text-[10px] text-primary font-bold uppercase truncate">
-                {currentUser?.role || 'ADMIN'} • AADHYARA
+                {currentUser?.role || 'ADMIN'} • MORENA TEACH
               </p>
             </div>
           </div>

@@ -9,7 +9,7 @@ export const SalesFlowSection: React.FC = () => {
     {
       num: '01',
       title: 'Create Account',
-      description: 'Create your AADHYARA Sales account in seconds with zero credit card required.',
+      description: 'Create your MORENA TEACH Sales account in seconds with zero credit card required.',
       icon: 'sparkles'
     },
     {

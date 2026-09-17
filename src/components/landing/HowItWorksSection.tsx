@@ -53,7 +53,7 @@ export const HowItWorksSection: React.FC = () => {
             <span>4-Step Learning Roadmap</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-on-surface tracking-tight">
-            How AADHYARA Works
+            How MORENA TEACH Works
           </h2>
           <p className="text-sm sm:text-base text-on-surface-variant leading-relaxed">
             From initial onboarding to verified certification, our platform is structured for friction-free learning and proven career growth.

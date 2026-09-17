@@ -53,7 +53,7 @@ export const WhyChooseUsSection: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider font-mono">
             <Icon name="military_tech" size={16} />
-            <span>The AADHYARA Standard</span>
+            <span>The MORENA TEACH Standard</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-on-surface tracking-tight">
             Why Ambitious Learners Choose Us

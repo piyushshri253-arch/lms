@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '../ui/Icon';
 
-export const AadhyaraHeroSection: React.FC = () => {
+export const MorenaHeroSection: React.FC = () => {
   const [activeMetricTab, setActiveMetricTab] = useState<'OVERVIEW' | 'STORE' | 'AI'>('OVERVIEW');
 
   return (
@@ -23,7 +23,7 @@ export const AadhyaraHeroSection: React.FC = () => {
           <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping inline-block" />
           <span className="font-mono uppercase text-[11px] text-slate-300">The Dual Platform Architecture</span>
           <span className="text-white/40">•</span>
-          <span className="text-white font-bold">AADHYARA Sales + Learning</span>
+          <span className="text-white font-bold">MORENA TEACH Sales + Learning</span>
         </div>
 
         {/* Main Headline */}
@@ -37,7 +37,7 @@ export const AadhyaraHeroSection: React.FC = () => {
 
         {/* Supporting Subtitle */}
         <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-normal">
-          AADHYARA brings learning and business tools together — helping creators, educators, coaches and companies
+          MORENA TEACH brings learning and business tools together — helping creators, educators, coaches and companies
           build their digital presence, sell knowledge and manage their growth.
         </p>
 
@@ -91,7 +91,7 @@ export const AadhyaraHeroSection: React.FC = () => {
                 <div className="w-3 h-3 rounded-full bg-amber-500/80" />
                 <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
                 <span className="ml-3 text-[11px] font-mono text-slate-400 hidden sm:inline">
-                  https://app.aadhyara.com/sales-command-center
+                  https://app.morenateach.com/sales-command-center
                 </span>
               </div>
 
@@ -253,7 +253,7 @@ export const AadhyaraHeroSection: React.FC = () => {
                           www.yourbrand.com
                         </div>
                         <p className="text-[11px] text-slate-400 mt-1">
-                          Zero AADHYARA branding required on your custom URL.
+                          Zero MORENA TEACH branding required on your custom URL.
                         </p>
                       </div>
 
@@ -343,7 +343,7 @@ export const AadhyaraHeroSection: React.FC = () => {
                       ✨
                     </div>
                     <div>
-                      <h4 className="font-black text-white text-base">AADHYARA AI Business Architect</h4>
+                      <h4 className="font-black text-white text-base">MORENA TEACH AI Business Architect</h4>
                       <p className="text-xs text-purple-300">Turn a one-line prompt into a live business structure</p>
                     </div>
                   </div>
@@ -365,3 +365,6 @@ export const AadhyaraHeroSection: React.FC = () => {
     </section>
   );
 };
+
+export const AadhyaraHeroSection = MorenaHeroSection;
+export default MorenaHeroSection;

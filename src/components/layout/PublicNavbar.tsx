@@ -54,7 +54,7 @@ export const PublicNavbar: React.FC = () => {
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-black text-xl text-white tracking-tight group-hover:text-indigo-300 transition-colors">
-                  AADHYARA
+                  MORENA TEACH
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
               </div>
@@ -114,7 +114,7 @@ export const PublicNavbar: React.FC = () => {
                   <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-base font-black text-white">AADHYARA Sales</span>
+                        <span className="text-base font-black text-white">MORENA TEACH Sales</span>
                         <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold">
                           BUSINESS OS
                         </span>
@@ -344,7 +344,7 @@ export const PublicNavbar: React.FC = () => {
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xl">🎓</span>
-                  <span className="font-extrabold text-sm text-white">AADHYARA Learning</span>
+                  <span className="font-extrabold text-sm text-white">MORENA TEACH Learning</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-3">Courses, video lessons &amp; certifications.</p>
                 <div className="flex gap-2">
@@ -369,7 +369,7 @@ export const PublicNavbar: React.FC = () => {
               <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xl">🚀</span>
-                  <span className="font-extrabold text-sm text-white">AADHYARA Sales</span>
+                  <span className="font-extrabold text-sm text-white">MORENA TEACH Sales</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-3">Build website, sell products &amp; accept payments.</p>
                 <div className="flex gap-2">

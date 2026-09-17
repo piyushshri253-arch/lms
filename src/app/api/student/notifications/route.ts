@@ -61,7 +61,7 @@ export async function GET() {
       const welcome = await prisma.notification.create({
         data: {
           userId: user.id,
-          title: 'Welcome to AADHYARA LMS! 🚀',
+          title: 'Welcome to MORENA TEACH LMS! 🚀',
           message: 'Explore 120+ deep tech courses, track your real-time progress, and earn accredited diplomas.',
           type: 'SYSTEM',
           isRead: false

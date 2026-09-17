@@ -14,7 +14,7 @@ export default function LmsCertificatesPage() {
       courseTitle: 'Full-Stack Next.js 16 Masterclass',
       issueDate: 'August 24, 2026',
       grade: '98% (Distinction)',
-      issuer: 'AADHYARA Academic Board',
+      issuer: 'MORENA TEACH Academic Board',
       downloadUrl: '#'
     },
     {
@@ -23,7 +23,7 @@ export default function LmsCertificatesPage() {
       courseTitle: 'Enterprise AI Agents & LLM Integration',
       issueDate: 'July 15, 2026',
       grade: '95% (Distinction)',
-      issuer: 'AADHYARA Academic Board',
+      issuer: 'MORENA TEACH Academic Board',
       downloadUrl: '#'
     }
   ]);

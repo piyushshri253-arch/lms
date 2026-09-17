@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
 
       await sendEmail({
         to: normalizedEmail,
-        subject: 'Verify your AADHYARA Sales account',
+        subject: 'Verify your MORENA TEACH Sales account',
         template: 'OTP_VERIFY',
         userId: user.id,
         data: {

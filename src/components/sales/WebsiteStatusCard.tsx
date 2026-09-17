@@ -15,7 +15,7 @@ export const WebsiteStatusCard: React.FC<WebsiteStatusCardProps> = ({
 }) => {
   const isPublished = organization?.status === 'ACTIVE';
   const customDomain = organization?.customDomain;
-  const subdomain = organization?.subdomainUrl || `${organization?.slug || 'workspace'}.aadhyara.com`;
+  const subdomain = organization?.subdomainUrl || `${organization?.slug || 'workspace'}.morenateach.com`;
   const primaryDomainUrl = customDomain ? `https://${customDomain}` : `https://${subdomain}`;
 
   return (

@@ -79,7 +79,7 @@ export default function SalesRegisterPage() {
               </div>
               <div>
                 <span className="font-black text-xl text-white tracking-tight block">
-                  AADHYARA
+                  MORENA TEACH
                 </span>
                 <span className="text-[10px] text-indigo-400 font-mono uppercase font-bold tracking-wider">
                   Sales OS

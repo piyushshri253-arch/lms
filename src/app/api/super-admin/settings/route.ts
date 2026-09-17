@@ -11,9 +11,9 @@ export async function GET() {
     });
 
     let config = {
-      platformName: 'AADHYARA',
-      supportEmail: 'support@aadhyara.com',
-      contactEmail: 'contact@aadhyara.com',
+      platformName: 'MORENA TEACH',
+      supportEmail: 'morena@morenateach.com',
+      contactEmail: 'contact@morenateach.com',
       defaultCurrency: 'USD',
       twoFactorAuth: true,
       maintenanceMode: false,

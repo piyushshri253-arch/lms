@@ -62,7 +62,7 @@ function SalesLoginContent() {
       }
 
       showToast({
-        title: 'Welcome to AADHYARA Sales',
+        title: 'Welcome to MORENA TEACH Sales',
         description: `Logged into ${data.user.organizationName || 'Sales Command Center'}!`,
         type: 'success'
       });
@@ -98,7 +98,7 @@ function SalesLoginContent() {
               </div>
               <div>
                 <span className="font-black text-xl text-white tracking-tight block">
-                  AADHYARA
+                  MORENA TEACH
                 </span>
                 <span className="text-[10px] text-indigo-400 font-mono uppercase font-bold tracking-wider">
                   Sales OS
@@ -139,7 +139,7 @@ function SalesLoginContent() {
                 <div className="w-5 h-5 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center shrink-0">
                   <Icon name="check" size={14} />
                 </div>
-                <span>AADHYARA AI Business &amp; Marketing Copilot</span>
+                <span>MORENA TEACH AI Business &amp; Marketing Copilot</span>
               </div>
             </div>
           </div>
@@ -157,7 +157,7 @@ function SalesLoginContent() {
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  Welcome to AADHYARA Sales
+                  Welcome to MORENA TEACH Sales
                 </h1>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Sign in to manage your business.
@@ -264,7 +264,7 @@ function SalesLoginContent() {
                   size={18}
                   className={isLoading ? 'animate-spin' : ''}
                 />
-                <span>{isLoading ? 'Authenticating...' : 'Sign In to AADHYARA Sales'}</span>
+                <span>{isLoading ? 'Authenticating...' : 'Sign In to MORENA TEACH Sales'}</span>
               </button>
             </form>
           </div>
@@ -280,7 +280,7 @@ function SalesLoginContent() {
             <div>
               <span>Looking for student courses or learning? </span>
               <Link href="/lms/login" className="text-emerald-400 font-bold hover:underline ml-1">
-                Go to AADHYARA Learning &rarr;
+                Go to MORENA TEACH Learning &rarr;
               </Link>
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function SalesLoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#060814] flex items-center justify-center text-white text-xs font-mono">
-          Loading AADHYARA Sales Login...
+          Loading MORENA TEACH Sales Login...
         </div>
       }
     >

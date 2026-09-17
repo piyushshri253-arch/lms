@@ -27,7 +27,7 @@ export const EnterpriseTrustSection: React.FC = () => {
             Built for Serious Businesses
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
-            Every layer of the AADHYARA infrastructure is engineered for enterprise security, data integrity, and multi-tenant isolation.
+            Every layer of the MORENA TEACH infrastructure is engineered for enterprise security, data integrity, and multi-tenant isolation.
           </p>
         </div>
 

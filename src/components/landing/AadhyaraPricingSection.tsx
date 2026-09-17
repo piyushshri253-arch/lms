@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '../ui/Icon';
 
-export const AadhyaraPricingSection: React.FC = () => {
+export const MorenaPricingSection: React.FC = () => {
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
 
   const plans = [
@@ -20,7 +20,7 @@ export const AadhyaraPricingSection: React.FC = () => {
         'Up to 3 products or courses',
         'Razorpay & Stripe checkout',
         'Standard video player',
-        'AADHYARA subdomain included',
+        'MORENA TEACH subdomain included',
         'Community support'
       ],
       ctaText: 'Get Started Free',
@@ -219,3 +219,6 @@ export const AadhyaraPricingSection: React.FC = () => {
     </section>
   );
 };
+
+export const AadhyaraPricingSection = MorenaPricingSection;
+export default MorenaPricingSection;

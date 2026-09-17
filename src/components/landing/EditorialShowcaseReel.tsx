@@ -156,7 +156,7 @@ export const EditorialShowcaseReel: React.FC = () => {
               </span>
             </h2>
             <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-              Every course created on AADHYARA features dynamic responsive video playback, high-definition typography, and frictionless multi-currency checkouts.
+              Every course created on MORENA TEACH features dynamic responsive video playback, high-definition typography, and frictionless multi-currency checkouts.
             </p>
           </div>
 

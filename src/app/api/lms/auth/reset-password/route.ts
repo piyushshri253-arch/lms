@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     await sendEmail({
       to: resetRecord.user.email,
-      subject: 'Your AADHYARA Learning password has been changed',
+      subject: 'Your MORENA TEACH Learning password has been changed',
       template: 'PASSWORD_CHANGED',
       userId: resetRecord.userId,
       data: {

@@ -31,8 +31,8 @@ export const SalesLmsConnectionSection: React.FC = () => {
             Sell With Sales. Deliver With Learning.
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
-            <span className="text-indigo-400 font-bold">AADHYARA Sales</span> handles the business, marketing, custom domain, and transaction side.{' '}
-            <span className="text-emerald-400 font-bold">AADHYARA Learning</span> handles the video delivery, assignments, grading, and student certification.
+            <span className="text-indigo-400 font-bold">MORENA TEACH Sales</span> handles the business, marketing, custom domain, and transaction side.{' '}
+            <span className="text-emerald-400 font-bold">MORENA TEACH Learning</span> handles the video delivery, assignments, grading, and student certification.
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export const SalesLmsConnectionSection: React.FC = () => {
             <div className="p-5 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2">
               <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm">
                 <span>💼</span>
-                <span>AADHYARA Sales Domain</span>
+                <span>MORENA TEACH Sales Domain</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Manages custom domain DNS, website pages, SEO, cart optimization, Razorpay/Stripe payment verification, 10% platform commission calculation, seller wallet, and lead captures.
@@ -74,7 +74,7 @@ export const SalesLmsConnectionSection: React.FC = () => {
             <div className="p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 space-y-2">
               <div className="flex items-center gap-2 text-emerald-300 font-bold text-sm">
                 <span>🎓</span>
-                <span>AADHYARA Learning Domain</span>
+                <span>MORENA TEACH Learning Domain</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Manages video DRM streaming, lesson progress tracking, interactive quizzes, student discussions, instructor grading, and automated certificate issuance.

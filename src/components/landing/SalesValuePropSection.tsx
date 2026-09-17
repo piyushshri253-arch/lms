@@ -15,7 +15,7 @@ export const SalesValuePropSection: React.FC = () => {
     {
       icon: '🔗',
       title: 'Your Domain',
-      description: 'Connect your custom domain (e.g. www.youracademy.com). No AADHYARA branding required on your domain.',
+      description: 'Connect your custom domain (e.g. www.youracademy.com). No MORENA TEACH branding required on your domain.',
       badge: 'Zero-Branding Required'
     },
     {
@@ -59,7 +59,7 @@ export const SalesValuePropSection: React.FC = () => {
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-xs font-mono uppercase text-indigo-300 font-bold tracking-wider mb-4">
-            <span>AADHYARA Sales Powerhouse</span>
+            <span>MORENA TEACH Sales Powerhouse</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
             Everything You Need to Sell Online
@@ -110,7 +110,7 @@ export const SalesValuePropSection: React.FC = () => {
             href="/company-signup"
             className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition-all cursor-pointer"
           >
-            <span>🚀 Start Selling with AADHYARA Sales</span>
+            <span>🚀 Start Selling with MORENA TEACH Sales</span>
             <Icon name="arrow_forward" size={14} />
           </Link>
         </div>

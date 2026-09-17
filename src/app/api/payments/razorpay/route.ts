@@ -126,7 +126,7 @@ export async function POST(req: Request) {
       currency: 'INR',
       keyId: org?.razorpayKeyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_default_key',
       courseTitle: course.title,
-      companyName: org?.name || 'AADHYARA Academy',
+      companyName: org?.name || 'MORENA TEACH Academy',
       customer: {
         name: user.name,
         email: user.email,

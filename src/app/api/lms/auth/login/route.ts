@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
 
       await sendEmail({
         to: normalizedEmail,
-        subject: 'Verify your AADHYARA Learning account',
+        subject: 'Verify your MORENA TEACH Learning account',
         template: 'OTP_VERIFY',
         userId: user.id,
         data: {
@@ -326,7 +326,7 @@ export async function POST(req: NextRequest) {
       platform: 'LMS',
       user: sessionUser,
       redirectUrl,
-      message: 'Logged into AADHYARA Learning successfully.'
+      message: 'Logged into MORENA TEACH Learning successfully.'
     });
   } catch (err: any) {
     console.error('[LMS Login Error]:', err);

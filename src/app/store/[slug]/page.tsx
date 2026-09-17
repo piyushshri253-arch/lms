@@ -120,7 +120,7 @@ export default function SellerStorePage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm">
             {store.verifiedSeller && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold">
-                <CheckCircle2 className="w-4 h-4" /> Verified AADHYARA Seller
+                <CheckCircle2 className="w-4 h-4" /> Verified MORENA TEACH Seller
               </span>
             )}
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-amber-400 font-semibold">

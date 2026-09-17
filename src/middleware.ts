@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'aadhyara-saas-production-secure-jwt-key-2026'
+  process.env.JWT_SECRET || 'morena-teach-saas-production-secure-jwt-key-2026'
 );
 
 const SALES_COOKIE = 'sales_session_token';

@@ -27,7 +27,7 @@ export default function SalesProductLandingPage() {
 
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-xs font-mono uppercase text-indigo-300 font-bold tracking-wider mb-6">
-              <span>🚀 AADHYARA Sales</span>
+              <span>🚀 MORENA TEACH Sales</span>
               <span>•</span>
               <span>Business &amp; Commerce Platform</span>
             </div>
@@ -48,7 +48,7 @@ export default function SalesProductLandingPage() {
                 href="/company-signup"
                 className="w-full sm:w-auto px-8 py-4 rounded-2xl font-extrabold text-sm text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-xl shadow-indigo-600/40 hover:scale-[1.02] transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/20"
               >
-                <span>🚀 Launch with AADHYARA Sales</span>
+                <span>🚀 Launch with MORENA TEACH Sales</span>
                 <Icon name="arrow_forward" size={16} />
               </Link>
 

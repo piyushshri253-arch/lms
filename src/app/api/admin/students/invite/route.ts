@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     // 5. Send Email Invitation
     await sendEmail({
       to: normalizedEmail,
-      subject: `You have been invited to join ${org?.name || 'Academy'} on AADHYARA`,
+      subject: `You have been invited to join ${org?.name || 'Academy'} on MORENA TEACH`,
       template: 'COMPANY_INVITE',
       organizationId: admin.organizationId,
       data: {

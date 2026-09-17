@@ -117,7 +117,7 @@ function CertificatesPageContent() {
       id: `cert-${Date.now()}`,
       certificateNumber: `CERT-2026-${Math.floor(10000 + Math.random() * 90000)}`,
       studentName: issueForm.studentName,
-      studentEmail: `${issueForm.studentName.toLowerCase().replace(/\s+/g, '')}@student.aadhyara.com`,
+      studentEmail: `${issueForm.studentName.toLowerCase().replace(/\s+/g, '')}@student.morenateach.com`,
       courseTitle: issueForm.courseTitle,
       issuedAt: 'Just now',
       grade: issueForm.grade,
@@ -311,7 +311,7 @@ function CertificatesPageContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
             <div className="p-5 rounded-2xl border-2 border-primary/40 bg-surface-container-low/40 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-on-surface">AADHYARA Institutional Standard (Default)</span>
+                <span className="font-bold text-xs text-on-surface">MORENA TEACH Institutional Standard (Default)</span>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
                   ACTIVE
                 </span>

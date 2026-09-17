@@ -176,7 +176,7 @@ export async function POST(req: Request) {
         id: organization.id,
         name: organization.name,
         slug: organization.slug,
-        subdomainUrl: `${organization.slug}.aadhyara.com`,
+        subdomainUrl: `${organization.slug}.morenateach.com`,
         businessType: organization.businessType,
         onboardingCompleted: organization.onboardingCompleted
       }

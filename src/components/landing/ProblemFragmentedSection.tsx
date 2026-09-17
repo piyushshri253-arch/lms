@@ -88,7 +88,7 @@ export const ProblemFragmentedSection: React.FC = () => {
         stagger: 0.05
       });
 
-      // The Unified AADHYARA Monolith expands from center
+      // The Unified MORENA TEACH Monolith expands from center
       tl.fromTo(
         unifiedPlatformRef.current,
         {
@@ -162,7 +162,7 @@ export const ProblemFragmentedSection: React.FC = () => {
           <span className="text-slate-400">• High cognitive load &amp; fragile API integrations</span>
         </div>
 
-        {/* Scroll Convergence Target: The AADHYARA Unified Solution */}
+        {/* Scroll Convergence Target: The MORENA TEACH Unified Solution */}
         <div
           ref={unifiedPlatformRef}
           className="mt-16 p-8 sm:p-12 rounded-3xl bg-gradient-to-b from-indigo-950/60 via-[#0d122b] to-[#070913] border border-indigo-500/40 shadow-[0_0_80px_rgba(99,102,241,0.25)] text-center relative overflow-hidden"
@@ -181,7 +181,7 @@ export const ProblemFragmentedSection: React.FC = () => {
             </h3>
 
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              AADHYARA unites video streaming, student CRM, multi-currency checkout, quizzes, coupons,
+              MORENA TEACH unites video streaming, student CRM, multi-currency checkout, quizzes, coupons,
               broadcasts, and accredited certificates inside a single, blazing-fast operating system.
             </p>
 

@@ -63,7 +63,7 @@ export default function LmsResetPasswordPage({ params }: { params: Promise<{ tok
           </div>
           <h1 className="text-2xl font-black text-white">Create New LMS Password</h1>
           <p className="text-xs text-slate-400">
-            Set a new password for your AADHYARA Learning account.
+            Set a new password for your MORENA TEACH Learning account.
           </p>
         </div>
 

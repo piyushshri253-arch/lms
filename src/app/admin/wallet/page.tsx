@@ -119,7 +119,7 @@ export default function AdminWalletPage() {
             <div className="text-3xl font-black text-indigo-400 mt-2">
               ₹{(wallet?.platformFees || 0).toLocaleString()}
             </div>
-            <div className="text-[11px] text-slate-500 mt-2">AADHYARA platform commission</div>
+            <div className="text-[11px] text-slate-500 mt-2">MORENA TEACH platform commission</div>
           </div>
 
           <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800">

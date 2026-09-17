@@ -85,7 +85,7 @@ export const BuiltForGrowthSection: React.FC = () => {
           </h2>
           <p className="text-base sm:text-lg text-slate-400 leading-relaxed">
             Whether you're launching your first weekend workshop or powering an international tech institute with
-            100,000 engineers, AADHYARA scales seamlessly with your ambitions.
+            100,000 engineers, MORENA TEACH scales seamlessly with your ambitions.
           </p>
         </div>
 

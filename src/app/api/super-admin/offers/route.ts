@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         await sendMultiChannelNotification({
           userId: admin.id,
           organizationId: org.id,
-          title: `🎁 Exclusive AADHYARA Offer: ${offer.title}`,
+          title: `🎁 Exclusive MORENA TEACH Offer: ${offer.title}`,
           message: `${offer.description} Get ${offer.discountPercent}% OFF on your SaaS plan upgrade. Use code: ${offer.code || 'SPECIAL'}`,
           type: 'OFFER',
           category: 'OFFERS',

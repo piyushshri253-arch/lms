@@ -112,7 +112,7 @@ export const LearningExperienceSection: React.FC = () => {
                 <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
                 <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-                <span className="ml-2 text-slate-300 font-bold">AADHYARA Classroom 2.0</span>
+                <span className="ml-2 text-slate-300 font-bold">MORENA TEACH Classroom 2.0</span>
               </div>
               <span className="bg-primary/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
                 Live Environment

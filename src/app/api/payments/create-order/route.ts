@@ -59,9 +59,9 @@ export async function POST(request: Request) {
       } else if (codeClean === 'WELCOME50') {
         discountPercent = 50;
         validCouponCode = 'WELCOME50';
-      } else if (codeClean === 'AADHYARA100' || codeClean === 'MORENA100') {
+      } else if (codeClean === 'MORENA100' || codeClean === 'MORENATEACH100' || codeClean === 'AADHYARA100') {
         discountPercent = 100;
-        validCouponCode = 'AADHYARA100';
+        validCouponCode = 'MORENA100';
       } else {
         return NextResponse.json({ error: 'Invalid or expired coupon code.' }, { status: 400 });
       }

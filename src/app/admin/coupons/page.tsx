@@ -26,7 +26,7 @@ function CouponsPageContent() {
     },
     {
       id: 'cp-2',
-      code: 'AADHYARA20',
+      code: 'MORENA20',
       discountType: 'PERCENTAGE',
       discountValue: 20,
       maxUses: 1000,

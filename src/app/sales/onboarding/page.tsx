@@ -445,7 +445,7 @@ function SalesOnboardingWizard() {
           </div>
           <div>
             <h2 className="text-2xl font-black text-white">Setting up your workspace...</h2>
-            <p className="text-xs text-slate-400 mt-1">Configuring AADHYARA Sales for {businessName || 'your business'}</p>
+            <p className="text-xs text-slate-400 mt-1">Configuring MORENA TEACH Sales for {businessName || 'your business'}</p>
           </div>
 
           <div className="p-5 rounded-2xl bg-black/40 border border-white/10 text-left space-y-3 font-mono text-xs">
@@ -502,7 +502,7 @@ function SalesOnboardingWizard() {
               <span>Workspace Provisioned &amp; Active</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              🎉 Your AADHYARA Sales workspace is ready!
+              🎉 Your MORENA TEACH Sales workspace is ready!
             </h1>
             <p className="text-sm text-slate-300">
               Your business operating system has been customized for <strong className="text-white">{businessName || workspaceName}</strong>.
@@ -514,7 +514,7 @@ function SalesOnboardingWizard() {
             <div>
               <div className="text-[11px] font-mono text-slate-400 uppercase font-bold">Your Live Workspace URL</div>
               <div className="text-sm sm:text-base font-black text-indigo-400 font-mono">
-                https://{workspaceSlug || 'mybrand'}.aadhyara.com
+                https://{workspaceSlug || 'mybrand'}.morenateach.com
               </div>
             </div>
             <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full font-mono">
@@ -587,7 +587,7 @@ function SalesOnboardingWizard() {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-black text-2xl text-white shadow-lg shadow-indigo-500/30 border border-white/20">
               A
             </div>
-            <span className="text-2xl font-black text-white tracking-tight">AADHYARA Sales</span>
+            <span className="text-2xl font-black text-white tracking-tight">MORENA TEACH Sales</span>
           </div>
 
           {/* Welcome Message */}
@@ -596,7 +596,7 @@ function SalesOnboardingWizard() {
               Let&apos;s build your business
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-md mx-auto">
-              First, tell us what you&apos;re building. We&apos;ll personalize AADHYARA Sales around your business model and target audience.
+              First, tell us what you&apos;re building. We&apos;ll personalize MORENA TEACH Sales around your business model and target audience.
             </p>
             <p className="text-xs text-slate-400">
               This will only take a few minutes. You can change these settings later at any time.
@@ -630,7 +630,7 @@ function SalesOnboardingWizard() {
             A
           </div>
           <div>
-            <span className="font-black text-lg text-white tracking-tight">AADHYARA</span>
+            <span className="font-black text-lg text-white tracking-tight">MORENA TEACH</span>
             <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase block -mt-1">
               Sales Onboarding
             </span>
@@ -1014,7 +1014,7 @@ function SalesOnboardingWizard() {
           <div className="space-y-8 animate-fadeIn max-w-4xl mx-auto">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-black text-white tracking-tight">
-                What do you want to do with AADHYARA?
+                What do you want to do with MORENA TEACH?
               </h2>
               <p className="text-sm text-slate-300">
                 Select your primary goals. You can choose multiple options.
@@ -1339,7 +1339,7 @@ function SalesOnboardingWizard() {
                     placeholder="mybrand"
                     className="flex-1 bg-transparent text-white font-mono text-xs focus:outline-none"
                   />
-                  <span className="text-xs font-mono text-slate-500">.aadhyara.com</span>
+                  <span className="text-xs font-mono text-slate-500">.morenateach.com</span>
                 </div>
 
                 {/* Suggestions if Slug is Taken */}
@@ -1450,7 +1450,7 @@ function SalesOnboardingWizard() {
                   <div>
                     <div className="text-[10px] font-mono text-slate-400 uppercase">Workspace Address</div>
                     <div className="text-sm font-bold text-emerald-400 font-mono mt-0.5">
-                      https://{workspaceSlug || 'mybrand'}.aadhyara.com
+                      https://{workspaceSlug || 'mybrand'}.morenateach.com
                     </div>
                   </div>
                   <span className="text-emerald-400 font-mono text-[11px]">✓ Ready</span>
@@ -1511,7 +1511,7 @@ export default function SalesOnboardingPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#060814] flex items-center justify-center text-white text-xs font-mono">
-          Loading AADHYARA Sales Onboarding...
+          Loading MORENA TEACH Sales Onboarding...
         </div>
       }
     >

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     let effectiveOrgId = organizationId || null;
-    let orgBrandingName = 'AADHYARA Learning';
+    let orgBrandingName = 'MORENA TEACH Learning';
 
     if (!effectiveOrgId && orgSlug) {
       const org = await prisma.organization.findUnique({
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
 
       console.warn(`[LMS Register 409]: Verified LMS account already exists for ${normalizedEmail}`);
       return NextResponse.json(
-        { error: 'An LMS account with this email already exists. Please log in to AADHYARA Learning.' },
+        { error: 'An LMS account with this email already exists. Please log in to MORENA TEACH Learning.' },
         { status: 409 }
       );
     }

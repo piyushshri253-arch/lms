@@ -3,29 +3,29 @@
 import React, { useState } from 'react';
 import { Icon } from '../ui/Icon';
 
-export const AadhyaraFaqSection: React.FC = () => {
+export const MorenaFaqSection: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const faqs = [
     {
-      q: 'What is AADHYARA Sales?',
-      a: 'AADHYARA Sales is a complete digital commerce, website, and growth platform. It allows businesses, creators, developers, coaches, and academies to launch custom-branded websites on their own domains, sell digital products, software licenses, memberships, and client services, and collect instant payments.'
+      q: 'What is MORENA TEACH Sales?',
+      a: 'MORENA TEACH Sales is a complete digital commerce, website, and growth platform. It allows businesses, creators, developers, coaches, and academies to launch custom-branded websites on their own domains, sell digital products, software licenses, memberships, and client services, and collect instant payments.'
     },
     {
-      q: 'Is AADHYARA Sales the same as AADHYARA Learning?',
-      a: 'No. They are two distinct, specialized products under the AADHYARA ecosystem. AADHYARA Sales handles your branded website, custom domain, checkout, payments, customer CRM, and business analytics. AADHYARA Learning is the dedicated LMS that handles student course progression, video streaming, quizzes, assignments, and certificates.'
+      q: 'Is MORENA TEACH Sales the same as MORENA TEACH Learning?',
+      a: 'No. They are two distinct, specialized products under the MORENA TEACH ecosystem. MORENA TEACH Sales handles your branded website, custom domain, checkout, payments, customer CRM, and business analytics. MORENA TEACH Learning is the dedicated LMS that handles student course progression, video streaming, quizzes, assignments, and certificates.'
     },
     {
       q: 'Can I use my own domain?',
-      a: 'Yes! You can easily connect your own custom root domain or subdomain (such as www.yourbrand.com or academy.yourcompany.com). AADHYARA provisions automated, free 256-bit SSL encryption and does not require any platform branding on your custom domain.'
+      a: 'Yes! You can easily connect your own custom root domain or subdomain (such as www.yourbrand.com or academy.yourcompany.com). MORENA TEACH provisions automated, free 256-bit SSL encryption and does not require any platform branding on your custom domain.'
     },
     {
       q: 'Can I sell courses?',
-      a: 'Absolutely. You can create and price course masterclasses in AADHYARA Sales. When a student completes checkout, they are instantly and automatically provisioned with access inside AADHYARA Learning without any manual intervention.'
+      a: 'Absolutely. You can create and price course masterclasses in MORENA TEACH Sales. When a student completes checkout, they are instantly and automatically provisioned with access inside MORENA TEACH Learning without any manual intervention.'
     },
     {
       q: 'Can I connect Razorpay?',
-      a: 'Yes. AADHYARA has native first-class integration with Razorpay. You can accept UPI, Credit/Debit Cards, NetBanking, and Indian digital wallets with direct webhook settlement.'
+      a: 'Yes. MORENA TEACH has native first-class integration with Razorpay. You can accept UPI, Credit/Debit Cards, NetBanking, and Indian digital wallets with direct webhook settlement.'
     },
     {
       q: 'Can I connect Stripe?',
@@ -33,19 +33,19 @@ export const AadhyaraFaqSection: React.FC = () => {
     },
     {
       q: 'Can I build my website with AI?',
-      a: 'Yes! The AADHYARA AI Business Architect can scaffold your entire website layout, product catalog, service tiers, curriculum outline, and SEO metadata from a single descriptive natural-language prompt.'
+      a: 'Yes! The MORENA TEACH AI Business Architect can scaffold your entire website layout, product catalog, service tiers, curriculum outline, and SEO metadata from a single descriptive natural-language prompt.'
     },
     {
       q: 'Do I need coding knowledge?',
-      a: 'No coding knowledge is required. AADHYARA provides no-code visual website builders, point-and-click product creators, automated DNS guides, and ready-to-use storefront templates.'
+      a: 'No coding knowledge is required. MORENA TEACH provides no-code visual website builders, point-and-click product creators, automated DNS guides, and ready-to-use storefront templates.'
     },
     {
-      q: 'Can I connect Sales with AADHYARA Learning?',
-      a: 'Yes, they interoperate seamlessly. AADHYARA Sales handles the storefront, checkout, and transactions. Once an order is confirmed, access is granted automatically to AADHYARA Learning so learners can immediately stream lessons and earn certificates.'
+      q: 'Can I connect Sales with MORENA TEACH Learning?',
+      a: 'Yes, they interoperate seamlessly. MORENA TEACH Sales handles the storefront, checkout, and transactions. Once an order is confirmed, access is granted automatically to MORENA TEACH Learning so learners can immediately stream lessons and earn certificates.'
     },
     {
       q: 'Can I create a business account?',
-      a: 'Yes! Anyone can register for an AADHYARA Sales business account through our 4-step signup wizard. You can select your industry (Academy, Software, Agency, Coaching, Creator, etc.) and launch in minutes.'
+      a: 'Yes! Anyone can register for an MORENA TEACH Sales business account through our 4-step signup wizard. You can select your industry (Academy, Software, Agency, Coaching, Creator, etc.) and launch in minutes.'
     }
   ];
 
@@ -68,7 +68,7 @@ export const AadhyaraFaqSection: React.FC = () => {
             Frequently Asked Questions
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
-            Everything you need to know about the AADHYARA platform, Sales vs. Learning separation, custom domains, and payments.
+            Everything you need to know about the MORENA TEACH platform, Sales vs. Learning separation, custom domains, and payments.
           </p>
         </div>
 
@@ -116,3 +116,6 @@ export const AadhyaraFaqSection: React.FC = () => {
     </section>
   );
 };
+
+export const AadhyaraFaqSection = MorenaFaqSection;
+export default MorenaFaqSection;

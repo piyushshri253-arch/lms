@@ -7,7 +7,7 @@ import { prisma } from './prisma';
 import { UserRole, PlatformType, DEFAULT_ROLE_PERMISSIONS } from './permissions';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'aadhyara-saas-production-secure-jwt-key-2026'
+  process.env.JWT_SECRET || 'morena-teach-saas-production-secure-jwt-key-2026'
 );
 
 export const SALES_COOKIE_NAME = 'sales_session_token';
@@ -15,7 +15,8 @@ export const LMS_COOKIE_NAME = 'lms_session_token';
 
 // Legacy cookies for backward compatibility
 export const LEGACY_COOKIE_NAME = 'aadhyara_session_token';
-export const IMPERSONATION_COOKIE = 'aadhyara_impersonation_token';
+export const IMPERSONATION_COOKIE = 'morena_impersonation_token';
+export const LEGACY_IMPERSONATION_COOKIE = 'aadhyara_impersonation_token';
 
 export type { UserRole, PlatformType };
 
@@ -81,6 +82,7 @@ export async function setSalesSessionCookie(user: AuthSessionUser) {
     cookieStore.delete(LMS_COOKIE_NAME);
     cookieStore.delete(LEGACY_COOKIE_NAME);
     cookieStore.delete(IMPERSONATION_COOKIE);
+    cookieStore.delete(LEGACY_IMPERSONATION_COOKIE);
 
     cookieStore.set(SALES_COOKIE_NAME, token, {
       httpOnly: true,
@@ -196,6 +198,7 @@ export async function setLmsSessionCookie(user: AuthSessionUser) {
     // Actively purge any sales and impersonation tokens to prevent admin/sales session bleeding into student sessions
     cookieStore.delete(SALES_COOKIE_NAME);
     cookieStore.delete(IMPERSONATION_COOKIE);
+    cookieStore.delete(LEGACY_IMPERSONATION_COOKIE);
 
     cookieStore.set(LMS_COOKIE_NAME, token, {
       httpOnly: true,
@@ -223,6 +226,7 @@ export async function clearLmsSessionCookie() {
     cookieStore.delete(LMS_COOKIE_NAME);
     cookieStore.delete(LEGACY_COOKIE_NAME);
     cookieStore.delete(IMPERSONATION_COOKIE);
+    cookieStore.delete(LEGACY_IMPERSONATION_COOKIE);
   } catch {
     // Gracefully handle calls outside Next.js request scope
   }

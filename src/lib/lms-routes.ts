@@ -1,5 +1,5 @@
 /**
- * Centralized Route Definitions for AADHYARA Learning (LMS)
+ * Centralized Route Definitions for MORENA TEACH Learning (LMS)
  * 
  * Strict Rule: Every LMS user experience, link, button, redirect,
  * and navigation item MUST remain inside this /lms/* namespace.

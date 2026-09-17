@@ -56,7 +56,7 @@ export const LmsFeaturesSection: React.FC = () => {
             <span>The Education Engine</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-            Teach With AADHYARA Learning
+            Teach With MORENA TEACH Learning
           </h2>
           <p className="text-base sm:text-lg text-slate-300 mt-4 leading-relaxed font-normal">
             A state-of-the-art learning management system designed to make teaching effortless and student learning unforgettable.
