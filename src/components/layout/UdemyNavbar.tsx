@@ -125,7 +125,7 @@ export const UdemyNavbar: React.FC = () => {
           />
           <div className="flex flex-col justify-center">
             <span
-              className="text-[22px] sm:text-[25px] font-extrabold tracking-tight leading-none"
+              className="text-[22px] sm:text-[25px] font-extrabold tracking-tight leading-none text-[#183257]"
               style={{ color: '#183257' }}
             >
               Morena Teach
