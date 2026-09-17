@@ -119,8 +119,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
                     Morena Teach
                   </span>
                 </div>
-                <p className="text-[12px] font-bold tracking-normal" style={{ color: '#9190b3' }}>
-                  Teacher Excellence hub
+                <p className="text-[13px] font-bold tracking-normal" style={{ color: '#9190b3' }}>
+                  Teacher Excellence Hub
                 </p>
               </div>
 

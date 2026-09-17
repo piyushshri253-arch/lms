@@ -131,10 +131,10 @@ export const UdemyNavbar: React.FC = () => {
               Morena Teach
             </span>
             <span
-              className="text-[12.5px] sm:text-[14.5px] font-semibold tracking-wide leading-tight mt-1"
+              className="text-[14px] sm:text-[16px] font-bold tracking-wide leading-tight mt-1"
               style={{ color: '#9190b3' }}
             >
-              Teacher Excellence hub
+              Teacher Excellence Hub
             </span>
           </div>
         </Link>

@@ -124,8 +124,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   Morena Teach
                 </span>
               </div>
-              <p className="text-[13px] font-bold tracking-normal" style={{ color: '#9190b3' }}>
-                Teacher Excellence hub
+              <p className="text-[14px] font-bold tracking-normal" style={{ color: '#9190b3' }}>
+                Teacher Excellence Hub
               </p>
               <p className="text-xs text-gray-500 pt-1">
                 Morena Teach Technologies Pvt. Ltd.<br />

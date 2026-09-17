@@ -134,10 +134,10 @@ export const UdemyFooter: React.FC = () => {
                 Morena Teach
               </span>
               <span
-                className="text-[13px] font-semibold mt-1"
+                className="text-[14px] font-bold mt-1"
                 style={{ color: '#9190b3' }}
               >
-                Teacher Excellence hub
+                Teacher Excellence Hub
               </span>
             </div>
           </div>
