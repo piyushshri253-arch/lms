@@ -401,30 +401,43 @@ export const UdemyNavbar: React.FC = () => {
 
               {/* User Dropdown Menu (Exact 1:1 replica of Udemy reference image media_1789384091152.png) */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded shadow-2xl border border-[#d1d7dc] py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                  {/* Header: Circle Avatar with Initials, Name, Email */}
-                  <Link
-                    href="/user/edit-account"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#f7f9fa] transition-colors border-b border-[#d1d7dc]"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#1c1d1f] text-white font-bold text-base flex items-center justify-center shrink-0 tracking-wider">
-                      {currentUser.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .slice(0, 2)
-                        .join('')
-                        .toUpperCase() || 'ST'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-bold text-[#1c1d1f] truncate leading-tight">
-                        {currentUser.name}
-                      </p>
-                      <p className="text-[12px] text-[#6a6f73] truncate leading-tight mt-1">
-                        {currentUser.email}
-                      </p>
-                    </div>
-                  </Link>
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded shadow-2xl border border-[#d1d7dc] z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[calc(100vh-130px)] overflow-y-auto overscroll-contain dropdown-scrollbar">
+                  {/* Header: Circle Avatar with Initials, Name, Email + Quick Logout */}
+                  <div className="flex items-center justify-between px-4 py-3 hover:bg-[#f7f9fa] transition-colors border-b border-[#d1d7dc] sticky top-0 bg-white z-10">
+                    <Link
+                      href="/user/edit-account"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-3 min-w-0 flex-1"
+                    >
+                      <div className="w-11 h-11 rounded-full bg-[#1c1d1f] text-white font-bold text-sm flex items-center justify-center shrink-0 tracking-wider">
+                        {currentUser.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .slice(0, 2)
+                          .join('')
+                          .toUpperCase() || 'ST'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-bold text-[#1c1d1f] truncate leading-tight">
+                          {currentUser.name}
+                        </p>
+                        <p className="text-[11px] text-[#6a6f73] truncate leading-tight mt-0.5">
+                          {currentUser.email}
+                        </p>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        logout();
+                      }}
+                      title="Log out"
+                      className="p-1.5 ml-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors cursor-pointer shrink-0"
+                    >
+                      <Icon name="logout" size={18} />
+                    </button>
+                  </div>
 
                   {/* Section 1: My learning, My cart, Wishlist, Teach on T.E.A.C.H */}
                   <div className="py-1.5 border-b border-[#d1d7dc]">
@@ -558,13 +571,15 @@ export const UdemyNavbar: React.FC = () => {
                       Help and Support
                     </Link>
                     <button
+                      type="button"
                       onClick={() => {
                         setIsUserMenuOpen(false);
                         logout();
                       }}
-                      className="w-full text-left block px-4 py-2 text-sm text-[#2d2f31] hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      className="w-full text-left flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
                     >
-                      Log out
+                      <span>Log out</span>
+                      <Icon name="logout" size={17} className="text-red-600" />
                     </button>
                   </div>
 

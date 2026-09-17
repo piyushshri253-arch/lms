@@ -523,6 +523,21 @@ export function UdemyUserSettings({ initialTab = 'account-security' }: UdemyUser
                 </button>
               );
             })}
+
+            {/* Quick Logout Button */}
+            <div className="pt-2 mt-2 border-t border-[#d1d7dc]">
+              <button
+                type="button"
+                onClick={async () => {
+                  await logout();
+                  router.push('/');
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer rounded-[2px] flex items-center justify-between"
+              >
+                <span>Log out</span>
+                <Icon name="logout" size={16} className="text-red-600" />
+              </button>
+            </div>
           </nav>
         </aside>
 
