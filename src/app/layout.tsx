@@ -20,10 +20,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Morena Teach — Teacher Excellence Early Childhood Hub',
-  description: 'Teacher Excellence early childhood hub — Master in-demand skills and certified educator masterclasses.',
+  title: 'Morena Teach — Teacher Excellence Hub',
+  description: 'Teacher Excellence hub — Master in-demand skills and certified educator masterclasses.',
   openGraph: {
-    title: 'Morena Teach — Teacher Excellence Early Childhood Hub',
+    title: 'Morena Teach — Teacher Excellence Hub',
     description: 'Premier online academy for professional training, masterclasses, and certified education.',
     siteName: 'Morena Teach',
     type: 'website'
