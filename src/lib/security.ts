@@ -397,8 +397,8 @@ export async function checkSystemHealth(): Promise<{
  */
 const ENCRYPTION_ALGO = 'aes-256-gcm';
 
-function getEncryptionKey(): Buffer {
-  const secret = process.env.ENCRYPTION_SECRET || process.env.JWT_SECRET || 'aadhyara-default-secret-key-32b-length-secure!';
+function getEncryptionKey(fallbackSecret?: string): Buffer {
+  const secret = fallbackSecret || process.env.ENCRYPTION_SECRET || process.env.JWT_SECRET || 'aadhyara-production-secure-jwt-key-2026-super-secret';
   return crypto.createHash('sha256').update(secret).digest();
 }
 
@@ -419,14 +419,28 @@ export function decryptSecret(cipherText: string): string {
     if (parts.length !== 3) {
       return cipherText;
     }
-    const [ivHex, authTagHex, encryptedHex] = parts;
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
-    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGO, getEncryptionKey(), iv);
-    decipher.setAuthTag(authTag);
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+
+    const candidateKeys = [
+      undefined,
+      'aadhyara-production-secure-jwt-key-2026-super-secret',
+      'aadhyara-default-secret-key-32b-length-secure!'
+    ];
+
+    for (const candidateKey of candidateKeys) {
+      try {
+        const [ivHex, authTagHex, encryptedHex] = parts;
+        const iv = Buffer.from(ivHex, 'hex');
+        const authTag = Buffer.from(authTagHex, 'hex');
+        const decipher = crypto.createDecipheriv(ENCRYPTION_ALGO, getEncryptionKey(candidateKey), iv);
+        decipher.setAuthTag(authTag);
+        let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        if (decrypted) return decrypted;
+      } catch {
+        // try next candidate key
+      }
+    }
+    return '';
   } catch (err) {
     console.error('[decryptSecret] Decryption failed:', err);
     return '';
