@@ -54,6 +54,7 @@ function RegisterContent() {
 
   // Dynamic Password Strength Calculations
   const hasMinLength = password.length >= 8;
+  const hasCaps = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSymbol = /[^A-Za-z0-9]/.test(password);
 
@@ -62,6 +63,11 @@ function RegisterContent() {
       id: 'length',
       label: 'At least 8 characters',
       passed: hasMinLength
+    },
+    {
+      id: 'caps',
+      label: 'At least 1 uppercase letter (A-Z)',
+      passed: hasCaps
     },
     {
       id: 'number',
@@ -89,7 +95,7 @@ function RegisterContent() {
       showToast({ title: 'Invalid Email', description: 'Please enter a valid email address.', type: 'error' });
       return;
     }
-    if (!hasMinLength || !hasNumber || !hasSymbol) {
+    if (!hasMinLength || !hasCaps || !hasNumber || !hasSymbol) {
       showToast({
         title: 'Password Incomplete',
         description: 'Password must be at least 8 characters long and include at least 1 Caps, 1 number and 1 symbol.',
@@ -297,12 +303,12 @@ function RegisterContent() {
                   <div className="mt-2.5 p-3 bg-[#f7f9fa] border border-[#d1d7dc] rounded-[4px] space-y-2">
                     <div className="flex items-center justify-between text-[11px] font-bold">
                       <span className="text-[#2d2f31]">Password Requirements:</span>
-                      <span className={passedChecksCount === 3 ? 'text-emerald-600 font-extrabold' : 'text-[#6a6f73]'}>
-                        {passedChecksCount} of 3 completed
+                      <span className={passedChecksCount === passwordRules.length ? 'text-emerald-600 font-extrabold' : 'text-[#6a6f73]'}>
+                        {passedChecksCount} of {passwordRules.length} completed
                       </span>
                     </div>
 
-                    {/* Visual 3-segment progress indicator */}
+                    {/* Visual progress indicator */}
                     <div className="flex gap-1.5 h-1.5 w-full rounded-full overflow-hidden bg-gray-200">
                       <div
                         className={`flex-1 transition-all duration-300 ${
@@ -311,12 +317,17 @@ function RegisterContent() {
                       />
                       <div
                         className={`flex-1 transition-all duration-300 ${
-                          passedChecksCount >= 2 ? 'bg-blue-500' : 'bg-gray-200'
+                          passedChecksCount >= 2 ? 'bg-amber-400' : 'bg-gray-200'
                         }`}
                       />
                       <div
                         className={`flex-1 transition-all duration-300 ${
-                          passedChecksCount >= 3 ? 'bg-emerald-500' : 'bg-gray-200'
+                          passedChecksCount >= 3 ? 'bg-blue-500' : 'bg-gray-200'
+                        }`}
+                      />
+                      <div
+                        className={`flex-1 transition-all duration-300 ${
+                          passedChecksCount >= 4 ? 'bg-emerald-500' : 'bg-gray-200'
                         }`}
                       />
                     </div>
