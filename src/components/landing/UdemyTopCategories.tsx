@@ -12,14 +12,24 @@ interface CategoryCardItem {
 }
 
 const CATEGORY_IMAGE_MAP: Record<string, string> = {
-  pedagogy: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=600&auto=format&fit=crop',
-  'early childhood': 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop',
-  engineering: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=600&auto=format&fit=crop',
-  design: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=600&auto=format&fit=crop',
-  business: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=600&auto=format&fit=crop',
-  science: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=600&auto=format&fit=crop',
-  ai: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=600&auto=format&fit=crop',
-  python: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?q=80&w=600&auto=format&fit=crop'
+  'early childhood': 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=800&auto=format&fit=crop',
+  childhood: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=800&auto=format&fit=crop',
+  pedagogy: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=800&auto=format&fit=crop',
+  teaching: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=800&auto=format&fit=crop',
+  'teacher development': 'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=800&auto=format&fit=crop',
+  teacher: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=800&auto=format&fit=crop',
+  primary: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop',
+  curriculum: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop',
+  leadership: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop',
+  school: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop',
+  professional: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=800&auto=format&fit=crop',
+  engineering: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop',
+  design: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=800&auto=format&fit=crop',
+  business: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop',
+  science: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=800&auto=format&fit=crop',
+  ai: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=800&auto=format&fit=crop',
+  tech: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800&auto=format&fit=crop',
+  python: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?q=80&w=800&auto=format&fit=crop'
 };
 
 function getCategoryImage(name: string): string {
@@ -27,7 +37,7 @@ function getCategoryImage(name: string): string {
   for (const [key, img] of Object.entries(CATEGORY_IMAGE_MAP)) {
     if (lower.includes(key)) return img;
   }
-  return 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=600&auto=format&fit=crop';
+  return 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop';
 }
 
 interface UdemyTopCategoriesProps {
@@ -57,16 +67,27 @@ export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categori
     });
   };
 
-  useEffect(() => {
-    if (initialCategories && initialCategories.length > 0) {
-      setCategories(
-        initialCategories.map((c) => ({
+  const formatCategories = (list: any[]) => {
+    const seen = new Set<string>();
+    const unique: CategoryCardItem[] = [];
+    for (const c of list) {
+      const normalized = c.name.trim().toLowerCase();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        unique.push({
           id: c.id,
           name: c.name,
           slug: c.slug || c.name,
-          image: getCategoryImage(c.name)
-        }))
-      );
+          image: c.image || getCategoryImage(c.name)
+        });
+      }
+    }
+    return unique;
+  };
+
+  useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) {
+      setCategories(formatCategories(initialCategories));
       return;
     }
 
@@ -75,14 +96,7 @@ export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categori
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.categories && data.categories.length > 0) {
-          setCategories(
-            data.categories.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              slug: c.slug || c.name,
-              image: getCategoryImage(c.name)
-            }))
-          );
+          setCategories(formatCategories(data.categories));
         }
       })
       .catch(() => {});
