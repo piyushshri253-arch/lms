@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { Icon } from '@/components/ui/Icon';
 
 interface CategoryCardItem {
   id: string;
@@ -35,6 +36,26 @@ interface UdemyTopCategoriesProps {
 
 export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categories: initialCategories }) => {
   const [categories, setCategories] = useState<CategoryCardItem[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
+  };
+
+  const scroll = (direction: 'left' | 'right') => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distance = el.clientWidth * 0.75;
+    el.scrollBy({
+      left: direction === 'left' ? -distance : distance,
+      behavior: 'smooth'
+    });
+  };
 
   useEffect(() => {
     if (initialCategories && initialCategories.length > 0) {
@@ -67,6 +88,10 @@ export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categori
       .catch(() => {});
   }, [initialCategories]);
 
+  useEffect(() => {
+    checkScroll();
+  }, [categories]);
+
   if (categories.length === 0) {
     return null;
   }
@@ -74,20 +99,54 @@ export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categori
   return (
     <section className="py-8 md:py-12 bg-white">
       <div className="max-w-[1340px] mx-auto px-4 sm:px-6">
-        <h2 className="text-2xl font-bold text-[#2d2f31] tracking-tight mb-6">
-          Top categories
-        </h2>
+        {/* Section Header with Navigation Arrows */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-[#2d2f31] tracking-tight">
+              Top categories
+            </h2>
+            <p className="text-xs sm:text-sm text-[#6a6f73] mt-1">
+              Explore diverse fields of study and specialized teaching domains.
+            </p>
+          </div>
 
-        {/* Dynamic Responsive Category Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* Scroll Navigation Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => scroll('left')}
+              disabled={!canScrollLeft}
+              aria-label="Previous categories"
+              className="w-9 h-9 rounded-full border border-[#d1d7dc] bg-white hover:bg-[#f7f9fa] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-[#1c1d1f] transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <Icon name="chevron_left" size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => scroll('right')}
+              disabled={!canScrollRight}
+              aria-label="Next categories"
+              className="w-9 h-9 rounded-full border border-[#d1d7dc] bg-white hover:bg-[#f7f9fa] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-[#1c1d1f] transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <Icon name="chevron_right" size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Horizontal Scrollable Category Cards Carousel */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={checkScroll}
+          className="flex items-start gap-4 sm:gap-6 overflow-x-auto scroll-smooth pb-4 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {categories.map((item) => (
             <Link
               key={item.id}
               href={`/courses?category=${encodeURIComponent(item.name)}`}
-              className="group cursor-pointer flex flex-col"
+              className="group cursor-pointer flex flex-col w-[180px] sm:w-[220px] md:w-[240px] shrink-0"
             >
               {/* Square Image Box with subtle hover zoom */}
-              <div className="aspect-square w-full overflow-hidden bg-[#f7f9fa] border border-[#d1d7dc] mb-2.5">
+              <div className="aspect-square w-full overflow-hidden bg-[#f7f9fa] border border-[#d1d7dc] rounded-lg mb-2.5 shadow-xs">
                 <img
                   src={item.image}
                   alt={item.name}
@@ -95,7 +154,7 @@ export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categori
                   loading="lazy"
                 />
               </div>
-              <span className="font-bold text-base text-[#2d2f31] leading-snug group-hover:text-[#5022c3] transition-colors">
+              <span className="font-bold text-sm sm:text-base text-[#2d2f31] leading-snug group-hover:text-[#5022c3] transition-colors truncate">
                 {item.name}
               </span>
             </Link>
