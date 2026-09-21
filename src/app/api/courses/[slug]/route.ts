@@ -30,7 +30,7 @@ export async function GET(
         },
         reviews: {
           include: {
-            user: { select: { name: true, avatar: true } }
+            user: { select: { id: true, name: true, avatar: true } }
           },
           orderBy: { createdAt: 'desc' }
         },
@@ -167,7 +167,11 @@ export async function GET(
       })),
       reviews: course.reviews.map((r) => ({
         id: r.id,
-        user: r.user.name,
+        user: {
+          id: r.user.id,
+          name: r.user.name,
+          avatar: r.user.avatar
+        },
         rating: r.rating,
         comment: r.comment,
         date: r.createdAt.toISOString()
@@ -175,7 +179,10 @@ export async function GET(
     };
 
     return NextResponse.json({
-      course: formattedCourse,
+      course: {
+        ...formattedCourse,
+        isEnrolled
+      },
       isEnrolled,
       completedLessonIds
     });

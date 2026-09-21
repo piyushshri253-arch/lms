@@ -40,7 +40,17 @@ export default function CourseDetailsPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.course) {
-          setCourseData(data.course);
+          setCourseData({
+            ...data.course,
+            isEnrolled: data.isEnrolled
+          });
+          if (data.course.reviews && currentUser) {
+            const myRev = data.course.reviews.find((r: any) => r.user?.id === currentUser.id);
+            if (myRev) {
+              setNewRating(myRev.rating);
+              setNewComment(myRev.comment);
+            }
+          }
           return;
         }
       }
@@ -359,71 +369,146 @@ export default function CourseDetailsPage() {
               </div>
             </div>
 
-            {/* Leave Review Form (If enrolled) */}
-            {isEnrolled && (
-              <form onSubmit={handleReviewSubmit} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/60 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold uppercase text-on-surface">Leave Your Rating</span>
-                  <div className="flex gap-1 text-amber-500">
+            {/* Leave Review Form (If enrolled) or Enrollment Prompt */}
+            {isEnrolled ? (
+              <form onSubmit={handleReviewSubmit} className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-outline-variant/40">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-on-surface block">
+                      {course.reviews?.some((r: any) => r.user?.id === currentUser?.id) ? 'Update Your Rating & Review' : 'Rate Your Learning Experience'}
+                    </span>
+                    <span className="text-[11px] text-on-surface-variant">
+                      {newRating === 5 ? '⭐⭐⭐⭐⭐ 5 Stars - Exceptional!' :
+                       newRating === 4 ? '⭐⭐⭐⭐ 4 Stars - Very Good' :
+                       newRating === 3 ? '⭐⭐⭐ 3 Stars - Average' :
+                       newRating === 2 ? '⭐⭐ 2 Stars - Needs Improvement' :
+                       '⭐ 1 Star - Poor'}
+                    </span>
+                  </div>
+                  <div className="flex gap-1.5 text-amber-500">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => setNewRating(star)}
-                        className="hover:scale-110 transition-transform cursor-pointer"
+                        className="hover:scale-125 transition-transform cursor-pointer p-0.5"
+                        title={`${star} star${star > 1 ? 's' : ''}`}
                       >
-                        <Icon name="star" fill={star <= newRating} size={20} />
+                        <Icon name="star" fill={star <= newRating} size={22} />
                       </button>
                     ))}
                   </div>
                 </div>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Share your learning experience with this masterclass..."
-                  className="w-full bg-surface border border-outline-variant rounded-xl p-3 text-xs focus:outline-none focus:border-primary"
+                  placeholder="Tell other students what you liked most about this course, instructor clarity, and learning outcomes..."
+                  className="w-full bg-surface border border-outline-variant rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
-                <div className="flex justify-end">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1">
+                  <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
+                    <Icon name="verified_user" size={14} className="text-emerald-600" />
+                    <span>Verified Enrolled Student Review</span>
+                  </span>
                   <button
                     type="submit"
                     disabled={isSubmittingReview || !newComment.trim()}
-                    className="px-4 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary-container shadow-sm disabled:opacity-50 cursor-pointer"
+                    className="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary-container shadow-sm disabled:opacity-50 cursor-pointer transition-all flex items-center gap-1.5 self-end sm:self-auto"
                   >
-                    {isSubmittingReview ? 'Posting...' : 'Submit Review'}
+                    <Icon name="rate_review" size={16} />
+                    <span>{isSubmittingReview ? 'Posting...' : course.reviews?.some((r: any) => r.user?.id === currentUser?.id) ? 'Update Review' : 'Submit Review'}</span>
                   </button>
                 </div>
               </form>
+            ) : (
+              <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 text-on-surface-variant">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <Icon name="rate_review" size={18} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-on-surface text-xs">Want to leave a review?</p>
+                    <p className="text-[11px] text-on-surface-variant">
+                      {currentUser
+                        ? 'Enroll in this course to share your rating and feedback with the community.'
+                        : 'Sign in and enroll in this course to share your rating and review.'}
+                    </p>
+                  </div>
+                </div>
+                {!currentUser ? (
+                  <Link
+                    href={`/login?callbackUrl=/courses/${course.slug || course.id}#reviews`}
+                    className="px-4 py-2 bg-primary text-on-primary rounded-xl font-bold text-xs hover:bg-primary-container whitespace-nowrap transition-all shadow-xs"
+                  >
+                    Log In to Review
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const stickyCard = document.querySelector('.sticky');
+                      stickyCard?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-4 py-2 bg-surface-container text-on-surface border border-outline-variant rounded-xl font-bold text-xs hover:bg-surface-container-high whitespace-nowrap transition-all cursor-pointer"
+                  >
+                    Enroll to Leave Rating
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Reviews List */}
             <div className="space-y-4 divide-y divide-outline-variant/40">
               {(!course.reviews || course.reviews.length === 0) ? (
-                <p className="text-xs text-on-surface-variant text-center py-4">
-                  No reviews yet. Be the first enrolled student to review!
-                </p>
+                <div className="text-center py-8 bg-surface-container-low/40 rounded-xl border border-dashed border-outline-variant">
+                  <Icon name="rate_review" size={32} className="text-on-surface-variant/40 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-on-surface">No reviews yet</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">
+                    Be the first enrolled student to share feedback for this course!
+                  </p>
+                </div>
               ) : (
-                course.reviews.map((r: any) => (
-                  <div key={r.id} className="pt-4 first:pt-0 space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <UserAvatar
-                          avatar={r.user?.avatar}
-                          name={r.user?.name || 'Verified Student'}
-                          size="xs"
-                          className="w-7 h-7"
-                        />
-                        <span className="font-bold text-xs text-on-surface">{r.user?.name || 'Verified Student'}</span>
+                course.reviews.map((r: any) => {
+                  const reviewerName = r.user?.name || (typeof r.user === 'string' ? r.user : 'Verified Student');
+                  const reviewerAvatar = r.user?.avatar || null;
+
+                  return (
+                    <div key={r.id} className="pt-4 first:pt-0 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2.5">
+                          <UserAvatar
+                            avatar={reviewerAvatar}
+                            name={reviewerName}
+                            size="sm"
+                            className="w-8 h-8 rounded-full"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-on-surface">
+                                {reviewerName}
+                              </span>
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.5 rounded-sm flex items-center gap-0.5">
+                                <Icon name="verified" size={11} className="text-emerald-700" />
+                                <span>Verified Student</span>
+                              </span>
+                            </div>
+                            {r.date && (
+                              <span className="text-[10px] text-on-surface-variant block mt-0.5">
+                                {new Date(r.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex text-amber-500">
+                          {[...Array(r.rating || 5)].map((_, i) => (
+                            <Icon key={i} name="star" fill size={14} />
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex text-amber-500">
-                        {[...Array(r.rating || 5)].map((_, i) => (
-                          <Icon key={i} name="star" fill size={14} />
-                        ))}
-                      </div>
+                      <p className="text-xs text-on-surface-variant leading-relaxed pl-10.5">{r.comment}</p>
                     </div>
-                    <p className="text-xs text-on-surface-variant leading-relaxed pl-9">{r.comment}</p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </section>

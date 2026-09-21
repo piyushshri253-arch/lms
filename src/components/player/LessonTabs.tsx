@@ -14,6 +14,8 @@ interface LessonTabsProps {
   instructorAvatar?: string | null;
   resources?: Array<{ name: string; url: string; size?: string }>;
   onSeekTimestamp?: (seconds: number) => void;
+  activeTab?: 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews';
+  onTabChange?: (tab: 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews') => void;
 }
 
 export const LessonTabs: React.FC<LessonTabsProps> = ({
@@ -24,9 +26,17 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
   instructorRole = 'Systems Architect & Instructor',
   instructorAvatar = null,
   resources = [],
-  onSeekTimestamp
+  onSeekTimestamp,
+  activeTab: externalTab,
+  onTabChange
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'discussion' | 'notes' | 'bookmarks' | 'assignments' | 'resources'>('overview');
+  const [internalTab, setInternalTab] = useState<'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews'>('overview');
+  const activeTab = externalTab !== undefined ? externalTab : internalTab;
+  const setActiveTab = (tab: 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews') => {
+    setInternalTab(tab);
+    if (onTabChange) onTabChange(tab);
+  };
+
   const [notes, setNotes] = useState<any[]>([]);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteTimestamp, setNewNoteTimestamp] = useState<number>(0);
@@ -39,6 +49,11 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
   const [submittingAssignmentId, setSubmittingAssignmentId] = useState<string | null>(null);
   const [submissionFile, setSubmissionFile] = useState<string>('');
   const [submissionNotes, setSubmissionNotes] = useState<string>('');
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const { showToast, currentUser } = useApp();
 
   // 1. Fetch live Notes from Database
@@ -89,12 +104,68 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
     } catch {}
   };
 
+  // 5. Fetch live Reviews from Database
+  const fetchReviews = async () => {
+    if (!courseId) return;
+    setIsLoadingReviews(true);
+    try {
+      const res = await fetch(`/api/reviews?courseId=${courseId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const revs = data.reviews || [];
+        setReviews(revs);
+        if (currentUser) {
+          const myRev = revs.find((r: any) => r.userId === currentUser.id || r.user?.id === currentUser.id);
+          if (myRev) {
+            setReviewRating(myRev.rating);
+            setReviewComment(myRev.comment);
+          }
+        }
+      }
+    } catch {} finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
   useEffect(() => {
     fetchNotes();
     fetchBookmarks();
     fetchDiscussions();
     fetchAssignments();
+    fetchReviews();
   }, [lessonId, courseId]);
+
+  // Handle Submit / Update Review
+  const handlePlayerReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseId || !reviewComment.trim()) return;
+
+    setIsSubmittingReview(true);
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId,
+          rating: reviewRating,
+          comment: reviewComment.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit review');
+
+      showToast({
+        title: 'Review Submitted! ⭐',
+        description: 'Thank you for your rating and feedback.',
+        type: 'success'
+      });
+      await fetchReviews();
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Handle Save Note
   const handleSaveNote = async (e: React.FormEvent) => {
@@ -292,6 +363,17 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
           }`}
         >
           Downloads &amp; Assets
+        </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'reviews'
+              ? 'text-primary border-b-2 border-primary font-bold'
+              : 'text-on-surface-variant hover:text-primary'
+          }`}
+        >
+          <Icon name="star" fill size={15} className="text-amber-500" />
+          <span>Reviews ({reviews.length})</span>
         </button>
       </div>
 
@@ -638,6 +720,190 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
             >
               Download (.zip)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Reviews & Ratings */}
+      {activeTab === 'reviews' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Average Rating Summary Card */}
+          <div className="p-5 bg-surface-container-lowest border border-outline-variant rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col items-center justify-center shrink-0">
+                <span className="text-2xl font-black text-amber-600 dark:text-amber-400 leading-none">
+                  {reviews.length > 0
+                    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+                    : '5.0'}
+                </span>
+                <span className="text-[10px] font-bold text-amber-600/80 uppercase">out of 5</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-amber-500 mb-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Icon
+                      key={i}
+                      name="star"
+                      fill={
+                        reviews.length > 0
+                          ? i < Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length)
+                          : true
+                      }
+                      size={18}
+                    />
+                  ))}
+                </div>
+                <h3 className="font-bold text-sm text-on-surface">Course Rating &amp; Student Feedback</h3>
+                <p className="text-xs text-on-surface-variant">
+                  {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'} from verified enrolled students
+                </p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
+                <Icon name="verified" size={14} className="text-emerald-700" />
+                <span>100% Verified Learners</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Review Submission Form */}
+          <form
+            onSubmit={handlePlayerReviewSubmit}
+            className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/80 space-y-4 shadow-xs"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-outline-variant/40">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface">
+                  {reviews.some((r) => r.userId === currentUser?.id || r.user?.id === currentUser?.id)
+                    ? 'Update Your Rating & Review'
+                    : 'Rate Your Learning Experience'}
+                </h4>
+                <p className="text-[11px] text-on-surface-variant">
+                  {reviewRating === 5 ? '⭐⭐⭐⭐⭐ 5 Stars - Exceptional learning experience' :
+                   reviewRating === 4 ? '⭐⭐⭐⭐ 4 Stars - Very good & clear content' :
+                   reviewRating === 3 ? '⭐⭐⭐ 3 Stars - Average course' :
+                   reviewRating === 2 ? '⭐⭐ 2 Stars - Needs improvement' :
+                   '⭐ 1 Star - Poor experience'}
+                </p>
+              </div>
+
+              <div className="flex gap-1 text-amber-500">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className="hover:scale-125 transition-transform cursor-pointer p-0.5"
+                    title={`${star} star${star > 1 ? 's' : ''}`}
+                  >
+                    <Icon name="star" fill={star <= reviewRating} size={22} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <textarea
+              rows={3}
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              placeholder="What did you learn from this course? Share your review with other students and instructors..."
+              className="w-full bg-surface border border-outline-variant rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
+                <Icon name="verified_user" size={14} className="text-emerald-600" />
+                <span>Reviews are public and visible on the course catalog</span>
+              </span>
+
+              <button
+                type="submit"
+                disabled={isSubmittingReview || !reviewComment.trim()}
+                className="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary-container shadow-xs disabled:opacity-50 cursor-pointer transition-all flex items-center gap-1.5 self-end sm:self-auto"
+              >
+                <Icon name="rate_review" size={16} />
+                <span>
+                  {isSubmittingReview
+                    ? 'Posting...'
+                    : reviews.some((r) => r.userId === currentUser?.id || r.user?.id === currentUser?.id)
+                    ? 'Update Review'
+                    : 'Submit Review'}
+                </span>
+              </button>
+            </div>
+          </form>
+
+          {/* Reviews List */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider">
+              Student Reviews ({reviews.length})
+            </h4>
+
+            {isLoadingReviews ? (
+              <div className="p-8 text-center text-xs text-on-surface-variant">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <span>Loading reviews...</span>
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="p-8 bg-surface-container-lowest border border-dashed border-outline-variant rounded-2xl text-center space-y-1">
+                <Icon name="rate_review" size={32} className="text-on-surface-variant/40 mx-auto" />
+                <p className="font-bold text-xs text-on-surface">No reviews yet</p>
+                <p className="text-[11px] text-on-surface-variant">
+                  Be the first to rate and review this course above!
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-outline-variant/40 bg-surface-container-lowest border border-outline-variant rounded-2xl p-4 sm:p-5 space-y-4">
+                {reviews.map((r: any) => {
+                  const name = r.user?.name || (typeof r.user === 'string' ? r.user : 'Verified Student');
+                  const avatar = r.user?.avatar || null;
+
+                  return (
+                    <div key={r.id} className="pt-4 first:pt-0 space-y-1.5">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2.5">
+                          <UserAvatar
+                            avatar={avatar}
+                            name={name}
+                            size="sm"
+                            className="w-8 h-8 rounded-full"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-on-surface">{name}</span>
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.2 rounded-sm flex items-center gap-0.5">
+                                <Icon name="verified" size={10} className="text-emerald-700" />
+                                <span>Verified Student</span>
+                              </span>
+                            </div>
+                            {(r.createdAt || r.date) && (
+                              <span className="text-[10px] text-on-surface-variant block mt-0.5">
+                                {new Date(r.createdAt || r.date).toLocaleDateString('en-IN', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex text-amber-500">
+                          {[...Array(r.rating || 5)].map((_, i) => (
+                            <Icon key={i} name="star" fill size={14} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-on-surface-variant leading-relaxed pl-10.5">
+                        {r.comment}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

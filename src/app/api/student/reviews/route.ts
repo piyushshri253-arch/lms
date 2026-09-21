@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       }
     });
 
-    if (!enrollment) {
+    if (!enrollment && !['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { error: 'You can only review courses you are actively enrolled in.' },
         { status: 403 }

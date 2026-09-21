@@ -31,6 +31,7 @@ export default function LearnPlayerPage() {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [isCertificateOpen, setIsCertificateOpen] = useState(false);
   const [certificateData, setCertificateData] = useState<any>(null);
+  const [playerTab, setPlayerTab] = useState<'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews'>('overview');
 
   // Fetch live course from database
   const fetchLiveCourse = async () => {
@@ -168,6 +169,18 @@ export default function LearnPlayerPage() {
             lessonTitle={activeLesson?.title}
             courseSlug={courseSlug}
           />
+
+          <button
+            onClick={() => {
+              setPlayerTab('reviews');
+              document.getElementById('lesson-tabs-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-amber-300/80 bg-amber-50/90 hover:bg-amber-100 text-amber-900 transition-all shadow-xs cursor-pointer"
+            title="Rate & Review this course"
+          >
+            <Icon name="star" fill size={15} className="text-amber-500" />
+            <span className="hidden sm:inline">Rate Course</span>
+          </button>
 
           {progressPercent >= 100 && (
             <button
@@ -364,15 +377,19 @@ export default function LearnPlayerPage() {
               </button>
             </div>
 
-            {/* Lesson Tabs (Overview, Notes, Bookmarks, Discussion, Assignments, Resources) */}
-            <LessonTabs
-              courseId={course?.id}
-              lessonId={activeLesson?.id}
-              lessonTitle={activeLesson?.title || course?.title || 'Lecture Details'}
-              instructorName={course?.instructor?.name || 'Lead Architect'}
-              instructorRole={course?.instructor?.bio || 'Distinguished Faculty'}
-              instructorAvatar={course?.instructor?.avatar || ''}
-            />
+            {/* Lesson Tabs (Overview, Notes, Bookmarks, Discussion, Assignments, Resources, Reviews) */}
+            <div id="lesson-tabs-section" className="scroll-mt-6">
+              <LessonTabs
+                courseId={course?.id}
+                lessonId={activeLesson?.id}
+                lessonTitle={activeLesson?.title || course?.title || 'Lecture Details'}
+                instructorName={course?.instructor?.name || 'Lead Architect'}
+                instructorRole={course?.instructor?.bio || 'Distinguished Faculty'}
+                instructorAvatar={course?.instructor?.avatar || ''}
+                activeTab={playerTab}
+                onTabChange={setPlayerTab}
+              />
+            </div>
           </div>
         </main>
       </div>

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       }
     });
 
-    if (!enrollment && user.role !== 'ADMIN') {
+    if (!enrollment && !['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { error: 'Only enrolled students can leave reviews.' },
         { status: 403 }
