@@ -92,7 +92,7 @@ function RegisterContent() {
     if (!hasMinLength || !hasNumber || !hasSymbol) {
       showToast({
         title: 'Password Incomplete',
-        description: 'Password must be at least 8 characters long and include at least 1 number and 1 symbol.',
+        description: 'Password must be at least 8 characters long and include at least 1 Caps, 1 number and 1 symbol.',
         type: 'error'
       });
       return;
