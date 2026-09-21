@@ -124,7 +124,10 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { error: 'An account with this email already exists.' },
+        {
+          error: 'This email is already registered. Please log in instead.',
+          code: 'ALREADY_REGISTERED'
+        },
         { status: 400 }
       );
     }

@@ -202,8 +202,43 @@ function CheckoutContent() {
     }
   };
 
+  // Helper to verify if cart items exist in localStorage while state is syncing
+  const [isHydratingCart, setIsHydratingCart] = useState(true);
+
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      setIsHydratingCart(false);
+      return;
+    }
+    try {
+      const userKey = currentUser?.id ? `teach_cart_items_${currentUser.id}` : null;
+      const userSaved = userKey ? localStorage.getItem(userKey) : null;
+      const guestSaved = localStorage.getItem('teach_cart_items_guest');
+      const hasStoredItems =
+        (userSaved && JSON.parse(userSaved).length > 0) ||
+        (guestSaved && JSON.parse(guestSaved).length > 0);
+
+      if (!hasStoredItems) {
+        setIsHydratingCart(false);
+      }
+    } catch {
+      setIsHydratingCart(false);
+    }
+  }, [cartItems, currentUser]);
+
   // If cart is empty and not processing, show clean empty state
   if (cartItems.length === 0 && !isProcessing) {
+    if (isHydratingCart) {
+      return (
+        <div className="min-h-screen bg-[#f7f9fa] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#5624d0] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-[#6a6f73] font-medium">Loading your order...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-[#f7f9fa] flex flex-col justify-between font-sans">
         <header className="bg-white border-b border-[#d1d7dc] px-6 py-4">

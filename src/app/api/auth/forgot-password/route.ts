@@ -34,54 +34,76 @@ export async function POST(req: NextRequest) {
       where: { email: normalizedEmail }
     });
 
-    if (user && !user.isSuspended) {
-      // Invalidate previous unused reset tokens
-      await prisma.passwordResetToken.updateMany({
-        where: { userId: user.id, usedAt: null },
-        data: { usedAt: new Date() }
-      });
-
-      // Generate 32-byte crypto token
-      const { token, hash: tokenHash } = generateSecureToken(32);
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-      await prisma.passwordResetToken.create({
-        data: {
-          userId: user.id,
-          tokenHash,
-          expiresAt
-        }
-      });
-
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const resetUrl = `${baseUrl}/reset-password/${token}`;
-
-      // Dispatch Email
-      await sendEmail({
-        to: normalizedEmail,
-        subject: 'Reset Your Account Password',
-        template: 'PASSWORD_RESET',
-        userId: user.id,
-        organizationId: user.organizationId,
-        data: {
-          name: user.name,
-          resetUrl
-        }
-      });
-
-      await logSecurityEvent({
-        userId: user.id,
-        email: normalizedEmail,
-        eventType: 'PASSWORD_RESET_REQUEST',
-        req
-      });
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: 'This email is not registered. Please sign up first.',
+          code: 'USER_NOT_FOUND'
+        },
+        { status: 404 }
+      );
     }
 
-    // Generic safe response to prevent email enumeration
+    if (user.isSuspended) {
+      return NextResponse.json(
+        {
+          error: 'Your account has been suspended. Please contact platform support.',
+          code: 'ACCOUNT_SUSPENDED'
+        },
+        { status: 403 }
+      );
+    }
+
+    // Invalidate previous unused reset tokens
+    await prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() }
+    });
+
+    // Generate 32-byte crypto token
+    const { token, hash: tokenHash } = generateSecureToken(32);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt
+      }
+    });
+
+    // Dynamically resolve base URL to avoid localhost in emails
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const proto = req.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+    let baseUrl = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://lms-phi-plum.vercel.app');
+    if (baseUrl.includes('localhost') && (!host || !host.includes('localhost'))) {
+      baseUrl = 'https://lms-phi-plum.vercel.app';
+    }
+    const resetUrl = `${baseUrl}/reset-password/${token}`;
+
+    // Dispatch Email
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'Reset Your Account Password',
+      template: 'PASSWORD_RESET',
+      userId: user.id,
+      organizationId: user.organizationId,
+      data: {
+        name: user.name,
+        resetUrl
+      }
+    });
+
+    await logSecurityEvent({
+      userId: user.id,
+      email: normalizedEmail,
+      eventType: 'PASSWORD_RESET_REQUEST',
+      req
+    });
+
     return NextResponse.json({
       success: true,
-      message:
-        'If an account exists for this email, you will receive a secure password reset link shortly.'
+      message: 'Password reset link has been sent to your email address.'
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]:', err);

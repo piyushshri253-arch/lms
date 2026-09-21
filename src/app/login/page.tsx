@@ -13,10 +13,12 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const { login, showToast } = useApp();
 
-  const [email, setEmail] = useState('');
+  const queryEmail = searchParams.get('email') || searchParams.get('verifyEmail') || '';
+  const [email, setEmail] = useState(queryEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(null);
 
   const callbackUrl = searchParams.get('callbackUrl');
 
@@ -25,6 +27,7 @@ function LoginContent() {
     if (!email.trim() || !password) return;
 
     setIsLoading(true);
+    setAuthError(null);
     try {
       const user = await login(email.trim().toLowerCase(), password, 'STUDENT');
 
@@ -84,9 +87,20 @@ function LoginContent() {
         );
         return;
       }
+
+      const code = err.code || (err.message?.includes('not registered') ? 'USER_NOT_FOUND' : undefined);
+      const message =
+        code === 'USER_NOT_FOUND'
+          ? 'This email is not registered. Please sign up first.'
+          : code === 'INVALID_CREDENTIALS' || err.message?.includes('Invalid') || err.message?.includes('password')
+          ? 'Please enter correct email or password.'
+          : err.message || 'Please enter correct email or password.';
+
+      setAuthError({ message, code });
+
       showToast({
-        title: 'Sign In Failed',
-        description: err.message || 'Incorrect email or password.',
+        title: code === 'USER_NOT_FOUND' ? 'Account Not Found' : 'Sign In Failed',
+        description: message,
         type: 'error'
       });
     } finally {
@@ -109,6 +123,43 @@ function LoginContent() {
               Access your enrolled courses, certifications, and learning progress.
             </p>
           </div>
+
+          {/* Inline Error Alert */}
+          {authError && (
+            <div
+              className={`p-4 rounded-md border text-sm animate-in fade-in duration-200 ${
+                authError.code === 'USER_NOT_FOUND'
+                  ? 'bg-purple-50 border-purple-200 text-purple-950'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <Icon
+                  name={authError.code === 'USER_NOT_FOUND' ? 'person_add' : 'error'}
+                  size={20}
+                  className={`mt-0.5 shrink-0 ${
+                    authError.code === 'USER_NOT_FOUND' ? 'text-[#5624d0]' : 'text-rose-600'
+                  }`}
+                />
+                <div className="flex-1 space-y-2">
+                  <p className="font-semibold text-xs leading-relaxed">{authError.message}</p>
+                  {authError.code === 'USER_NOT_FOUND' && (
+                    <div>
+                      <Link
+                        href={`/register?email=${encodeURIComponent(
+                          email.trim().toLowerCase()
+                        )}${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded shadow-xs transition-colors"
+                      >
+                        <span>Sign up for Morena Teach</span>
+                        <Icon name="arrow_forward" size={14} />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

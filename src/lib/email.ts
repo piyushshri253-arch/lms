@@ -129,6 +129,10 @@ export function renderEmailHtml(
         <p style="color: #64748b; font-size: 12px;">
           This link will expire in 1 hour. If you did not request this, you can safely ignore this email.
         </p>
+        <p style="color: #94a3b8; font-size: 11px; word-break: break-all; margin-top: 15px;">
+          If the button above does not work, copy and paste this URL into your browser:<br/>
+          <a href="${data.resetUrl}" style="color: ${brandPrimary}; text-decoration: underline;">${data.resetUrl}</a>
+        </p>
       `;
       break;
 

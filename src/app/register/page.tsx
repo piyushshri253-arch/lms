@@ -17,11 +17,13 @@ function RegisterContent() {
   const [step, setStep] = useState<'form' | 'otp'>('form');
 
   // Form State
+  const queryEmail = searchParams.get('email') || searchParams.get('verifyEmail') || '';
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(queryEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [registerError, setRegisterError] = useState<{ message: string; code?: string } | null>(null);
 
   // OTP State
   const [otp, setOtp] = useState('');
@@ -105,6 +107,7 @@ function RegisterContent() {
     }
 
     setIsLoading(true);
+    setRegisterError(null);
 
     try {
       const res = await fetch('/api/auth/register', {
@@ -121,6 +124,12 @@ function RegisterContent() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.code === 'ALREADY_REGISTERED' || data.error?.includes('already')) {
+          setRegisterError({
+            code: 'ALREADY_REGISTERED',
+            message: 'This email is already registered. Please log in instead.'
+          });
+        }
         throw new Error(data.error || 'Registration failed.');
       }
 
@@ -246,6 +255,29 @@ function RegisterContent() {
                   Join thousands of teachers and learners advancing their professional skills.
                 </p>
               </div>
+
+              {/* Inline Already Registered Alert */}
+              {registerError && (
+                <div className="p-4 rounded-md border border-purple-200 bg-purple-50 text-purple-950 text-sm animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="info" size={20} className="mt-0.5 shrink-0 text-[#5624d0]" />
+                    <div className="flex-1 space-y-2">
+                      <p className="font-semibold text-xs leading-relaxed">{registerError.message}</p>
+                      <div>
+                        <Link
+                          href={`/login?email=${encodeURIComponent(email.trim().toLowerCase())}${
+                            callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''
+                          }`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded shadow-xs transition-colors"
+                        >
+                          <span>Log in to Morena Teach</span>
+                          <Icon name="arrow_forward" size={14} />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Registration Form */}
               <form onSubmit={handleRegisterSubmit} className="space-y-4">

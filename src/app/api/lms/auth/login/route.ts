@@ -89,7 +89,10 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { error: 'Invalid LMS email or password. Please verify your credentials or register.' },
+        {
+          error: 'This email is not registered. Please sign up first.',
+          code: 'USER_NOT_FOUND'
+        },
         { status: 401 }
       );
     }
@@ -115,7 +118,10 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.json(
-        { error: 'Invalid email or password.' },
+        {
+          error: 'Please enter correct email or password.',
+          code: 'INVALID_CREDENTIALS'
+        },
         { status: 401 }
       );
     }

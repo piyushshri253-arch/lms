@@ -10,20 +10,25 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorState, setErrorState] = useState<{ message: string; code?: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorState(null);
 
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: email.trim().toLowerCase() })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send reset email');
+      if (!res.ok) {
+        setErrorState({ message: data.error || 'Failed to send reset email', code: data.code });
+        throw new Error(data.error || 'Failed to send reset email');
+      }
 
       setIsSubmitted(true);
       showToast({
@@ -91,6 +96,38 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {errorState && (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs leading-relaxed animate-in fade-in duration-200 ${
+                    errorState.code === 'USER_NOT_FOUND'
+                      ? 'bg-purple-500/10 border-purple-500/30 text-purple-900'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-900'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <Icon
+                      name={errorState.code === 'USER_NOT_FOUND' ? 'person_add' : 'error'}
+                      size={18}
+                      className={errorState.code === 'USER_NOT_FOUND' ? 'text-primary mt-0.5 shrink-0' : 'text-rose-600 mt-0.5 shrink-0'}
+                    />
+                    <div className="space-y-2 flex-1">
+                      <p className="font-semibold">{errorState.message}</p>
+                      {errorState.code === 'USER_NOT_FOUND' && (
+                        <div>
+                          <Link
+                            href={`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-on-primary font-bold rounded-lg text-xs hover:bg-primary-container shadow-xs transition-colors"
+                          >
+                            <span>Create Account</span>
+                            <Icon name="arrow_forward" size={14} />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
                   Account Email Address

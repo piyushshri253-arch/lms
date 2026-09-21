@@ -139,6 +139,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (data.user) {
           setCurrentUser(data.user);
           setActiveRoleState(data.user.role === 'ADMIN' ? 'admin' : 'student');
+
+          // Ensure any guest cart items get migrated to the user's cart
+          try {
+            const guestSaved = localStorage.getItem('teach_cart_items_guest');
+            const userKey = `teach_cart_items_${data.user.id}`;
+            const userSaved = localStorage.getItem(userKey);
+            let userItems: CartItem[] = userSaved ? JSON.parse(userSaved) : [];
+            if (guestSaved) {
+              const guestItems: CartItem[] = JSON.parse(guestSaved);
+              if (Array.isArray(guestItems) && guestItems.length > 0) {
+                guestItems.forEach((gItem) => {
+                  if (!userItems.some((uItem) => uItem.id === gItem.id || (gItem.slug && uItem.slug === gItem.slug))) {
+                    userItems.push(gItem);
+                  }
+                });
+                localStorage.setItem(userKey, JSON.stringify(userItems));
+                localStorage.removeItem('teach_cart_items_guest');
+              }
+            }
+            if (userItems.length > 0) {
+              setCartItems(userItems);
+            }
+          } catch {}
         } else {
           setCurrentUser(null);
           setActiveRoleState('public');
@@ -210,6 +233,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const data = await res.json();
     if (!res.ok) {
       const err: any = new Error(data.error || 'Authentication failed');
+      err.code = data.code;
       err.requiresEmailVerification = data.requiresEmailVerification;
       err.email = data.email;
       throw err;
@@ -541,6 +565,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           localStorage.setItem(`teach_cart_items_${currentUser.id}`, legacy);
         }
         localStorage.removeItem('teach_cart_items');
+      }
+
+      // Merge guest cart into user cart if authenticated
+      if (currentUser?.id) {
+        const guestCart = localStorage.getItem('teach_cart_items_guest');
+        if (guestCart) {
+          try {
+            const guestItems: CartItem[] = JSON.parse(guestCart);
+            if (Array.isArray(guestItems) && guestItems.length > 0) {
+              const userKey = `teach_cart_items_${currentUser.id}`;
+              const userCart = localStorage.getItem(userKey);
+              const userItems: CartItem[] = userCart ? JSON.parse(userCart) : [];
+              const combinedMap = new Map<string, CartItem>();
+              userItems.forEach((item) => combinedMap.set(item.id, item));
+              guestItems.forEach((item) => combinedMap.set(item.id, item));
+              const merged = Array.from(combinedMap.values());
+              localStorage.setItem(userKey, JSON.stringify(merged));
+              localStorage.removeItem('teach_cart_items_guest');
+            }
+          } catch {}
+        }
       }
 
       const activeKey = getActiveCartKey(currentUser);
