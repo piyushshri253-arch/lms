@@ -15,7 +15,7 @@ interface CourseCardProps {
 
 export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'standard' }) => {
   const router = useRouter();
-  const { addToCart, isInCart } = useApp();
+  const { addToCart, isInCart, currentUser, showToast } = useApp();
   const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
@@ -226,7 +226,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                router.push(`/courses/${course.slug || course.id}`);
+                if (!currentUser) {
+                  showToast('Please sign in or create an account to enroll for free', 'info');
+                  router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+                } else {
+                  router.push(`/courses/${course.slug || course.id}?autoEnroll=true`);
+                }
               }}
               className="w-full py-1.5 px-3 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
             >

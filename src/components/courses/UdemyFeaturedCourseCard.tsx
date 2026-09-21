@@ -13,7 +13,7 @@ interface UdemyFeaturedCourseCardProps {
 
 export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = ({ course }) => {
   const router = useRouter();
-  const { addToCart, isInCart } = useApp();
+  const { addToCart, isInCart, currentUser, showToast } = useApp();
   const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
@@ -125,29 +125,49 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
 
             {/* Quick Actions */}
             <div className="flex items-center gap-3 mt-4 pt-3 border-t border-gray-100">
+              {course.price === 0 ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!currentUser) {
+                      showToast('Please sign in or create an account to enroll for free', 'info');
+                      router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+                    } else {
+                      router.push(`/courses/${course.slug || course.id}?autoEnroll=true`);
+                    }
+                  }}
+                  className="h-10 px-5 text-xs font-bold rounded-[2px] transition-colors flex items-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  <Icon name="school" size={15} />
+                  <span>Enroll Free</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (inCart) {
+                      router.push('/student/cart');
+                    } else {
+                      addToCart(course);
+                    }
+                  }}
+                  className={`h-10 px-5 text-xs font-bold rounded-[2px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    inCart
+                      ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
+                      : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
+                  }`}
+                >
+                  <Icon name={inCart ? 'check' : 'shopping_cart'} size={15} />
+                  <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (inCart) {
-                    router.push('/student/cart');
-                  } else {
-                    addToCart(course);
-                  }
-                }}
-                className={`h-10 px-5 text-xs font-bold rounded-[2px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  inCart
-                    ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
-                    : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
-                }`}
-              >
-                <Icon name={inCart ? 'check' : 'shopping_cart'} size={15} />
-                <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push(`/courses/${course.slug}`)}
+                onClick={() => router.push(`/courses/${course.slug || course.id}`)}
                 className="h-10 px-4 border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-xs font-bold rounded-[2px] transition-colors cursor-pointer"
               >
                 View curriculum

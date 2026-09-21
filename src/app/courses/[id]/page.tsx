@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
@@ -14,6 +14,7 @@ import { useApp } from '@/context/AppContext';
 export default function CourseDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentUser, wishlistCourseIds, toggleWishlist, processCheckout, showToast, addToCart, isInCart, enrolledCourseIds } = useApp();
 
   const [courseData, setCourseData] = useState<any>(null);
@@ -88,6 +89,7 @@ export default function CourseDetailsPage() {
   }, [courseData]);
 
   const course = courseData;
+  const isEnrolled = !!course?.isEnrolled || (enrolledCourseIds && course ? enrolledCourseIds.includes(course.id) : false);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,6 +184,36 @@ export default function CourseDetailsPage() {
     }
   };
 
+  const handleFreeEnroll = async () => {
+    if (!course) return;
+    setIsCheckingOut(true);
+    try {
+      await processCheckout(course.id);
+      showToast({
+        title: '🎉 Enrolled for Free!',
+        description: `Welcome to ${course.title}! Your lifetime access is active.`,
+        type: 'success'
+      });
+      router.push(`/learn/${course.slug || course.id}`);
+    } catch (err: any) {
+      showToast({
+        title: 'Enrollment Notice',
+        description: err.message || 'Could not complete free enrollment.',
+        type: 'error'
+      });
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  // Auto-enroll if user returned from login/signup with ?autoEnroll=true
+  useEffect(() => {
+    const autoEnroll = searchParams.get('autoEnroll');
+    if (autoEnroll === 'true' && currentUser && course && course.price === 0 && !isEnrolled && !isCheckingOut) {
+      handleFreeEnroll();
+    }
+  }, [searchParams, currentUser, course, isEnrolled, isCheckingOut]);
+
   if (isLoading) {
     return (
       <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
@@ -218,7 +250,6 @@ export default function CourseDetailsPage() {
     );
   }
 
-  const isEnrolled = !!course.isEnrolled || (enrolledCourseIds && enrolledCourseIds.includes(course.id));
   const isWishlisted = wishlistCourseIds.includes(course.id) || !!course.isWishlisted;
 
   const subtotal = course.price;
@@ -530,13 +561,36 @@ export default function CourseDetailsPage() {
                   <Icon name="school" size={48} />
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                <Link
-                  href={`/learn/${course.slug || course.id}`}
+              <div
+                onClick={() => {
+                  if (isEnrolled) {
+                    router.push(`/learn/${course.slug || course.id}`);
+                  } else if (course.price === 0) {
+                    if (!currentUser) {
+                      showToast({
+                        title: 'Sign In Required',
+                        description: 'Please sign in or create an account to enroll for free.',
+                        type: 'info'
+                      });
+                      router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+                    } else {
+                      handleFreeEnroll();
+                    }
+                  } else {
+                    showToast({
+                      title: 'Enrollment Required',
+                      description: 'Please purchase or enroll in this course to access the lectures.',
+                      type: 'info'
+                    });
+                  }
+                }}
+                className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer"
+              >
+                <div
                   className="w-16 h-16 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300"
                 >
                   <Icon name="play_arrow" fill size={32} className="ml-1 text-primary" />
-                </Link>
+                </div>
               </div>
               <div className="absolute bottom-3 left-0 w-full px-3 flex justify-center">
                 <span className="bg-black/70 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-md">
@@ -581,27 +635,10 @@ export default function CourseDetailsPage() {
                           description: 'Please sign in or create an account to enroll for free.',
                           type: 'info'
                         });
-                        router.push(`/login?callbackUrl=/courses/${course.slug || course.id}`);
+                        router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
                         return;
                       }
-                      setIsCheckingOut(true);
-                      try {
-                        await processCheckout(course.id);
-                        showToast({
-                          title: '🎉 Enrolled for Free!',
-                          description: `Welcome to ${course.title}! Your lifetime access is active.`,
-                          type: 'success'
-                        });
-                        router.push(`/learn/${course.slug || course.id}`);
-                      } catch (err: any) {
-                        showToast({
-                          title: 'Enrollment Notice',
-                          description: err.message || 'Could not complete free enrollment.',
-                          type: 'error'
-                        });
-                      } finally {
-                        setIsCheckingOut(false);
-                      }
+                      await handleFreeEnroll();
                     }}
                     disabled={isCheckingOut}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-base disabled:opacity-60"

@@ -18,7 +18,7 @@ export default function LearnPlayerPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { currentUser, showToast } = useApp();
+  const { currentUser, isLoadingUser, showToast } = useApp();
 
   const courseSlug = (params?.id as string) || (params?.slug as string) || '';
   const initialLessonId = searchParams.get('lessonId') || '';
@@ -33,6 +33,18 @@ export default function LearnPlayerPage() {
   const [certificateData, setCertificateData] = useState<any>(null);
   const [playerTab, setPlayerTab] = useState<'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews'>('overview');
 
+  // Check authentication once user state is resolved
+  useEffect(() => {
+    if (!isLoadingUser && !currentUser) {
+      showToast({
+        title: 'Sign In Required',
+        description: 'Please sign in or create an account to access this course.',
+        type: 'info'
+      });
+      router.replace(`/login?callbackUrl=${encodeURIComponent(`/courses/${courseSlug}?autoEnroll=true`)}`);
+    }
+  }, [isLoadingUser, currentUser, courseSlug, router]);
+
   // Fetch live course from database
   const fetchLiveCourse = async () => {
     setIsLoading(true);
@@ -41,6 +53,30 @@ export default function LearnPlayerPage() {
       if (res.ok) {
         const data = await res.json();
         const c = data.course;
+
+        // Security / Access Protection:
+        // Must be logged in and enrolled to access course lectures!
+        if (!data.isEnrolled && currentUser?.role !== 'SUPER_ADMIN') {
+          if (!currentUser) {
+            showToast({
+              title: 'Sign In Required',
+              description: 'Please sign in or create an account to access this course.',
+              type: 'info'
+            });
+            router.replace(`/login?callbackUrl=${encodeURIComponent(`/courses/${courseSlug}?autoEnroll=true`)}`);
+          } else {
+            showToast({
+              title: 'Enrollment Required',
+              description: c.price === 0
+                ? 'Please enroll in this free course to access the lectures.'
+                : 'Please enroll in this course to access the lectures.',
+              type: 'info'
+            });
+            router.replace(`/courses/${courseSlug}`);
+          }
+          return;
+        }
+
         setCourse(c);
 
         const allLessons = c.sections?.flatMap((s: any) => s.lessons) || [];
@@ -58,18 +94,23 @@ export default function LearnPlayerPage() {
           const tot = allLessons.length || 1;
           setProgressPercent(Math.min(100, Math.round((comp / tot) * 100)));
         }
+      } else {
+        router.replace('/courses');
       }
     } catch {
+      router.replace('/courses');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (courseSlug) {
-      fetchLiveCourse();
+    if (courseSlug && !isLoadingUser) {
+      if (currentUser) {
+        fetchLiveCourse();
+      }
     }
-  }, [courseSlug]);
+  }, [courseSlug, isLoadingUser, currentUser]);
 
   const allSections = course?.sections || [];
   const allLessons = allSections.flatMap((s: any) => s.lessons) || [];

@@ -19,7 +19,7 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
   totalCards = 4
 }) => {
   const router = useRouter();
-  const { addToCart, isInCart } = useApp();
+  const { addToCart, isInCart, currentUser, showToast } = useApp();
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -74,7 +74,16 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
     if (course.price === 0) {
-      router.push(`/courses/${course.slug || course.id}`);
+      if (!currentUser) {
+        showToast({
+          title: 'Sign In Required',
+          description: 'Please sign in or create an account to enroll for free.',
+          type: 'info'
+        });
+        router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+        return;
+      }
+      router.push(`/courses/${course.slug || course.id}?autoEnroll=true`);
       return;
     }
     if (inCart) {

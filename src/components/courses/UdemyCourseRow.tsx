@@ -13,7 +13,7 @@ interface UdemyCourseRowProps {
 
 export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
   const router = useRouter();
-  const { addToCart, isInCart } = useApp();
+  const { addToCart, isInCart, currentUser, showToast } = useApp();
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
   return (
@@ -135,7 +135,14 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
         {course.price === 0 ? (
           <button
             type="button"
-            onClick={() => router.push(`/courses/${course.slug || course.id}`)}
+            onClick={() => {
+              if (!currentUser) {
+                showToast('Please sign in or create an account to enroll for free', 'info');
+                router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+              } else {
+                router.push(`/courses/${course.slug || course.id}?autoEnroll=true`);
+              }
+            }}
             className="mt-2 px-3 py-1.5 text-xs font-bold rounded transition-colors cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700"
           >
             Enroll Free
