@@ -107,8 +107,8 @@ export const UdemyPersonalPlanSection: React.FC = () => {
             <div className="lg:col-span-5 flex items-center justify-center lg:justify-end">
               <div className="relative w-full max-w-[480px] rounded-2xl overflow-hidden shadow-2xl transition-transform duration-300 hover:scale-[1.01]">
                 <img
-                  src="/images/personal-plan-composite@2x.png"
-                  alt="Personal Plan subscription with Morena Teach"
+                  src="/images/personal-plan-career.jpg"
+                  alt="Build your career with Personal Plan subscription on Morena Teach"
                   className="w-full h-auto object-cover rounded-2xl"
                   loading="lazy"
                 />
