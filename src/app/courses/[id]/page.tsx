@@ -352,6 +352,145 @@ export default function CourseDetailsPage() {
             )}
           </section>
 
+          {/* Mobile Video Preview & Quick Purchase Box (< lg) */}
+          <div className="lg:hidden bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-md overflow-hidden flex flex-col">
+            <div className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant">
+              {course.thumbnail ? (
+                <img
+                  src={course.thumbnail}
+                  alt={course.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
+                  <Icon name="school" size={48} />
+                </div>
+              )}
+              <div
+                onClick={() => {
+                  if (isEnrolled) {
+                    router.push(`/learn/${course.slug || course.id}`);
+                  } else if (course.price === 0) {
+                    if (!currentUser) {
+                      showToast({
+                        title: 'Sign In Required',
+                        description: 'Please sign in or create an account to enroll for free.',
+                        type: 'info'
+                      });
+                      router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+                    } else {
+                      handleFreeEnroll();
+                    }
+                  } else {
+                    showToast({
+                      title: 'Enrollment Required',
+                      description: 'Please purchase or enroll in this course to access the lectures.',
+                      type: 'info'
+                    });
+                  }
+                }}
+                className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer"
+              >
+                <div className="w-14 h-14 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
+                  <Icon name="play_arrow" fill size={28} className="ml-1 text-primary" />
+                </div>
+              </div>
+              <div className="absolute bottom-2.5 left-0 w-full px-3 flex justify-center">
+                <span className="bg-black/70 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                  Preview this course
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6 flex flex-col gap-4">
+              <div className="flex items-end gap-3">
+                <span className={`text-2xl sm:text-3xl font-extrabold leading-none font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+                  {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
+                </span>
+                {course.discountPrice && course.discountPrice > course.price && (
+                  <span className="text-sm text-outline line-through mb-0.5 font-mono">
+                    ₹{Number(course.discountPrice).toLocaleString('en-IN')}
+                  </span>
+                )}
+                {course.price === 0 && (
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-0.5">
+                    100% Free
+                  </span>
+                )}
+              </div>
+
+              {isEnrolled ? (
+                <Link
+                  href={`/learn/${course.slug || course.id}`}
+                  className="w-full bg-[#a435f0] text-white font-bold text-center py-3 rounded hover:bg-[#8710d8] transition-all shadow-sm flex items-center justify-center gap-2 text-sm"
+                >
+                  <Icon name="play_circle" fill size={18} />
+                  <span>Go to course</span>
+                </Link>
+              ) : course.price === 0 ? (
+                <button
+                  onClick={async () => {
+                    if (!currentUser) {
+                      showToast({
+                        title: 'Sign In Required',
+                        description: 'Please sign in or create an account to enroll for free.',
+                        type: 'info'
+                      });
+                      router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+                      return;
+                    }
+                    await handleFreeEnroll();
+                  }}
+                  disabled={isCheckingOut}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer text-sm disabled:opacity-60"
+                >
+                  {isCheckingOut ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Enrolling for Free...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="school" size={18} />
+                      <span>Enroll Now (100% Free)</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {isInCart(course.id) ? (
+                    <Link
+                      href="/student/cart"
+                      className="w-full bg-[#a435f0] text-white font-bold py-3 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 text-center text-sm"
+                    >
+                      <Icon name="shopping_cart" size={16} />
+                      <span>Go to cart</span>
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => addToCart(course)}
+                      className="w-full bg-[#a435f0] text-white font-bold py-3 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                    >
+                      <Icon name="shopping_cart" size={16} />
+                      <span>Add to cart</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (!isInCart(course.id)) {
+                        addToCart(course);
+                      }
+                      setIsCheckoutOpen(true);
+                    }}
+                    className="w-full bg-surface-container-high hover:bg-surface-variant text-on-surface font-bold py-2.5 rounded transition-all border border-outline-variant flex items-center justify-center gap-2 cursor-pointer text-xs"
+                  >
+                    <span>Buy now</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* What You'll Learn Card */}
           {course.whatYouWillLearn && (
             <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm">
@@ -546,7 +685,7 @@ export default function CourseDetailsPage() {
         </div>
 
         {/* Right Column: Floating Purchase Card */}
-        <div className="lg:col-span-4 relative">
+        <div className="hidden lg:block lg:col-span-4 relative">
           <div className="sticky top-[96px] bg-surface-container-lowest border border-outline-variant rounded-3xl shadow-xl overflow-hidden flex flex-col transition-all duration-300 hover:border-primary/40">
             {/* Video Preview Hero */}
             <div className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant">
@@ -815,6 +954,65 @@ export default function CourseDetailsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Mobile Sticky Bottom Enrollment Bar (< lg) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#d1d7dc] px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.1)] flex items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <span className={`text-xl font-extrabold leading-tight font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+            {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
+          </span>
+          {course.discountPrice && course.discountPrice > course.price && (
+            <span className="text-xs text-outline line-through font-mono">
+              ₹{Number(course.discountPrice).toLocaleString('en-IN')}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 max-w-[220px]">
+          {isEnrolled ? (
+            <Link
+              href={`/learn/${course.slug || course.id}`}
+              className="w-full bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs py-2.5 px-3 rounded flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Icon name="play_circle" fill size={16} />
+              <span>Go to course</span>
+            </Link>
+          ) : course.price === 0 ? (
+            <button
+              onClick={async () => {
+                if (!currentUser) {
+                  showToast({
+                    title: 'Sign In Required',
+                    description: 'Please sign in or create an account to enroll for free.',
+                    type: 'info'
+                  });
+                  router.push(`/login?callbackUrl=${encodeURIComponent(`/courses/${course.slug || course.id}?autoEnroll=true`)}`);
+                  return;
+                }
+                await handleFreeEnroll();
+              }}
+              disabled={isCheckingOut}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 px-3 rounded flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-60"
+            >
+              <Icon name="school" size={16} />
+              <span>Enroll Free</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (isInCart(course.id)) {
+                  router.push('/student/cart');
+                } else {
+                  addToCart(course);
+                }
+              }}
+              className="w-full bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs py-2.5 px-3 rounded flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Icon name={isInCart(course.id) ? 'check' : 'shopping_cart'} size={16} />
+              <span>{isInCart(course.id) ? 'In Cart ✓' : 'Add to cart'}</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       <UdemyFooter />
     </div>

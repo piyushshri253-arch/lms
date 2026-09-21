@@ -32,6 +32,7 @@ export default function LearnPlayerPage() {
   const [isCertificateOpen, setIsCertificateOpen] = useState(false);
   const [certificateData, setCertificateData] = useState<any>(null);
   const [playerTab, setPlayerTab] = useState<'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews'>('overview');
+  const [isMobileCurriculumOpen, setIsMobileCurriculumOpen] = useState(false);
 
   // Check authentication once user state is resolved
   useEffect(() => {
@@ -204,7 +205,17 @@ export default function LearnPlayerPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Mobile Curriculum Trigger Button */}
+          <button
+            onClick={() => setIsMobileCurriculumOpen(true)}
+            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+            title="View Course Curriculum"
+          >
+            <Icon name="format_list_bulleted" size={16} />
+            <span className="hidden sm:inline">Lectures</span>
+          </button>
+
           <AiLessonTutorDrawer
             lessonId={activeLesson?.id}
             lessonTitle={activeLesson?.title}
@@ -365,6 +376,124 @@ export default function LearnPlayerPage() {
             })}
           </div>
         </aside>
+
+        {/* Mobile Curriculum Slide-Over Drawer (< md) */}
+        {isMobileCurriculumOpen && (
+          <div className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+            <div className="w-5/6 max-w-sm bg-surface-container-lowest h-full overflow-y-auto flex flex-col shadow-2xl border-l border-outline-variant">
+              {/* Drawer Header */}
+              <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-low/50">
+                <div>
+                  <h3 className="text-sm font-bold text-on-surface">Course Content</h3>
+                  <p className="text-xs text-on-surface-variant mt-0.5">
+                    {completedLessonIds.length} of {allLessons.length} completed ({progressPercent}%)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsMobileCurriculumOpen(false)}
+                  className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+                  aria-label="Close curriculum"
+                >
+                  <Icon name="close" size={20} />
+                </button>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="h-1.5 w-full bg-surface-container">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              {/* Module & Lessons List */}
+              <div className="flex-1 overflow-y-auto divide-y divide-outline-variant/40">
+                {allSections.map((sec: any, sIdx: number) => {
+                  const isExpanded = expandedModuleIds.includes(sec.id);
+
+                  return (
+                    <div key={sec.id} className="border-b border-outline-variant/40">
+                      <button
+                        onClick={() => toggleModule(sec.id)}
+                        className="w-full px-4 py-3 flex justify-between items-center bg-surface-container-low/40 text-left hover:bg-surface-variant transition-colors cursor-pointer"
+                      >
+                        <div>
+                          <span className="text-[10px] font-bold text-secondary block uppercase tracking-wider mb-0.5">
+                            Section {sIdx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-on-surface">{sec.title}</span>
+                        </div>
+                        <Icon
+                          name={isExpanded ? 'expand_less' : 'expand_more'}
+                          size={18}
+                          className="text-secondary"
+                        />
+                      </button>
+
+                      {isExpanded && (
+                        <div className="flex flex-col py-1 bg-surface-container-lowest divide-y divide-outline-variant/20">
+                          {sec.lessons?.map((lesson: any) => {
+                            const isCompleted = completedLessonIds.includes(lesson.id);
+                            const isActive = activeLessonId === lesson.id;
+
+                            return (
+                              <button
+                                key={lesson.id}
+                                onClick={() => {
+                                  setActiveLessonId(lesson.id);
+                                  setIsMobileCurriculumOpen(false);
+                                }}
+                                className={`w-full px-4 py-3 flex items-start gap-3 text-left transition-colors cursor-pointer group ${
+                                  isActive
+                                    ? 'bg-primary/10 border-l-4 border-primary'
+                                    : 'hover:bg-surface-container-low'
+                                }`}
+                              >
+                                <Icon
+                                  name={
+                                    isCompleted
+                                      ? 'check_circle'
+                                      : isActive
+                                      ? 'play_circle'
+                                      : 'radio_button_unchecked'
+                                  }
+                                  fill={isCompleted || isActive}
+                                  size={18}
+                                  className={`mt-0.5 shrink-0 ${
+                                    isCompleted
+                                      ? 'text-emerald-600'
+                                      : isActive
+                                      ? 'text-primary'
+                                      : 'text-outline'
+                                  }`}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <span
+                                    className={`text-xs block truncate ${
+                                      isActive
+                                        ? 'font-bold text-primary'
+                                        : 'text-on-surface group-hover:text-primary'
+                                    }`}
+                                  >
+                                    {lesson.title}
+                                  </span>
+                                  <span className="text-[11px] text-secondary mt-0.5 flex items-center gap-1">
+                                    <Icon name="play_circle" size={13} />
+                                    <span>{lesson.duration || '10:00'}</span>
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Video & Lesson Content */}
         <main className="flex-1 flex flex-col h-full overflow-y-auto bg-background p-4 sm:p-6 lg:p-8">

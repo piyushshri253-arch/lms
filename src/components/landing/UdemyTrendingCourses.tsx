@@ -33,7 +33,7 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
     <section className="py-8 md:py-12 bg-white border-b border-[#d1d7dc]/60">
       <div className="max-w-[1340px] mx-auto px-4 sm:px-6">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <h2 className="text-2xl sm:text-[28px] font-bold text-[#2d2f31] tracking-tight leading-tight">
               Trending Courses
@@ -45,7 +45,7 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
           <div className="flex items-center gap-3">
             <Link
               href="/courses?price=free"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition-colors"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span>Free Courses</span>

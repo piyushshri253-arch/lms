@@ -106,32 +106,32 @@ export const UdemyNavbar: React.FC = () => {
       )}
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-[1340px] mx-auto px-4 sm:px-6 h-[84px] sm:h-[92px] flex items-center justify-between gap-3 lg:gap-4">
+      <div className="max-w-[1340px] mx-auto px-3 sm:px-6 h-[72px] sm:h-[84px] lg:h-[92px] flex items-center justify-between gap-2 sm:gap-3 lg:gap-4">
         {/* Mobile Hamburger Toggle */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="lg:hidden p-2 text-[#2d2f31] hover:bg-[#f7f9fa] rounded transition-colors"
+          className="lg:hidden p-1.5 sm:p-2 text-[#2d2f31] hover:bg-[#f7f9fa] rounded transition-colors"
           aria-label="Toggle navigation menu"
         >
           <Icon name={isMobileMenuOpen ? 'close' : 'menu'} size={24} />
         </button>
 
         {/* Brand Logo & Wordmark */}
-        <Link href="/" className="flex items-center gap-3.5 shrink-0 group">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3.5 shrink-0 group">
           <img
             src="/logo.png"
             alt="Morena Teach"
-            className="h-14 sm:h-[66px] w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+            className="h-10 sm:h-14 lg:h-[66px] w-auto object-contain transition-transform duration-200 group-hover:scale-105"
           />
           <div className="flex flex-col justify-center select-none">
             <span
-              className="text-[23px] sm:text-[26px] font-black tracking-[-0.01em] leading-none text-[#183257]"
+              className="text-[17px] sm:text-[22px] lg:text-[26px] font-black tracking-[-0.01em] leading-none text-[#183257]"
               style={{ color: '#183257' }}
             >
               Morena Teach
             </span>
             <span
-              className="text-[16px] font-bold tracking-[0.01em] leading-tight mt-1"
+              className="text-[11px] sm:text-[13px] lg:text-[16px] font-bold tracking-[0.01em] leading-tight mt-0.5 sm:mt-1"
               style={{ color: '#9190b3' }}
             >
               Teacher Excellence Hub
@@ -245,6 +245,17 @@ export const UdemyNavbar: React.FC = () => {
             </Link>
           )}
 
+          {/* Mobile Search Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="md:hidden p-2 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors"
+            title="Search"
+            aria-label="Search"
+          >
+            <Icon name="search" size={20} />
+          </button>
+
           {/* Cart Icon & Interactive Mini-Cart Popover */}
           <div
             className="relative"
@@ -253,7 +264,7 @@ export const UdemyNavbar: React.FC = () => {
           >
             <Link
               href="/student/cart"
-              className="relative p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors block"
+              className="relative p-2 sm:p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors block"
               title="Shopping Cart"
             >
               <Icon name="shopping_cart" size={20} />
@@ -337,7 +348,7 @@ export const UdemyNavbar: React.FC = () => {
 
           {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
           {(!currentUser || currentUser.role !== 'STUDENT') ? (
-            <div className="flex items-center gap-2 ml-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-1">
               {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
                 <Link
                   href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
@@ -350,13 +361,13 @@ export const UdemyNavbar: React.FC = () => {
               )}
               <Link
                 href="/login"
-                className="h-10 px-4 text-sm font-bold text-[#2d2f31] border border-[#2d2f31] bg-white hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center"
+                className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-[#2d2f31] border border-[#2d2f31] bg-white hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
               >
                 Log in
               </Link>
               <Link
                 href="/register"
-                className="h-10 px-4 text-sm font-bold text-white bg-[#2d2f31] border border-[#2d2f31] hover:bg-[#1c1d1f] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center"
+                className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-white bg-[#2d2f31] border border-[#2d2f31] hover:bg-[#1c1d1f] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
               >
                 Sign up
               </Link>

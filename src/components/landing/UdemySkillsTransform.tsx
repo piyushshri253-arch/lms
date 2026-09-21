@@ -205,7 +205,7 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
     <section id="skills-transform" className="py-8 md:py-12 bg-white">
       <div className="max-w-[1340px] mx-auto px-4 sm:px-6">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-2xl sm:text-[28px] font-bold text-[#2d2f31] tracking-tight leading-tight">
               Skills to transform your career and life
@@ -216,7 +216,7 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
           </div>
           <Link
             href="/courses"
-            className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1 shrink-0 ml-4"
+            className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1 shrink-0"
           >
             <span>Explore all courses</span>
             <Icon name="arrow_forward" size={16} />
