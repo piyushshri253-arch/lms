@@ -281,7 +281,7 @@ function RegisterContent() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Min. 8 characters, 1 number & 1 symbol (e.g. Pass@123)"
+                      placeholder="Min. 8 characters, 1 Caps, 1 number & 1 symbol (e.g. Pass@123)"
                       className="w-full h-11 pl-3 pr-10 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
                     />
                     <button
