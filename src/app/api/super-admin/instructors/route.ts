@@ -8,7 +8,9 @@ export async function GET() {
     await requireSuperAdmin();
 
     const instructors = await prisma.user.findMany({
-      where: { role: 'INSTRUCTOR' },
+      where: {
+        role: { in: ['INSTRUCTOR', 'SUPER_ADMIN', 'ADMIN'] }
+      },
       select: {
         id: true,
         name: true,

@@ -19,7 +19,7 @@ export default function SuperAdminCoursesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createDesc, setCreateDesc] = useState('');
-  const [createPrice, setCreatePrice] = useState('149.99');
+  const [createPrice, setCreatePrice] = useState('2499');
   const [createCategoryId, setCreateCategoryId] = useState('');
   const [createInstructorId, setCreateInstructorId] = useState('');
   const [createLevel, setCreateLevel] = useState('ALL_LEVELS');
@@ -77,16 +77,24 @@ export default function SuperAdminCoursesPage() {
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!createTitle.trim()) {
+      showToast({ title: 'Error', description: 'Course title is required', type: 'error' });
+      return;
+    }
+
     try {
+      const targetCatId = createCategoryId || categories[0]?.id;
+      const targetInstId = createInstructorId || instructors[0]?.id;
+
       const res = await fetch('/api/super-admin/courses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: createTitle,
-          description: createDesc,
-          price: createPrice,
-          categoryId: createCategoryId,
-          instructorId: createInstructorId,
+          title: createTitle.trim(),
+          description: createDesc.trim() || createTitle.trim(),
+          price: createPrice !== '' ? Number(createPrice) : 0,
+          categoryId: targetCatId,
+          instructorId: targetInstId,
           level: createLevel,
           status: createStatus
         })
@@ -98,6 +106,7 @@ export default function SuperAdminCoursesPage() {
       setIsCreateOpen(false);
       setCreateTitle('');
       setCreateDesc('');
+      setCreatePrice('2499');
       await fetchCoursesAndMetadata();
     } catch (err: any) {
       showToast({ title: 'Error', description: err.message, type: 'error' });
@@ -317,7 +326,7 @@ export default function SuperAdminCoursesPage() {
                 <div className="p-3 bg-surface-container-low rounded-2xl grid grid-cols-2 gap-2 text-xs font-mono">
                   <div>
                     <span className="text-[10px] text-outline uppercase block">Tuition</span>
-                    <span className="font-extrabold text-primary text-sm">${c.price}</span>
+                    <span className="font-extrabold text-primary text-sm">₹{c.price}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-outline uppercase block">Curriculum</span>
@@ -331,7 +340,7 @@ export default function SuperAdminCoursesPage() {
                   </div>
                   <div>
                     <span className="text-[10px] text-outline uppercase block">Gross Inflow</span>
-                    <span className="font-bold text-emerald-800">${c.revenue}</span>
+                    <span className="font-bold text-emerald-800">₹{c.revenue}</span>
                   </div>
                 </div>
               </div>
@@ -416,7 +425,7 @@ export default function SuperAdminCoursesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-                Price ($ USD)
+                Price (₹ INR)
               </label>
               <input
                 type="number"

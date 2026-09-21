@@ -123,15 +123,15 @@ export const UdemyNavbar: React.FC = () => {
             alt="Morena Teach"
             className="h-14 sm:h-[66px] w-auto object-contain transition-transform duration-200 group-hover:scale-105"
           />
-          <div className="flex flex-col justify-center">
+          <div className="flex flex-col justify-center select-none">
             <span
-              className="text-[22px] sm:text-[25px] font-extrabold tracking-tight leading-none text-[#183257]"
+              className="text-[23px] sm:text-[26px] font-black tracking-[-0.01em] leading-none text-[#183257]"
               style={{ color: '#183257' }}
             >
               Morena Teach
             </span>
             <span
-              className="text-[14px] sm:text-[16px] font-bold tracking-wide leading-tight mt-1"
+              className="text-[11.5px] sm:text-[13px] font-bold tracking-[0.01em] leading-tight mt-1"
               style={{ color: '#9190b3' }}
             >
               Teacher Excellence Hub

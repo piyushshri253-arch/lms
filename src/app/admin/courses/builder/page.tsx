@@ -53,39 +53,39 @@ function CourseBuilderContent() {
     slug: '',
     shortDescription: '',
     description: '',
-    category: 'Engineering',
+    category: 'Teacher Development',
     level: 'ALL_LEVELS',
     language: 'English',
     durationHours: 12,
     thumbnail: '',
     banner: '',
-    price: 1499,
-    discountPrice: 999,
+    price: 2499,
+    discountPrice: 1999,
     currency: 'INR',
     status: 'DRAFT',
     accessType: 'LIFETIME',
     accessDays: null,
     whatYouWillLearn: [
-      'Master foundational architectural principles and domain-driven design',
-      'Build and deploy resilient microservices under heavy concurrency',
-      'Implement production-grade observability, telemetry and distributed locks'
+      'Master dynamic classroom engagement techniques and pedagogical best practices',
+      'Foster inclusive learning environments for early years and primary students',
+      'Implement formative assessment strategies to measure holistic student growth'
     ],
-    requirements: ['Basic programming background in Go, TypeScript, or Python', 'Basic familiarity with containerized microservices'],
-    targetAudience: ['Senior Software Engineers', 'Cloud Solutions Architects', 'Backend Technical Leads'],
+    requirements: ['Passion for transformative education and classroom leadership', 'Basic familiarity with primary school curriculum principles'],
+    targetAudience: ['Early Childhood Educators', 'Primary & Secondary Teachers', 'School Principals & Academic Coordinators'],
     seoTitle: '',
     seoDescription: '',
     sections: [
       {
         id: `sec-${Date.now()}-1`,
-        title: 'Module 1: Architecture Foundations & Environment Setup',
+        title: 'Module 1: Foundations & Pedagogy Setup',
         order: 1,
         lessons: [
           {
             id: `les-${Date.now()}-1`,
-            title: '1.1 Welcome & System Architecture Overview',
+            title: '1.1 Welcome & Course Orientation',
             type: 'VIDEO',
-            duration: '08:45',
-            durationSeconds: 525,
+            duration: '10:00',
+            durationSeconds: 600,
             isFree: true,
             isPublished: true,
             order: 1
@@ -102,10 +102,16 @@ function CourseBuilderContent() {
     }
   }, [currentUser, router]);
 
-  // Load existing course if editing
+  // Load existing course if editing, or ensure clean state
   useEffect(() => {
     if (editSlugOrId) {
       loadCourse(editSlugOrId);
+    } else {
+      setCourseState((prev) => ({
+        ...prev,
+        id: undefined,
+        slug: ''
+      }));
     }
   }, [editSlugOrId]);
 
@@ -283,6 +289,11 @@ function CourseBuilderContent() {
           : 'Your masterclass is now live on the landing page and available for student enrollment.',
         type: 'success'
       });
+
+      // Redirect to courses catalog so user can see their newly published course
+      setTimeout(() => {
+        router.push(isInstructor ? '/instructor' : '/admin/courses');
+      }, 1200);
     } catch (err: any) {
       showToast({ title: 'Publishing Error', description: err.message, type: 'error' });
     } finally {

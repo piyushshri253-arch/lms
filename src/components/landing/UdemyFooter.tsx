@@ -129,12 +129,12 @@ export const UdemyFooter: React.FC = () => {
               alt="Morena Teach Logo"
               className="h-14 w-auto object-contain bg-white rounded p-1"
             />
-            <div className="flex flex-col">
-              <span className="font-extrabold text-lg text-white tracking-tight leading-none">
+            <div className="flex flex-col select-none">
+              <span className="font-black text-xl text-white tracking-tight leading-none">
                 Morena Teach
               </span>
               <span
-                className="text-[14px] font-bold mt-1"
+                className="text-[11.5px] font-bold mt-1 tracking-[0.01em]"
                 style={{ color: '#9190b3' }}
               >
                 Teacher Excellence Hub

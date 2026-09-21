@@ -67,10 +67,10 @@ export async function GET(request: Request) {
         language: c.language,
         bestseller: c.bestseller,
         isNew: c.isNew,
-        category: c.category.name,
-        categorySlug: c.category.slug,
+        category: c.category?.name || 'General',
+        categorySlug: c.category?.slug || 'general',
         categoryId: c.categoryId,
-        instructor: c.instructor,
+        instructor: c.instructor || null,
         instructorId: c.instructorId,
         sectionsCount: c.sections.length,
         lessonsCount: allLessons.length,
@@ -110,33 +110,84 @@ export async function POST(request: Request) {
       whatYouWillLearn
     } = body;
 
-    if (!title || !price || !categoryId || !instructorId) {
+    if (!title || !title.trim()) {
       return NextResponse.json(
-        { error: 'Title, price, categoryId, and instructorId are required' },
+        { error: 'Course title is required' },
         { status: 400 }
       );
     }
 
-    const slug = title
+    const numericPrice = price !== undefined && price !== null && price !== '' ? Number(price) : 0;
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return NextResponse.json(
+        { error: 'Valid price (0 or higher) is required' },
+        { status: 400 }
+      );
+    }
+
+    // Resolve organization: prioritize admin's organization or first existing organization
+    let orgId = admin.organizationId;
+    if (!orgId) {
+      const defaultOrg = await prisma.organization.findFirst({ select: { id: true } });
+      orgId = defaultOrg?.id || null;
+    }
+
+    // Resolve instructor: use provided instructorId or fallback to current admin
+    let targetInstructorId = instructorId;
+    if (!targetInstructorId) {
+      targetInstructorId = admin.id;
+    } else {
+      const exists = await prisma.user.findUnique({ where: { id: targetInstructorId }, select: { id: true } });
+      if (!exists) targetInstructorId = admin.id;
+    }
+
+    // Resolve category: use provided categoryId or find/create default
+    let targetCategoryId = categoryId;
+    if (!targetCategoryId) {
+      let firstCat = await prisma.category.findFirst({
+        where: orgId ? { organizationId: orgId } : undefined,
+        select: { id: true }
+      });
+      if (!firstCat) {
+        firstCat = await prisma.category.findFirst({ select: { id: true } });
+      }
+      if (!firstCat) {
+        firstCat = await prisma.category.create({
+          data: {
+            name: 'Early Childhood Education',
+            slug: `early-childhood-${Date.now().toString(36)}`,
+            organizationId: orgId
+          },
+          select: { id: true }
+        });
+      }
+      targetCategoryId = firstCat.id;
+    }
+
+    // Generate collision-proof unique slug
+    const cleanTitle = title.trim();
+    const baseSlug = cleanTitle
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)+/g, '') + `-${Date.now().toString().slice(-4)}`;
+      .replace(/(^-|-$)+/g, '') || 'course';
+    const slug = `${baseSlug}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
 
     const newCourse = await prisma.course.create({
       data: {
-        title: title.trim(),
+        organizationId: orgId,
+        title: cleanTitle,
         slug,
-        description: description?.trim() || title,
+        description: description?.trim() || cleanTitle,
         shortDescription: shortDescription?.trim() || '',
         thumbnail:
           thumbnail ||
           'https://lh3.googleusercontent.com/aida-public/AB6AXuBfSK-qNFG7rZx20vQ1L8m13W422kT-esoQzVPjbuKICGsyBtAypO0ON2yIUDtGNQZl-1BmPNBLCRzfehpqn2Qh4FcikJioN_BmHUDgUsIcDSa7ggt-zoSXzEgNGPgidwydnTDCGkzfHaZF9vDV95VQrNJ9O2YZBvlqbWR94Z6hAsuH-pFJ6rNijbiIiF2a6TxDw9okxS29w27lGJwoWoUmXQseao9d4Du8Nf--4mdIfIXnErsrKliDuA',
-        price: Number(price),
+        price: numericPrice,
         discountPrice: discountPrice ? Number(discountPrice) : null,
-        categoryId,
-        instructorId,
+        categoryId: targetCategoryId,
+        instructorId: targetInstructorId,
         level: level || 'ALL_LEVELS',
-        status: status || 'DRAFT',
+        status: status || 'PUBLISHED',
         durationHours: Number(durationHours) || 10.0,
         language: language || 'English',
         whatYouWillLearn: JSON.stringify(whatYouWillLearn || [])
@@ -147,7 +198,7 @@ export async function POST(request: Request) {
     const sec = await prisma.courseSection.create({
       data: {
         courseId: newCourse.id,
-        title: 'Module 1: Orientation & Architecture Setup',
+        title: 'Module 1: Orientation & Foundations',
         order: 1
       }
     });
@@ -155,7 +206,7 @@ export async function POST(request: Request) {
     await prisma.lesson.create({
       data: {
         sectionId: sec.id,
-        title: '1.1 Curriculum Overview & Tooling',
+        title: '1.1 Curriculum Overview & Welcome',
         duration: '10:00',
         durationSeconds: 600,
         order: 1,
@@ -166,12 +217,13 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: {
+        organizationId: orgId,
         adminId: admin.id,
         adminEmail: admin.email,
         action: 'CREATE_COURSE',
         entity: 'Course',
         entityId: newCourse.id,
-        description: `Super Admin created master curriculum "${newCourse.title}" ($${newCourse.price}).`
+        description: `Super Admin created master curriculum "${newCourse.title}" (₹${newCourse.price}).`
       }
     });
 
@@ -180,7 +232,8 @@ export async function POST(request: Request) {
       course: newCourse
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error('Super Admin course create error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to create course' }, { status: 500 });
   }
 }
 
