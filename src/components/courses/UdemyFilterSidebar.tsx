@@ -18,6 +18,7 @@ interface UdemyFilterSidebarProps {
   onReset: () => void;
   categoryCounts: Record<string, number>;
   availableCategories: { id: string; name: string; slug: string }[];
+  priceCounts?: { paid: number; free: number };
 }
 
 export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
@@ -25,7 +26,8 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
   onChange,
   onReset,
   categoryCounts,
-  availableCategories
+  availableCategories,
+  priceCounts
 }) => {
   // Collapsible section states
   const [openSections, setOpenSections] = useState({
@@ -288,22 +290,29 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
         {openSections.price && (
           <div className="mt-3 space-y-2.5">
             {[
-              { val: 'paid', label: 'Paid' },
-              { val: 'free', label: 'Free' }
+              { val: 'paid', label: 'Paid', count: priceCounts?.paid },
+              { val: 'free', label: 'Free', count: priceCounts?.free }
             ].map((p) => {
               const isChecked = filters.price === p.val;
               return (
                 <label
                   key={p.val}
-                  className="flex items-center gap-2.5 cursor-pointer group select-none text-sm text-[#2d2f31]"
+                  className="flex items-center justify-between cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => handlePriceSelect(p.val)}
-                    className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
-                  />
-                  <span className="font-normal">{p.label}</span>
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handlePriceSelect(p.val)}
+                      className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
+                    />
+                    <span className="font-normal">{p.label}</span>
+                  </div>
+                  {p.count !== undefined && (
+                    <span className={`text-xs ${p.val === 'free' ? 'font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded' : 'text-[#6a6f73]'}`}>
+                      ({p.count})
+                    </span>
+                  )}
                 </label>
               );
             })}

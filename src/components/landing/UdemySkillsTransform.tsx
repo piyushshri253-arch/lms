@@ -101,7 +101,19 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
       }
     ];
 
-    // 1. Gather all categories directly from published courses (guaranteed to contain courses)
+    // 1. Insert Free Courses tab right after All Courses if free courses exist
+    const freeCount = allCourses.filter((c) => c.price === 0).length;
+    if (freeCount > 0) {
+      list.push({
+        id: 'free',
+        name: 'Free Courses',
+        slug: 'free',
+        description: 'Complimentary foundation courses and educator workshops available at zero cost.',
+        count: freeCount
+      });
+    }
+
+    // 2. Gather all categories directly from published courses (guaranteed to contain courses)
     allCourses.forEach((course) => {
       const cCatName =
         typeof course.category === 'string'
@@ -160,18 +172,6 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
       });
     }
 
-    // 3. Add Free Courses tab if there are courses with price 0
-    const freeCount = allCourses.filter((c) => c.price === 0).length;
-    if (freeCount > 0) {
-      list.push({
-        id: 'free',
-        name: 'Free Courses',
-        slug: 'free',
-        description: 'Complimentary foundation courses and educator workshops available at zero cost.',
-        count: freeCount
-      });
-    }
-
     return list;
   }, [allCourses, initialCategories]);
 
@@ -227,21 +227,33 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-2 mb-6">
           {categoriesList.map((cat) => {
             const isSelected = activeTab === cat.id;
+            const isFreeTab = cat.id === 'free';
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveTab(cat.id)}
                 className={`cursor-pointer px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-[#2d2f31] text-white shadow-xs'
+                    ? isFreeTab
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-[#2d2f31] text-white shadow-xs'
+                    : isFreeTab
+                    ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
                     : 'bg-white text-[#2d2f31] hover:bg-[#f7f9fa] border border-[#d1d7dc] hover:border-[#2d2f31]'
                 }`}
               >
+                {isFreeTab && (
+                  <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} />
+                )}
                 <span>{cat.name}</span>
                 {cat.count > 0 && (
                   <span
                     className={`text-[11px] px-1.5 py-0.2 rounded-full ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#6a6f73]'
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : isFreeTab
+                        ? 'bg-emerald-200 text-emerald-900 font-bold'
+                        : 'bg-gray-100 text-[#6a6f73]'
                     }`}
                   >
                     {cat.count}

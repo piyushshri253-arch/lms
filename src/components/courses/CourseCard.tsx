@@ -88,7 +88,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
                 {course.instructor.name}
               </span>
             </div>
-            <span className="text-lg font-bold text-on-surface">₹{course.price.toLocaleString('en-IN')}</span>
+            <span className={`text-lg font-bold ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+              {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
+            </span>
           </div>
         </div>
       </Link>
@@ -202,7 +204,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
 
         <div className="mt-auto pt-3 border-t border-outline-variant/60 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="text-base font-bold text-on-surface">
+            <span className={`text-base font-extrabold ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
               {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
             </span>
             {discountPrice && (
@@ -218,26 +220,41 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
         </div>
 
         <div className="mt-3">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (inCart) {
-                router.push('/student/cart');
-              } else {
-                addToCart(course);
-              }
-            }}
-            className={`w-full py-1.5 px-3 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-              inCart
-                ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
-                : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
-            }`}
-          >
-            <Icon name={inCart ? 'check' : 'shopping_cart'} size={14} />
-            <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
-          </button>
+          {course.price === 0 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push(`/courses/${course.slug || course.id}`);
+              }}
+              className="w-full py-1.5 px-3 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+            >
+              <Icon name="school" size={14} />
+              <span>Enroll Free</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (inCart) {
+                  router.push('/student/cart');
+                } else {
+                  addToCart(course);
+                }
+              }}
+              className={`w-full py-1.5 px-3 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                inCart
+                  ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
+                  : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
+              }`}
+            >
+              <Icon name={inCart ? 'check' : 'shopping_cart'} size={14} />
+              <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
+            </button>
+          )}
         </div>
       </div>
     </Link>

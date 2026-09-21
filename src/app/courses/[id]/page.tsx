@@ -14,7 +14,7 @@ import { useApp } from '@/context/AppContext';
 export default function CourseDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { currentUser, wishlistCourseIds, toggleWishlist, processCheckout, showToast, addToCart, isInCart } = useApp();
+  const { currentUser, wishlistCourseIds, toggleWishlist, processCheckout, showToast, addToCart, isInCart, enrolledCourseIds } = useApp();
 
   const [courseData, setCourseData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,7 +208,7 @@ export default function CourseDetailsPage() {
     );
   }
 
-  const isEnrolled = !!course.isEnrolled;
+  const isEnrolled = !!course.isEnrolled || (enrolledCourseIds && enrolledCourseIds.includes(course.id));
   const isWishlisted = wishlistCourseIds.includes(course.id) || !!course.isWishlisted;
 
   const subtotal = course.price;
@@ -463,12 +463,17 @@ export default function CourseDetailsPage() {
             {/* Pricing & Checkout CTAs */}
             <div className="p-6 sm:p-8 flex flex-col gap-5">
               <div className="flex items-end gap-3">
-                <span className="text-3xl sm:text-4xl font-extrabold text-on-surface leading-none font-mono">
+                <span className={`text-3xl sm:text-4xl font-extrabold leading-none font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
                   {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
                 </span>
                 {course.discountPrice && course.discountPrice > course.price && (
                   <span className="text-base text-outline line-through mb-1 font-mono">
                     ₹{Number(course.discountPrice).toLocaleString('en-IN')}
+                  </span>
+                )}
+                {course.price === 0 && (
+                  <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-1">
+                    100% Free
                   </span>
                 )}
               </div>
@@ -481,6 +486,57 @@ export default function CourseDetailsPage() {
                   <Icon name="play_circle" fill size={20} />
                   <span>Go to course</span>
                 </Link>
+              ) : course.price === 0 ? (
+                <div className="space-y-2.5">
+                  <button
+                    onClick={async () => {
+                      if (!currentUser) {
+                        showToast({
+                          title: 'Sign In Required',
+                          description: 'Please sign in or create an account to enroll for free.',
+                          type: 'info'
+                        });
+                        router.push(`/login?callbackUrl=/courses/${course.slug || course.id}`);
+                        return;
+                      }
+                      setIsCheckingOut(true);
+                      try {
+                        await processCheckout(course.id);
+                        showToast({
+                          title: '🎉 Enrolled for Free!',
+                          description: `Welcome to ${course.title}! Your lifetime access is active.`,
+                          type: 'success'
+                        });
+                        router.push(`/learn/${course.slug || course.id}`);
+                      } catch (err: any) {
+                        showToast({
+                          title: 'Enrollment Notice',
+                          description: err.message || 'Could not complete free enrollment.',
+                          type: 'error'
+                        });
+                      } finally {
+                        setIsCheckingOut(false);
+                      }
+                    }}
+                    disabled={isCheckingOut}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-base disabled:opacity-60"
+                  >
+                    {isCheckingOut ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Enrolling for Free...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="school" size={20} />
+                        <span>Enroll Now (100% Free)</span>
+                      </>
+                    )}
+                  </button>
+                  <p className="text-center text-xs text-emerald-700 font-semibold">
+                    Instant lifetime access · No credit card required
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2.5">
                   {isInCart(course.id) ? (
@@ -509,7 +565,7 @@ export default function CourseDetailsPage() {
                     }}
                     className="w-full bg-white text-[#2d2f31] border border-[#2d2f31] font-bold py-3.5 rounded hover:bg-[#f7f9fa] transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>{course.price === 0 ? 'Enroll now (Free)' : 'Buy now'}</span>
+                    <span>Buy now</span>
                   </button>
                 </div>
               )}

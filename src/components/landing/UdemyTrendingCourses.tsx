@@ -42,13 +42,22 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
               Top-rated programs published by certified faculty & master educators.
             </p>
           </div>
-          <Link
-            href="/courses"
-            className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1 shrink-0"
-          >
-            <span>Explore all courses</span>
-            <Icon name="arrow_forward" size={16} />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/courses?price=free"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Free Courses</span>
+            </Link>
+            <Link
+              href="/courses"
+              className="text-xs sm:text-sm font-bold text-[#5022c3] hover:text-[#401b9c] flex items-center gap-1 shrink-0"
+            >
+              <span>Explore all courses</span>
+              <Icon name="arrow_forward" size={16} />
+            </Link>
+          </div>
         </div>
 
         {/* Real Courses Grid with Udemy Hover Popover (Top 4) */}

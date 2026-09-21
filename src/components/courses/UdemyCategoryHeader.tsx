@@ -9,16 +9,26 @@ interface UdemyCategoryHeaderProps {
   totalCoursesCount: number;
   availableCategories: { id: string; name: string; slug: string }[];
   onSelectCategory: (catName: string) => void;
+  selectedPrice?: string;
+  onSelectPrice?: (price: string) => void;
+  freeCount?: number;
 }
 
 export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
   categoryName,
   totalCoursesCount,
   availableCategories,
-  onSelectCategory
+  onSelectCategory,
+  selectedPrice,
+  onSelectPrice,
+  freeCount
 }) => {
-  const isAll = !categoryName || categoryName === 'all';
-  const displayTitle = isAll ? 'All Courses' : `${categoryName} Courses`;
+  const isAll = (!categoryName || categoryName === 'all') && (!selectedPrice || selectedPrice === 'all');
+  const displayTitle = selectedPrice === 'free' 
+    ? 'Free Courses & Masterclasses' 
+    : isAll 
+    ? 'All Courses' 
+    : `${categoryName} Courses`;
 
   return (
     <div className="bg-white border-b border-[#d1d7dc] py-6 mb-6">
@@ -56,7 +66,10 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
             Popular Topics:
           </span>
           <button
-            onClick={() => onSelectCategory('all')}
+            onClick={() => {
+              if (onSelectPrice) onSelectPrice('all');
+              onSelectCategory('all');
+            }}
             className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${
               isAll
                 ? 'bg-[#2d2f31] text-white border-[#2d2f31]'
@@ -65,6 +78,19 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
           >
             All Courses
           </button>
+          {onSelectPrice && (
+            <button
+              onClick={() => onSelectPrice(selectedPrice === 'free' ? 'all' : 'free')}
+              className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border flex items-center gap-1.5 ${
+                selectedPrice === 'free'
+                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${selectedPrice === 'free' ? 'bg-white' : 'bg-emerald-500'}`} />
+              <span>Free Courses {freeCount !== undefined && freeCount > 0 ? `(${freeCount})` : ''}</span>
+            </button>
+          )}
           {availableCategories.map((cat) => {
             const isSelected = categoryName.toLowerCase() === cat.name.toLowerCase();
             return (

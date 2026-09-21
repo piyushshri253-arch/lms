@@ -97,6 +97,11 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
 
         {/* Badges */}
         <div className="flex items-center gap-1.5">
+          {course.price === 0 && (
+            <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
+              Free Course
+            </span>
+          )}
           {course.bestseller && (
             <span className="bg-[#eceb98] text-[#3d3c0a] text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
               Bestseller
@@ -118,7 +123,7 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
       {/* 3. Right Price Column */}
       <div className="shrink-0 flex sm:flex-col items-baseline sm:items-end gap-1.5 pt-1 sm:pt-0">
         <div className="flex flex-col sm:items-end">
-          <span className="text-base sm:text-lg font-bold text-[#2d2f31]">
+          <span className={`text-base sm:text-lg font-extrabold ${course.price === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
             {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
           </span>
           {discountPrice && discountPrice > course.price && (
@@ -127,23 +132,33 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (isInCart(course.id)) {
-              router.push('/student/cart');
-            } else {
-              addToCart(course);
-            }
-          }}
-          className={`mt-2 px-3 py-1.5 text-xs font-bold rounded transition-colors cursor-pointer ${
-            isInCart(course.id)
-              ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200'
-              : 'bg-[#a435f0] text-white hover:bg-[#8710d8]'
-          }`}
-        >
-          {isInCart(course.id) ? 'In Cart ✓' : 'Add to cart'}
-        </button>
+        {course.price === 0 ? (
+          <button
+            type="button"
+            onClick={() => router.push(`/courses/${course.slug || course.id}`)}
+            className="mt-2 px-3 py-1.5 text-xs font-bold rounded transition-colors cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            Enroll Free
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (isInCart(course.id)) {
+                router.push('/student/cart');
+              } else {
+                addToCart(course);
+              }
+            }}
+            className={`mt-2 px-3 py-1.5 text-xs font-bold rounded transition-colors cursor-pointer ${
+              isInCart(course.id)
+                ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200'
+                : 'bg-[#a435f0] text-white hover:bg-[#8710d8]'
+            }`}
+          >
+            {isInCart(course.id) ? 'In Cart ✓' : 'Add to cart'}
+          </button>
+        )}
       </div>
     </div>
   );

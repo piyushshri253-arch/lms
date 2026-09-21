@@ -73,6 +73,10 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (course.price === 0) {
+      router.push(`/courses/${course.slug || course.id}`);
+      return;
+    }
     if (inCart) {
       router.push('/student/cart');
     } else {
@@ -109,6 +113,11 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
               <span className="text-[11px] mt-1 font-medium">
                 {typeof (course.category as any) === 'object' && (course.category as any) !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
               </span>
+            </div>
+          )}
+          {course.price === 0 && (
+            <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-sm tracking-wider uppercase">
+              Free
             </div>
           )}
         </div>
@@ -171,7 +180,7 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
 
           {/* Price Row */}
           <div className="mt-auto flex items-baseline gap-2 pt-1">
-            <span className="text-base font-bold text-[#2d2f31]">
+            <span className={`text-base font-extrabold ${course.price === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
               {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
             </span>
             {discountPrice && discountPrice > course.price && (
@@ -183,6 +192,11 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
 
           {/* Badges */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {course.price === 0 && (
+              <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
+                Free Course
+              </span>
+            )}
             {isRecentlyAdded && (
               <span className="bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
@@ -208,18 +222,29 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
 
           {/* Direct Card Action Button (Mobile & Quick Add) */}
           <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-[2px] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                inCart
-                  ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
-                  : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
-              }`}
-            >
-              <Icon name={inCart ? 'check' : 'shopping_cart'} size={14} />
-              <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
-            </button>
+            {course.price === 0 ? (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="flex-1 py-1.5 px-3 text-xs font-bold rounded-[2px] transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+              >
+                <Icon name="school" size={14} />
+                <span>Enroll Free</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-[2px] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  inCart
+                    ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-200'
+                    : 'bg-[#a435f0] hover:bg-[#8710d8] text-white shadow-xs'
+                }`}
+              >
+                <Icon name={inCart ? 'check' : 'shopping_cart'} size={14} />
+                <span>{inCart ? 'In Cart ✓' : 'Add to cart'}</span>
+              </button>
+            )}
           </div>
         </div>
       </Link>
@@ -267,18 +292,29 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
 
           {/* Action buttons */}
           <div className="pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className={`w-full py-2.5 font-bold text-xs rounded-none sm:rounded-[4px] transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                inCart
-                  ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-300'
-                  : 'bg-[#a435f0] hover:bg-[#8710d8] text-white'
-              }`}
-            >
-              <Icon name={inCart ? 'check' : 'shopping_cart'} size={15} />
-              <span>{inCart ? 'Go to cart' : 'Add to cart'}</span>
-            </button>
+            {course.price === 0 ? (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="w-full py-2.5 font-bold text-xs rounded-none sm:rounded-[4px] transition-colors cursor-pointer flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Icon name="school" size={15} />
+                <span>Enroll Now — Free</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className={`w-full py-2.5 font-bold text-xs rounded-none sm:rounded-[4px] transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                  inCart
+                    ? 'bg-purple-100 text-[#5022c3] hover:bg-purple-200 border border-purple-300'
+                    : 'bg-[#a435f0] hover:bg-[#8710d8] text-white'
+                }`}
+              >
+                <Icon name={inCart ? 'check' : 'shopping_cart'} size={15} />
+                <span>{inCart ? 'Go to cart' : 'Add to cart'}</span>
+              </button>
+            )}
           </div>
         </div>
       )}
