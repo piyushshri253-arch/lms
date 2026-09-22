@@ -107,7 +107,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error('[Reset Password Error]:', err);
-    return NextResponse.json({ error: err.message || 'Failed to reset password.' }, { status: 500 });
+    const isDbQuota = String(err.message || '').includes('quota') || String(err.message || '').includes('exceeded the quota');
+    const userMessage = isDbQuota
+      ? 'Database quota exceeded. Please check your Neon PostgreSQL console.'
+      : err.message || 'Failed to reset password.';
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }
 
