@@ -194,8 +194,16 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
 
   // Display only top 4 courses in the grid
   const displayCourses = useMemo(() => {
+    if (activeTab === 'all') {
+      const freeCourse = filteredCourses.find((c) => c.price === 0);
+      const paidCourses = filteredCourses.filter((c) => c.price > 0);
+      if (freeCourse && paidCourses.length > 0) {
+        const top3Paid = paidCourses.slice(0, 3);
+        return [top3Paid[0], freeCourse, top3Paid[1], top3Paid[2]].filter(Boolean);
+      }
+    }
     return filteredCourses.slice(0, 4);
-  }, [filteredCourses]);
+  }, [filteredCourses, activeTab]);
 
   if (allCourses.length === 0) {
     return null;

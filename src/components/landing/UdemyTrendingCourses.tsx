@@ -20,8 +20,16 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
     return list.filter((c) => c.status === 'PUBLISHED');
   }, [contextCourses, initialCourses]);
 
-  // Display only top 4 courses
+  // Display top 4 courses, ensuring 1 free course is showcased among the 4 cards
   const displayCourses = React.useMemo(() => {
+    const freeCourse = realCourses.find((c) => c.price === 0);
+    const paidCourses = realCourses.filter((c) => c.price > 0);
+
+    if (freeCourse && paidCourses.length > 0) {
+      const top3Paid = paidCourses.slice(0, 3);
+      return [top3Paid[0], freeCourse, top3Paid[1], top3Paid[2]].filter(Boolean);
+    }
+
     return realCourses.slice(0, 4);
   }, [realCourses]);
 
