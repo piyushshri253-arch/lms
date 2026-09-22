@@ -150,6 +150,17 @@ function AdminLoginContent() {
       // Call authentication with requestedPortal: 'ADMIN'
       const user = await login(targetEmail, targetPassword, 'ADMIN');
 
+      // If instructor logs in through admin portal, route them straight to their Instructor Studio
+      if (user.role === 'INSTRUCTOR') {
+        showToast({
+          title: 'Welcome to Instructor Studio! 🎓',
+          description: `Logged in as ${user.name}. Redirecting to your dashboard...`,
+          type: 'success'
+        });
+        router.push('/instructor');
+        return;
+      }
+
       // Verify that the logged-in user actually possesses an admin role
       const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'];
       if (!adminRoles.includes(user.role)) {

@@ -66,7 +66,7 @@ export const UdemyFooter: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="hover:text-white hover:underline">
+                <Link href="/instructor/login" className="hover:text-white hover:underline">
                   Instructor Studio Login
                 </Link>
               </li>

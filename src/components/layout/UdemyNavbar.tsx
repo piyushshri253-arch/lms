@@ -227,12 +227,12 @@ export const UdemyNavbar: React.FC = () => {
             TEACH Business
           </Link>
 
-          {/* Teach on TEACH Link */}
+          {/* Teach on Morena Teach Link */}
           <Link
-            href={currentUser?.role === 'INSTRUCTOR' ? '/instructor/courses' : '/instructor'}
-            className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-normal"
+            href={currentUser?.role === 'INSTRUCTOR' ? '/instructor' : '/instructor/login'}
+            className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
           >
-            Teach on TEACH
+            {currentUser?.role === 'INSTRUCTOR' ? 'Instructor Studio' : 'Teach on Morena Teach'}
           </Link>
 
           {/* My learning Link for Logged In Students */}
@@ -349,6 +349,16 @@ export const UdemyNavbar: React.FC = () => {
           {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
           {(!currentUser || currentUser.role !== 'STUDENT') ? (
             <div className="flex items-center gap-1.5 sm:gap-2 ml-1">
+              {currentUser && currentUser.role === 'INSTRUCTOR' && (
+                <Link
+                  href="/instructor"
+                  className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-none sm:rounded-[4px] transition-colors shadow-xs"
+                  title="Open Instructor Studio"
+                >
+                  <Icon name="cast_for_education" size={16} />
+                  <span>Instructor Studio</span>
+                </Link>
+              )}
               {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
                 <Link
                   href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
