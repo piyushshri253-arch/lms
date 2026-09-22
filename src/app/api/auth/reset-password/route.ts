@@ -8,7 +8,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { token, newPassword, confirmPassword } = body;
 
-    if (!token) {
+    const sanitizedToken = typeof token === 'string' ? decodeURIComponent(token).trim() : '';
+
+    if (!sanitizedToken) {
       return NextResponse.json({ error: 'Password reset token is required.' }, { status: 400 });
     }
 
@@ -26,14 +28,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Password must be at least 8 characters long and contain at least 1 number and 1 symbol.'
+            'Password must be at least 8 characters long and contain at least 1 number or special character.'
         },
         { status: 400 }
       );
     }
 
     // Lookup token hash in database
-    const tokenHash = hashToken(token);
+    const tokenHash = hashToken(sanitizedToken);
     const resetRecord = await prisma.passwordResetToken.findUnique({
       where: { tokenHash },
       include: { user: true }
@@ -65,31 +67,39 @@ export async function POST(req: NextRequest) {
           sessionVersion: { increment: 1 }
         }
       }),
-      // 2. Invalidate reset token
-      prisma.passwordResetToken.update({
-        where: { id: resetRecord.id },
+      // 2. Invalidate all reset tokens for this user
+      prisma.passwordResetToken.updateMany({
+        where: { userId: resetRecord.userId, usedAt: null },
         data: { usedAt: new Date() }
       })
     ]);
 
-    // Send Password Changed Alert Email
-    await sendEmail({
-      to: resetRecord.user.email,
-      subject: 'Your Morena Teach password was changed',
-      template: 'PASSWORD_CHANGED',
-      userId: resetRecord.user.id,
-      data: {
-        name: resetRecord.user.name
-      }
-    });
+    // Send Password Changed Alert Email (non-blocking)
+    try {
+      await sendEmail({
+        to: resetRecord.user.email,
+        subject: 'Your Morena Teach password was changed',
+        template: 'PASSWORD_CHANGED',
+        userId: resetRecord.user.id,
+        data: {
+          name: resetRecord.user.name
+        }
+      });
+    } catch (emailErr) {
+      console.warn('[Reset Password Email Alert Failed]:', emailErr);
+    }
 
-    // Log Security Event
-    await logSecurityEvent({
-      userId: resetRecord.userId,
-      email: resetRecord.user.email,
-      eventType: 'PASSWORD_RESET_SUCCESS',
-      req
-    });
+    // Log Security Event (non-blocking)
+    try {
+      await logSecurityEvent({
+        userId: resetRecord.userId,
+        email: resetRecord.user.email,
+        eventType: 'PASSWORD_RESET_SUCCESS',
+        req
+      });
+    } catch (logErr) {
+      console.warn('[Reset Password Security Log Failed]:', logErr);
+    }
 
     return NextResponse.json({
       success: true,

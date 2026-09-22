@@ -90,7 +90,7 @@ export function evaluatePasswordStrength(password: string): PasswordStrength {
     label,
     color,
     checks: { length, uppercase, lowercase, number, special },
-    isValid: length && number && special
+    isValid: length && (number || special)
   };
 }
 

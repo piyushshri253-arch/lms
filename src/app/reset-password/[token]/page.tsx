@@ -9,7 +9,8 @@ import { Icon } from '@/components/ui/Icon';
 export default function ResetPasswordPage() {
   const router = useRouter();
   const params = useParams();
-  const token = params?.token as string;
+  const rawToken = Array.isArray(params?.token) ? params.token[0] : (params?.token as string) || '';
+  const token = typeof rawToken === 'string' ? decodeURIComponent(rawToken).trim() : '';
   const { showToast } = useApp();
 
   const [newPassword, setNewPassword] = useState('');
@@ -56,10 +57,19 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
+    if (!token) {
+      showToast({
+        title: 'Token Required',
+        description: 'No reset token found. Please use the reset link sent to your email.',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (!hasMinLength || (!hasNumber && !hasSpecial)) {
       showToast({
         title: 'Weak Password',
-        description: 'Password must be at least 8 characters with uppercase, lowercase, and numeric digits.',
+        description: 'Password must be at least 8 characters and contain at least 1 number or special character.',
         type: 'error'
       });
       return;

@@ -12,11 +12,17 @@ function ResetPasswordContent() {
   const queryToken = searchParams.get('token') || '';
   const { showToast } = useApp();
 
-  const [token, setToken] = useState(queryToken);
+  const [token, setToken] = useState(queryToken ? decodeURIComponent(queryToken).trim() : '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (queryToken) {
+      setToken(decodeURIComponent(queryToken).trim());
+    }
+  }, [queryToken]);
 
   // Dynamic Password Strength Calculations
   const hasMinLength = newPassword.length >= 8;
@@ -66,10 +72,10 @@ function ResetPasswordContent() {
       return;
     }
 
-    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
+    if (!hasMinLength || (!hasNumber && !hasSpecial)) {
       showToast({
         title: 'Weak Password',
-        description: 'Password must be at least 8 characters with uppercase, lowercase, and numeric digits.',
+        description: 'Password must be at least 8 characters and contain at least 1 number or special character.',
         type: 'error'
       });
       return;

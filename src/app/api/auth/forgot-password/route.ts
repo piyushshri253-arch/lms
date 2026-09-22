@@ -54,13 +54,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Invalidate previous unused reset tokens
-    await prisma.passwordResetToken.updateMany({
-      where: { userId: user.id, usedAt: null },
-      data: { usedAt: new Date() }
-    });
-
-    // Generate 32-byte crypto token
+    // Generate 32-byte crypto token (tokens expire after 1 hour or upon successful password reset)
     const { token, hash: tokenHash } = generateSecureToken(32);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
