@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { useApp } from '@/context/AppContext';
 
@@ -10,27 +10,119 @@ interface CourseMediaProps {
   onChange: (field: string, value: string) => void;
 }
 
+// Client-side canvas compression to keep base64 payload under 200KB and avoid Vercel 413
+async function compressImageFile(
+  file: File,
+  maxWidth: number,
+  maxHeight: number,
+  quality: number = 0.82
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (file.type === 'image/svg+xml') {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      try {
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      } catch {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner, onChange }) => {
   const { showToast } = useApp();
   const thumbnailFileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState<'thumbnail' | 'banner' | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'thumbnail' | 'banner') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'thumbnail' | 'banner') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast({ title: 'File Too Large', description: 'Please select an image under 5MB.', type: 'error' });
+    if (file.size > 10 * 1024 * 1024) {
+      showToast({ title: 'File Too Large', description: 'Please select an image under 10MB.', type: 'error' });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      onChange(field, base64);
-      showToast({ title: 'Image Uploaded', description: `${field === 'thumbnail' ? 'Course thumbnail' : 'Cover banner'} updated.`, type: 'success' });
-    };
-    reader.readAsDataURL(file);
+    setIsCompressing(field);
+    try {
+      // Scale thumbnail to max 1280x720, banner to max 1920x1080
+      const compressedBase64 = await compressImageFile(
+        file,
+        field === 'thumbnail' ? 1280 : 1920,
+        field === 'thumbnail' ? 720 : 1080,
+        0.82
+      );
+
+      onChange(field, compressedBase64);
+      showToast({
+        title: 'Image Ready 🖼️',
+        description: `${field === 'thumbnail' ? 'Course thumbnail' : 'Cover banner'} optimized and attached.`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Upload Error',
+        description: err?.message || 'Failed to process image file.',
+        type: 'error'
+      });
+    } finally {
+      setIsCompressing(null);
+      if (field === 'thumbnail' && thumbnailFileRef.current) {
+        thumbnailFileRef.current.value = '';
+      }
+      if (field === 'banner' && bannerFileRef.current) {
+        bannerFileRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -91,18 +183,20 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
+                disabled={isCompressing !== null}
                 onClick={() => thumbnailFileRef.current?.click()}
-                className="px-4 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Icon name="cloud_upload" size={16} />
-                <span>Upload from Computer</span>
+                <Icon name={isCompressing === 'thumbnail' ? 'sync' : 'cloud_upload'} size={16} className={isCompressing === 'thumbnail' ? 'animate-spin' : ''} />
+                <span>{isCompressing === 'thumbnail' ? 'Optimizing & Attaching...' : 'Upload from Computer'}</span>
               </button>
 
               {thumbnail && (
                 <button
                   type="button"
+                  disabled={isCompressing !== null}
                   onClick={() => onChange('thumbnail', '')}
-                  className="px-4 py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl cursor-pointer"
+                  className="px-4 py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50"
                 >
                   Clear Thumbnail
                 </button>
@@ -178,18 +272,20 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              disabled={isCompressing !== null}
               onClick={() => bannerFileRef.current?.click()}
-              className="px-4 py-2 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Icon name="cloud_upload" size={16} />
-              <span>Upload Banner Image</span>
+              <Icon name={isCompressing === 'banner' ? 'sync' : 'cloud_upload'} size={16} className={isCompressing === 'banner' ? 'animate-spin' : ''} />
+              <span>{isCompressing === 'banner' ? 'Optimizing & Attaching...' : 'Upload Banner Image'}</span>
             </button>
 
             {banner && (
               <button
                 type="button"
+                disabled={isCompressing !== null}
                 onClick={() => onChange('banner', '')}
-                className="px-4 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container font-bold text-xs rounded-xl cursor-pointer"
+                className="px-4 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50"
               >
                 Remove Banner
               </button>

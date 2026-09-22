@@ -225,7 +225,17 @@ function CourseBuilderContent() {
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
+        let data: any = {};
+        try {
+          const text = await res.text();
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          if (res.status === 413) {
+            throw new Error('Image or payload is too large for the server. Please select an optimized image under 5MB.');
+          }
+          throw new Error(`Server returned error (${res.status}). Please try again.`);
+        }
+
         if (!res.ok) throw new Error(data.error || 'Failed to create course');
 
         savedCourseId = data.course.id;
@@ -239,7 +249,17 @@ function CourseBuilderContent() {
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
+        let data: any = {};
+        try {
+          const text = await res.text();
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          if (res.status === 413) {
+            throw new Error('Image or payload is too large for the server. Please select an optimized image under 5MB.');
+          }
+          throw new Error(`Server returned error (${res.status}). Please try again.`);
+        }
+
         if (!res.ok) throw new Error(data.error || 'Failed to update course');
         if (data.course?.slug) savedSlug = data.course.slug;
       }
@@ -277,7 +297,17 @@ function CourseBuilderContent() {
         body: JSON.stringify({ publish: true })
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        if (res.status === 413) {
+          throw new Error('Publish payload is too large (413). Please choose a smaller image.');
+        }
+        throw new Error(`Server returned error (${res.status}). Please try again.`);
+      }
+
       if (!res.ok) throw new Error(data.error || 'Failed to publish course');
 
       const isInstructor = currentUser?.role === 'INSTRUCTOR';
