@@ -55,6 +55,28 @@ export async function GET(request: Request) {
 
       const membership = inst.organizationMemberships[0];
 
+      // Extract title and department if formatted in bio
+      let title = 'Senior Educator';
+      let department = 'Early Childhood Education';
+      if (inst.bio) {
+        const parts = inst.bio.split(' - ');
+        if (parts.length > 1) {
+          title = parts[0].trim();
+          const deptPart = parts[1].split('.')[0].trim();
+          if (deptPart) department = deptPart;
+        }
+      }
+
+      const assignedCourses = inst.coursesAuthored.map((c) => ({
+        id: c.id,
+        title: c.title,
+        slug: c.slug,
+        price: c.price,
+        students: c._count.enrollments || 0,
+        rating: avgRating,
+        status: c.status
+      }));
+
       return {
         id: inst.id,
         name: inst.name,
@@ -62,7 +84,9 @@ export async function GET(request: Request) {
         avatar: inst.avatar,
         bio: inst.bio || 'Faculty Instructor',
         role: inst.role,
-        status: membership?.status || inst.status,
+        title,
+        department,
+        status: membership?.status || inst.status || 'ACTIVE',
         isSuspended: inst.isSuspended || membership?.status === 'SUSPENDED',
         createdAt: inst.createdAt.toLocaleDateString('en-US', {
           month: 'short',
@@ -71,15 +95,12 @@ export async function GET(request: Request) {
         }),
         coursesCount: inst.coursesAuthored.length,
         studentsCount: totalStudents,
+        totalStudents,
         totalRevenue: Math.round(totalRevenue),
         avgRating,
-        courses: inst.coursesAuthored.map((c) => ({
-          id: c.id,
-          title: c.title,
-          slug: c.slug,
-          price: c.price,
-          status: c.status
-        }))
+        rating: avgRating,
+        courses: assignedCourses,
+        assignedCourses
       };
     });
 

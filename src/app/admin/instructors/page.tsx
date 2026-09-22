@@ -107,15 +107,37 @@ function InstructorsPageContent() {
     showToast({ title: 'Status Updated', description: 'Faculty availability status changed.', type: 'info' });
   };
 
-  // Filtered instructors
+  // Filtered instructors with safe fallbacks
   const filtered = instructors.filter((inst) => {
+    const name = (inst?.name || '').toLowerCase();
+    const email = (inst?.email || '').toLowerCase();
+    const department = (inst?.department || 'Early Childhood Education').toLowerCase();
+    const title = (inst?.title || '').toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
+
     const matchesSearch =
-      inst.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inst.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inst.department.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDept = selectedDepartment === 'ALL' || inst.department.includes(selectedDepartment);
+      !query ||
+      name.includes(query) ||
+      email.includes(query) ||
+      department.includes(query) ||
+      title.includes(query);
+
+    const matchesDept =
+      selectedDepartment === 'ALL' ||
+      department.includes(selectedDepartment.toLowerCase());
+
     return matchesSearch && matchesDept;
   });
+
+  const totalAssignedCourses = instructors.reduce(
+    (acc, i) => acc + (i.assignedCourses?.length || i.courses?.length || i.coursesCount || 0),
+    0
+  );
+  const totalLearners = instructors.reduce(
+    (acc, i) => acc + (i.totalStudents || i.studentsCount || 0),
+    0
+  );
+  const activeCount = instructors.filter((i) => i.status === 'ACTIVE').length;
 
   return (
     <div className="space-y-6 select-none animate-in fade-in duration-150">
@@ -127,7 +149,7 @@ function InstructorsPageContent() {
               Instructors & Academic Faculty
             </h1>
             <span className="text-[11px] font-mono font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2.5 py-0.5 rounded-full">
-              {activeFacility?.name}
+              {activeFacility?.name || 'Academic Core'}
             </span>
           </div>
           <p className="text-xs text-outline font-medium mt-1">
@@ -155,7 +177,7 @@ function InstructorsPageContent() {
           <p className="text-2xl font-black text-on-surface">{instructors.length}</p>
           <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
             <Icon name="check_circle" size={12} />
-            <span>{instructors.filter((i) => i.status === 'ACTIVE').length} Active On Campus</span>
+            <span>{activeCount} Active On Campus</span>
           </p>
         </div>
 
@@ -164,10 +186,8 @@ function InstructorsPageContent() {
             <span className="text-xs font-bold uppercase tracking-wider">Assigned Courses</span>
             <Icon name="menu_book" size={18} className="text-purple-600" />
           </div>
-          <p className="text-2xl font-black text-on-surface">
-            {instructors.reduce((acc, i) => acc + i.assignedCourses.length, 0)}
-          </p>
-          <p className="text-[11px] text-outline">Across 5 departments</p>
+          <p className="text-2xl font-black text-on-surface">{totalAssignedCourses}</p>
+          <p className="text-[11px] text-outline">Across all departments</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/80 shadow-2xs space-y-1">
@@ -176,7 +196,7 @@ function InstructorsPageContent() {
             <Icon name="school" size={18} className="text-blue-600" />
           </div>
           <p className="text-2xl font-black text-on-surface">
-            {instructors.reduce((acc, i) => acc + i.totalStudents, 0).toLocaleString()}
+            {totalLearners.toLocaleString()}
           </p>
           <p className="text-[11px] text-emerald-600 font-semibold">+12% enrollment rate</p>
         </div>
@@ -186,7 +206,7 @@ function InstructorsPageContent() {
             <span className="text-xs font-bold uppercase tracking-wider">Average Rating</span>
             <Icon name="star" size={18} className="text-amber-500" />
           </div>
-          <p className="text-2xl font-black text-on-surface">4.91 / 5.0</p>
+          <p className="text-2xl font-black text-on-surface">4.9 / 5.0</p>
           <p className="text-[11px] text-amber-600 font-semibold">98.4% student satisfaction</p>
         </div>
       </div>
@@ -211,11 +231,12 @@ function InstructorsPageContent() {
             onChange={(e) => setSelectedDepartment(e.target.value)}
             className="h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant/80 text-xs font-bold focus:outline-none focus:border-primary"
           >
-            <option value="ALL">All Disciplines</option>
-            <option value="Computer Science">Computer Science</option>
-            <option value="Artificial Intelligence">Artificial Intelligence</option>
-            <option value="DevOps">DevOps & Cloud</option>
-            <option value="Database">Database Engineering</option>
+            <option value="ALL">All Departments</option>
+            <option value="Early Childhood Education">Early Childhood Education</option>
+            <option value="Teacher Development">Teacher Development & Pedagogy</option>
+            <option value="Primary Years & Curriculum">Primary Years & Curriculum</option>
+            <option value="Professional Learning">Professional Learning & Inclusion</option>
+            <option value="Leadership & School Development">Leadership & School Development</option>
           </select>
         </div>
       </div>
@@ -255,28 +276,33 @@ function InstructorsPageContent() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <p className="font-bold text-on-surface">{inst.department}</p>
-                    <p className="text-[11px] text-outline">{inst.title}</p>
+                    <p className="font-bold text-on-surface">{inst.department || 'Early Childhood Education'}</p>
+                    <p className="text-[11px] text-outline">{inst.title || 'Senior Educator'}</p>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-wrap gap-1 max-w-[220px]">
-                      {inst.assignedCourses.map((c: any) => (
-                        <span key={c.id} className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 font-semibold truncate max-w-[180px]" title={c.title}>
+                      {(inst.assignedCourses || inst.courses || []).map((c: any) => (
+                        <span
+                          key={c.id}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 font-semibold truncate max-w-[180px]"
+                          title={c.title}
+                        >
                           {c.title}
                         </span>
                       ))}
-                      {inst.assignedCourses.length === 0 && (
-                        <span className="text-[11px] text-outline italic">No active courses</span>
-                      )}
+                      {(!inst.assignedCourses || inst.assignedCourses.length === 0) &&
+                        (!inst.courses || inst.courses.length === 0) && (
+                          <span className="text-[11px] text-outline italic">No active courses</span>
+                        )}
                     </div>
                   </td>
                   <td className="p-4 font-bold text-on-surface">
-                    {inst.totalStudents.toLocaleString()}
+                    {(inst.totalStudents ?? inst.studentsCount ?? 0).toLocaleString()}
                   </td>
                   <td className="p-4">
                     <span className="inline-flex items-center gap-1 font-extrabold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-lg text-xs">
                       <Icon name="star" size={12} className="fill-amber-500 text-amber-500" />
-                      {inst.rating}
+                      {inst.rating ?? inst.avgRating ?? 5.0}
                     </span>
                   </td>
                   <td className="p-4">
@@ -312,13 +338,22 @@ function InstructorsPageContent() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="p-12 text-center text-outline">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Icon name="sync" size={24} className="animate-spin text-primary" />
+                      <span className="font-mono text-xs">Loading faculty roster...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-outline">
                     No faculty members found matching your search.
                   </td>
                 </tr>
-              )}
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -557,15 +592,21 @@ function InstructorsPageContent() {
             {/* Performance Stats */}
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/40">
-                <p className="text-lg font-black text-on-surface">{selectedInstructor.assignedCourses.length}</p>
+                <p className="text-lg font-black text-on-surface">
+                  {(selectedInstructor.assignedCourses || selectedInstructor.courses || []).length}
+                </p>
                 <p className="text-[10px] text-outline font-semibold">Courses</p>
               </div>
               <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/40">
-                <p className="text-lg font-black text-on-surface">{selectedInstructor.totalStudents}</p>
+                <p className="text-lg font-black text-on-surface">
+                  {(selectedInstructor.totalStudents ?? selectedInstructor.studentsCount ?? 0).toLocaleString()}
+                </p>
                 <p className="text-[10px] text-outline font-semibold">Learners</p>
               </div>
               <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/40">
-                <p className="text-lg font-black text-amber-600">{selectedInstructor.rating}</p>
+                <p className="text-lg font-black text-amber-600">
+                  {selectedInstructor.rating ?? selectedInstructor.avgRating ?? 5.0}
+                </p>
                 <p className="text-[10px] text-outline font-semibold">Rating</p>
               </div>
             </div>
@@ -574,18 +615,22 @@ function InstructorsPageContent() {
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-outline">Assigned Courses</h3>
               <div className="space-y-2">
-                {selectedInstructor.assignedCourses.map((c: any) => (
+                {(selectedInstructor.assignedCourses || selectedInstructor.courses || []).map((c: any) => (
                   <div key={c.id} className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-xs text-on-surface">{c.title}</p>
-                      <p className="text-[10px] text-outline">{c.students} active learners</p>
+                      <p className="text-[10px] text-outline">{c.students || 0} active learners</p>
                     </div>
                     <span className="text-xs font-bold text-amber-600 flex items-center gap-1">
                       <Icon name="star" size={12} className="fill-amber-500 text-amber-500" />
-                      {c.rating}
+                      {c.rating || 5.0}
                     </span>
                   </div>
                 ))}
+                {(!selectedInstructor.assignedCourses || selectedInstructor.assignedCourses.length === 0) &&
+                  (!selectedInstructor.courses || selectedInstructor.courses.length === 0) && (
+                    <p className="text-xs text-outline italic py-2">No courses assigned yet.</p>
+                  )}
               </div>
             </div>
 
