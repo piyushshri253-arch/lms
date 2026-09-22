@@ -160,7 +160,7 @@ function CoursesPageContent() {
   };
 
   // Handle course status updates (Approve, Reject, Publish, Unpublish)
-  const handleUpdateCourseStatus = async (courseId: string, nextStatus: 'PUBLISHED' | 'DRAFT' | 'REJECTED') => {
+  const handleUpdateCourseStatus = async (courseId: string, nextStatus: 'PUBLISHED' | 'DRAFT' | 'REJECTED' | 'APPROVED') => {
     setCourses((prev) =>
       prev.map((c) =>
         c.id === courseId
@@ -180,7 +180,9 @@ function CoursesPageContent() {
       });
       if (res.ok) {
         if (nextStatus === 'PUBLISHED') {
-          showToast('Course approved and published live to landing page!', 'success');
+          showToast('Course approved and published live to landing page! 🚀', 'success');
+        } else if (nextStatus === 'APPROVED') {
+          showToast('Course approved! The instructor can now publish it live.', 'success');
         } else if (nextStatus === 'REJECTED') {
           showToast('Course submission rejected.', 'info');
         } else {
@@ -199,10 +201,12 @@ function CoursesPageContent() {
     await handleUpdateCourseStatus(courseId, !currentStatus ? 'PUBLISHED' : 'DRAFT');
   };
 
+  const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW').length;
+
   const filteredCourses = courses.filter((c) => {
     if (activeTab === 'published') return c.isPublished;
-    if (activeTab === 'review') return c.status === 'IN_REVIEW';
-    if (activeTab === 'drafts') return !c.isPublished && c.status !== 'IN_REVIEW';
+    if (activeTab === 'review') return c.status === 'IN_REVIEW' || c.status === 'APPROVED';
+    if (activeTab === 'drafts') return !c.isPublished && c.status !== 'IN_REVIEW' && c.status !== 'APPROVED';
     return true;
   });
 
@@ -253,7 +257,7 @@ function CoursesPageContent() {
               [
                 { key: 'all', label: 'All Courses' },
                 { key: 'published', label: 'Published' },
-                { key: 'review', label: 'In Review' },
+                { key: 'review', label: `In Review${inReviewCount > 0 ? ` (${inReviewCount})` : ''}` },
                 { key: 'drafts', label: 'Drafts' },
                 { key: 'categories', label: 'Categories' },
                 { key: 'reviews', label: 'Student Reviews' }
@@ -426,6 +430,8 @@ function CoursesPageContent() {
                           className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 ${
                             course.status === 'PUBLISHED'
                               ? 'bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20'
+                              : course.status === 'APPROVED'
+                              ? 'bg-blue-500/10 text-blue-700 ring-1 ring-blue-500/30'
                               : course.status === 'IN_REVIEW'
                               ? 'bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/30'
                               : course.status === 'REJECTED'
@@ -436,22 +442,59 @@ function CoursesPageContent() {
                           {course.status === 'IN_REVIEW' && (
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
                           )}
-                          {course.status === 'IN_REVIEW' ? 'Pending Approval' : course.status}
+                          {course.status === 'IN_REVIEW'
+                            ? 'Pending Approval'
+                            : course.status === 'APPROVED'
+                            ? 'Approved (Ready to Publish)'
+                            : course.status}
                         </span>
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          {/* In-Review Workflow Actions: Approve & Publish or Reject */}
+                          {/* In-Review Workflow Actions: Approve, Approve & Publish, or Reject */}
                           {course.status === 'IN_REVIEW' && (hasPermission('course.publish') || isSuperAdmin) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCourseStatus(course.id, 'APPROVED')}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                title="Approve course so instructor can publish it"
+                              >
+                                <Icon name="check" size={13} />
+                                <span>Approve</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCourseStatus(course.id, 'PUBLISHED')}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                title="Approve submission and publish immediately to live landing page"
+                              >
+                                <Icon name="check_circle" size={13} />
+                                <span>Approve & Publish</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCourseStatus(course.id, 'REJECTED')}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                title="Reject course submission"
+                              >
+                                <Icon name="cancel" size={13} />
+                                <span>Reject</span>
+                              </button>
+                            </>
+                          )}
+
+                          {/* Approved State: Publish Live or Reject */}
+                          {course.status === 'APPROVED' && (hasPermission('course.publish') || isSuperAdmin) && (
                             <>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateCourseStatus(course.id, 'PUBLISHED')}
                                 className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
-                                title="Approve submission and publish to main landing page"
+                                title="Publish approved course live to landing page"
                               >
-                                <Icon name="check_circle" size={13} />
-                                <span>Approve & Publish</span>
+                                <Icon name="rocket_launch" size={13} />
+                                <span>Publish Live</span>
                               </button>
                               <button
                                 type="button"

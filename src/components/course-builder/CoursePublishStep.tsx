@@ -111,29 +111,65 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           <div className="flex items-center gap-2">
             <span
               className={`w-3 h-3 rounded-full ${
-                canPublish ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                courseData.status === 'IN_REVIEW'
+                  ? 'bg-amber-500 animate-pulse'
+                  : courseData.status === 'APPROVED' || courseData.status === 'PUBLISHED'
+                  ? 'bg-emerald-500'
+                  : canPublish
+                  ? 'bg-emerald-500 animate-pulse'
+                  : 'bg-amber-500'
               }`}
             />
             <span className="text-xs font-bold uppercase tracking-wider font-mono">
-              {canPublish
-                ? userRole === 'INSTRUCTOR'
+              {userRole === 'INSTRUCTOR'
+                ? courseData.status === 'APPROVED'
+                  ? 'Approved by Super Admin ✅'
+                  : courseData.status === 'IN_REVIEW'
+                  ? 'Under Super Admin Review ⏳'
+                  : courseData.status === 'PUBLISHED'
+                  ? 'Live on Platform 🌐'
+                  : courseData.status === 'REJECTED'
+                  ? 'Revisions Requested ⚠️'
+                  : canPublish
                   ? 'Ready for Super Admin Review'
-                  : 'Ready for Live Platform Release'
+                  : 'Action Required Before Submitting'
+                : canPublish
+                ? 'Ready for Live Platform Release'
                 : 'Action Required Before Submitting'}
             </span>
           </div>
           <h3 className="text-2xl font-black tracking-tight text-on-surface">
-            {canPublish
-              ? userRole === 'INSTRUCTOR'
+            {userRole === 'INSTRUCTOR'
+              ? courseData.status === 'APPROVED'
+                ? 'Course Approved! Ready to Go Live 🚀'
+                : courseData.status === 'IN_REVIEW'
+                ? 'Course Under Review ⏳'
+                : courseData.status === 'PUBLISHED'
+                ? 'Course is Currently Live! 🚀'
+                : courseData.status === 'REJECTED'
+                ? 'Revisions Requested by Admin'
+                : canPublish
                 ? 'Ready for Review! 📋'
-                : 'All Systems Go! 🚀'
+                : 'Complete Required Pre-Flight Checklist'
+              : canPublish
+              ? 'All Systems Go! 🚀'
               : 'Complete Required Pre-Flight Checklist'}
           </h3>
           <p className="text-xs text-on-surface-variant max-w-lg">
-            {canPublish
-              ? userRole === 'INSTRUCTOR'
-                ? 'Your course curriculum meets all criteria. Submit it for Super Admin review to publish it to the landing page.'
-                : 'Your masterclass curriculum is fully configured and ready to be enrolled by students globally.'
+            {userRole === 'INSTRUCTOR'
+              ? courseData.status === 'APPROVED'
+                ? 'Super Admin has reviewed and approved your course curriculum! You can now publish it live to the student platform.'
+                : courseData.status === 'IN_REVIEW'
+                ? 'Your course has been submitted to Super Admin for quality and curriculum review. Once approved, you can publish it live.'
+                : courseData.status === 'PUBLISHED'
+                ? 'This masterclass is live on the public landing page and actively accepting student enrollments.'
+                : courseData.status === 'REJECTED'
+                ? 'Super Admin requested changes. Please review your curriculum and resubmit for approval when ready.'
+                : canPublish
+                ? 'Your course curriculum meets all criteria. Submit it for Super Admin review before publishing live.'
+                : `${passedCount} of ${checklist.length} criteria met. Resolve the remaining items below to proceed.`
+              : canPublish
+              ? 'Your masterclass curriculum is fully configured and ready to be enrolled by students globally.'
               : `${passedCount} of ${checklist.length} criteria met. Resolve the remaining items below to proceed.`}
           </p>
         </div>
@@ -150,20 +186,51 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
 
           <button
             type="button"
-            disabled={!canPublish || isPublishing}
+            disabled={
+              !canPublish ||
+              isPublishing ||
+              (userRole === 'INSTRUCTOR' && (courseData.status === 'IN_REVIEW' || courseData.status === 'PUBLISHED'))
+            }
             onClick={handlePublishClick}
-            className="px-6 py-2.5 bg-primary text-on-primary font-black text-xs rounded-xl hover:bg-primary-container shadow-md flex items-center gap-2 disabled:opacity-40 cursor-pointer"
+            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+              userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED'
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : 'bg-primary text-on-primary hover:bg-primary-container'
+            }`}
           >
             {isPublishing ? (
               <>
                 <Icon name="sync" size={16} className="animate-spin" />
-                <span>{userRole === 'INSTRUCTOR' ? 'Submitting...' : 'Publishing...'}</span>
+                <span>
+                  {userRole === 'INSTRUCTOR'
+                    ? courseData.status === 'APPROVED'
+                      ? 'Publishing Live...'
+                      : 'Submitting...'
+                    : 'Publishing...'}
+                </span>
               </>
             ) : userRole === 'INSTRUCTOR' ? (
-              <>
-                <Icon name="send" size={16} />
-                <span>Submit for Approval</span>
-              </>
+              courseData.status === 'APPROVED' ? (
+                <>
+                  <Icon name="rocket_launch" size={16} />
+                  <span>Publish Masterclass Live 🚀</span>
+                </>
+              ) : courseData.status === 'IN_REVIEW' ? (
+                <>
+                  <Icon name="hourglass_top" size={16} />
+                  <span>Under Review ⏳</span>
+                </>
+              ) : courseData.status === 'PUBLISHED' ? (
+                <>
+                  <Icon name="check_circle" size={16} />
+                  <span>Course is Live ✅</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="send" size={16} />
+                  <span>Submit for Super Admin Approval 📋</span>
+                </>
+              )
             ) : (
               <>
                 <Icon name="rocket_launch" size={16} />

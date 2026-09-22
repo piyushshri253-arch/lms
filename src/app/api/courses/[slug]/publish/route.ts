@@ -135,19 +135,49 @@ export async function POST(
     }
 
     // Determine target status according to approval workflow:
-    // Instructor submission sets status to IN_REVIEW.
-    // Super Admin / Admin review sets status to PUBLISHED (or REJECTED).
     let targetStatus = 'PUBLISHED';
-    let responseMessage = 'Course approved and published live to existing landing page!';
+    let responseMessage = 'Course approved and published live to landing page!';
 
     if (user.role === 'INSTRUCTOR') {
-      targetStatus = 'IN_REVIEW';
-      responseMessage = 'Course submitted for Super Admin approval! Once approved, it will automatically appear on the landing page.';
-    } else if (body.status === 'REJECTED') {
-      targetStatus = 'REJECTED';
-      responseMessage = 'Course submission rejected with reviewer feedback.';
+      // If course is already approved by Super Admin, instructor can publish live!
+      if (course.status === 'APPROVED') {
+        targetStatus = 'PUBLISHED';
+        responseMessage = 'Congratulations! Your approved course is now published live on the platform! 🚀';
+      } else if (course.status === 'PUBLISHED') {
+        return NextResponse.json({
+          success: true,
+          status: 'PUBLISHED',
+          course,
+          message: 'Course is already published live.'
+        });
+      } else if (course.status === 'IN_REVIEW') {
+        return NextResponse.json(
+          {
+            error: 'This course is currently under review by Super Admin. Please wait for approval before publishing.',
+            status: 'IN_REVIEW'
+          },
+          { status: 400 }
+        );
+      } else {
+        // DRAFT or REJECTED: Instructor submits for Super Admin approval
+        targetStatus = 'IN_REVIEW';
+        responseMessage = 'Course submitted for Super Admin review! Once approved, you will be able to publish it live.';
+      }
     } else {
-      targetStatus = 'PUBLISHED';
+      // Super Admin or Admin actions
+      if (body.status === 'APPROVED' || body.action === 'APPROVE') {
+        targetStatus = 'APPROVED';
+        responseMessage = 'Course approved! The instructor can now publish it live to the website.';
+      } else if (body.status === 'REJECTED' || body.action === 'REJECT') {
+        targetStatus = 'REJECTED';
+        responseMessage = 'Course submission rejected with reviewer feedback.';
+      } else if (body.status === 'DRAFT' || body.action === 'UNPUBLISH') {
+        targetStatus = 'DRAFT';
+        responseMessage = 'Course unpublished back to draft state.';
+      } else {
+        targetStatus = 'PUBLISHED';
+        responseMessage = 'Course approved and published live to landing page!';
+      }
     }
 
     // Update course status

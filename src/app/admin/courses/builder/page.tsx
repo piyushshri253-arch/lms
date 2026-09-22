@@ -39,7 +39,7 @@ function CourseBuilderContent() {
     price: number;
     discountPrice: number | null;
     currency: string;
-    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'IN_REVIEW' | 'REJECTED';
+    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
     accessType: string;
     accessDays: number | null;
     whatYouWillLearn: string[];
@@ -311,14 +311,30 @@ function CourseBuilderContent() {
       if (!res.ok) throw new Error(data.error || 'Failed to publish course');
 
       const isInstructor = currentUser?.role === 'INSTRUCTOR';
-      setCourseState((prev) => ({ ...prev, status: isInstructor ? 'IN_REVIEW' : 'PUBLISHED' }));
-      showToast({
-        title: isInstructor ? 'Course Submitted for Approval! 📋' : 'Course Published Live! 🚀',
-        description: isInstructor
-          ? 'Your course has been submitted for Super Admin review. Once approved, it will automatically appear on the landing page.'
-          : 'Your masterclass is now live on the landing page and available for student enrollment.',
-        type: 'success'
-      });
+      if (isInstructor) {
+        if (courseState.status === 'APPROVED') {
+          setCourseState((prev) => ({ ...prev, status: 'PUBLISHED' }));
+          showToast({
+            title: 'Course Published Live! 🚀',
+            description: 'Your approved masterclass is now live on the landing page for student enrollment.',
+            type: 'success'
+          });
+        } else {
+          setCourseState((prev) => ({ ...prev, status: 'IN_REVIEW' }));
+          showToast({
+            title: 'Course Submitted for Approval! 📋',
+            description: 'Your course has been submitted for Super Admin review. Once approved, you will be able to publish it live.',
+            type: 'success'
+          });
+        }
+      } else {
+        setCourseState((prev) => ({ ...prev, status: 'PUBLISHED' }));
+        showToast({
+          title: 'Course Published Live! 🚀',
+          description: 'Your masterclass is now live on the landing page and available for student enrollment.',
+          type: 'success'
+        });
+      }
 
       // Redirect to courses catalog so user can see their newly published course
       setTimeout(() => {
@@ -561,12 +577,56 @@ function CourseBuilderContent() {
           ) : (
             <button
               type="button"
-              disabled={isPublishing}
+              disabled={
+                isPublishing ||
+                (isInstructor && (courseState.status === 'IN_REVIEW' || courseState.status === 'PUBLISHED'))
+              }
               onClick={handlePublishCourse}
-              className="px-6 py-2.5 bg-primary text-on-primary font-black text-xs rounded-xl hover:bg-primary-container shadow-md flex items-center gap-2 cursor-pointer"
+              className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                isInstructor && courseState.status === 'APPROVED'
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-primary text-on-primary hover:bg-primary-container'
+              }`}
             >
-              <Icon name="rocket_launch" size={16} />
-              <span>Publish Masterclass</span>
+              {isPublishing ? (
+                <>
+                  <Icon name="sync" size={16} className="animate-spin" />
+                  <span>
+                    {isInstructor
+                      ? courseState.status === 'APPROVED'
+                        ? 'Publishing Live...'
+                        : 'Submitting...'
+                      : 'Publishing...'}
+                  </span>
+                </>
+              ) : isInstructor ? (
+                courseState.status === 'APPROVED' ? (
+                  <>
+                    <Icon name="rocket_launch" size={16} />
+                    <span>Publish Masterclass Live 🚀</span>
+                  </>
+                ) : courseState.status === 'IN_REVIEW' ? (
+                  <>
+                    <Icon name="hourglass_top" size={16} />
+                    <span>Under Review ⏳</span>
+                  </>
+                ) : courseState.status === 'PUBLISHED' ? (
+                  <>
+                    <Icon name="check_circle" size={16} />
+                    <span>Course is Live ✅</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="send" size={16} />
+                    <span>Submit for Approval 📋</span>
+                  </>
+                )
+              ) : (
+                <>
+                  <Icon name="rocket_launch" size={16} />
+                  <span>Publish Masterclass</span>
+                </>
+              )}
             </button>
           )}
         </div>

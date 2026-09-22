@@ -81,13 +81,49 @@ export default function InstructorDashboardPage() {
 
       showToast({
         title: 'Submitted for Approval! 📋',
-        description: 'Course submitted to Super Admin for review. Once approved, it will automatically appear on the landing page.',
+        description: 'Course submitted to Super Admin for review. Once approved, you will be able to publish it live.',
         type: 'success'
       });
     } catch (err: any) {
       showToast({
         title: 'Submission Incomplete',
         description: err.message || 'Make sure your course has sections, lessons, and pricing configured before submitting.',
+        type: 'error'
+      });
+    } finally {
+      setSubmittingCourseId(null);
+    }
+  };
+
+  // Publish course after Super Admin approval
+  const handlePublishApprovedCourse = async (courseId: string, courseSlug?: string) => {
+    setSubmittingCourseId(courseId);
+    try {
+      const identifier = courseSlug || courseId;
+      const res = await fetch(`/api/courses/${identifier}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publish: true })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to publish course');
+      }
+
+      setCourses((prev) =>
+        prev.map((c) => (c.id === courseId ? { ...c, status: 'PUBLISHED' } : c))
+      );
+
+      showToast({
+        title: 'Course Published Live! 🚀',
+        description: 'Your approved masterclass is now live on the landing page for student enrollments.',
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Publishing Error',
+        description: err.message || 'Failed to publish course.',
         type: 'error'
       });
     } finally {
@@ -277,7 +313,8 @@ export default function InstructorDashboardPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => {
-                const isApproved = course.status === 'PUBLISHED';
+                const isPublished = course.status === 'PUBLISHED';
+                const isApproved = course.status === 'APPROVED';
                 const isUnderReview = course.status === 'IN_REVIEW';
                 const isRejected = course.status === 'REJECTED';
 
@@ -291,8 +328,10 @@ export default function InstructorDashboardPage() {
                         {/* Status Badge */}
                         <span
                           className={`px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
-                            isApproved
+                            isPublished
                               ? 'bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20'
+                              : isApproved
+                              ? 'bg-blue-500/10 text-blue-700 ring-1 ring-blue-500/30'
                               : isUnderReview
                               ? 'bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/30'
                               : isRejected
@@ -303,8 +342,10 @@ export default function InstructorDashboardPage() {
                           {isUnderReview && (
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
                           )}
-                          {isApproved
+                          {isPublished
                             ? 'Live on Landing Page'
+                            : isApproved
+                            ? 'Approved by Admin ✅'
                             : isUnderReview
                             ? 'Under Admin Review'
                             : isRejected
@@ -313,7 +354,7 @@ export default function InstructorDashboardPage() {
                         </span>
 
                         <span className="font-mono text-sm font-black text-emerald-600">
-                          ₹{course.price.toLocaleString('en-IN')}
+                          {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
                         </span>
                       </div>
 
@@ -323,7 +364,19 @@ export default function InstructorDashboardPage() {
 
                       {isUnderReview && (
                         <p className="text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-200/50">
-                          ⏳ Pending Super Admin approval. Once approved, this course will automatically appear on the main website.
+                          ⏳ Pending Super Admin approval. Once approved, you can publish it live to the website.
+                        </p>
+                      )}
+
+                      {isApproved && (
+                        <p className="text-[11px] text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-lg border border-emerald-200/50 font-medium">
+                          🎉 Super Admin has approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
+                        </p>
+                      )}
+
+                      {isRejected && (
+                        <p className="text-[11px] text-rose-700 bg-rose-50 dark:bg-rose-950/20 p-2 rounded-lg border border-rose-200/50">
+                          ⚠️ Super Admin requested changes. Please edit the syllabus and re-submit for review.
                         </p>
                       )}
                     </div>
@@ -340,7 +393,7 @@ export default function InstructorDashboardPage() {
                       </div>
 
                       {/* Course Actions */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
                         <Link
                           href={`/instructor/courses/builder?courseId=${course.id}`}
                           className="text-xs font-bold text-on-surface hover:text-primary border border-outline-variant px-2.5 py-1.5 rounded-xl hover:bg-surface-container transition-colors inline-flex items-center gap-1"
@@ -349,8 +402,25 @@ export default function InstructorDashboardPage() {
                           <span>Edit Syllabus</span>
                         </Link>
 
+                        {/* Approved: Instructor can now publish live */}
+                        {isApproved && (
+                          <button
+                            type="button"
+                            disabled={submittingCourseId === course.id}
+                            onClick={() => handlePublishApprovedCourse(course.id, course.slug)}
+                            className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          >
+                            {submittingCourseId === course.id ? (
+                              <Icon name="sync" size={13} className="animate-spin" />
+                            ) : (
+                              <Icon name="rocket_launch" size={13} />
+                            )}
+                            <span>Publish Live</span>
+                          </button>
+                        )}
+
                         {/* Submit for Approval Button (for Draft / Rejected) */}
-                        {(!isApproved && !isUnderReview) && (
+                        {(!isPublished && !isApproved && !isUnderReview) && (
                           <button
                             type="button"
                             disabled={submittingCourseId === course.id}
@@ -366,8 +436,16 @@ export default function InstructorDashboardPage() {
                           </button>
                         )}
 
+                        {/* Under Review notice */}
+                        {isUnderReview && (
+                          <span className="text-[11px] font-bold text-amber-700 px-2.5 py-1 rounded-lg bg-amber-50 inline-flex items-center gap-1">
+                            <Icon name="hourglass_top" size={13} />
+                            <span>In Review</span>
+                          </span>
+                        )}
+
                         {/* View Course Link (for Published) */}
-                        {isApproved && (
+                        {isPublished && (
                           <Link
                             href={`/courses/${course.slug || course.id}`}
                             className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"

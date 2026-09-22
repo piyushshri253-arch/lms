@@ -121,9 +121,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valid instructor email is required.' }, { status: 400 });
     }
 
-    const orgId = admin.organizationId;
-    if (!orgId && admin.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'No active organization found.' }, { status: 400 });
+    let orgId = admin.organizationId;
+    if (!orgId) {
+      let companyOrg = await prisma.organization.findFirst();
+      if (!companyOrg) {
+        companyOrg = await prisma.organization.create({
+          data: { name: 'MORENA TEACH LMS', slug: 'morena-teach' }
+        });
+      }
+      orgId = companyOrg.id;
     }
 
     const normalizedEmail = email.toLowerCase().trim();

@@ -173,7 +173,7 @@ const createCourseSchema = z.object({
   banner: z.string().optional(),
   language: z.string().optional().default('English'),
   durationHours: z.coerce.number().optional().default(0),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED', 'IN_REVIEW', 'REJECTED']).optional().default('DRAFT'),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED', 'IN_REVIEW', 'APPROVED', 'REJECTED']).optional().default('DRAFT'),
   whatYouWillLearn: z.array(z.string()).optional(),
   requirements: z.array(z.string()).optional(),
   targetAudience: z.array(z.string()).optional(),

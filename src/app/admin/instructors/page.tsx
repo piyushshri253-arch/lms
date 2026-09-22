@@ -22,11 +22,13 @@ function InstructorsPageContent() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    department: 'Computer Science',
-    title: 'Assistant Professor',
+    department: 'Early Childhood Education',
+    title: 'Senior Educator',
     bio: '',
-    password: ''
+    password: 'Instructor@123'
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
 
   const fetchInstructors = async () => {
     setIsLoading(true);
@@ -54,6 +56,8 @@ function InstructorsPageContent() {
       return;
     }
 
+    const assignedPassword = formData.password.trim() || 'Instructor@123';
+
     try {
       const res = await fetch('/api/admin/instructors', {
         method: 'POST',
@@ -62,7 +66,7 @@ function InstructorsPageContent() {
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
           bio: `${formData.title} - ${formData.department}. ${formData.bio}`.trim(),
-          password: formData.password || 'Instructor@2026'
+          password: assignedPassword
         })
       });
 
@@ -71,9 +75,15 @@ function InstructorsPageContent() {
         throw new Error(data.error || 'Failed to appoint instructor');
       }
 
-      showToast({ title: 'Faculty Appointed', description: `${formData.name} added to database.`, type: 'success' });
+      setCreatedCredentials({
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: assignedPassword
+      });
+
+      showToast({ title: 'Instructor Appointed! 🎓', description: `${formData.name} added to database.`, type: 'success' });
       setIsAddModalOpen(false);
-      setFormData({ name: '', email: '', department: 'Computer Science', title: 'Assistant Professor', bio: '', password: '' });
+      setFormData({ name: '', email: '', department: 'Early Childhood Education', title: 'Senior Educator', bio: '', password: 'Instructor@123' });
       fetchInstructors();
     } catch (err: any) {
       showToast({ title: 'Error', description: err.message, type: 'error' });
@@ -371,34 +381,57 @@ function InstructorsPageContent() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g. Associate Professor"
+                    placeholder="e.g. Senior Educator / Faculty Lead"
                     className="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant text-xs font-semibold focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1">Department</label>
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant text-xs font-semibold focus:outline-none focus:border-primary"
-                >
-                  <option value="Computer Science">Computer Science & Architecture</option>
-                  <option value="Artificial Intelligence">Artificial Intelligence & ML</option>
-                  <option value="DevOps & Cloud Systems">DevOps & Cloud Systems</option>
-                  <option value="Database Engineering">Database Engineering</option>
-                  <option value="Pedagogical Leadership">Pedagogical Leadership</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-on-surface mb-1">Specialization / Department</label>
+                  <select
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant text-xs font-semibold focus:outline-none focus:border-primary"
+                  >
+                    <option value="Early Childhood Education">Early Childhood Education</option>
+                    <option value="Teacher Development">Teacher Development & Pedagogy</option>
+                    <option value="Primary Years & Curriculum">Primary Years & Curriculum</option>
+                    <option value="Professional Learning">Professional Learning & Inclusion</option>
+                    <option value="Leadership & School Development">Leadership & School Development</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-on-surface mb-1">Login Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="e.g. Instructor@123"
+                      className="w-full h-10 px-3 pr-9 rounded-xl bg-surface-container-low border border-outline-variant text-xs font-mono font-semibold focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer"
+                    >
+                      <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={15} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-on-surface mb-1">Biography / Research Background</label>
+                <label className="block text-xs font-bold text-on-surface mb-1">Biography / Teaching Background</label>
                 <textarea
                   rows={3}
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder="Key research accomplishments, industry credentials, and teaching philosophy..."
+                  placeholder="Key certifications, teaching credentials, subject expertise, and educational philosophy..."
                   className="w-full p-3 rounded-xl bg-surface-container-low border border-outline-variant text-xs font-medium focus:outline-none focus:border-primary"
                 />
               </div>
@@ -415,10 +448,68 @@ function InstructorsPageContent() {
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
                 >
-                  Save & Appoint
+                  Create & Appoint
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Created Credentials Success Modal */}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            style={{ width: '100%', maxWidth: '480px' }}
+            className="bg-surface-container-lowest border border-emerald-300 rounded-3xl p-6 sm:p-8 w-full max-w-[480px] shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
+                <Icon name="verified" size={32} />
+              </div>
+              <h3 className="text-lg font-black text-on-surface">Instructor Account Created! 🎓</h3>
+              <p className="text-xs text-on-surface-variant">
+                Share these login credentials with <strong className="text-on-surface">{createdCredentials.name}</strong> so they can log in to their Instructor Studio.
+              </p>
+            </div>
+
+            <div className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant space-y-3 font-mono text-xs">
+              <div>
+                <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Login URL</span>
+                <span className="font-bold text-primary select-all">https://lms-phi-plum.vercel.app/login</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Email Address</span>
+                <span className="font-bold text-on-surface select-all">{createdCredentials.email}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Password</span>
+                <span className="font-bold text-emerald-700 select-all">{createdCredentials.password}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Morena Teach LMS - Instructor Login Credentials:\nURL: https://lms-phi-plum.vercel.app/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
+                  );
+                  showToast({ title: 'Copied!', description: 'Credentials copied to clipboard.', type: 'success' });
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-outline-variant hover:bg-surface-container text-xs font-bold text-on-surface inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Icon name="content_copy" size={15} />
+                <span>Copy Credentials</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedCredentials(null)}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
