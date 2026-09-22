@@ -859,11 +859,122 @@ async function seed16Courses() {
           ]
         }
       ]
+    },
+
+    // 17. Introduction to Modern Pedagogy & Active Classrooms (Free Masterclass)
+    {
+      title: 'Introduction to Modern Pedagogy & Active Classrooms (Free Masterclass)',
+      slug: 'intro-modern-pedagogy-active-classrooms-free',
+      category: 'Teacher Development',
+      instructor: 'Dr. Rohan Malhotra',
+      duration: 4,
+      level: 'BEGINNER',
+      price: 0,
+      discountPrice: 1499,
+      description: 'A foundational complimentary masterclass covering student-centric pedagogy, active participation techniques, and engaging 45-minute lesson blueprints.',
+      shortDescription: 'Master modern learner-centric pedagogy, active classroom techniques, and 45-minute lesson blueprints.',
+      whatYouWillLearn: [
+        'Core principles of learner-centric modern pedagogy.',
+        'Proven techniques to boost student engagement and participation.',
+        'Simple differentiated instruction strategies for mixed-ability classrooms.',
+        'Designing structured 45-minute interactive lesson blueprints.'
+      ],
+      modules: [
+        {
+          title: 'MODULE 1: Principles of Modern Pedagogy',
+          lessons: [
+            { title: '1.1 Welcome & Course Orientation', duration: '06:30' },
+            { title: '1.2 Moving from Teacher-Led to Learner-Centric Classrooms', duration: '14:20' },
+            { title: '1.3 Understanding Diverse Learning Modalities', duration: '12:15' }
+          ]
+        },
+        {
+          title: 'MODULE 2: Active Participation & Lesson Blueprinting',
+          lessons: [
+            { title: '2.1 Think-Pair-Share and Rapid Classroom Polling', duration: '15:45' },
+            { title: '2.2 Crafting a 45-Minute Interactive Lesson Plan', duration: '18:10' },
+            { title: '2.3 Reflection & Masterclass Summary', duration: '08:40' }
+          ]
+        }
+      ]
+    },
+
+    // 18. Foundations of Play-Based Learning: Quickstart Guide (Free Masterclass)
+    {
+      title: 'Foundations of Play-Based Learning: Quickstart Guide (Free Masterclass)',
+      slug: 'foundations-play-based-learning-quickstart-free',
+      category: 'Early Childhood Education',
+      instructor: 'Pihu Kapoor',
+      duration: 3,
+      level: 'BEGINNER',
+      price: 0,
+      discountPrice: 1299,
+      description: 'Discover how to ignite curiosity, communication, and cognitive growth in early learners through purposeful play and observation.',
+      shortDescription: 'Neuroscience of play, open-ended invitations, and observing development through play.',
+      whatYouWillLearn: [
+        'The neuroscience of play in early brain development.',
+        'Creating low-cost, sensory-rich play invitations.',
+        'Balancing child-led free play with teacher-guided inquiry.',
+        'Observing and documenting developmental milestones through play.'
+      ],
+      modules: [
+        {
+          title: 'MODULE 1: The Power & Science of Play',
+          lessons: [
+            { title: '1.1 Why Play Matters: Brain Architecture in Years 0-6', duration: '09:15' },
+            { title: '1.2 Types of Play: Sensory, Constructive & Dramatic', duration: '13:40' }
+          ]
+        },
+        {
+          title: 'MODULE 2: Practical Play Environments & Observation',
+          lessons: [
+            { title: '2.1 Setting Up Open-Ended Play Stations on a Budget', duration: '16:20' },
+            { title: '2.2 The Art of Pedagogical Observation & Next Steps', duration: '11:50' }
+          ]
+        }
+      ]
+    },
+
+    // 19. Digital Tools & Formative Assessment for Educators (Free Masterclass)
+    {
+      title: 'Digital Tools & Formative Assessment for Educators (Free Masterclass)',
+      slug: 'digital-tools-formative-assessment-educators-free',
+      category: 'Professional Learning',
+      instructor: 'Kavita Sharma',
+      duration: 4,
+      level: 'BEGINNER',
+      price: 0,
+      discountPrice: 1599,
+      description: 'Master real-time check-ins, digital exit tickets, and interactive rubrics to track student comprehension without exam anxiety.',
+      shortDescription: 'Assessment for learning, digital exit tickets, low-stakes pulse checks, and rubrics.',
+      whatYouWillLearn: [
+        'Differences between assessment OF learning vs assessment FOR learning.',
+        'Implementing 5-minute digital exit tickets and pulse checks.',
+        'Designing actionable student-friendly rubrics.',
+        'Using assessment data to adjust tomorrow’s teaching plan.'
+      ],
+      modules: [
+        {
+          title: 'MODULE 1: The Philosophy of Formative Assessment',
+          lessons: [
+            { title: '1.1 Beyond Grades: Why Real-Time Assessment Matters', duration: '08:20' },
+            { title: '1.2 Continuous Feedback vs Final Exams: Impact on Learner Anxiety', duration: '12:45' }
+          ]
+        },
+        {
+          title: 'MODULE 2: Practical Tools & Rubrics',
+          lessons: [
+            { title: '2.1 Rapid Check-in Strategies: Exit Tickets, Polls & Traffic Lights', duration: '14:10' },
+            { title: '2.2 Building Descriptive, Criterion-Referenced Rubrics', duration: '15:30' },
+            { title: '2.3 Course Wrap-Up & Implementation Blueprint', duration: '07:15' }
+          ]
+        }
+      ]
     }
   ];
 
-  // 6. Insert All 16 Courses and their Curricula
-  console.log('📚 Inserting all 16 courses with modules and lessons into Supabase...');
+  // 6. Insert All Courses and their Curricula
+  console.log('📚 Inserting all courses with modules and lessons into Supabase...');
 
   for (let i = 0; i < courseData.length; i++) {
     const c = courseData[i];
