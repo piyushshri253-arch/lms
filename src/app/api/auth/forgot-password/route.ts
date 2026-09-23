@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateSecureToken, checkRateLimit, logSecurityEvent } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
+import { getBaseUrl } from '@/lib/base-url';
 
 export async function POST(req: NextRequest) {
   try {
@@ -66,13 +67,8 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Dynamically resolve base URL to avoid localhost in emails
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    const proto = req.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
-    let baseUrl = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://lms-phi-plum.vercel.app');
-    if (baseUrl.includes('localhost') && (!host || !host.includes('localhost'))) {
-      baseUrl = 'https://lms-phi-plum.vercel.app';
-    }
+    // Dynamically resolve canonical base URL so email reset links always work in Gmail / mail clients
+    const baseUrl = getBaseUrl();
     const resetUrl = `${baseUrl}/reset-password/${token}`;
 
     // Dispatch Email

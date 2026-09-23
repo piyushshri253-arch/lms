@@ -4,6 +4,7 @@ import { requireAuth, setSessionCookie, AuthSessionUser } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { generateOtp, hashToken } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
+import { getBaseUrl } from '@/lib/base-url';
 import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
 
 export async function POST(req: Request) {
@@ -207,7 +208,7 @@ export async function POST(req: Request) {
           organizationName: result.org.name,
           inviterName: user.name,
           role: inv.role,
-          inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${inv.token}`
+          inviteUrl: `${getBaseUrl()}/invite/${inv.token}`
         }
       }).catch(() => {});
     }

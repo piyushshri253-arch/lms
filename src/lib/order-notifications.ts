@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { sendEmail } from './email';
+import { getBaseUrl } from './base-url';
 
 /**
  * Dispatches multi-party notifications upon course purchase:
@@ -74,6 +75,12 @@ export async function dispatchOrderPurchasedNotifications(orderId: string): Prom
       }
     }).catch((err) => console.error('[Student In-App Notification Error]:', err));
 
+    const baseUrl = getBaseUrl();
+    const invoiceUrl = `${baseUrl}/invoice/${order.orderNumber || order.id}`;
+    const courseUrl = `${baseUrl}/student/learning`;
+    const instructorDashboardUrl = `${baseUrl}/instructor`;
+    const adminDashboardUrl = `${baseUrl}/admin`;
+
     // Email to Student
     await sendEmail({
       to: student.email,
@@ -87,7 +94,8 @@ export async function dispatchOrderPurchasedNotifications(orderId: string): Prom
         orderNumber: order.orderNumber,
         total: order.total,
         provider: order.provider || 'Trial Payment',
-        courseUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/learning`
+        courseUrl,
+        invoiceUrl
       }
     }).catch((err) => console.error('[Student Purchase Email Error]:', err));
 
@@ -127,7 +135,7 @@ export async function dispatchOrderPurchasedNotifications(orderId: string): Prom
             studentEmail: student.email,
             orderNumber: order.orderNumber,
             total: order.total,
-            dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/instructor`
+            dashboardUrl: instructorDashboardUrl
           }
         }).catch((err) => console.error(`[Instructor Email Error ${instructor.email}]:`, err));
       }
@@ -182,7 +190,7 @@ export async function dispatchOrderPurchasedNotifications(orderId: string): Prom
           instructorName: instructorNames,
           total: order.total,
           provider: order.provider || 'Trial Payment',
-          adminUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin`
+          adminUrl: adminDashboardUrl
         }
       }).catch((err) => console.error(`[Admin Order Email Error ${destEmail}]:`, err));
     }

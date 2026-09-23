@@ -4,6 +4,7 @@ import { requireTenantRole, requireTenantPermission } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { generateOtp, hashPassword } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
+import { getBaseUrl } from '@/lib/base-url';
 import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS } from '@/lib/permissions';
 
 export async function GET(request: Request) {
@@ -180,7 +181,7 @@ export async function POST(request: Request) {
           organizationName: admin.organizationName || 'Academy',
           inviterName: admin.name,
           role: 'INSTRUCTOR',
-          inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${inviteToken}`
+          inviteUrl: `${getBaseUrl()}/invite/${inviteToken}`
         }
       }).catch(() => {});
 

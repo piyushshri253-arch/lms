@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, hashToken, logSecurityEvent } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
+import { getBaseUrl } from '@/lib/base-url';
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       userId: resetRecord.userId,
       data: {
         name: resetRecord.user.name,
-        loginUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://lms-phi-plum.vercel.app'}/sales/login`
+        loginUrl: `${getBaseUrl()}/sales/login`
       }
     }).catch(() => {});
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantRole, enforceTenantPlanLimits } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
+import { getBaseUrl } from '@/lib/base-url';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import crypto from 'crypto';
 
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
       select: { name: true, slug: true }
     });
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${rawToken}`;
+    const inviteUrl = `${getBaseUrl()}/invite/${rawToken}`;
 
     // 5. Send Email Invitation
     await sendEmail({

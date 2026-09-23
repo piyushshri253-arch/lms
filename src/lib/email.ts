@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { prisma } from './prisma';
 import { decryptSecret } from './security';
+import { getBaseUrl } from './base-url';
 
 export type EmailTemplateType =
   | 'WELCOME'
@@ -65,7 +66,7 @@ export function renderEmailHtml(
   const brandPrimary = branding?.primaryColor || '#5624d0';
   const brandDark = '#1c1d1f';
   const platformName = branding?.name || 'Morena Teach';
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
 
   let bodyContent = '';
 
@@ -205,7 +206,9 @@ export function renderEmailHtml(
       break;
 
     case 'PAYMENT_SUCCESS':
-    case 'ENROLLMENT':
+    case 'ENROLLMENT': {
+      const invoiceDownloadUrl = data.invoiceUrl || `${baseUrl}/invoice/${data.orderNumber || data.id || ''}`;
+      const courseLearnUrl = data.courseUrl || `${baseUrl}/student/learning`;
       bodyContent = `
         <div style="text-align: center; margin-bottom: 20px;">
           <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
@@ -220,7 +223,7 @@ export function renderEmailHtml(
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 6px 0; color: #64748b;"><strong>Order Number:</strong></td>
-              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-family: monospace; font-weight: bold;">${data.orderNumber}</td>
+              <td style="padding: 6px 0; color: #1e293b; text-align: right; font-family: monospace; font-weight: bold;">${data.orderNumber || 'CONFIRMED'}</td>
             </tr>
             <tr>
               <td style="padding: 6px 0; color: #64748b;"><strong>Course:</strong></td>
@@ -235,18 +238,32 @@ export function renderEmailHtml(
               <td style="padding: 6px 0; color: #1e293b; text-align: right;">${data.provider || 'Trial Sandbox / Card / UPI'}</td>
             </tr>
             <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Official Invoice:</strong></td>
+              <td style="padding: 6px 0; text-align: right;">
+                <a href="${invoiceDownloadUrl}" style="color: ${brandPrimary}; text-decoration: underline; font-weight: bold;">
+                  Download Invoice 📄
+                </a>
+              </td>
+            </tr>
+            <tr>
               <td style="padding: 6px 0; color: #64748b;"><strong>Access Validity:</strong></td>
               <td style="padding: 6px 0; color: #1e293b; text-align: right;">Full Lifetime Access</td>
             </tr>
           </table>
         </div>
         <div style="margin: 28px 0; text-align: center;">
-          <a href="${data.courseUrl || baseUrl + '/student/learning'}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.25);">
+          <a href="${courseLearnUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.25); margin-bottom: 12px;">
             Start Learning Now →
           </a>
+          <div>
+            <a href="${invoiceDownloadUrl}" style="display: inline-block; background: #ffffff; color: #1c1d1f; text-decoration: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; border: 1px solid #cbd5e1;">
+              📄 Download Tax Invoice &amp; Receipt
+            </a>
+          </div>
         </div>
       `;
       break;
+    }
 
     case 'INSTRUCTOR_ENROLLMENT_ALERT':
       bodyContent = `
@@ -338,7 +355,8 @@ export function renderEmailHtml(
       `;
       break;
 
-    case 'CERTIFICATE':
+    case 'CERTIFICATE': {
+      const certUrl = data.certificateUrl || (data.certificateNumber ? `${baseUrl}/certificate/${data.certificateNumber}` : `${baseUrl}/student/learning?tab=certificates`);
       bodyContent = `
         <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px;">Congratulations! Certificate Earned 🏆</h2>
         <p style="color: #475569; font-size: 14px; line-height: 1.6;">
@@ -346,28 +364,60 @@ export function renderEmailHtml(
         </p>
         <p style="color: #475569; font-size: 13px;">Certificate ID: <code style="font-weight: bold; color: ${brandPrimary};">${data.certificateNumber}</code></p>
         <div style="margin: 25px 0; text-align: center;">
-          <a href="${data.certificateUrl || baseUrl + '/lms/certificates'}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: bold; font-size: 14px;">
+          <a href="${certUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: bold; font-size: 14px;">
             View &amp; Download Certificate
           </a>
         </div>
       `;
       break;
+    }
 
-    default:
+    case 'LOGIN_ALERT':
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #fef2f2; border: 1px solid #fecaca; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 30px;">
+            🛡️
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">New Sign-In to Your Account</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hi <strong>${data.name || 'there'}</strong>, your ${platformName} account was just signed into from a new session.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 20px 0; font-size: 13px; color: #475569;">
+          <p style="margin: 4px 0;"><strong>Browser / Device:</strong> ${data.userAgent || 'Web Browser'}</p>
+          <p style="margin: 4px 0;"><strong>IP Address:</strong> ${data.ipAddress || 'Authorized Network'}</p>
+          <p style="margin: 4px 0;"><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+        <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
+          If this was you, you can safely ignore this email. If you did not sign in recently, please reset your password immediately to protect your account.
+        </p>
+        <div style="margin: 25px 0; text-align: center;">
+          <a href="${data.securityUrl || baseUrl + '/forgot-password'}" style="display: inline-block; background: #dc2626; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold; font-size: 13px;">
+            Secure My Account / Reset Password
+          </a>
+        </div>
+      `;
+      break;
+
+    default: {
+      const actionLink = data.actionUrl
+        ? (data.actionUrl.startsWith('http') ? data.actionUrl : `${baseUrl}${data.actionUrl.startsWith('/') ? data.actionUrl : `/${data.actionUrl}`}`)
+        : '';
       bodyContent = `
         <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px;">${data.title || `Notification from ${platformName}`}</h2>
         <p style="color: #475569; font-size: 14px; line-height: 1.6;">
           ${data.message || data.body || 'Your Morena Teach account was updated successfully.'}
         </p>
-        ${data.actionUrl ? `
+        ${actionLink ? `
           <div style="margin: 25px 0; text-align: center;">
-            <a href="${data.actionUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: bold; font-size: 14px;">
+            <a href="${actionLink}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: bold; font-size: 14px;">
               ${data.actionText || 'View Details'}
             </a>
           </div>
         ` : ''}
       `;
       break;
+    }
   }
 
   return `

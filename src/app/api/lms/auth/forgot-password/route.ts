@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashToken, logSecurityEvent, checkRateLimit } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
+import { getBaseUrl } from '@/lib/base-url';
 import crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/lms/reset-password/${rawToken}`;
+      const resetUrl = `${getBaseUrl()}/lms/reset-password/${rawToken}`;
 
       await sendEmail({
         to: normalizedEmail,
