@@ -104,7 +104,13 @@ export default function ReviewerDashboardPage() {
           setStats(data.stats);
         }
       } else {
-        showToast({ title: 'Error', description: data.error || 'Failed to load courses', type: 'error' });
+        if (res.status === 401) {
+          showToast({ title: 'Session Expired', description: 'Please sign in with your Reviewer account.', type: 'error' });
+        } else if (res.status === 403) {
+          showToast({ title: 'Access Denied', description: data.error || 'Course Reviewer or Administrator permissions required.', type: 'error' });
+        } else {
+          showToast({ title: 'Error', description: data.error || 'Failed to load courses', type: 'error' });
+        }
       }
     } catch (e: any) {
       showToast({ title: 'Error', description: e.message || 'Failed to fetch review queue', type: 'error' });

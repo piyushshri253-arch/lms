@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireTenantRole(['REVIEWER', 'ADMIN', 'SUPER_ADMIN']);
+    const user = await requireTenantRole(['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
     const { id } = await params;
     const body = await request.json();
     const { action, note } = body;
@@ -109,6 +109,18 @@ export async function POST(
     });
   } catch (err: any) {
     console.error('[Reviewer Decision Error]:', err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    const msg = String(err?.message || '');
+    const isAuth = msg === 'UNAUTHORIZED' || msg.includes('UNAUTHORIZED');
+    const isForbidden = msg === 'FORBIDDEN' || msg.includes('FORBIDDEN') || msg.includes('INSUFFICIENT');
+    return NextResponse.json(
+      {
+        error: isForbidden
+          ? 'Access denied: Course Reviewer or Administrator privileges required.'
+          : isAuth
+          ? 'Authentication required. Please log into a Course Reviewer account.'
+          : (err.message || 'Server error')
+      },
+      { status: isAuth ? 401 : isForbidden ? 403 : 500 }
+    );
   }
 }

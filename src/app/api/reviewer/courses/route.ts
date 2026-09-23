@@ -4,32 +4,46 @@ import { requireTenantRole } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
-    const user = await requireTenantRole(['REVIEWER', 'ADMIN', 'SUPER_ADMIN']);
+    const user = await requireTenantRole(['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status')?.trim().toUpperCase();
     const search = searchParams.get('search')?.trim().toLowerCase();
 
-    const where: any = {};
+    const andConditions: any[] = [];
 
     if (user.role !== 'SUPER_ADMIN' && user.organizationId) {
-      where.organizationId = user.organizationId;
+      andConditions.push({
+        OR: [
+          { organizationId: user.organizationId },
+          { organizationId: null }
+        ]
+      });
     }
 
     if (statusFilter && statusFilter !== 'ALL') {
-      where.status = statusFilter;
+      andConditions.push({ status: statusFilter });
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { instructor: { name: { contains: search, mode: 'insensitive' } } },
-        { instructor: { email: { contains: search, mode: 'insensitive' } } },
-        { category: { name: { contains: search, mode: 'insensitive' } } }
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { instructor: { name: { contains: search, mode: 'insensitive' } } },
+          { instructor: { email: { contains: search, mode: 'insensitive' } } },
+          { category: { name: { contains: search, mode: 'insensitive' } } }
+        ]
+      });
     }
 
+    const where: any = andConditions.length > 0 ? { AND: andConditions } : {};
+
     // Counts for stats cards
-    const tenantFilter = user.role !== 'SUPER_ADMIN' && user.organizationId ? { organizationId: user.organizationId } : {};
+    const tenantFilter = user.role !== 'SUPER_ADMIN' && user.organizationId ? {
+      OR: [
+        { organizationId: user.organizationId },
+        { organizationId: null }
+      ]
+    } : {};
     
     const [pendingCount, approvedCount, rejectedCount, totalCount] = await Promise.all([
       prisma.course.count({ where: { ...tenantFilter, status: 'IN_REVIEW' } }),
@@ -136,6 +150,18 @@ export async function GET(request: Request) {
     });
   } catch (err: any) {
     console.error('[Reviewer Courses GET Error]:', err);
-    return NextResponse.json({ error: err.message || 'Unauthorized or server error' }, { status: 400 });
+    const msg = String(err?.message || '');
+    const isAuth = msg === 'UNAUTHORIZED' || msg.includes('UNAUTHORIZED');
+    const isForbidden = msg === 'FORBIDDEN' || msg.includes('FORBIDDEN') || msg.includes('INSUFFICIENT');
+    return NextResponse.json(
+      {
+        error: isForbidden
+          ? 'Access denied: Course Reviewer or Administrator privileges required.'
+          : isAuth
+          ? 'Authentication required. Please log into a Course Reviewer account.'
+          : (err.message || 'Unauthorized or server error')
+      },
+      { status: isAuth ? 401 : isForbidden ? 403 : 400 }
+    );
   }
 }

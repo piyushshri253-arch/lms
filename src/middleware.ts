@@ -124,7 +124,7 @@ export async function middleware(request: NextRequest) {
     if (role !== 'REVIEWER' && !isAuthorizedAdminRole(role)) {
       return NextResponse.redirect(
         new URL(
-          '/login?error=' + encodeURIComponent('Access denied: Course Reviewer privileges required.'),
+          '/reviewer/login?error=' + encodeURIComponent('Access denied: Course Reviewer or Administrator privileges required.'),
           request.url
         )
       );
@@ -201,6 +201,30 @@ export async function middleware(request: NextRequest) {
     if (!isAuthorizedAdminRole(adminSession.role)) {
       return NextResponse.json(
         { error: 'Access denied: Insufficient administrative privileges.' },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.next({
+      request: { headers: requestHeaders }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // 3.5. REVIEWER API PROTECTION (/api/reviewer and /api/reviewer/*)
+  // -------------------------------------------------------------------------
+  if (pathname.startsWith('/api/reviewer')) {
+    const reviewerSession = lmsSession || salesSession;
+    if (!reviewerSession) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please log into a Course Reviewer account.' },
+        { status: 401 }
+      );
+    }
+
+    if (reviewerSession.role !== 'REVIEWER' && !isAuthorizedAdminRole(reviewerSession.role)) {
+      return NextResponse.json(
+        { error: 'Access denied: Course Reviewer or Administrator privileges required.' },
         { status: 403 }
       );
     }
@@ -441,6 +465,9 @@ export const config = {
     '/admin',
     '/admin/:path*',
     '/api/admin/:path*',
+    '/reviewer',
+    '/reviewer/:path*',
+    '/api/reviewer/:path*',
     '/sales/:path*',
     '/lms/:path*',
     '/learning/:path*',
