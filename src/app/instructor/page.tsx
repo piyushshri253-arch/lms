@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Modal } from '@/components/ui/Modal';
 import { AppHeader } from '@/components/layout/AppHeader';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 interface CourseAuthored {
   id: string;
@@ -371,6 +372,8 @@ export default function InstructorDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle variant="pill" />
+
             <button
               type="button"
               onClick={() => setIsCreateOpen(true)}

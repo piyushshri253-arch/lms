@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Modal } from '@/components/ui/Modal';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 interface Lesson {
   id: string;
@@ -203,25 +204,30 @@ export default function ReviewerDashboardPage() {
       {/* Page Title & Mission */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               <Icon name="rate_review" size={28} />
             </span>
             Course Quality & Review Studio
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Evaluate instructor curriculum, verify instructional quality, and provide constructive feedback before courses go live.
           </p>
         </div>
 
-        <button
-          onClick={fetchCourses}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium transition-colors shadow-sm self-start md:self-auto"
-        >
-          <Icon name="refresh" size={18} className={isLoading ? 'animate-spin' : ''} />
-          Refresh Queue
-        </button>
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          {/* Theme Selector Pill */}
+          <ThemeToggle variant="pill" />
+
+          <button
+            onClick={fetchCourses}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium transition-colors shadow-xs cursor-pointer"
+          >
+            <Icon name="refresh" size={18} className={isLoading ? 'animate-spin' : ''} />
+            Refresh Queue
+          </button>
+        </div>
       </div>
 
       {/* KPI Stats Cards */}
@@ -231,27 +237,27 @@ export default function ReviewerDashboardPage() {
           onClick={() => setActiveTab('IN_REVIEW')}
           className={`cursor-pointer p-5 rounded-2xl border transition-all ${
             activeTab === 'IN_REVIEW'
-              ? 'bg-amber-950/20 border-amber-500/50 ring-1 ring-amber-500/30'
-              : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+              ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-400 dark:border-amber-500/50 ring-1 ring-amber-400/40 shadow-sm'
+              : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400/90">
               Awaiting Review
             </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
               <Icon name="pending_actions" size={20} />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-white">{stats.pendingReview}</span>
+            <span className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stats.pendingReview}</span>
             {stats.pendingReview > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 animate-pulse">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-300 animate-pulse">
                 Action Needed
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Courses waiting for your evaluation</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Courses waiting for your evaluation</p>
         </div>
 
         {/* Approved Card */}
@@ -259,22 +265,22 @@ export default function ReviewerDashboardPage() {
           onClick={() => setActiveTab('APPROVED')}
           className={`cursor-pointer p-5 rounded-2xl border transition-all ${
             activeTab === 'APPROVED'
-              ? 'bg-emerald-950/20 border-emerald-500/50 ring-1 ring-emerald-500/30'
-              : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+              ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-500/50 ring-1 ring-emerald-400/40 shadow-sm'
+              : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400/90">
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400/90">
               Approved
             </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <Icon name="check_circle" size={20} />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-black tracking-tight text-white">{stats.approved}</span>
+            <span className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stats.approved}</span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Cleared for live student enrollment</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Cleared for live student enrollment</p>
         </div>
 
         {/* Changes Requested Card */}
@@ -282,22 +288,22 @@ export default function ReviewerDashboardPage() {
           onClick={() => setActiveTab('REJECTED')}
           className={`cursor-pointer p-5 rounded-2xl border transition-all ${
             activeTab === 'REJECTED'
-              ? 'bg-rose-950/20 border-rose-500/50 ring-1 ring-rose-500/30'
-              : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+              ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-400 dark:border-rose-500/50 ring-1 ring-rose-400/40 shadow-sm'
+              : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-rose-400/90">
+            <span className="text-xs font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400/90">
               Changes Requested
             </span>
-            <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
               <Icon name="error" size={20} />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-black tracking-tight text-white">{stats.changesRequested}</span>
+            <span className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stats.changesRequested}</span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Awaiting instructor revisions</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Awaiting instructor revisions</p>
         </div>
 
         {/* Total Catalog Card */}
@@ -305,44 +311,44 @@ export default function ReviewerDashboardPage() {
           onClick={() => setActiveTab('ALL')}
           className={`cursor-pointer p-5 rounded-2xl border transition-all ${
             activeTab === 'ALL'
-              ? 'bg-indigo-950/20 border-indigo-500/50 ring-1 ring-indigo-500/30'
-              : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+              ? 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-400 dark:border-indigo-500/50 ring-1 ring-indigo-400/40 shadow-sm'
+              : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               All Courses
             </span>
-            <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
               <Icon name="auto_stories" size={20} />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-black tracking-tight text-white">{stats.total}</span>
+            <span className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stats.total}</span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Total academy courses in database</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total academy courses in database</p>
         </div>
       </div>
 
       {/* Action Banner if courses pending */}
       {stats.pendingReview > 0 && activeTab !== 'IN_REVIEW' && (
-        <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 flex items-center justify-between gap-4">
+        <div className="p-4 rounded-xl bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/10 dark:via-amber-500/5 dark:to-transparent border border-amber-200 dark:border-amber-500/20 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="p-2 rounded-lg bg-amber-500/20 text-amber-300">
+            <span className="p-2 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">
               <Icon name="hourglass_top" size={20} />
             </span>
             <div>
-              <p className="text-sm font-semibold text-amber-200">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
                 {stats.pendingReview} course{stats.pendingReview > 1 ? 's are' : ' is'} waiting for review
               </p>
-              <p className="text-xs text-amber-300/70">
+              <p className="text-xs text-amber-700 dark:text-amber-300/70">
                 Instructors cannot publish their courses live until you inspect and approve them.
               </p>
             </div>
           </div>
           <button
             onClick={() => setActiveTab('IN_REVIEW')}
-            className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition-colors cursor-pointer"
           >
             Review Now
           </button>
@@ -350,14 +356,14 @@ export default function ReviewerDashboardPage() {
       )}
 
       {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           <button
             onClick={() => setActiveTab('IN_REVIEW')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'IN_REVIEW'
                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'bg-slate-100 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
             }`}
           >
             <Icon name="pending_actions" size={16} />
@@ -371,10 +377,10 @@ export default function ReviewerDashboardPage() {
 
           <button
             onClick={() => setActiveTab('APPROVED')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'APPROVED'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
-                : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'bg-slate-100 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
             }`}
           >
             <Icon name="check_circle" size={16} />
@@ -383,10 +389,10 @@ export default function ReviewerDashboardPage() {
 
           <button
             onClick={() => setActiveTab('REJECTED')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'REJECTED'
                 ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
-                : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'bg-slate-100 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
             }`}
           >
             <Icon name="assignment_late" size={16} />
@@ -395,10 +401,10 @@ export default function ReviewerDashboardPage() {
 
           <button
             onClick={() => setActiveTab('ALL')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'ALL'
                 ? 'bg-slate-800 text-white shadow'
-                : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'bg-slate-100 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
             }`}
           >
             <Icon name="view_list" size={16} />
@@ -413,9 +419,9 @@ export default function ReviewerDashboardPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search title, instructor..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
           />
-          <span className="absolute left-3 top-2.5 text-slate-500">
+          <span className="absolute left-3 top-2.5 text-slate-400 dark:text-slate-500">
             <Icon name="search" size={16} />
           </span>
         </form>
@@ -452,18 +458,18 @@ export default function ReviewerDashboardPage() {
             return (
               <div
                 key={course.id}
-                className={`flex flex-col rounded-2xl bg-slate-900/80 border transition-all duration-200 overflow-hidden ${
+                className={`flex flex-col rounded-2xl bg-white dark:bg-slate-900/80 border transition-all duration-200 overflow-hidden shadow-xs hover:shadow-md ${
                   isPending
-                    ? 'border-amber-500/40 hover:border-amber-400 shadow-lg shadow-amber-500/5'
+                    ? 'border-amber-400 dark:border-amber-500/40 hover:border-amber-500 dark:hover:border-amber-400 shadow-amber-500/5'
                     : isApproved
-                    ? 'border-emerald-500/30 hover:border-emerald-500/60'
+                    ? 'border-emerald-300 dark:border-emerald-500/30 hover:border-emerald-500 dark:hover:border-emerald-500/60'
                     : isRejected
-                    ? 'border-rose-500/30 hover:border-rose-500/60'
-                    : 'border-slate-800 hover:border-slate-700'
+                    ? 'border-rose-300 dark:border-rose-500/30 hover:border-rose-500 dark:hover:border-rose-500/60'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 {/* Thumbnail & Badges */}
-                <div className="relative aspect-video w-full bg-slate-800 overflow-hidden group">
+                <div className="relative aspect-video w-full bg-slate-100 dark:bg-slate-800 overflow-hidden group">
                   {course.thumbnail ? (
                     <img
                       src={course.thumbnail}
@@ -471,9 +477,9 @@ export default function ReviewerDashboardPage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-slate-900 to-indigo-950/40 text-slate-500">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-slate-200 to-indigo-100 dark:from-slate-900 dark:to-indigo-950/40 text-slate-400 dark:text-slate-500">
                       <Icon name="image" size={36} />
-                      <span className="text-[11px] mt-1">No Thumbnail</span>
+                      <span className="text-[11px] mt-1 font-medium">No Thumbnail</span>
                     </div>
                   )}
 
@@ -533,59 +539,59 @@ export default function ReviewerDashboardPage() {
                         size="xs"
                       />
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-300 truncate">
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-300 truncate">
                           {course.instructor?.name || 'Unknown Instructor'}
                         </p>
-                        <p className="text-[10px] text-slate-500 truncate">{course.instructor?.email}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{course.instructor?.email}</p>
                       </div>
                     </div>
 
                     {/* Course Title */}
-                    <h3 className="font-bold text-white text-base line-clamp-2 leading-snug group-hover:text-indigo-300 transition-colors">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
                       {course.title}
                     </h3>
 
                     {/* Curriculum Specs */}
-                    <div className="mt-3 grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 text-center">
+                    <div className="mt-3 grid grid-cols-3 gap-2 py-2 border-y border-slate-100 dark:border-slate-800/80 text-center bg-slate-50/60 dark:bg-slate-800/30 rounded-xl">
                       <div>
-                        <span className="block text-[10px] uppercase font-bold text-slate-500">Modules</span>
-                        <span className="text-xs font-bold text-slate-200">{course.totalSections}</span>
+                        <span className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Modules</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-200">{course.totalSections}</span>
                       </div>
                       <div>
-                        <span className="block text-[10px] uppercase font-bold text-slate-500">Lectures</span>
-                        <span className="text-xs font-bold text-slate-200">{course.totalLessons}</span>
+                        <span className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Lectures</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-200">{course.totalLessons}</span>
                       </div>
                       <div>
-                        <span className="block text-[10px] uppercase font-bold text-slate-500">Level</span>
-                        <span className="text-xs font-bold text-slate-200">{course.level || 'All'}</span>
+                        <span className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Level</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-200">{course.level || 'All'}</span>
                       </div>
                     </div>
 
                     {/* Previous Feedback Note if rejected */}
                     {course.reviewFeedback && (
-                      <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs">
-                        <div className="flex items-center gap-1.5 text-rose-400 font-semibold mb-1">
+                      <div className="mt-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-xs">
+                        <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold mb-1">
                           <Icon name="feedback" size={14} />
                           Reviewer Note:
                         </div>
-                        <p className="text-rose-200/90 text-[11px] line-clamp-3 italic">
-                          "{course.reviewFeedback}"
+                        <p className="text-rose-800 dark:text-rose-200/90 text-[11px] line-clamp-3 italic">
+                          &quot;{course.reviewFeedback}&quot;
                         </p>
                       </div>
                     )}
                   </div>
 
                   {/* Card Actions */}
-                  <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-slate-500">
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
                       Updated {new Date(course.updatedAt).toLocaleDateString()}
                     </span>
                     <button
                       onClick={() => handleOpenReviewModal(course)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                         isPending
                           ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20'
-                          : 'bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-500/30'
+                          : 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-200 dark:border-indigo-500/30'
                       }`}
                     >
                       <Icon name="rate_review" size={15} />
@@ -607,49 +613,49 @@ export default function ReviewerDashboardPage() {
           title=""
           maxWidth="xl"
         >
-          <div className="space-y-6 text-slate-200">
+          <div className="space-y-6 text-slate-800 dark:text-slate-200">
             {/* Modal Header */}
-            <div className="border-b border-slate-800 pb-4">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
                     {selectedCourse.category?.name || 'Course'}
                   </span>
-                  <span className="text-xs text-slate-400">
-                    Priced at: <strong className="text-white">{selectedCourse.price === 0 ? 'FREE' : `₹${selectedCourse.price}`}</strong>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Priced at: <strong className="text-slate-900 dark:text-white">{selectedCourse.price === 0 ? 'FREE' : `₹${selectedCourse.price}`}</strong>
                   </span>
                 </div>
                 <div>
                   {selectedCourse.status === 'IN_REVIEW' && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40">
                       Pending Evaluation
                     </span>
                   )}
                   {selectedCourse.status === 'APPROVED' && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
                       Approved
                     </span>
                   )}
                   {selectedCourse.status === 'REJECTED' && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40">
                       Changes Requested
                     </span>
                   )}
                 </div>
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-white mt-2">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-2">
                 {selectedCourse.title}
               </h2>
 
-              <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+              <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
                 <div className="flex items-center gap-1.5">
                   <UserAvatar
                     name={selectedCourse.instructor.name}
                     avatar={selectedCourse.instructor.avatar}
                     size="xs"
                   />
-                  <span className="text-slate-200 font-medium">{selectedCourse.instructor.name}</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedCourse.instructor.name}</span>
                   <span>({selectedCourse.instructor.email})</span>
                 </div>
                 <span>•</span>
@@ -660,13 +666,13 @@ export default function ReviewerDashboardPage() {
             </div>
 
             {/* Inspection Sub-Tabs */}
-            <div className="flex items-center gap-2 border-b border-slate-800">
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
               <button
                 onClick={() => setModalTab('CURRICULUM')}
-                className={`pb-2.5 px-3 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 border-b-2 ${
+                className={`pb-2.5 px-3 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 border-b-2 cursor-pointer ${
                   modalTab === 'CURRICULUM'
-                    ? 'border-indigo-500 text-indigo-300'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                    ? 'border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon name="view_module" size={16} />
@@ -675,10 +681,10 @@ export default function ReviewerDashboardPage() {
 
               <button
                 onClick={() => setModalTab('SYLLABUS')}
-                className={`pb-2.5 px-3 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 border-b-2 ${
+                className={`pb-2.5 px-3 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 border-b-2 cursor-pointer ${
                   modalTab === 'SYLLABUS'
-                    ? 'border-indigo-500 text-indigo-300'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                    ? 'border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon name="description" size={16} />
@@ -690,50 +696,50 @@ export default function ReviewerDashboardPage() {
             {modalTab === 'CURRICULUM' && (
               <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
                 {selectedCourse.sections.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-500 bg-slate-900 rounded-xl">
+                  <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
                     No curriculum sections created yet.
                   </div>
                 ) : (
                   selectedCourse.sections.map((section, sIdx) => (
-                    <div key={section.id} className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
-                      <div className="p-3 bg-slate-850 flex items-center justify-between font-semibold text-xs text-slate-200">
+                    <div key={section.id} className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden">
+                      <div className="p-3 bg-slate-100 dark:bg-slate-850 flex items-center justify-between font-semibold text-xs text-slate-800 dark:text-slate-200">
                         <span className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px]">
+                          <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 flex items-center justify-center text-[10px] font-bold">
                             {sIdx + 1}
                           </span>
                           {section.title}
                         </span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                           {section.lessons.length} lecture{section.lessons.length !== 1 ? 's' : ''}
                         </span>
                       </div>
 
-                      <div className="divide-y divide-slate-800/60">
+                      <div className="divide-y divide-slate-200/70 dark:divide-slate-800/60">
                         {section.lessons.map((lesson, lIdx) => (
-                          <div key={lesson.id} className="p-2.5 px-4 flex items-center justify-between text-xs hover:bg-slate-800/40">
+                          <div key={lesson.id} className="p-2.5 px-4 flex items-center justify-between text-xs hover:bg-slate-100/70 dark:hover:bg-slate-800/40">
                             <div className="flex items-center gap-2.5">
-                              <span className="text-slate-500 text-[10px]">{sIdx + 1}.{lIdx + 1}</span>
+                              <span className="text-slate-400 dark:text-slate-500 text-[10px]">{sIdx + 1}.{lIdx + 1}</span>
                               <Icon
                                 name={lesson.type === 'VIDEO' ? 'play_circle' : lesson.type === 'PDF' ? 'picture_as_pdf' : 'description'}
                                 size={16}
-                                className="text-indigo-400"
+                                className="text-indigo-600 dark:text-indigo-400"
                               />
-                              <span className="font-medium text-slate-300">{lesson.title}</span>
+                              <span className="font-medium text-slate-800 dark:text-slate-300">{lesson.title}</span>
                               {lesson.isFree && (
-                                <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300 font-bold">
+                                <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold">
                                   FREE PREVIEW
                                 </span>
                               )}
                             </div>
 
                             <div className="flex items-center gap-3">
-                              <span className="text-slate-500 text-[11px]">{lesson.duration || '10:00'}</span>
+                              <span className="text-slate-500 dark:text-slate-400 text-[11px]">{lesson.duration || '10:00'}</span>
                               {lesson.videoUrl && (
                                 <a
                                   href={lesson.videoUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-indigo-400 hover:text-indigo-300 underline flex items-center gap-1"
+                                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline flex items-center gap-1"
                                 >
                                   Preview <Icon name="open_in_new" size={13} />
                                 </a>
@@ -752,18 +758,18 @@ export default function ReviewerDashboardPage() {
             {modalTab === 'SYLLABUS' && (
               <div className="space-y-4 max-h-80 overflow-y-auto pr-1 text-xs">
                 {/* Description */}
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                  <h4 className="font-bold text-white text-xs uppercase tracking-wider mb-2">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-2">
                     Course Description
                   </h4>
-                  <p className="text-slate-300 leading-relaxed whitespace-pre-line">
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
                     {selectedCourse.description || 'No description provided.'}
                   </p>
                 </div>
 
                 {/* What You Will Learn */}
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                  <h4 className="font-bold text-white text-xs uppercase tracking-wider mb-2">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-2">
                     Learning Outcomes
                   </h4>
                   {selectedCourse.learningOutcomes.length === 0 ? (
@@ -771,8 +777,8 @@ export default function ReviewerDashboardPage() {
                   ) : (
                     <ul className="space-y-1.5">
                       {selectedCourse.learningOutcomes.map((point, i) => (
-                        <li key={i} className="flex items-start gap-2 text-slate-300">
-                          <Icon name="check" size={14} className="text-emerald-400 mt-0.5 shrink-0" />
+                        <li key={i} className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
+                          <Icon name="check" size={14} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                           <span>{point}</span>
                         </li>
                       ))}
@@ -781,8 +787,8 @@ export default function ReviewerDashboardPage() {
                 </div>
 
                 {/* Requirements */}
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                  <h4 className="font-bold text-white text-xs uppercase tracking-wider mb-2">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-2">
                     Prerequisites & Requirements
                   </h4>
                   {selectedCourse.requirementsList.length === 0 ? (
@@ -790,8 +796,8 @@ export default function ReviewerDashboardPage() {
                   ) : (
                     <ul className="space-y-1.5">
                       {selectedCourse.requirementsList.map((req, i) => (
-                        <li key={i} className="flex items-start gap-2 text-slate-300">
-                          <Icon name="arrow_right" size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                        <li key={i} className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
+                          <Icon name="arrow_right" size={14} className="text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
                           <span>{req}</span>
                         </li>
                       ))}
@@ -802,13 +808,13 @@ export default function ReviewerDashboardPage() {
             )}
 
             {/* Decision Panel */}
-            <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
+            <div className="p-5 rounded-2xl bg-slate-50/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <Icon name="gavel" size={16} className="text-indigo-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-300 flex items-center gap-1.5">
+                  <Icon name="gavel" size={16} className="text-indigo-600 dark:text-indigo-400" />
                   Review Decision Console
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
                   {reviewAction === 'REJECT' ? 'Mandatory critique required' : 'Ready to certify'}
                 </span>
               </div>
@@ -818,10 +824,10 @@ export default function ReviewerDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setReviewAction('APPROVE')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     reviewAction === 'APPROVE'
                       ? 'bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-600/20'
-                      : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-800'
+                      : 'bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <Icon name="check_circle" size={18} />
@@ -831,10 +837,10 @@ export default function ReviewerDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setReviewAction('REJECT')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     reviewAction === 'REJECT'
                       ? 'bg-rose-600 text-white border-rose-500 ring-2 ring-rose-500/30 shadow-lg shadow-rose-600/20'
-                      : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-800'
+                      : 'bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <Icon name="cancel" size={18} />
@@ -844,10 +850,10 @@ export default function ReviewerDashboardPage() {
 
               {/* Feedback Note Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                   <span>
                     {reviewAction === 'REJECT' ? (
-                      <span className="text-rose-400 font-bold">Critique Note (Mandatory for Rejection)*</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">Critique Note (Mandatory for Rejection)*</span>
                     ) : (
                       <span>Approval Note / Feedback (Optional)</span>
                     )}
@@ -865,14 +871,14 @@ export default function ReviewerDashboardPage() {
                       ? 'Explain specifically what needs to be changed (e.g. Module 2 has no video links, description needs more details, title formatting)...'
                       : 'Congratulations on an excellent curriculum! Ready to be published live.'
                   }
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border text-xs sm:text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
                     reviewAction === 'REJECT' && reviewNote.trim().length < 5
                       ? 'border-rose-500/60 focus:border-rose-400 focus:ring-rose-400'
-                      : 'border-slate-800 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-slate-300 dark:border-slate-800 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {reviewAction === 'REJECT' && reviewNote.trim().length < 5 && (
-                  <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                  <p className="text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
                     <Icon name="warning" size={13} />
                     Critique note must be at least 5 characters so the instructor knows what to improve.
                   </p>
@@ -885,7 +891,7 @@ export default function ReviewerDashboardPage() {
                   type="button"
                   onClick={handleCloseModal}
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -893,7 +899,7 @@ export default function ReviewerDashboardPage() {
                   type="button"
                   onClick={handleSubmitDecision}
                   disabled={isSubmitting || (reviewAction === 'REJECT' && reviewNote.trim().length < 5)}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                  className={`px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                     reviewAction === 'APPROVE'
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
                       : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20'

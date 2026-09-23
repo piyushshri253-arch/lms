@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { UserAvatar } from '../ui/UserAvatar';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 interface AppHeaderProps {
   onMenuToggle?: () => void;
@@ -395,6 +396,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
 
             {/* Icon Action Matrix */}
             <div className="flex items-center gap-1.5 border-l border-outline-variant pl-3 ml-1">
+              {/* Theme Toggle (Light / Dark) */}
+              <ThemeToggle variant="icon" />
+
               {/* Notification Bell Dropdown */}
               <div ref={notifRef} className="relative">
                 <button

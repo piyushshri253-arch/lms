@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export default function ReviewerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -150,9 +151,9 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 transition-colors">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand */}
           <div className="flex items-center gap-4">
@@ -162,14 +163,14 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg tracking-tight text-white group-hover:text-indigo-300 transition-colors">
+                  <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
                     MORENA TEACH
                   </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
                     REVIEW STUDIO
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">Quality Assurance & Curriculum Review</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Quality Assurance & Curriculum Review</p>
               </div>
             </Link>
           </div>
@@ -180,8 +181,8 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
               href="/reviewer"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                 pathname === '/reviewer'
-                  ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Icon name="rate_review" size={18} />
@@ -190,7 +191,10 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
           </nav>
 
           {/* Right Action Icons & Profile */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Theme Toggle (Light / Dark) */}
+            <ThemeToggle variant="icon" />
+
             {/* Notification Bell */}
             <div className="relative">
               <button
@@ -200,32 +204,32 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
                     markAllRead();
                   }
                 }}
-                className="relative p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                className="relative p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Notifications"
               >
                 <Icon name="notifications" size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-slate-900 animate-pulse" />
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900 animate-pulse" />
                 )}
               </button>
 
               {/* Notification Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Notifications
                     </span>
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllRead}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors cursor-pointer"
                       >
                         Mark all read
                       </button>
                     )}
                   </div>
-                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-800/60">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
                     {notifications.length === 0 ? (
                       <div className="py-8 text-center text-xs text-slate-500">
                         No notifications yet.
@@ -235,18 +239,18 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
                         <div
                           key={n.id}
                           onClick={() => handleNotificationClick(n.id, n.link)}
-                          className={`p-3 hover:bg-slate-800/50 transition-colors cursor-pointer ${
-                            !n.isRead ? 'bg-indigo-950/20' : ''
+                          className={`p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${
+                            !n.isRead ? 'bg-indigo-50/70 dark:bg-indigo-950/20' : ''
                           }`}
                         >
                           <div className="flex items-start gap-2">
-                            <span className="text-base text-indigo-400 mt-0.5">
+                            <span className="text-base text-indigo-600 dark:text-indigo-400 mt-0.5">
                               <Icon name="info" size={16} />
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-slate-200">{n.title}</p>
-                              <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
-                              <p className="text-[10px] text-slate-500 mt-1">
+                              <p className="text-xs font-medium text-slate-900 dark:text-slate-200">{n.title}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                                 {new Date(n.createdAt).toLocaleDateString()}
                               </p>
                             </div>
@@ -260,19 +264,19 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
             </div>
 
             {/* User Profile Chip */}
-            <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
+            <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800">
               <UserAvatar
                 name={activeReviewer?.name || 'Reviewer'}
                 avatar={activeReviewer?.avatar}
                 size="sm"
               />
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-200 leading-tight">
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight">
                   {activeReviewer?.name || 'Quality Reviewer'}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">
                     {activeReviewer?.role === 'SUPER_ADMIN' ? 'Super Admin' : activeReviewer?.role === 'ADMIN' ? 'Admin' : 'Course Reviewer'}
                   </span>
                 </div>
@@ -281,7 +285,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors ml-1"
+                className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors ml-1 cursor-pointer"
                 title="Sign Out"
               >
                 <Icon name="logout" size={18} />
@@ -297,7 +301,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 py-6 text-center text-xs text-slate-500 transition-colors">
         <p>MORENA TEACH LMS • Course Quality & Content Evaluation Portal</p>
       </footer>
     </div>
