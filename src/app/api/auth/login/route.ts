@@ -132,6 +132,16 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (user.role === 'REVIEWER') {
+        return NextResponse.json(
+          {
+            error:
+              'Course Reviewer accounts please sign in through the Reviewer Studio at /reviewer/login.'
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
         {
           error: 'This portal is strictly for Students. Please sign in through your designated portal.'
@@ -230,11 +240,24 @@ export async function POST(req: NextRequest) {
         const isAuthorizedAdmin =
           dbRole === 'ADMIN' ||
           dbRole === 'LMS_ADMIN' ||
-          dbRole === 'SUPER_ADMIN';
+          dbRole === 'SUPER_ADMIN' ||
+          dbRole === 'REVIEWER';
 
         if (!isAuthorizedAdmin) {
           return NextResponse.json(
             { error: 'This account does not have LMS Admin access.' },
+            { status: 403 }
+          );
+        }
+      } else if (portal === 'REVIEWER') {
+        const isAuthorizedReviewer =
+          dbRole === 'REVIEWER' ||
+          dbRole === 'ADMIN' ||
+          dbRole === 'SUPER_ADMIN';
+
+        if (!isAuthorizedReviewer) {
+          return NextResponse.json(
+            { error: 'This account does not have Course Reviewer access.' },
             { status: 403 }
           );
         }

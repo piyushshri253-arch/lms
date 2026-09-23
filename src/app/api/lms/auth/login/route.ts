@@ -208,7 +208,8 @@ export async function POST(req: NextRequest) {
       const isAuthorizedAdmin =
         dbRole === 'ADMIN' ||
         dbRole === 'LMS_ADMIN' ||
-        dbRole === 'SUPER_ADMIN';
+        dbRole === 'SUPER_ADMIN' ||
+        dbRole === 'REVIEWER';
 
       if (!isAuthorizedAdmin) {
         await logSecurityEvent({
@@ -225,6 +226,18 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         );
       }
+    } else if (portal === 'REVIEWER') {
+      const isAuthorizedReviewer =
+        dbRole === 'REVIEWER' ||
+        dbRole === 'ADMIN' ||
+        dbRole === 'SUPER_ADMIN';
+
+      if (!isAuthorizedReviewer) {
+        return NextResponse.json(
+          { error: 'This account does not have Course Reviewer access.' },
+          { status: 403 }
+        );
+      }
     } else {
       return NextResponse.json(
         { error: 'Invalid login portal selected.' },
@@ -237,6 +250,7 @@ export async function POST(req: NextRequest) {
     const isSuperAdmin = dbRole === 'SUPER_ADMIN';
     const isAdmin = dbRole === 'ADMIN' || dbRole === 'LMS_ADMIN';
     const isInstructor = dbRole === 'INSTRUCTOR';
+    const isReviewer = dbRole === 'REVIEWER';
 
     if (isSuperAdmin) {
       redirectUrl = '/super-admin';
@@ -244,6 +258,8 @@ export async function POST(req: NextRequest) {
       redirectUrl = '/lms/admin';
     } else if (isInstructor) {
       redirectUrl = '/instructor/dashboard';
+    } else if (isReviewer) {
+      redirectUrl = '/reviewer';
     }
 
     // Safely evaluate callbackUrl if provided

@@ -24,7 +24,7 @@ function ReviewerLoginContent() {
 
     setIsLoading(true);
     try {
-      const user = await login(email.trim().toLowerCase(), password, 'ADMIN');
+      const user = await login(email.trim().toLowerCase(), password, 'REVIEWER');
 
       if (user.role !== 'REVIEWER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
         showToast({
