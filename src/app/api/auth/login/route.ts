@@ -260,6 +260,8 @@ export async function POST(req: NextRequest) {
         redirectUrl = '/admin';
       } else if (user.role === 'INSTRUCTOR') {
         redirectUrl = '/instructor';
+      } else if (user.role === 'REVIEWER') {
+        redirectUrl = '/reviewer';
       } else {
         redirectUrl = '/student/learning';
       }

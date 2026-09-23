@@ -3,6 +3,7 @@ export type UserRole =
   | 'ADMIN'
   | 'LMS_ADMIN'
   | 'INSTRUCTOR'
+  | 'REVIEWER'
   | 'STUDENT'
   | 'SALES_ADMIN'
   | 'SALES_MANAGER'
@@ -35,6 +36,7 @@ export const PERMISSIONS = {
   COURSES_UPDATE: 'courses.update',
   COURSES_DELETE: 'courses.delete',
   COURSES_MANAGE: 'courses.manage',
+  COURSES_REVIEW: 'courses.review',
   LESSONS_CREATE: 'lessons.create',
   LESSONS_UPDATE: 'lessons.update',
 
@@ -115,6 +117,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
     PERMISSIONS.LESSONS_UPDATE,
     PERMISSIONS.STUDENTS_VIEW,
     PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.PROFILE_UPDATE
+  ],
+  REVIEWER: [
+    PERMISSIONS.COURSES_VIEW,
+    PERMISSIONS.COURSES_REVIEW,
     PERMISSIONS.PROFILE_UPDATE
   ],
   STUDENT: [

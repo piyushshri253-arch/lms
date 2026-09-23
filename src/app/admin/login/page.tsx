@@ -161,6 +161,17 @@ function AdminLoginContent() {
         return;
       }
 
+      // If reviewer logs in through admin portal, route them straight to their Course Review Studio
+      if (user.role === 'REVIEWER') {
+        showToast({
+          title: 'Welcome to Course Review Studio! 📝',
+          description: `Logged in as ${user.name}. Redirecting to your dashboard...`,
+          type: 'success'
+        });
+        router.push('/reviewer');
+        return;
+      }
+
       // Verify that the logged-in user actually possesses an admin role
       const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'];
       if (!adminRoles.includes(user.role)) {

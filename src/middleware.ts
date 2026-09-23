@@ -97,6 +97,35 @@ export async function middleware(request: NextRequest) {
   }
 
   // -------------------------------------------------------------------------
+  // 1.5. REVIEWER ROUTE PROTECTION (/reviewer and /reviewer/*)
+  // -------------------------------------------------------------------------
+  if (pathname === '/reviewer' || pathname.startsWith('/reviewer/')) {
+    const session = lmsSession || salesSession;
+    const isAuth = isLmsValid || isSalesValid;
+
+    if (!isAuth || !session) {
+      const callback = encodeURIComponent(pathname + (search || ''));
+      return NextResponse.redirect(new URL(`/admin/login?callbackUrl=${callback}`, request.url));
+    }
+
+    const role = session.role;
+    if (role !== 'REVIEWER' && !isAuthorizedAdminRole(role)) {
+      return NextResponse.redirect(
+        new URL(
+          '/login?error=' + encodeURIComponent('Access denied: Course Reviewer privileges required.'),
+          request.url
+        )
+      );
+    }
+
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
+  // -------------------------------------------------------------------------
   // 2. ADMIN ROUTE PROTECTION (/admin and /admin/*)
   // -------------------------------------------------------------------------
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
@@ -120,6 +149,10 @@ export async function middleware(request: NextRequest) {
           request.url
         )
       );
+    }
+
+    if (role === 'REVIEWER') {
+      return NextResponse.redirect(new URL('/reviewer', request.url));
     }
 
     // C. Enforce authorized admin roles (SUPER_ADMIN, ADMIN, LMS_ADMIN, SALES_ADMIN, INSTRUCTOR)

@@ -53,6 +53,16 @@ function LoginContent() {
           return;
         }
 
+        if (user.role === 'REVIEWER') {
+          showToast({
+            title: 'Course Reviewer Detected 📝',
+            description: `Welcome ${user.name}! Redirecting to Course Review Studio...`,
+            type: 'info'
+          });
+          router.push('/reviewer');
+          return;
+        }
+
         showToast({
           title: 'Access Restricted',
           description: 'This portal is strictly reserved for Student learners.',

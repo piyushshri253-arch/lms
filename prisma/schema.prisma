@@ -365,7 +365,7 @@ model User {
   phone          String?
   avatar         String?
   bio            String?
-  role           String    @default("STUDENT") // STUDENT, INSTRUCTOR, LMS_ADMIN, SUPER_ADMIN, SALES_ADMIN, SALES_MANAGER, SALES_USER
+  role           String    @default("STUDENT") // STUDENT, INSTRUCTOR, REVIEWER, LMS_ADMIN, SUPER_ADMIN, SALES_ADMIN, SALES_MANAGER, SALES_USER
   customRole     String?   // Super Administrator, Course Manager, Content Manager, Support Admin, Finance Admin, Sales Manager
   permissions    String    @default("[]") // JSON string of granular permission keys
   status         String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, PENDING_VERIFICATION
@@ -541,6 +541,9 @@ model Course {
   accessDays       Int?
   bestseller       Boolean         @default(false)
   isNew            Boolean         @default(false)
+  reviewFeedback   String?         // Critique note / feedback from course reviewer
+  reviewedAt       DateTime?
+  reviewedById     String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 

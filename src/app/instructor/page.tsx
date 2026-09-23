@@ -20,6 +20,8 @@ interface CourseAuthored {
   category?: string;
   studentsCount: number;
   rating: number;
+  reviewFeedback?: string | null;
+  reviewedAt?: string | null;
   createdAt?: string;
 }
 
@@ -363,21 +365,34 @@ export default function InstructorDashboardPage() {
                       </h3>
 
                       {isUnderReview && (
-                        <p className="text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-200/50">
-                          ⏳ Pending Super Admin approval. Once approved, you can publish it live to the website.
+                        <p className="text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2.5 rounded-xl border border-amber-200/50">
+                          ⏳ Under evaluation by the Course Review Team. You will receive a notification once reviewed.
                         </p>
                       )}
 
                       {isApproved && (
-                        <p className="text-[11px] text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-lg border border-emerald-200/50 font-medium">
-                          🎉 Super Admin has approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
+                        <p className="text-[11px] text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 p-2.5 rounded-xl border border-emerald-200/50 font-medium">
+                          🎉 Review Team approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
                         </p>
                       )}
 
                       {isRejected && (
-                        <p className="text-[11px] text-rose-700 bg-rose-50 dark:bg-rose-950/20 p-2 rounded-lg border border-rose-200/50">
-                          ⚠️ Super Admin requested changes. Please edit the syllabus and re-submit for review.
-                        </p>
+                        <div className="space-y-1.5 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/60 text-[11px] text-rose-700 dark:text-rose-300">
+                          <div className="font-bold flex items-center gap-1 text-rose-600">
+                            <Icon name="feedback" size={14} />
+                            Reviewer Feedback:
+                          </div>
+                          {course.reviewFeedback ? (
+                            <p className="bg-white/70 dark:bg-rose-900/30 p-2 rounded-lg border border-rose-300/40 italic">
+                              &quot;{course.reviewFeedback}&quot;
+                            </p>
+                          ) : (
+                            <p>Changes requested. Please update your syllabus and resubmit.</p>
+                          )}
+                          <p className="text-[10px] text-rose-500">
+                            Click &quot;Edit Syllabus&quot; below to address this feedback and resubmit.
+                          </p>
+                        </div>
                       )}
                     </div>
 

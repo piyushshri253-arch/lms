@@ -81,6 +81,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       requiredPermission: 'instructor.view',
       subItems: [
         { label: 'All Instructors', href: '/admin/instructors' },
+        { label: 'Course Reviewers', href: '/admin/reviewers' },
         { label: 'Add Instructor', href: '/admin/instructors?action=create', requiredPermission: 'instructor.create' }
       ]
     },
@@ -90,6 +91,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       requiredPermission: 'course.view',
       subItems: [
         { label: 'All Courses', href: '/admin/courses' },
+        { label: 'Review Studio (QA)', href: '/reviewer' },
         { label: 'Review & Approvals', href: '/admin/courses?tab=review', requiredPermission: 'course.publish' },
         { label: 'Create Course', href: '/admin/courses/create', requiredPermission: 'course.create' },
         { label: 'Course Categories', href: '/admin/courses?tab=categories' },

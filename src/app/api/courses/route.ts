@@ -111,6 +111,8 @@ export async function GET(request: Request) {
         bestseller: course.bestseller,
         isNew: course.isNew,
         status: course.status,
+        reviewFeedback: (course as any).reviewFeedback || null,
+        reviewedAt: (course as any).reviewedAt || null,
         createdAt: course.createdAt,
         updatedAt: course.updatedAt,
         accessType: (course as any).accessType || 'LIFETIME',

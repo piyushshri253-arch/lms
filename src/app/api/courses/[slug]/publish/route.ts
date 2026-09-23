@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole, validateTenantOwnership, handleAuthError } from '@/lib/auth';
+import { createNotification } from '@/lib/notification';
 
 export async function POST(
   request: Request,
@@ -169,12 +170,41 @@ export async function POST(
     }
 
     // Update course status
+    const updatePayload: any = { status: targetStatus };
+    if (targetStatus === 'IN_REVIEW') {
+      updatePayload.reviewFeedback = null; // Clear old feedback on resubmission
+    }
+
     const updated = await prisma.course.update({
       where: { id: course.id },
-      data: {
-        status: targetStatus
-      }
+      data: updatePayload
     });
+
+    if (targetStatus === 'IN_REVIEW') {
+      // Find all Reviewers, Admins, and Super Admins
+      const reviewerUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ['REVIEWER', 'ADMIN', 'SUPER_ADMIN'] },
+          status: 'ACTIVE',
+          ...(course.organizationId && user.role !== 'SUPER_ADMIN' ? { organizationId: course.organizationId } : {})
+        },
+        select: { id: true }
+      });
+
+      for (const rev of reviewerUsers) {
+        if (rev.id !== user.id) {
+          await createNotification({
+            organizationId: course.organizationId,
+            userId: rev.id,
+            title: '📋 New Course Submitted for Review',
+            message: `Instructor "${user.name}" submitted "${course.title}" for curriculum & quality review.`,
+            type: 'COURSES',
+            category: 'COURSES',
+            link: '/reviewer'
+          });
+        }
+      }
+    }
 
     await prisma.auditLog.create({
       data: {

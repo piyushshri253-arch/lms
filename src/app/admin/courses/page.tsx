@@ -228,8 +228,16 @@ function CoursesPageContent() {
           </p>
         </div>
 
-        {/* Action Buttons: Create Course Modal + Curriculum Studio */}
+        {/* Action Buttons: Review Studio + Create Course Modal */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            href="/reviewer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 text-xs font-bold hover:bg-indigo-500/20 transition-all cursor-pointer"
+          >
+            <Icon name="rate_review" size={16} />
+            <span>Review Studio ({inReviewCount})</span>
+          </Link>
+
           <button
             type="button"
             onClick={() => setIsCreateCourseModalOpen(true)}

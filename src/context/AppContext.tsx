@@ -7,7 +7,7 @@ export interface UserSession {
   id: string;
   name: string;
   email: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'SUPER_ADMIN';
+  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'SUPER_ADMIN' | 'REVIEWER' | string;
   organizationId?: string | null;
   organizationName?: string | null;
   organizationSlug?: string | null;

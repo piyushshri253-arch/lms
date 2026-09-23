@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useAdmin } from '@/context/AdminContext';
@@ -165,6 +166,21 @@ function InstructorsPageContent() {
           <Icon name="person_add" size={16} />
           <span>+ Appoint Instructor</span>
         </button>
+      </div>
+
+      {/* Navigation Sub-Tabs */}
+      <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-3">
+        <div className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5">
+          <Icon name="school" size={16} />
+          Faculty Instructors
+        </div>
+        <Link
+          href="/admin/reviewers"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-outline hover:text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-1.5"
+        >
+          <Icon name="verified" size={16} />
+          Course Reviewers
+        </Link>
       </div>
 
       {/* KPI Metric Cards */}

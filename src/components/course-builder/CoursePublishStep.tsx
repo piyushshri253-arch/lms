@@ -123,15 +123,15 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             <span className="text-xs font-bold uppercase tracking-wider font-mono">
               {userRole === 'INSTRUCTOR'
                 ? courseData.status === 'APPROVED'
-                  ? 'Approved by Super Admin ✅'
+                  ? 'Approved by Review Team ✅'
                   : courseData.status === 'IN_REVIEW'
-                  ? 'Under Super Admin Review ⏳'
+                  ? 'Under Review by QA Studio ⏳'
                   : courseData.status === 'PUBLISHED'
                   ? 'Live on Platform 🌐'
                   : courseData.status === 'REJECTED'
-                  ? 'Revisions Requested ⚠️'
+                  ? 'Changes Requested by Reviewer ⚠️'
                   : canPublish
-                  ? 'Ready for Super Admin Review'
+                  ? 'Ready for Review'
                   : 'Action Required Before Submitting'
                 : canPublish
                 ? 'Ready for Live Platform Release'
@@ -147,7 +147,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                 : courseData.status === 'PUBLISHED'
                 ? 'Course is Currently Live! 🚀'
                 : courseData.status === 'REJECTED'
-                ? 'Revisions Requested by Admin'
+                ? 'Revision Requested by Reviewer'
                 : canPublish
                 ? 'Ready for Review! 📋'
                 : 'Complete Required Pre-Flight Checklist'
@@ -158,15 +158,15 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           <p className="text-xs text-on-surface-variant max-w-lg">
             {userRole === 'INSTRUCTOR'
               ? courseData.status === 'APPROVED'
-                ? 'Super Admin has reviewed and approved your course curriculum! You can now publish it live to the student platform.'
+                ? 'The Review Team has evaluated and approved your course! You can now publish it live for students.'
                 : courseData.status === 'IN_REVIEW'
-                ? 'Your course has been submitted to Super Admin for quality and curriculum review. Once approved, you can publish it live.'
+                ? 'Your course has been submitted to the Review Team for quality and curriculum inspection. Once approved, you can publish it live.'
                 : courseData.status === 'PUBLISHED'
                 ? 'This masterclass is live on the public landing page and actively accepting student enrollments.'
                 : courseData.status === 'REJECTED'
-                ? 'Super Admin requested changes. Please review your curriculum and resubmit for approval when ready.'
+                ? 'The Reviewer found items needing improvement. Please check the feedback note below, make the updates, and resubmit.'
                 : canPublish
-                ? 'Your course curriculum meets all criteria. Submit it for Super Admin review before publishing live.'
+                ? 'Your course curriculum meets all criteria. Submit it for Quality Review before publishing live.'
                 : `${passedCount} of ${checklist.length} criteria met. Resolve the remaining items below to proceed.`
               : canPublish
               ? 'Your masterclass curriculum is fully configured and ready to be enrolled by students globally.'
@@ -225,10 +225,15 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                   <Icon name="check_circle" size={16} />
                   <span>Course is Live ✅</span>
                 </>
+              ) : courseData.status === 'REJECTED' ? (
+                <>
+                  <Icon name="replay" size={16} />
+                  <span>Resubmit for Review 🚀</span>
+                </>
               ) : (
                 <>
                   <Icon name="send" size={16} />
-                  <span>Submit for Super Admin Approval 📋</span>
+                  <span>Submit for Quality Review 📋</span>
                 </>
               )
             ) : (
@@ -240,6 +245,29 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Reviewer Feedback / Critique Note Alert */}
+      {courseData.reviewFeedback && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-rose-500/10 border-2 border-rose-500/30 text-rose-950 dark:text-rose-200 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black text-sm uppercase tracking-wide">
+              <Icon name="feedback" size={20} />
+              <span>Reviewer Feedback &amp; Actionable Critique</span>
+            </div>
+            {courseData.reviewedAt && (
+              <span className="text-[11px] font-medium text-rose-500/80">
+                Feedback given on {new Date(courseData.reviewedAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+          <div className="p-4 rounded-2xl bg-white/80 dark:bg-rose-950/50 border border-rose-500/20 text-xs sm:text-sm font-medium leading-relaxed text-on-surface">
+            "{courseData.reviewFeedback}"
+          </div>
+          <p className="text-xs text-rose-600 dark:text-rose-400">
+            Please make the requested adjustments to your syllabus or lectures, and then click <strong>"Resubmit for Review 🚀"</strong>.
+          </p>
+        </div>
+      )}
 
       {/* Pre-Publish Checklist Card */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
