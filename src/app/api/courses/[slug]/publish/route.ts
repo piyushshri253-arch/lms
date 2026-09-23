@@ -51,27 +51,20 @@ export async function POST(
 
     const allLessons = course.sections.flatMap((s) => s.lessons);
 
-    // Validation Rules
+    // Flexible, realistic validation rules
     const checklist = [
       {
         id: 'title',
-        label: 'Course Title & Basics',
+        label: 'Course Title',
         passed: !!course.title && course.title.trim().length >= 3,
-        message: course.title ? 'Course title is set.' : 'Course title is missing.',
+        message: course.title && course.title.trim().length >= 3 ? 'Course title is set.' : 'Course title must be at least 3 characters.',
         step: 0
       },
       {
         id: 'description',
-        label: 'Syllabus & Overview Description',
-        passed: !!course.description && course.description.trim().length >= 20,
-        message: course.description?.length >= 20 ? 'Course description is comprehensive.' : 'Description must be at least 20 characters.',
-        step: 0
-      },
-      {
-        id: 'category',
-        label: 'Category Selected',
-        passed: !!course.category,
-        message: course.category ? `Category: ${course.category.name}` : 'Please select a valid category.',
+        label: 'Syllabus & Overview',
+        passed: !!course.description && course.description.trim().length >= 3,
+        message: course.description && course.description.trim().length >= 3 ? 'Course description provided.' : 'Please add a course description.',
         step: 0
       },
       {
@@ -89,28 +82,14 @@ export async function POST(
         step: 2
       },
       {
-        id: 'lesson_content',
-        label: 'Lesson Assets & Media Ready',
-        passed: allLessons.length > 0 && allLessons.every((l) => {
-          const type = (l as any).type || 'VIDEO';
-          if (type === 'VIDEO') return !!l.videoUrl || (l.durationSeconds && l.durationSeconds > 0);
-          if (type === 'TEXT') return !!(l as any).content && (l as any).content.length >= 10;
-          if (type === 'PDF') return !!(l as any).pdfUrl;
-          if (type === 'QUIZ') return !!(l as any).quizData;
-          return true;
-        }),
-        message: allLessons.length > 0 ? 'All lectures configured with valid content.' : 'Configure video, text, PDF or quiz for your lessons.',
-        step: 2
-      },
-      {
         id: 'pricing',
         label: 'Pricing & Access Configured',
-        passed: course.price >= 0,
+        passed: course.price !== undefined && course.price !== null && course.price >= 0,
         message:
           course.price === 0
             ? 'Course configured as 100% Free.'
             : `Course priced at ${(course as any).currency === 'INR' ? '₹' : '$'}${course.price} (${(course as any).currency || 'INR'}).`,
-        step: 4
+        step: 3
       }
     ];
 
@@ -121,11 +100,20 @@ export async function POST(
       return NextResponse.json({ canPublish, checklist });
     }
 
-    if (!canPublish) {
+    const isSuperAdminAction = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const isBypassCheck =
+      isSuperAdminAction ||
+      body.action === 'REJECT' ||
+      body.status === 'REJECTED' ||
+      body.action === 'UNPUBLISH' ||
+      body.status === 'DRAFT';
+
+    if (!canPublish && !isBypassCheck) {
       const missing = checklist.filter((c) => !c.passed);
+      const missingMessages = missing.map((m) => m.message).join(' • ');
       return NextResponse.json(
         {
-          error: 'Course does not meet all publishing requirements yet.',
+          error: `Requirements not met: ${missingMessages}`,
           canPublish: false,
           missing,
           checklist

@@ -43,11 +43,11 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
     {
       id: 'description',
       label: 'Syllabus & Course Description',
-      passed: !!courseData.description && courseData.description.trim().length >= 20,
+      passed: !!courseData.description && courseData.description.trim().length >= 3,
       message:
-        courseData.description?.length >= 20
-          ? 'Comprehensive course description provided.'
-          : 'Description should be at least 20 characters.',
+        courseData.description?.trim().length >= 3
+          ? 'Course description provided.'
+          : 'Please provide a course description.',
       step: 0
     },
     {
