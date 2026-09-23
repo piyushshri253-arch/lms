@@ -31,25 +31,25 @@ function LoginContent() {
     try {
       const user = await login(email.trim().toLowerCase(), password, 'STUDENT');
 
-      // Strictly reject any non-student account from student storefront login
+      // Handle role-specific routing smoothly from the universal login
       if (user.role !== 'STUDENT') {
         if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
           showToast({
-            title: 'Admin Account Detected',
-            description: 'Please sign in through the dedicated Admin Backend Portal at /admin/login.',
-            type: 'error'
+            title: 'Admin Console Access ⚙️',
+            description: `Welcome ${user.name}! Opening Admin Console...`,
+            type: 'success'
           });
-          router.push('/admin/login');
+          router.push(callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/admin');
           return;
         }
 
         if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
           showToast({
-            title: 'Instructor Account Detected',
-            description: 'Please sign in through the dedicated Instructor Portal at /instructor/login.',
-            type: 'error'
+            title: 'Welcome to Instructor Studio! 👨‍🏫',
+            description: `Logged in as ${user.name}. Opening Instructor Studio...`,
+            type: 'success'
           });
-          router.push('/instructor/login');
+          router.push(callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/instructor');
           return;
         }
 
@@ -246,14 +246,29 @@ function LoginContent() {
               </Link>
             </p>
 
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-1.5 text-[11px] text-[#6a6f73]">
-              <Icon name="admin_panel_settings" size={15} className="text-[#5022c3]" />
-              <span>Platform Staff or Super Admin?</span>
+            <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-[#6a6f73]">
+              <Link
+                href="/instructor/login"
+                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
+              >
+                <Icon name="cast_for_education" size={13} />
+                <span>Instructor Studio &rarr;</span>
+              </Link>
+              <span className="text-gray-300">•</span>
+              <Link
+                href="/reviewer/login"
+                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
+              >
+                <Icon name="rate_review" size={13} />
+                <span>Reviewer Portal &rarr;</span>
+              </Link>
+              <span className="text-gray-300">•</span>
               <Link
                 href="/admin/login"
-                className="text-[#5022c3] font-bold hover:underline ml-0.5"
+                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
               >
-                Admin Portal &rarr;
+                <Icon name="admin_panel_settings" size={13} />
+                <span>Admin Console &rarr;</span>
               </Link>
             </div>
 

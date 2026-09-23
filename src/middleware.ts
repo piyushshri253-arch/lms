@@ -491,6 +491,7 @@ export const config = {
     '/lms/:path*',
     '/learning/:path*',
     '/super-admin/:path*',
+    '/instructor',
     '/instructor/:path*',
     '/dashboard/:path*',
     '/student/:path*',
