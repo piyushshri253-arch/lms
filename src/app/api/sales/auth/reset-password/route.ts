@@ -50,11 +50,12 @@ export async function POST(req: NextRequest) {
 
     await sendEmail({
       to: resetRecord.user.email,
-      subject: 'Your MORENA TEACH Sales password has been changed',
+      subject: 'Your Morena Teach password was changed successfully',
       template: 'PASSWORD_CHANGED',
       userId: resetRecord.userId,
       data: {
-        name: resetRecord.user.name
+        name: resetRecord.user.name,
+        loginUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://lms-phi-plum.vercel.app'}/sales/login`
       }
     }).catch(() => {});
 

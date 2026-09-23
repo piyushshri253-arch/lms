@@ -136,6 +136,38 @@ export function renderEmailHtml(
       `;
       break;
 
+    case 'PASSWORD_CHANGED':
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🔒
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          Password Changed Successfully
+        </h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; text-align: center;">
+          Hi <strong>${data.name || 'there'}</strong>, your <strong>${platformName}</strong> password was changed successfully.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 24px 0; font-size: 13px; color: #475569;">
+          <p style="margin: 0 0 6px 0; font-weight: 700; color: #1e293b;">
+            🛡️ Security Notice
+          </p>
+          <p style="margin: 0; line-height: 1.5;">
+            Your password was recently updated. You can now use your new password to sign in to your Morena Teach account across all devices.
+          </p>
+        </div>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${data.loginUrl || baseUrl + '/login'}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.2);">
+            Log In to Morena Teach →
+          </a>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px; line-height: 1.5;">
+          If you did not perform this change, please contact our support team immediately or reset your password.
+        </p>
+      `;
+      break;
+
     case 'COMPANY_INVITE':
       bodyContent = `
         <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px;">You're Invited to Join ${data.companyName || platformName}</h2>
@@ -323,9 +355,9 @@ export function renderEmailHtml(
 
     default:
       bodyContent = `
-        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px;">Notification from ${platformName}</h2>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px;">${data.title || `Notification from ${platformName}`}</h2>
         <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-          ${data.message || data.body || 'You have a new update regarding your account.'}
+          ${data.message || data.body || 'Your Morena Teach account was updated successfully.'}
         </p>
         ${data.actionUrl ? `
           <div style="margin: 25px 0; text-align: center;">
