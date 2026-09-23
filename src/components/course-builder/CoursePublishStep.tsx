@@ -18,6 +18,7 @@ interface CoursePublishStepProps {
   userRole?: string;
   onJumpToStep: (stepIndex: number) => void;
   onPublish: () => Promise<void>;
+  onUnpublish?: () => Promise<void>;
   isPublishing: boolean;
 }
 
@@ -26,6 +27,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
   userRole = 'ADMIN',
   onJumpToStep,
   onPublish,
+  onUnpublish,
   isPublishing
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -183,6 +185,19 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             <Icon name="visibility" size={16} />
             <span>Preview Syllabus</span>
           </button>
+
+          {onUnpublish && courseData.status && courseData.status !== 'DRAFT' && (
+            <button
+              type="button"
+              disabled={isPublishing}
+              onClick={onUnpublish}
+              className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/20 shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              title="Revert course back to draft mode to edit curriculum privately"
+            >
+              <Icon name="history" size={16} />
+              <span>Move Back to Draft</span>
+            </button>
+          )}
 
           <button
             type="button"

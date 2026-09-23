@@ -15,7 +15,7 @@ interface CourseAuthored {
   slug: string;
   thumbnail?: string;
   price: number;
-  status: 'DRAFT' | 'IN_REVIEW' | 'PUBLISHED' | 'REJECTED' | string;
+  status: 'DRAFT' | 'IN_REVIEW' | 'PUBLISHED' | 'APPROVED' | 'REJECTED' | string;
   level: string;
   category?: string;
   studentsCount: number;
@@ -23,20 +23,44 @@ interface CourseAuthored {
   reviewFeedback?: string | null;
   reviewedAt?: string | null;
   createdAt?: string;
+  instructor?: {
+    name?: string;
+    avatar?: string;
+  };
 }
+
+type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'REJECTED' | 'CATALOG';
 
 export default function InstructorDashboardPage() {
   const router = useRouter();
   const { currentUser, showToast } = useApp();
+
+  // Courses State
   const [courses, setCourses] = useState<CourseAuthored[]>([]);
+  const [platformCourses, setPlatformCourses] = useState<CourseAuthored[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(false);
+
+  // Tabs & Search State
+  const [activeTab, setActiveTab] = useState<TabType>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Course Actions State
+  const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<CourseAuthored | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Create Course Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newPrice, setNewPrice] = useState('4999');
   const [newCategory, setNewCategory] = useState('Engineering');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittingCourseId, setSubmittingCourseId] = useState<string | null>(null);
 
+  // Fetch Authored Courses
   const fetchInstructorCourses = async () => {
     try {
       setIsLoading(true);
@@ -55,15 +79,38 @@ export default function InstructorDashboardPage() {
     }
   };
 
+  // Fetch Entire Platform Catalog (Optional tab for instructors to view all platform offerings)
+  const fetchPlatformCatalog = async () => {
+    if (platformCourses.length > 0) return;
+    try {
+      setIsCatalogLoading(true);
+      const res = await fetch('/api/courses');
+      const data = await res.json();
+      if (res.ok && data.courses) {
+        setPlatformCourses(data.courses);
+      }
+    } catch {
+      showToast({ title: 'Error', description: 'Failed to load academy catalog.', type: 'error' });
+    } finally {
+      setIsCatalogLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (currentUser) {
       fetchInstructorCourses();
     }
   }, [currentUser]);
 
-  // Submit Draft course for Admin approval
+  useEffect(() => {
+    if (activeTab === 'CATALOG') {
+      fetchPlatformCatalog();
+    }
+  }, [activeTab]);
+
+  // Submit Draft course for Reviewer/Admin approval
   const handleSubmitForApproval = async (courseId: string, courseSlug?: string) => {
-    setSubmittingCourseId(courseId);
+    setActionInProgressId(courseId);
     try {
       const identifier = courseSlug || courseId;
       const res = await fetch(`/api/courses/${identifier}/publish`, {
@@ -83,7 +130,7 @@ export default function InstructorDashboardPage() {
 
       showToast({
         title: 'Submitted for Approval! 📋',
-        description: 'Course submitted to Super Admin for review. Once approved, you will be able to publish it live.',
+        description: 'Course submitted to QA Review Studio. Once approved, you will be able to publish it live.',
         type: 'success'
       });
     } catch (err: any) {
@@ -93,13 +140,13 @@ export default function InstructorDashboardPage() {
         type: 'error'
       });
     } finally {
-      setSubmittingCourseId(null);
+      setActionInProgressId(null);
     }
   };
 
-  // Publish course after Super Admin approval
+  // Publish course after Reviewer approval
   const handlePublishApprovedCourse = async (courseId: string, courseSlug?: string) => {
-    setSubmittingCourseId(courseId);
+    setActionInProgressId(courseId);
     try {
       const identifier = courseSlug || courseId;
       const res = await fetch(`/api/courses/${identifier}/publish`, {
@@ -129,10 +176,89 @@ export default function InstructorDashboardPage() {
         type: 'error'
       });
     } finally {
-      setSubmittingCourseId(null);
+      setActionInProgressId(null);
     }
   };
 
+  // Move course back to Draft state (Unpublish)
+  const handleMoveToDraft = async (course: CourseAuthored) => {
+    setActionInProgressId(course.id);
+    try {
+      const identifier = course.slug || course.id;
+      const res = await fetch(`/api/courses/${identifier}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'UNPUBLISH', status: 'DRAFT' })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to move course to draft');
+      }
+
+      setCourses((prev) =>
+        prev.map((c) => (c.id === course.id ? { ...c, status: 'DRAFT' } : c))
+      );
+
+      showToast({
+        title: 'Moved to Draft 📝',
+        description: `"${course.title}" is now back in Draft mode. You can edit the curriculum privately and resubmit when ready.`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Action Failed',
+        description: err.message || 'Failed to revert course to draft.',
+        type: 'error'
+      });
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
+  // Trigger Delete Modal
+  const handleOpenDeleteModal = (course: CourseAuthored) => {
+    setCourseToDelete(course);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Confirm Permanent Course Deletion
+  const handleConfirmDelete = async () => {
+    if (!courseToDelete) return;
+    setIsDeleting(true);
+    try {
+      const identifier = courseToDelete.slug || courseToDelete.id;
+      const res = await fetch(`/api/courses/${identifier}`, {
+        method: 'DELETE'
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete course');
+      }
+
+      setCourses((prev) => prev.filter((c) => c.id !== courseToDelete.id));
+
+      showToast({
+        title: 'Course Deleted 🗑️',
+        description: `"${courseToDelete.title}" has been permanently removed.`,
+        type: 'success'
+      });
+
+      setIsDeleteModalOpen(false);
+      setCourseToDelete(null);
+    } catch (err: any) {
+      showToast({
+        title: 'Deletion Failed',
+        description: err.message || 'Failed to delete course.',
+        type: 'error'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Initialize New Course
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -164,7 +290,6 @@ export default function InstructorDashboardPage() {
       setIsCreateOpen(false);
       setNewTitle('');
 
-      // Redirect to Curriculum Studio so instructor can add modules and lessons immediately
       if (data.course?.id) {
         router.push(`/instructor/courses/builder?courseId=${data.course.id}`);
       } else {
@@ -177,8 +302,44 @@ export default function InstructorDashboardPage() {
     }
   };
 
+  // Metrics Calculations
   const totalStudents = courses.reduce((acc, c) => acc + (c.studentsCount || 0), 0);
   const totalRevenue = courses.reduce((acc, c) => acc + (c.price * (c.studentsCount || 0)), 0);
+
+  // Status Tab Counts
+  const publishedCount = courses.filter((c) => c.status === 'PUBLISHED').length;
+  const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW').length;
+  const draftCount = courses.filter((c) => c.status === 'DRAFT').length;
+  const rejectedCount = courses.filter((c) => c.status === 'REJECTED').length;
+
+  // Filtered Courses
+  const filteredAuthoredCourses = courses
+    .filter((c) => {
+      if (activeTab === 'PUBLISHED') return c.status === 'PUBLISHED';
+      if (activeTab === 'IN_REVIEW') return c.status === 'IN_REVIEW';
+      if (activeTab === 'DRAFT') return c.status === 'DRAFT';
+      if (activeTab === 'REJECTED') return c.status === 'REJECTED';
+      return true; // 'ALL'
+    })
+    .filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        c.title.toLowerCase().includes(q) ||
+        (c.category && c.category.toLowerCase().includes(q)) ||
+        (c.level && c.level.toLowerCase().includes(q))
+      );
+    });
+
+  const filteredCatalogCourses = platformCourses.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      c.title.toLowerCase().includes(q) ||
+      (c.category && c.category.toLowerCase().includes(q)) ||
+      (c.instructor?.name && c.instructor.name.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="min-h-screen bg-surface flex flex-col antialiased">
@@ -204,19 +365,20 @@ export default function InstructorDashboardPage() {
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant mt-1">
-                Create deep-tech courses, upload modules & lessons, and submit for Super Admin approval to go live on the main website.
+                Create deep-tech courses, upload modules & lessons, manage drafts, and submit for review to launch live.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/instructor/courses/builder"
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
               className="flex items-center gap-2 bg-primary text-on-primary font-bold text-xs px-5 py-3 rounded-2xl hover:bg-primary/90 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
             >
               <Icon name="add_circle" size={18} />
               <span>+ Create Course</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -228,10 +390,10 @@ export default function InstructorDashboardPage() {
             </div>
             <div>
               <span className="font-bold text-indigo-950 dark:text-indigo-200">
-                Single-Platform Publishing Workflow:
+                Course Lifecycle &amp; Revisions:
               </span>{' '}
               <span className="text-indigo-800 dark:text-indigo-300">
-                Create Course & Lessons &rarr; Save Draft &rarr; Submit for Approval &rarr; Admin Review &rarr; Auto-Publishes on Main Landing Page.
+                Draft Syllabus &rarr; Submit for Review &rarr; Reviewer Evaluates &rarr; Approved &rarr; Publish Live. You can move any course back to <strong>Draft</strong> anytime to make private updates.
               </span>
             </div>
           </div>
@@ -249,6 +411,9 @@ export default function InstructorDashboardPage() {
             <div>
               <p className="text-xs text-on-surface-variant font-bold">Authored Courses</p>
               <h3 className="text-2xl font-black text-on-surface mt-1">{courses.length}</h3>
+              <p className="text-[11px] text-on-surface-variant mt-0.5">
+                {publishedCount} Live &bull; {inReviewCount} In Review &bull; {draftCount} Drafts
+              </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <Icon name="menu_book" size={24} />
@@ -259,6 +424,7 @@ export default function InstructorDashboardPage() {
             <div>
               <p className="text-xs text-on-surface-variant font-bold">Total Active Learners</p>
               <h3 className="text-2xl font-black text-on-surface mt-1">{totalStudents}</h3>
+              <p className="text-[11px] text-on-surface-variant mt-0.5">Across all live published courses</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-700 flex items-center justify-center">
               <Icon name="groups" size={24} />
@@ -271,6 +437,7 @@ export default function InstructorDashboardPage() {
               <h3 className="text-2xl font-black text-emerald-700 font-mono mt-1">
                 ₹{totalRevenue.toLocaleString('en-IN')}
               </h3>
+              <p className="text-[11px] text-on-surface-variant mt-0.5">Gross enrollment value</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center">
               <Icon name="payments" size={24} />
@@ -278,47 +445,263 @@ export default function InstructorDashboardPage() {
           </div>
         </div>
 
-        {/* Courses Table / Cards */}
+        {/* Courses Table / Cards Container */}
         <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-3xl p-6 shadow-sm space-y-6">
-          <div className="flex items-center justify-between">
+          {/* Header with Title and Search */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-on-surface">Your Authored Masterclasses</h2>
-              <p className="text-xs text-on-surface-variant">Live curriculum modules and publishing approval statuses</p>
+              <h2 className="text-lg font-black text-on-surface">
+                {activeTab === 'CATALOG' ? 'Academy Course Catalog' : 'Your Authored Masterclasses'}
+              </h2>
+              <p className="text-xs text-on-surface-variant">
+                {activeTab === 'CATALOG'
+                  ? 'Browse all live published courses available across Morena Teach'
+                  : 'Manage syllabus, publish live, move to draft, or delete your courses'}
+              </p>
             </div>
-            <span className="text-xs font-mono font-bold text-outline">{courses.length} courses</span>
+
+            {/* Search Bar */}
+            <div className="relative w-full md:w-72">
+              <Icon
+                name="search"
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search courses by title or topic..."
+                className="w-full bg-surface-container-low border border-outline-variant rounded-xl pl-9 pr-8 py-2 text-xs text-on-surface focus:outline-none focus:border-primary"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
-          {isLoading ? (
+          {/* Navigation Filter Tabs */}
+          <div className="flex items-center gap-2 border-b border-outline-variant/70 pb-3 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => setActiveTab('ALL')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'ALL'
+                  ? 'bg-primary text-on-primary shadow-xs'
+                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+              }`}
+            >
+              <Icon name="dashboard" size={15} />
+              <span>All Courses ({courses.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('PUBLISHED')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'PUBLISHED'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+              }`}
+            >
+              <Icon name="rocket_launch" size={15} />
+              <span>Published Live ({publishedCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('IN_REVIEW')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'IN_REVIEW'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+              }`}
+            >
+              <Icon name="hourglass_top" size={15} />
+              <span>In Review ({inReviewCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('DRAFT')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'DRAFT'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+              }`}
+            >
+              <Icon name="edit_note" size={15} />
+              <span>Drafts ({draftCount})</span>
+            </button>
+
+            {rejectedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('REJECTED')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'REJECTED'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-surface-container-low text-rose-600 hover:bg-rose-50'
+                }`}
+              >
+                <Icon name="feedback" size={15} />
+                <span>Needs Changes ({rejectedCount})</span>
+              </button>
+            )}
+
+            <div className="h-5 w-px bg-outline-variant mx-1" />
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('CATALOG')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'CATALOG'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+              }`}
+              title="Explore all courses on Morena Teach platform"
+            >
+              <Icon name="public" size={15} />
+              <span>Academy Catalog 🌐</span>
+            </button>
+          </div>
+
+          {/* Tab Content: Platform Catalog View */}
+          {activeTab === 'CATALOG' ? (
+            isCatalogLoading ? (
+              <div className="py-12 text-center text-on-surface-variant text-sm flex items-center justify-center gap-2">
+                <Icon name="sync" size={20} className="animate-spin text-primary" />
+                <span>Loading academy course catalog...</span>
+              </div>
+            ) : filteredCatalogCourses.length === 0 ? (
+              <div className="py-12 text-center space-y-3">
+                <p className="text-sm font-bold text-on-surface">No courses found matching your search</p>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs text-primary font-bold hover:underline"
+                >
+                  Clear search filter
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCatalogCourses.map((c) => (
+                  <div
+                    key={c.id}
+                    className="bg-surface-container-low/60 border border-outline-variant/70 rounded-2xl p-5 flex flex-col justify-between hover:border-primary/50 transition-all"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20 text-[10px] font-bold">
+                          Live on Platform
+                        </span>
+                        <span className="font-mono text-sm font-black text-emerald-600">
+                          {c.price === 0 ? 'Free' : `₹${c.price.toLocaleString('en-IN')}`}
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-sm text-on-surface line-clamp-2">{c.title}</h3>
+                      <p className="text-xs text-on-surface-variant line-clamp-2">
+                        {c.category || 'General'} &bull; {c.level}
+                      </p>
+
+                      {c.instructor && (
+                        <div className="flex items-center gap-2 pt-1 text-xs text-on-surface-variant">
+                          <UserAvatar
+                            avatar={c.instructor.avatar}
+                            name={c.instructor.name || 'Instructor'}
+                            size="sm"
+                            className="w-5 h-5 text-[9px]"
+                          />
+                          <span className="truncate">{c.instructor.name}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-4 mt-4 border-t border-outline-variant/60 flex items-center justify-between">
+                      <span className="text-xs text-on-surface-variant font-mono">
+                        ⭐ {c.rating || 5.0}
+                      </span>
+                      <Link
+                        href={`/courses/${c.slug || c.id}`}
+                        target="_blank"
+                        className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <span>View Course Page</span>
+                        <Icon name="open_in_new" size={13} />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : /* Authored Courses Views */
+          isLoading ? (
             <div className="py-12 text-center text-on-surface-variant text-sm flex items-center justify-center gap-2">
               <Icon name="sync" size={20} className="animate-spin text-primary" />
               <span>Loading authored courses...</span>
             </div>
-          ) : courses.length === 0 ? (
+          ) : filteredAuthoredCourses.length === 0 ? (
             <div className="py-16 text-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
                 <Icon name="school" size={32} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-on-surface">No courses authored yet</h3>
+                <h3 className="text-base font-bold text-on-surface">
+                  {searchQuery
+                    ? 'No courses match your search'
+                    : activeTab === 'PUBLISHED'
+                    ? 'No published live courses yet'
+                    : activeTab === 'IN_REVIEW'
+                    ? 'No courses currently under review'
+                    : activeTab === 'DRAFT'
+                    ? 'No draft courses'
+                    : activeTab === 'REJECTED'
+                    ? 'No courses pending revision'
+                    : 'No courses authored yet'}
+                </h3>
                 <p className="text-xs text-on-surface-variant mt-1">
-                  Create your first masterclass syllabus, upload lesson media, and submit for review.
+                  {searchQuery
+                    ? 'Try searching for another keyword or clear the search filter.'
+                    : 'Create your syllabus, configure lesson videos, and submit for review.'}
                 </p>
               </div>
-              <Link
-                href="/instructor/courses/builder"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary/90 shadow-sm cursor-pointer"
-              >
-                <Icon name="add_circle" size={16} />
-                <span>Create Your First Course</span>
-              </Link>
+
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="px-4 py-2 bg-surface-container border border-outline-variant text-xs font-bold rounded-xl hover:bg-surface-container-high cursor-pointer"
+                >
+                  Clear Search
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary/90 shadow-sm cursor-pointer"
+                >
+                  <Icon name="add_circle" size={16} />
+                  <span>Create New Masterclass</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((course) => {
+              {filteredAuthoredCourses.map((course) => {
                 const isPublished = course.status === 'PUBLISHED';
                 const isApproved = course.status === 'APPROVED';
                 const isUnderReview = course.status === 'IN_REVIEW';
                 const isRejected = course.status === 'REJECTED';
+                const isDraft = course.status === 'DRAFT';
+                const isBusy = actionInProgressId === course.id;
 
                 return (
                   <div
@@ -347,9 +730,9 @@ export default function InstructorDashboardPage() {
                           {isPublished
                             ? 'Live on Landing Page'
                             : isApproved
-                            ? 'Approved by Admin ✅'
+                            ? 'Approved by Reviewer ✅'
                             : isUnderReview
-                            ? 'Under Admin Review'
+                            ? 'Under Review'
                             : isRejected
                             ? 'Changes Requested'
                             : 'Draft'}
@@ -366,13 +749,13 @@ export default function InstructorDashboardPage() {
 
                       {isUnderReview && (
                         <p className="text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2.5 rounded-xl border border-amber-200/50">
-                          ⏳ Under evaluation by the Course Review Team. You will receive a notification once reviewed.
+                          ⏳ Under evaluation by the Course Review Studio. You will be notified once reviewed.
                         </p>
                       )}
 
                       {isApproved && (
                         <p className="text-[11px] text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 p-2.5 rounded-xl border border-emerald-200/50 font-medium">
-                          🎉 Review Team approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
+                          🎉 Review Studio approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
                         </p>
                       )}
 
@@ -407,68 +790,94 @@ export default function InstructorDashboardPage() {
                         </span>
                       </div>
 
-                      {/* Course Actions */}
+                      {/* Course Actions Bar */}
                       <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                        <Link
-                          href={`/instructor/courses/builder?courseId=${course.id}`}
-                          className="text-xs font-bold text-on-surface hover:text-primary border border-outline-variant px-2.5 py-1.5 rounded-xl hover:bg-surface-container transition-colors inline-flex items-center gap-1"
-                        >
-                          <Icon name="edit" size={13} />
-                          <span>Edit Syllabus</span>
-                        </Link>
-
-                        {/* Approved: Instructor can now publish live */}
-                        {isApproved && (
-                          <button
-                            type="button"
-                            disabled={submittingCourseId === course.id}
-                            onClick={() => handlePublishApprovedCourse(course.id, course.slug)}
-                            className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                          >
-                            {submittingCourseId === course.id ? (
-                              <Icon name="sync" size={13} className="animate-spin" />
-                            ) : (
-                              <Icon name="rocket_launch" size={13} />
-                            )}
-                            <span>Publish Live</span>
-                          </button>
-                        )}
-
-                        {/* Submit for Approval Button (for Draft / Rejected) */}
-                        {(!isPublished && !isApproved && !isUnderReview) && (
-                          <button
-                            type="button"
-                            disabled={submittingCourseId === course.id}
-                            onClick={() => handleSubmitForApproval(course.id, course.slug)}
-                            className="text-xs font-bold bg-primary text-on-primary hover:bg-primary/90 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                          >
-                            {submittingCourseId === course.id ? (
-                              <Icon name="sync" size={13} className="animate-spin" />
-                            ) : (
-                              <Icon name="send" size={13} />
-                            )}
-                            <span>Submit for Approval</span>
-                          </button>
-                        )}
-
-                        {/* Under Review notice */}
-                        {isUnderReview && (
-                          <span className="text-[11px] font-bold text-amber-700 px-2.5 py-1 rounded-lg bg-amber-50 inline-flex items-center gap-1">
-                            <Icon name="hourglass_top" size={13} />
-                            <span>In Review</span>
-                          </span>
-                        )}
-
-                        {/* View Course Link (for Published) */}
-                        {isPublished && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Edit Syllabus */}
                           <Link
-                            href={`/courses/${course.slug || course.id}`}
-                            className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
+                            href={`/instructor/courses/builder?courseId=${course.id}`}
+                            className="text-xs font-bold text-on-surface hover:text-primary border border-outline-variant px-2.5 py-1.5 rounded-xl hover:bg-surface-container transition-colors inline-flex items-center gap-1"
+                            title="Edit curriculum, lectures, and settings"
                           >
-                            <span>View on Website</span>
-                            <Icon name="arrow_forward" size={12} />
+                            <Icon name="edit" size={13} />
+                            <span>Edit</span>
                           </Link>
-                        )}
+
+                          {/* Approved: Instructor can now publish live */}
+                          {isApproved && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handlePublishApprovedCourse(course.id, course.slug)}
+                              className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              {isBusy ? (
+                                <Icon name="sync" size={13} className="animate-spin" />
+                              ) : (
+                                <Icon name="rocket_launch" size={13} />
+                              )}
+                              <span>Publish Live</span>
+                            </button>
+                          )}
+
+                          {/* Submit for Approval Button (for Draft / Rejected) */}
+                          {(isDraft || isRejected) && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleSubmitForApproval(course.id, course.slug)}
+                              className="text-xs font-bold bg-primary text-on-primary hover:bg-primary/90 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              {isBusy ? (
+                                <Icon name="sync" size={13} className="animate-spin" />
+                              ) : (
+                                <Icon name="send" size={13} />
+                              )}
+                              <span>Submit</span>
+                            </button>
+                          )}
+
+                          {/* Move to Draft Option (for Published, In Review, or Approved) */}
+                          {(isPublished || isUnderReview || isApproved) && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleMoveToDraft(course)}
+                              className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Unpublish / Move course back to draft for private revisions"
+                            >
+                              {isBusy ? (
+                                <Icon name="sync" size={13} className="animate-spin" />
+                              ) : (
+                                <Icon name="history" size={13} />
+                              )}
+                              <span>Move to Draft</span>
+                            </button>
+                          )}
+
+                          {/* View Course Link (for Published) */}
+                          {isPublished && (
+                            <Link
+                              href={`/courses/${course.slug || course.id}`}
+                              target="_blank"
+                              className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 px-1"
+                              title="Open public course page"
+                            >
+                              <Icon name="open_in_new" size={13} />
+                            </Link>
+                          )}
+                        </div>
+
+                        {/* Delete Course Button (Opens Confirmation Modal) */}
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleOpenDeleteModal(course)}
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 p-1.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                          title="Delete Course Permanently"
+                        >
+                          <Icon name="delete" size={16} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -478,6 +887,73 @@ export default function InstructorDashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Delete Course Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setIsDeleteModalOpen(false);
+            setCourseToDelete(null);
+          }
+        }}
+        maxWidth="md"
+        title="Delete Course Permanently"
+        subtitle="This action cannot be undone"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+              <Icon name="warning" size={22} />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200">
+                Are you sure you want to delete this course?
+              </h4>
+              <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                You are about to delete <strong className="font-semibold text-rose-950 dark:text-white">&quot;{courseToDelete?.title}&quot;</strong>.
+                All curriculum sections, video lessons, and resources associated with this course will be permanently removed.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 text-xs text-amber-800 dark:text-amber-200">
+            💡 <strong>Helpful Tip:</strong> If you only want to take this course down to make revisions or updates, click <strong>Cancel</strong> and use <strong>&quot;Move to Draft&quot;</strong> instead!
+          </div>
+
+          <div className="pt-3 border-t border-outline-variant/60 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setCourseToDelete(null);
+              }}
+              className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              {isDeleting ? (
+                <>
+                  <Icon name="sync" size={14} className="animate-spin" />
+                  <span>Deleting Course...</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="delete_forever" size={14} />
+                  <span>Yes, Delete Course</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Create Course Modal */}
       <Modal

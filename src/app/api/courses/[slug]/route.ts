@@ -433,6 +433,16 @@ export async function DELETE(
       );
     }
 
+    // Safely decouple/cleanup relations that don't cascade automatically
+    await prisma.order.updateMany({
+      where: { courseId: course.id },
+      data: { courseId: null }
+    }).catch(() => {});
+
+    await prisma.certificate.deleteMany({
+      where: { courseId: course.id }
+    }).catch(() => {});
+
     await prisma.course.delete({
       where: { id: course.id }
     });

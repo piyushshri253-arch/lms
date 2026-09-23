@@ -347,6 +347,37 @@ function CourseBuilderContent() {
     }
   };
 
+  // Revert / Move back to Draft
+  const handleUnpublishCourse = async () => {
+    setIsPublishing(true);
+    try {
+      const targetIdentifier = courseState.slug || courseState.id;
+      if (!targetIdentifier) {
+        throw new Error('Course identifier missing.');
+      }
+
+      const res = await fetch(`/api/courses/${targetIdentifier}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'UNPUBLISH', status: 'DRAFT' })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to revert to draft');
+
+      setCourseState((prev) => ({ ...prev, status: 'DRAFT' }));
+      showToast({
+        title: 'Course Moved to Draft 📝',
+        description: 'Course is now unpublished and back in draft mode. You can edit curriculum privately.',
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({ title: 'Action Failed', description: err.message, type: 'error' });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const isInstructor = currentUser?.role === 'INSTRUCTOR';
 
   const steps = [
@@ -538,6 +569,7 @@ function CourseBuilderContent() {
           userRole={currentUser?.role}
           onJumpToStep={(stepIdx) => setCurrentStep(stepIdx)}
           onPublish={handlePublishCourse}
+          onUnpublish={handleUnpublishCourse}
           isPublishing={isPublishing}
         />
       )}

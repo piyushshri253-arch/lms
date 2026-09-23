@@ -127,7 +127,11 @@ export async function POST(
     let targetStatus = 'PUBLISHED';
     let responseMessage = 'Course approved and published live to landing page!';
 
-    if (user.role === 'INSTRUCTOR') {
+    // Moving back to DRAFT / UNPUBLISH is permitted for both instructors and admins
+    if (body.status === 'DRAFT' || body.action === 'UNPUBLISH') {
+      targetStatus = 'DRAFT';
+      responseMessage = 'Course successfully moved back to draft state.';
+    } else if (user.role === 'INSTRUCTOR') {
       // If course is already approved by Super Admin, instructor can publish live!
       if (course.status === 'APPROVED') {
         targetStatus = 'PUBLISHED';
@@ -160,9 +164,6 @@ export async function POST(
       } else if (body.status === 'REJECTED' || body.action === 'REJECT') {
         targetStatus = 'REJECTED';
         responseMessage = 'Course submission rejected with reviewer feedback.';
-      } else if (body.status === 'DRAFT' || body.action === 'UNPUBLISH') {
-        targetStatus = 'DRAFT';
-        responseMessage = 'Course unpublished back to draft state.';
       } else {
         targetStatus = 'PUBLISHED';
         responseMessage = 'Course approved and published live to landing page!';
