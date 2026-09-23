@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     const audienceList = ['ALL', 'Everyone', 'everyone'];
     if (user.role === 'STUDENT') audienceList.push('STUDENTS', 'ALL_STUDENTS', 'students', 'student');
     if (user.role === 'INSTRUCTOR') audienceList.push('INSTRUCTORS', 'instructors', 'faculty');
+    if (user.role === 'REVIEWER') audienceList.push('REVIEWERS', 'reviewers');
     if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') audienceList.push('ADMINS', 'admins', 'staff');
 
     const audienceFilters: any[] = [{ targetAudience: { in: audienceList } }];
@@ -63,7 +64,16 @@ export async function GET(req: NextRequest) {
       title: `📢 ${a.title}`,
       message: a.message,
       type: 'ANNOUNCEMENT',
-      link: user.role === 'STUDENT' ? '/dashboard' : '/admin',
+      link:
+        user.role === 'STUDENT'
+          ? '/student/learning?tab=notifications'
+          : user.role === 'INSTRUCTOR'
+          ? '/instructor'
+          : user.role === 'REVIEWER'
+          ? '/reviewer'
+          : user.role === 'SUPER_ADMIN'
+          ? '/super-admin/notifications'
+          : '/admin/notifications',
       isRead: false,
       createdAt: a.createdAt
     }));

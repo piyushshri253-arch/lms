@@ -74,7 +74,7 @@ export async function POST(
             : `Congratulations! Your course "${course.title}" has been approved by the Review Team and is ready to be published live.`,
           type: 'COURSES',
           category: 'COURSES',
-          link: `/instructor/courses/${course.id}`
+          link: '/instructor'
         });
       } else {
         await createNotification({
@@ -84,7 +84,7 @@ export async function POST(
           message: `The Review Team requested updates: "${trimmedNote}". Please review the feedback, adjust your curriculum, and resubmit.`,
           type: 'COURSES',
           category: 'COURSES',
-          link: `/instructor/courses/${course.id}`
+          link: `/instructor/courses/builder?courseId=${course.id}`
         });
       }
     }

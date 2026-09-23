@@ -354,6 +354,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/student/learning?tab=certificates', request.url));
     }
     if (pathname === '/dashboard/notifications') {
+      const lmsRole = lmsSession?.role;
+      if (lmsRole === 'INSTRUCTOR') {
+        return NextResponse.redirect(new URL('/instructor', request.url));
+      }
+      if (lmsRole === 'REVIEWER') {
+        return NextResponse.redirect(new URL('/reviewer', request.url));
+      }
+      if (lmsRole === 'ADMIN' || lmsRole === 'LMS_ADMIN') {
+        return NextResponse.redirect(new URL('/admin/notifications', request.url));
+      }
+      if (lmsRole === 'SUPER_ADMIN') {
+        return NextResponse.redirect(new URL('/super-admin/notifications', request.url));
+      }
       return NextResponse.redirect(new URL('/student/learning?tab=notifications', request.url));
     }
     if (pathname === '/dashboard/orders') {

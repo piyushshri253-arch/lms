@@ -17,12 +17,12 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch('/api/student/notifications');
+      const res = await fetch('/api/notifications');
       if (res.ok) {
         const data = await res.json();
         const notifs = data.notifications || [];
         setNotifications(notifs);
-        setUnreadCount(notifs.filter((n: any) => !n.isRead).length);
+        setUnreadCount(data.unreadCount !== undefined ? data.unreadCount : notifs.filter((n: any) => !n.isRead).length);
       }
     } catch {
       // Ignore background notification fetch errors
@@ -39,12 +39,34 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
 
   const markAllRead = async () => {
     try {
-      await fetch('/api/student/notifications', { method: 'PUT' });
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true })
+      });
       setUnreadCount(0);
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch {
       // ignore
     }
+  };
+
+  const handleNotificationClick = async (id: string, link?: string) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isRead: true })
+      });
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      setShowNotifications(false);
+      if (link && link.startsWith('/reviewer')) {
+        router.push(link);
+      } else {
+        router.push('/reviewer');
+      }
+    } catch {}
   };
 
   const handleLogout = async () => {
@@ -142,7 +164,8 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
                       notifications.slice(0, 10).map((n) => (
                         <div
                           key={n.id}
-                          className={`p-3 hover:bg-slate-800/50 transition-colors ${
+                          onClick={() => handleNotificationClick(n.id, n.link)}
+                          className={`p-3 hover:bg-slate-800/50 transition-colors cursor-pointer ${
                             !n.isRead ? 'bg-indigo-950/20' : ''
                           }`}
                         >

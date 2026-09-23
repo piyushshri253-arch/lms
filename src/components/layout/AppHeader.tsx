@@ -25,7 +25,20 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
       ? 'SUPER_ADMIN'
       : pathname.startsWith('/instructor')
       ? 'INSTRUCTOR'
+      : pathname.startsWith('/reviewer')
+      ? 'REVIEWER'
       : 'STUDENT');
+
+  const notificationsUrl =
+    effectiveRole === 'SUPER_ADMIN'
+      ? '/super-admin/notifications'
+      : effectiveRole === 'ADMIN'
+      ? '/admin/notifications'
+      : effectiveRole === 'INSTRUCTOR'
+      ? '/instructor'
+      : effectiveRole === 'REVIEWER'
+      ? '/reviewer'
+      : '/student/learning?tab=notifications';
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -178,9 +191,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
       });
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
       setUnreadCount((prev) => Math.max(0, prev - 1));
+      setIsNotifOpen(false);
+
       if (link) {
-        setIsNotifOpen(false);
-        router.push(link);
+        let target = link;
+        if (effectiveRole === 'INSTRUCTOR') {
+          if (
+            target.startsWith('/dashboard') ||
+            target.startsWith('/student') ||
+            target.startsWith('/admin')
+          ) {
+            target = '/instructor';
+          } else if (target.startsWith('/instructor/courses/') && !target.includes('/builder')) {
+            const courseId = target.replace('/instructor/courses/', '');
+            target = `/instructor/courses/builder?courseId=${courseId}`;
+          }
+        } else if (effectiveRole === 'REVIEWER') {
+          if (!target.startsWith('/reviewer')) {
+            target = '/reviewer';
+          }
+        } else if (effectiveRole === 'STUDENT') {
+          if (target.startsWith('/dashboard/notifications') || target === '/dashboard') {
+            target = '/student/learning?tab=notifications';
+          }
+        }
+        router.push(target);
+      } else {
+        router.push(notificationsUrl);
       }
     } catch {}
   };
@@ -310,7 +347,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
             </Link>
 
             <Link
-              href="/dashboard/notifications"
+              href={notificationsUrl}
               className="text-on-surface-variant hover:text-primary font-bold text-xs transition-colors py-1 flex items-center gap-1"
             >
               <span>Announcements</span>
@@ -336,13 +373,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
               </Link>
             )}
 
-            <button
-              onClick={handleResumeLearning}
-              className="hidden sm:flex items-center gap-1.5 bg-primary text-on-primary font-bold text-xs rounded-xl px-4 py-2 hover:bg-primary-container transition-all shadow-md cursor-pointer"
-            >
-              <Icon name="play_arrow" size={16} />
-              <span>Resume Learning</span>
-            </button>
+            {effectiveRole === 'REVIEWER' && (
+              <Link
+                href="/reviewer"
+                className="hidden sm:flex items-center gap-1.5 bg-indigo-600 text-white font-bold text-xs rounded-xl px-4 py-2 hover:bg-indigo-700 transition-all shadow-md cursor-pointer"
+              >
+                <Icon name="rate_review" size={16} />
+                <span>Review Studio</span>
+              </Link>
+            )}
+
+            {effectiveRole === 'STUDENT' && (
+              <button
+                onClick={handleResumeLearning}
+                className="hidden sm:flex items-center gap-1.5 bg-primary text-on-primary font-bold text-xs rounded-xl px-4 py-2 hover:bg-primary-container transition-all shadow-md cursor-pointer"
+              >
+                <Icon name="play_arrow" size={16} />
+                <span>Resume Learning</span>
+              </button>
+            )}
 
             {/* Icon Action Matrix */}
             <div className="flex items-center gap-1.5 border-l border-outline-variant pl-3 ml-1">
@@ -382,7 +431,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
                           </button>
                         )}
                         <Link
-                          href="/dashboard/notifications"
+                          href={notificationsUrl}
                           onClick={() => setIsNotifOpen(false)}
                           className="text-[11px] font-bold text-primary hover:underline"
                         >
@@ -467,6 +516,36 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
                           Course Catalog
                         </span>
                       </Link>
+
+                      {(currentUser?.role === 'INSTRUCTOR' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                        <Link
+                          href="/instructor"
+                          onClick={() => setIsAppsOpen(false)}
+                          className="p-3 rounded-xl bg-surface-container-low hover:bg-primary/10 border border-outline-variant/60 hover:border-primary/40 flex flex-col items-center text-center gap-1.5 transition-all group"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                            <Icon name="school" size={18} />
+                          </div>
+                          <span className="font-bold text-[11px] text-on-surface group-hover:text-primary">
+                            Instructor Studio
+                          </span>
+                        </Link>
+                      )}
+
+                      {(currentUser?.role === 'REVIEWER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                        <Link
+                          href="/reviewer"
+                          onClick={() => setIsAppsOpen(false)}
+                          className="p-3 rounded-xl bg-surface-container-low hover:bg-primary/10 border border-outline-variant/60 hover:border-primary/40 flex flex-col items-center text-center gap-1.5 transition-all group"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-700 flex items-center justify-center font-bold">
+                            <Icon name="rate_review" size={18} />
+                          </div>
+                          <span className="font-bold text-[11px] text-on-surface group-hover:text-indigo-700">
+                            Review Studio
+                          </span>
+                        </Link>
+                      )}
 
                       {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
                         <Link
@@ -603,6 +682,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
                         >
                           <Icon name="school" size={16} className="text-primary" />
                           <span>Instructor Studio</span>
+                        </Link>
+                      </>
+                    ) : effectiveRole === 'REVIEWER' ? (
+                      <>
+                        <Link
+                          href="/reviewer"
+                          onClick={() => setIsProfileOpen(false)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-2 transition-colors"
+                        >
+                          <Icon name="rate_review" size={16} className="text-indigo-500" />
+                          <span>Review Queue</span>
                         </Link>
                       </>
                     ) : (
