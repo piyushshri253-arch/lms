@@ -96,6 +96,18 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // Dedicated Reviewer Login Page (/reviewer/login)
+  if (pathname === '/reviewer/login') {
+    if (isLmsValid && lmsSession && (lmsSession.role === 'REVIEWER' || isAuthorizedAdminRole(lmsSession.role))) {
+      return NextResponse.redirect(new URL('/reviewer', request.url));
+    }
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
   // -------------------------------------------------------------------------
   // 1.5. REVIEWER ROUTE PROTECTION (/reviewer and /reviewer/*)
   // -------------------------------------------------------------------------
@@ -105,7 +117,7 @@ export async function middleware(request: NextRequest) {
 
     if (!isAuth || !session) {
       const callback = encodeURIComponent(pathname + (search || ''));
-      return NextResponse.redirect(new URL(`/admin/login?callbackUrl=${callback}`, request.url));
+      return NextResponse.redirect(new URL(`/reviewer/login?callbackUrl=${callback}`, request.url));
     }
 
     const role = session.role;

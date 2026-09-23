@@ -333,6 +333,31 @@ function AdminLoginContent() {
                     </span>
                   )}
                 </button>
+
+                {/* Course Reviewer Button */}
+                <button
+                  type="button"
+                  disabled={isLoading || !!fastLoadingRole}
+                  onClick={() =>
+                    handleQuickFill('reviewer@morenateach.com', 'Reviewer@123', 'reviewer')
+                  }
+                  className="flex items-center justify-between p-3 rounded-xl bg-white hover:bg-amber-50/60 border border-slate-200 hover:border-amber-300 text-left transition-all shadow-2xs group cursor-pointer disabled:opacity-50 sm:col-span-2"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-amber-700 flex items-center gap-1">
+                      <span>📝</span>
+                      <span>Course Reviewer</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500">Quality &amp; Curriculum Review Studio</p>
+                  </div>
+                  {fastLoadingRole === 'reviewer' ? (
+                    <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-slate-400 group-hover:text-amber-700 transition-transform group-hover:translate-x-0.5">
+                      <SvgArrowRight className="w-4 h-4" />
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
