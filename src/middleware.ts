@@ -8,6 +8,7 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const SALES_COOKIE = 'sales_session_token';
 const LMS_COOKIE = 'lms_session_token';
+const REVIEWER_COOKIE = 'reviewer_session_token';
 const LEGACY_COOKIE = 'aadhyara_session_token';
 
 interface TokenPayload {
@@ -45,13 +46,17 @@ export async function middleware(request: NextRequest) {
   const lmsCookieVal =
     request.cookies.get(LMS_COOKIE)?.value ||
     request.cookies.get(LEGACY_COOKIE)?.value;
+  const reviewerCookieVal = request.cookies.get(REVIEWER_COOKIE)?.value;
 
   const salesSession = await verifyToken(salesCookieVal);
   const lmsSession = await verifyToken(lmsCookieVal);
+  const reviewerSession = await verifyToken(reviewerCookieVal);
 
   const isSalesValid = !!salesSession && salesSession.platform === 'SALES';
   const isLmsValid =
     !!lmsSession && (lmsSession.platform === 'LMS' || lmsSession.role === 'SUPER_ADMIN' || !lmsSession.platform);
+  const isReviewerValid =
+    !!reviewerSession && (reviewerSession.role === 'REVIEWER' || isAuthorizedAdminRole(reviewerSession.role));
 
   // Clone headers and forward current pathname for Server Components
   const requestHeaders = new Headers(request.headers);
@@ -98,7 +103,11 @@ export async function middleware(request: NextRequest) {
 
   // Dedicated Reviewer Login Page (/reviewer/login)
   if (pathname === '/reviewer/login') {
-    if (isLmsValid && lmsSession && (lmsSession.role === 'REVIEWER' || isAuthorizedAdminRole(lmsSession.role))) {
+    const activeReviewerSession =
+      (isReviewerValid ? reviewerSession : null) ||
+      (isLmsValid && lmsSession && (lmsSession.role === 'REVIEWER' || isAuthorizedAdminRole(lmsSession.role)) ? lmsSession : null);
+
+    if (activeReviewerSession) {
       return NextResponse.redirect(new URL('/reviewer', request.url));
     }
     return createSecureResponse(
@@ -112,8 +121,14 @@ export async function middleware(request: NextRequest) {
   // 1.5. REVIEWER ROUTE PROTECTION (/reviewer and /reviewer/*)
   // -------------------------------------------------------------------------
   if (pathname === '/reviewer' || pathname.startsWith('/reviewer/')) {
-    const session = lmsSession || salesSession;
-    const isAuth = isLmsValid || isSalesValid;
+    const session =
+      (isReviewerValid ? reviewerSession : null) ||
+      (isLmsValid && lmsSession && (lmsSession.role === 'REVIEWER' || isAuthorizedAdminRole(lmsSession.role)) ? lmsSession : null) ||
+      salesSession;
+    const isAuth =
+      isReviewerValid ||
+      (isLmsValid && lmsSession && (lmsSession.role === 'REVIEWER' || isAuthorizedAdminRole(lmsSession.role))) ||
+      isSalesValid;
 
     if (!isAuth || !session) {
       const callback = encodeURIComponent(pathname + (search || ''));
@@ -214,15 +229,19 @@ export async function middleware(request: NextRequest) {
   // 3.5. REVIEWER API PROTECTION (/api/reviewer and /api/reviewer/*)
   // -------------------------------------------------------------------------
   if (pathname.startsWith('/api/reviewer')) {
-    const reviewerSession = lmsSession || salesSession;
-    if (!reviewerSession) {
+    const activeReviewer =
+      (isReviewerValid ? reviewerSession : null) ||
+      (isLmsValid && lmsSession && (lmsSession.role === 'REVIEWER' || isAuthorizedAdminRole(lmsSession.role)) ? lmsSession : null) ||
+      salesSession;
+
+    if (!activeReviewer) {
       return NextResponse.json(
         { error: 'Authentication required. Please log into a Course Reviewer account.' },
         { status: 401 }
       );
     }
 
-    if (reviewerSession.role !== 'REVIEWER' && !isAuthorizedAdminRole(reviewerSession.role)) {
+    if (activeReviewer.role !== 'REVIEWER' && !isAuthorizedAdminRole(activeReviewer.role)) {
       return NextResponse.json(
         { error: 'Access denied: Course Reviewer or Administrator privileges required.' },
         { status: 403 }

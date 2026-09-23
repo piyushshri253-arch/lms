@@ -12,6 +12,7 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export const SALES_COOKIE_NAME = 'sales_session_token';
 export const LMS_COOKIE_NAME = 'lms_session_token';
+export const REVIEWER_COOKIE_NAME = 'reviewer_session_token';
 
 // Legacy cookies for backward compatibility
 export const LEGACY_COOKIE_NAME = 'aadhyara_session_token';
@@ -318,26 +319,172 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
 }
 
 // ---------------------------------------------------------------------------
+// REVIEWER PLATFORM SESSIONS (Isolated session for Course Review Studio)
+// ---------------------------------------------------------------------------
+
+export async function setReviewerSessionCookie(user: AuthSessionUser) {
+  const token = await createSessionToken({ ...user, platform: 'LMS', role: user.role });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(REVIEWER_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+  } catch {
+    // Gracefully handle calls outside Next.js request scope
+  }
+}
+
+export async function clearReviewerSessionCookie() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(REVIEWER_COOKIE_NAME);
+  } catch {
+    // Gracefully handle calls outside Next.js request scope
+  }
+}
+
+export async function getReviewerCurrentUser(): Promise<AuthSessionUser | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(REVIEWER_COOKIE_NAME)?.value;
+    if (!token) {
+      // Fallback to LMS user if they have reviewer/admin role
+      const lmsUser = await getLmsCurrentUser();
+      if (lmsUser && ['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(lmsUser.role)) {
+        return lmsUser;
+      }
+      return null;
+    }
+
+    const session = await verifySessionToken(token);
+    if (!session) return null;
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: {
+        id: true,
+        organizationId: true,
+        name: true,
+        email: true,
+        platform: true,
+        role: true,
+        avatar: true,
+        phone: true,
+        customRole: true,
+        permissions: true,
+        status: true,
+        emailVerified: true,
+        sessionVersion: true,
+        isSuspended: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+            plan: true,
+            subscriptionStatus: true
+          }
+        }
+      }
+    });
+
+    if (!dbUser || dbUser.isSuspended || dbUser.status === 'SUSPENDED') {
+      return null;
+    }
+
+    if (session.sessionVersion && dbUser.sessionVersion !== session.sessionVersion) {
+      return null;
+    }
+
+    let parsedPermissions: string[] = [];
+    try {
+      parsedPermissions = JSON.parse(dbUser.permissions || '[]');
+      if (parsedPermissions.length === 0) {
+        parsedPermissions = DEFAULT_ROLE_PERMISSIONS[dbUser.role as UserRole] || [];
+      }
+    } catch {
+      parsedPermissions = DEFAULT_ROLE_PERMISSIONS[dbUser.role as UserRole] || [];
+    }
+
+    return {
+      id: dbUser.id,
+      organizationId: dbUser.organizationId || null,
+      organizationName: dbUser.organization?.name || null,
+      organizationSlug: dbUser.organization?.slug || null,
+      organizationStatus: dbUser.organization?.status || null,
+      plan: dbUser.organization?.plan || null,
+      name: dbUser.name,
+      email: dbUser.email,
+      platform: 'LMS',
+      role: dbUser.role as UserRole,
+      avatar: dbUser.avatar,
+      phone: dbUser.phone,
+      customRole: dbUser.customRole,
+      permissions: parsedPermissions,
+      status: dbUser.status,
+      emailVerified: dbUser.emailVerified,
+      sessionVersion: dbUser.sessionVersion
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function requireReviewerAuth(): Promise<AuthSessionUser> {
+  const user = (await getReviewerCurrentUser()) || (await getCurrentUser());
+  if (!user) {
+    throw new Error('UNAUTHORIZED');
+  }
+  const allowed = ['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'];
+  if (!allowed.includes(user.role)) {
+    throw new Error('FORBIDDEN');
+  }
+  return user;
+}
+
+// ---------------------------------------------------------------------------
 // GENERAL COMPATIBILITY HELPERS & GUARDS
 // ---------------------------------------------------------------------------
 
 export async function setSessionCookie(user: AuthSessionUser) {
   if (user.platform === 'SALES') {
     await setSalesSessionCookie(user);
+  } else if (user.role === 'REVIEWER') {
+    await setReviewerSessionCookie(user);
   } else {
     await setLmsSessionCookie(user);
   }
 }
 
-export async function clearSessionCookie() {
+export async function clearSessionCookie(portal?: string) {
+  if (portal === 'REVIEWER') {
+    await clearReviewerSessionCookie();
+    return;
+  }
+  if (portal === 'SALES') {
+    await clearSalesSessionCookie();
+    return;
+  }
+  if (portal === 'LMS' || portal === 'INSTRUCTOR' || portal === 'STUDENT') {
+    await clearLmsSessionCookie();
+    return;
+  }
   await clearSalesSessionCookie();
   await clearLmsSessionCookie();
+  await clearReviewerSessionCookie();
 }
 
 export async function getCurrentUser(): Promise<AuthSessionUser | null> {
   // LMS (Student / Storefront / Teacher) session takes top precedence for Morena Teach
   const lmsUser = await getLmsCurrentUser();
   if (lmsUser) return lmsUser;
+  const reviewerUser = await getReviewerCurrentUser();
+  if (reviewerUser) return reviewerUser;
   return getSalesCurrentUser();
 }
 

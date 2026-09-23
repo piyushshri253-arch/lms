@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantRole, validateTenantOwnership } from '@/lib/auth';
+import { requireReviewerAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { createNotification } from '@/lib/notification';
 
@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireTenantRole(['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
+    const user = await requireReviewerAuth();
     const { id } = await params;
     const body = await request.json();
     const { action, note } = body;

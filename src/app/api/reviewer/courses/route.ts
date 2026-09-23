@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireTenantRole } from '@/lib/auth';
+import { requireReviewerAuth } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
-    const user = await requireTenantRole(['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
+    const user = await requireReviewerAuth();
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status')?.trim().toUpperCase();
     const search = searchParams.get('search')?.trim().toLowerCase();

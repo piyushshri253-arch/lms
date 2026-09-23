@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, setSessionCookie, clearSessionCookie, AuthSessionUser } from '@/lib/auth';
+import {
+  verifyPassword,
+  setSessionCookie,
+  clearSessionCookie,
+  setReviewerSessionCookie,
+  clearReviewerSessionCookie,
+  setLmsSessionCookie,
+  clearLmsSessionCookie,
+  setSalesSessionCookie,
+  clearSalesSessionCookie,
+  AuthSessionUser
+} from '@/lib/auth';
 import { checkRateLimit, logSecurityEvent, generateOtp } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
@@ -321,9 +332,19 @@ export async function POST(req: NextRequest) {
       sessionVersion: user.sessionVersion
     };
 
-    // Purge any preexisting session from other portals before setting new session
-    await clearSessionCookie();
-    await setSessionCookie(sessionUser);
+    // Set portal-isolated session cookie so Reviewer Studio and Instructor/Student dashboards
+    // can run simultaneously in separate tabs of the same browser without clearing each other's session
+    if (portal === 'REVIEWER' || requestedPortal === 'REVIEWER' || user.role === 'REVIEWER') {
+      await clearReviewerSessionCookie();
+      await setReviewerSessionCookie(sessionUser);
+    } else if (productPortal === 'SALES' || user.platform === 'SALES') {
+      await clearSalesSessionCookie();
+      await setSalesSessionCookie(sessionUser);
+    } else {
+      // Standard LMS (Student / Instructor / Admin)
+      await clearLmsSessionCookie();
+      await setLmsSessionCookie(sessionUser);
+    }
 
     // 9. Record Audit Log & Security Events
     await logSecurityEvent({

@@ -69,25 +69,44 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
     } catch {}
   };
 
+  const [reviewerUser, setReviewerUser] = useState<any>(null);
+  const [isLoadingReviewer, setIsLoadingReviewer] = useState(true);
+
+  const fetchReviewerProfile = async () => {
+    try {
+      const res = await fetch('/api/reviewer/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.user) {
+          setReviewerUser(data.user);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingReviewer(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviewerProfile();
+  }, []);
+
   const handleLogout = async () => {
     try {
-      await logout();
-      showToast({ title: 'Logged Out', description: 'You have been safely signed out.', type: 'info' });
-      router.push('/login');
+      await fetch('/api/auth/logout?portal=reviewer', { method: 'POST' });
+      showToast({ title: 'Logged Out', description: 'Reviewer session signed out.', type: 'info' });
+      router.push('/reviewer/login');
     } catch (e: any) {
       showToast({ title: 'Error', description: e.message || 'Logout failed', type: 'error' });
     }
   };
 
-  const isAuthorizedReviewer =
-    !currentUser ||
-    currentUser.role === 'REVIEWER' ||
-    currentUser.role === 'ADMIN' ||
-    currentUser.role === 'SUPER_ADMIN' ||
-    currentUser.role === 'LMS_ADMIN' ||
-    currentUser.role === 'SALES_ADMIN';
+  const activeReviewer = reviewerUser || (currentUser?.role === 'REVIEWER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' ? currentUser : null);
 
-  if (currentUser && !isAuthorizedReviewer) {
+  const isRestricted = !isLoadingReviewer && !activeReviewer && currentUser && (currentUser.role === 'INSTRUCTOR' || currentUser.role === 'STUDENT');
+
+  if (isRestricted) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl space-y-6">
@@ -105,8 +124,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
           </div>
           <div className="space-y-3 pt-2">
             <button
-              onClick={async () => {
-                await logout();
+              onClick={() => {
                 router.push('/reviewer/login');
               }}
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
@@ -244,18 +262,18 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
             {/* User Profile Chip */}
             <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
               <UserAvatar
-                name={currentUser?.name || 'Reviewer'}
-                avatar={currentUser?.avatar}
+                name={activeReviewer?.name || 'Reviewer'}
+                avatar={activeReviewer?.avatar}
                 size="sm"
               />
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-semibold text-slate-200 leading-tight">
-                  {currentUser?.name || 'Quality Reviewer'}
+                  {activeReviewer?.name || 'Quality Reviewer'}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                    {currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser?.role === 'ADMIN' ? 'Admin' : 'Course Reviewer'}
+                    {activeReviewer?.role === 'SUPER_ADMIN' ? 'Super Admin' : activeReviewer?.role === 'ADMIN' ? 'Admin' : 'Course Reviewer'}
                   </span>
                 </div>
               </div>
