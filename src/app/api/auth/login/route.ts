@@ -119,70 +119,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Enforce Strict Portal Intent Boundaries:
-    // Landing page /login is strictly reserved for Students only.
-    const effectivePortal = (requestedPortal || 'STUDENT').toUpperCase();
-    if (effectivePortal === 'STUDENT' && user.role !== 'STUDENT') {
-      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'LMS_ADMIN') {
-        return NextResponse.json(
-          {
-            error:
-              'Administrative accounts are not permitted on the Student storefront. Please sign in through the Admin Backend Portal at /admin/login.'
-          },
-          { status: 403 }
-        );
-      }
+    // 5. Optional Portal-Specific Checks (only when logging in from a dedicated sub-portal like /admin/login or /instructor/login)
+    // Unified /login (when requestedPortal is omitted or 'UNIFIED') automatically detects the role from DB and redirects!
+    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'UNIFIED';
 
-      if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
-        return NextResponse.json(
-          {
-            error:
-              'Instructor accounts are not permitted on the Student storefront. Please sign in through the Instructor Portal at /instructor/login.'
-          },
-          { status: 403 }
-        );
-      }
-
-      if (user.role === 'REVIEWER') {
-        return NextResponse.json(
-          {
-            error:
-              'Course Auditor accounts please sign in through the Auditor Studio at /reviewer/login.'
-          },
-          { status: 403 }
-        );
-      }
-
+    if (effectivePortal === 'ADMIN' && !['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN', 'REVIEWER'].includes(user.role)) {
       return NextResponse.json(
-        {
-          error: 'This portal is strictly for Students. Please sign in through your designated portal.'
-        },
+        { error: 'This account does not have Administrator access.' },
         { status: 403 }
       );
     }
 
-    if (requestedPortal === 'ADMIN' && user.role === 'STUDENT') {
+    if (effectivePortal === 'INSTRUCTOR' && !['INSTRUCTOR', 'TEACHER', 'SUPER_ADMIN', 'LMS_ADMIN'].includes(user.role)) {
       return NextResponse.json(
-        {
-          error:
-            'Student accounts cannot access the Administrator Backend. Please sign in through the Student portal at /login.'
-        },
+        { error: 'This account is not registered as an Instructor.' },
         { status: 403 }
       );
     }
 
-    if (requestedPortal === 'INSTRUCTOR' && user.role !== 'INSTRUCTOR' && user.role !== 'TEACHER') {
+    if (effectivePortal === 'REVIEWER' && !['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
-        {
-          error:
-            'This portal is reserved for Instructors. Students please sign in at /login, and Admins please use /admin/login.'
-        },
+        { error: 'This account does not have Reviewer / Auditor access.' },
         { status: 403 }
       );
     }
 
-    // 6. Check Email Verification Status
-    if (!user.emailVerified) {
+    // 6. Check Email Verification Status (Unverified users cannot access dashboards!)
+    if (!user.emailVerified || user.status === 'PENDING_VERIFICATION') {
       const { otp, hash: otpHash } = generateOtp(6);
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -200,105 +163,70 @@ export async function POST(req: NextRequest) {
         }
       });
 
-        await sendEmail({
-          to: normalizedEmail,
-          subject: 'Verify your Morena Teach account',
-          template: 'OTP_VERIFY',
-          userId: user.id,
-          data: {
-            name: user.name,
-            otp,
-            expiresInMinutes: 10
-          }
-        }).catch(() => {});
+      await sendEmail({
+        to: normalizedEmail,
+        subject: `${otp} is your Morena Teach Verification Code`,
+        template: 'OTP_VERIFY',
+        userId: user.id,
+        data: {
+          name: user.name,
+          otp,
+          expiresInMinutes: 10
+        }
+      }).catch(() => {});
 
-        await logSecurityEvent({
-          userId: user.id,
-          email: normalizedEmail,
-          eventType: 'LOGIN_CHALLENGED_UNVERIFIED',
-          req
-        });
+      await logSecurityEvent({
+        userId: user.id,
+        email: normalizedEmail,
+        eventType: 'LOGIN_CHALLENGED_UNVERIFIED',
+        req
+      });
 
-        return NextResponse.json(
-          {
-            requiresEmailVerification: true,
-            email: user.email,
-            message: 'Please verify your email before accessing your account.'
-          },
-          { status: 403 }
-        );
+      return NextResponse.json(
+        {
+          requiresEmailVerification: true,
+          email: user.email,
+          role: user.role,
+          previewOtp: otp,
+          redirectUrl: `/verify-email?email=${encodeURIComponent(user.email)}`,
+          message: 'Please verify your email address via the 6-digit OTP sent to your inbox before accessing your dashboard.'
+        },
+        { status: 403 }
+      );
     }
 
-    // 6. Role & Portal Validation (if portal specified)
-    const portal = (requestedPortal || (body as any).selectedRole)?.toUpperCase();
-    if (portal) {
-      const dbRole = user.role;
-      if (portal === 'STUDENT') {
-        if (dbRole !== 'STUDENT') {
-          return NextResponse.json(
-            { error: 'This account is not registered as a Student. Please select the correct login type.' },
-            { status: 403 }
-          );
-        }
-      } else if (portal === 'INSTRUCTOR') {
-        if (dbRole !== 'INSTRUCTOR') {
-          return NextResponse.json(
-            { error: 'This account is not registered as an Instructor. Please select the correct login type.' },
-            { status: 403 }
-          );
-        }
-      } else if (portal === 'ADMIN' || portal === 'LMS_ADMIN') {
-        const isAuthorizedAdmin =
-          dbRole === 'ADMIN' ||
-          dbRole === 'LMS_ADMIN' ||
-          dbRole === 'SUPER_ADMIN' ||
-          dbRole === 'REVIEWER';
-
-        if (!isAuthorizedAdmin) {
-          return NextResponse.json(
-            { error: 'This account does not have LMS Admin access.' },
-            { status: 403 }
-          );
-        }
-      } else if (portal === 'REVIEWER') {
-        const isAuthorizedReviewer =
-          dbRole === 'REVIEWER' ||
-          dbRole === 'ADMIN' ||
-          dbRole === 'SUPER_ADMIN';
-
-        if (!isAuthorizedReviewer) {
-          return NextResponse.json(
-            { error: 'This account does not have Course Reviewer access.' },
-            { status: 403 }
-          );
-        }
-      }
+    if (user.status === 'INACTIVE' || user.status === 'DISABLED' || user.status === 'REJECTED') {
+      return NextResponse.json(
+        { error: `Your account is currently ${user.status}. Please contact administration.` },
+        { status: 403 }
+      );
     }
 
-    // 7. Determine Centralized Redirect URL based on Product Portal & Role
-    let redirectUrl = '/student/learning';
+    // Update lastLoginAt timestamp in DB
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    }).catch(() => {});
 
-    if (user.role === 'STUDENT') {
-      redirectUrl = '/student/learning';
-    } else if (productPortal === 'SALES') {
+    // 7. Automatic Role-Based Redirection determined strictly from Database Account Role
+    let redirectUrl = '/student/dashboard';
+
+    if (productPortal === 'SALES') {
       if (!user.organizationId || !user.organization?.onboardingCompleted) {
         redirectUrl = '/sales/onboarding';
       } else {
         redirectUrl = '/sales/dashboard';
       }
+    } else if (user.role === 'SUPER_ADMIN') {
+      redirectUrl = '/super-admin/dashboard';
+    } else if (user.role === 'ADMIN' || user.role === 'LMS_ADMIN') {
+      redirectUrl = '/admin/dashboard';
+    } else if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
+      redirectUrl = '/instructor/dashboard';
+    } else if (user.role === 'REVIEWER') {
+      redirectUrl = '/reviewer/dashboard';
     } else {
-      // General fallback based on database role
-      if (user.role === 'SUPER_ADMIN') {
-        redirectUrl = '/super-admin';
-      } else if (user.role === 'ADMIN' || user.role === 'LMS_ADMIN') {
-        redirectUrl = '/admin';
-      } else if (user.role === 'INSTRUCTOR') {
-        redirectUrl = '/instructor';
-      } else if (user.role === 'REVIEWER') {
-        redirectUrl = '/reviewer';
-      } else {
-        redirectUrl = '/student/learning';
-      }
+      redirectUrl = '/student/dashboard';
     }
 
     // 8. Build Complete Cryptographic Session with Tenant Metadata
@@ -334,7 +262,7 @@ export async function POST(req: NextRequest) {
 
     // Set portal-isolated session cookie so Reviewer Studio and Instructor/Student dashboards
     // can run simultaneously in separate tabs of the same browser without clearing each other's session
-    if (portal === 'REVIEWER' || requestedPortal === 'REVIEWER' || user.role === 'REVIEWER') {
+    if (effectivePortal === 'REVIEWER' || requestedPortal === 'REVIEWER' || user.role === 'REVIEWER') {
       await clearReviewerSessionCookie();
       await setReviewerSessionCookie(sessionUser);
     } else if (productPortal === 'SALES' || user.platform === 'SALES') {

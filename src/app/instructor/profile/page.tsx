@@ -1,264 +1,388 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useApp } from '@/context/AppContext';
-import { Icon } from '@/components/ui/Icon';
-import { UserAvatar } from '@/components/ui/UserAvatar';
+import React, { useEffect, useState } from 'react';
+import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  ShieldCheck,
+  Lock,
+  CheckCircle2,
+  XCircle,
+  Save,
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
 
 export default function InstructorProfilePage() {
-  const { currentUser, refreshUser, showToast } = useApp();
-
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [bio, setBio] = useState('');
-  const [avatar, setAvatar] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Password state
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    avatar: '',
+    bio: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
+    pincode: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    if (currentUser) {
-      setName(currentUser.name || '');
-      setEmail(currentUser.email || '');
-      setBio(currentUser.bio || '');
-      setAvatar(currentUser.avatar || '');
-    } else {
-      fetch('/api/auth/me')
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.user) {
-            setName(data.user.name || '');
-            setEmail(data.user.email || '');
-            setBio(data.user.bio || '');
-            setAvatar(data.user.avatar || '');
-          }
-        })
-        .catch(() => {});
-    }
-  }, [currentUser]);
+    fetch('/api/instructor/profile')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.profile) {
+          setProfile(res.profile);
+          setForm((prev) => ({
+            ...prev,
+            name: res.profile.name || '',
+            phone: res.profile.phone || '',
+            avatar: res.profile.avatar || '',
+            bio: res.profile.bio || '',
+            address: res.profile.address || '',
+            city: res.profile.city || '',
+            state: res.profile.state || '',
+            country: res.profile.country || 'India',
+            pincode: res.profile.pincode || ''
+          }));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const pwChecks = {
+    minLength: form.newPassword.length >= 8,
+    uppercase: /[A-Z]/.test(form.newPassword),
+    lowercase: /[a-z]/.test(form.newPassword),
+    number: /[0-9]/.test(form.newPassword),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(form.newPassword)
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
+    setError('');
+    setSuccess('');
+    setSaving(true);
 
     try {
-      const res = await fetch('/api/auth/profile', {
+      const res = await fetch('/api/instructor/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, bio, avatar })
+        body: JSON.stringify(form)
       });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
-
-      await refreshUser();
-      showToast({ title: 'Profile Updated', description: 'Your faculty profile has been saved.', type: 'success' });
+      if (!res.ok) {
+        setError(data.error || 'Failed to update profile.');
+      } else {
+        setProfile(data.profile);
+        setForm((prev) => ({
+          ...prev,
+          currentPassword: '',
+          newPassword: '',
+          confirmNewPassword: ''
+        }));
+        setSuccess(data.message || 'Profile updated successfully!');
+      }
     } catch (err: any) {
-      showToast({ title: 'Error', description: err.message, type: 'error' });
+      setError(err.message || 'Network error.');
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      showToast({ title: 'Mismatch', description: 'New passwords do not match.', type: 'error' });
-      return;
-    }
-
-    setIsChangingPassword(true);
-    try {
-      const res = await fetch('/api/auth/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Password update failed');
-
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      showToast({ title: 'Password Changed', description: 'Your credentials have been securely updated.', type: 'success' });
-    } catch (err: any) {
-      showToast({ title: 'Error', description: err.message, type: 'error' });
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
+  if (loading) {
+    return (
+      <InstructorPortalShell title="My Profile & Account Security">
+        <div className="py-24 flex justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        </div>
+      </InstructorPortalShell>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-200">
-      <div className="bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant mb-1">
-            <Link href="/instructor" className="hover:text-primary transition-colors">
-              Instructor Dashboard
-            </Link>
-            <span>/</span>
-            <span className="text-primary font-bold">Faculty Profile</span>
-          </div>
-          <h1 className="text-2xl font-black text-on-surface tracking-tight">
-            Faculty Profile &amp; Bio
-          </h1>
-          <p className="text-xs text-on-surface-variant mt-0.5">
-            Your bio, avatar, and credentials shown to students on course storefronts.
-          </p>
-        </div>
-
-        <span className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-700 font-mono font-bold text-xs">
-          Role: INSTRUCTOR
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/80 shadow-xs text-center space-y-4">
-            <UserAvatar
-              avatar={avatar || currentUser?.avatar}
-              name={currentUser?.name || 'Instructor'}
-              size="2xl"
-              className="w-24 h-24 border-4 border-purple-500/20 shadow-md mx-auto"
-            />
-            <div>
-              <h2 className="text-lg font-black text-on-surface">{currentUser?.name || 'Faculty Member'}</h2>
-              <p className="text-xs text-on-surface-variant font-mono">{currentUser?.email}</p>
+    <InstructorPortalShell
+      title="My Profile & Account Security"
+      subtitle="Manage your personal information, complete address, and password security"
+      profile={profile}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Personal Info & Security Form */}
+        <div className="lg:col-span-2 space-y-6">
+          {error && (
+            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2.5 text-red-300 text-xs">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{error}</span>
             </div>
-          </div>
-        </div>
+          )}
+          {success && (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-emerald-300 text-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{success}</span>
+            </div>
+          )}
 
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-surface-container-lowest p-6 sm:p-8 rounded-3xl border border-outline-variant/80 shadow-xs space-y-6">
-            <h3 className="text-base font-extrabold text-on-surface flex items-center gap-2">
-              <Icon name="badge" size={20} className="text-primary" />
-              <span>Instructor Information</span>
-            </h3>
+          <form onSubmit={handleSave} className="space-y-6">
+            <div className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 space-y-4">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <User className="w-4 h-4 text-violet-400" />
+                Personal &amp; Contact Information
+              </h2>
 
-            <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-on-surface block mb-1.5">Full Name</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Full Name</label>
                   <input
                     type="text"
                     required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs text-on-surface font-medium"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
                   />
                 </div>
-
                 <div>
-                  <label className="text-xs font-bold text-on-surface block mb-1.5">Email (Read Only)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Email Address (Verified)
+                  </label>
                   <input
                     type="email"
                     disabled
-                    value={email}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-outline-variant text-xs text-outline font-mono cursor-not-allowed"
+                    value={profile?.email || ''}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/50 border border-slate-800 text-sm text-slate-400 cursor-not-allowed"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-on-surface block mb-1.5">Avatar Image URL</label>
-                <input
-                  type="url"
-                  value={avatar}
-                  onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs text-on-surface font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-on-surface block mb-1.5">Biography / Credentials</label>
-                <textarea
-                  rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell students about your industry expertise, awards, and credentials..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs text-on-surface font-medium"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-sm hover:bg-primary-container transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <Icon name={isSaving ? 'sync' : 'save'} size={16} className={isSaving ? 'animate-spin' : ''} />
-                  <span>{isSaving ? 'Saving Changes...' : 'Save Profile'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <div className="bg-surface-container-lowest p-6 sm:p-8 rounded-3xl border border-outline-variant/80 shadow-xs space-y-6">
-            <h3 className="text-base font-extrabold text-on-surface flex items-center gap-2">
-              <Icon name="lock" size={20} className="text-primary" />
-              <span>Change Password</span>
-            </h3>
-
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-on-surface block mb-1.5">Current Password</label>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs text-on-surface font-mono"
-                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-on-surface block mb-1.5">New Password</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Mobile Number <span className="text-red-400">*</span>
+                  </label>
                   <input
-                    type="password"
+                    type="tel"
                     required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs text-on-surface font-mono"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
                   />
                 </div>
-
                 <div>
-                  <label className="text-xs font-bold text-on-surface block mb-1.5">Confirm New Password</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Profile Photo URL
+                  </label>
                   <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant text-xs text-on-surface font-mono"
+                    type="url"
+                    value={form.avatar}
+                    onChange={(e) => setForm({ ...form, avatar: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
                   />
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isChangingPassword}
-                  className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <Icon name={isChangingPassword ? 'sync' : 'lock_reset'} size={16} className={isChangingPassword ? 'animate-spin' : ''} />
-                  <span>{isChangingPassword ? 'Updating Password...' : 'Update Password'}</span>
-                </button>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Complete Address
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                />
               </div>
-            </form>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">City</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">State</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.state}
+                    onChange={(e) => setForm({ ...form, state: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Country</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.country}
+                    onChange={(e) => setForm({ ...form, country: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.pincode}
+                    onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Security / Password Change */}
+            <div
+              id="security"
+              className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 space-y-4"
+            >
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-violet-400" />
+                Change Password (Optional)
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={form.currentPassword}
+                    onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={form.newPassword}
+                    onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+                    placeholder="Abc@12345"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={form.confirmNewPassword}
+                    onChange={(e) => setForm({ ...form, confirmNewPassword: e.target.value })}
+                    placeholder="Re-enter new password"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  />
+                </div>
+              </div>
+
+              {form.newPassword && (
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] pt-1">
+                  {[
+                    { k: 'minLength', l: '8+ Chars' },
+                    { k: 'uppercase', l: '1 Uppercase' },
+                    { k: 'lowercase', l: '1 Lowercase' },
+                    { k: 'number', l: '1 Number' },
+                    { k: 'special', l: '1 Special' }
+                  ].map((r) => {
+                    const ok = pwChecks[r.k as keyof typeof pwChecks];
+                    return (
+                      <div
+                        key={r.k}
+                        className={`flex items-center gap-1 ${
+                          ok ? 'text-emerald-400' : 'text-slate-500'
+                        }`}
+                      >
+                        {ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                        <span>{r.l}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm inline-flex items-center gap-2 shadow-lg shadow-violet-600/25"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Save Profile &amp; Security Settings</span>
+            </button>
+          </form>
+        </div>
+
+        {/* Right: Account Information Summary */}
+        <div className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 h-fit space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300">
+              Account Information
+            </h2>
+            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+              <div className="text-slate-400">User ID</div>
+              <div className="font-mono text-white mt-0.5 break-all">{profile?.id}</div>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-800">
+              <span className="text-slate-400">Role</span>
+              <span className="font-bold text-violet-400">{profile?.role}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-800">
+              <span className="text-slate-400">Account Status</span>
+              <span className="font-bold text-emerald-400">{profile?.status}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-800">
+              <span className="text-slate-400">Email Verification</span>
+              <span className="font-bold text-emerald-400">
+                {profile?.emailVerified ? 'Verified ✓' : 'Pending'}
+              </span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-800">
+              <span className="text-slate-400">Welcome Email</span>
+              <span className="font-bold text-emerald-400">
+                {profile?.welcomeEmailStatus || 'SENT'}
+              </span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-800">
+              <span className="text-slate-400">Registration Date</span>
+              <span className="text-slate-200">
+                {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
+              </span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-slate-400">Last Login</span>
+              <span className="text-slate-200">
+                {profile?.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString() : 'Active Session'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </InstructorPortalShell>
   );
 }

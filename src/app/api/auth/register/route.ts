@@ -1,37 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword, generateOtp, evaluatePasswordStrength, logSecurityEvent, checkRateLimit } from '@/lib/security';
-import { sendEmail } from '@/lib/email';
+import { hashPassword, generateOtp, logSecurityEvent, checkRateLimit } from '@/lib/security';
+import { validateStrongPassword } from '@/lib/auth';
+import { EmailService } from '@/lib/email';
+import { createAuditLog } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, password, confirmPassword, phone, avatar, organizationId, orgSlug } = body;
+    const {
+      role: rawRole,
+      name,
+      email,
+      password,
+      confirmPassword,
+      phone,
+      address,
+      city,
+      state,
+      country,
+      pincode,
+      bio,
+      avatar,
+      organizationId,
+      orgSlug
+    } = body;
+
+    // 1. Strict Role Restriction on Self-Registration (/signup)
+    const requestedRole = String(rawRole || 'INSTRUCTOR').trim().toUpperCase();
+    const normalizedRole =
+      requestedRole === 'AUDITOR' || requestedRole === 'REVIEWER'
+        ? 'REVIEWER'
+        : requestedRole;
+
+    if (['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'STUDENT'].includes(normalizedRole)) {
+      return NextResponse.json(
+        {
+          error: `Self-registration as ${normalizedRole} is prohibited. Only Instructor and Reviewer / Auditor accounts can self-register on /signup.`
+        },
+        { status: 403 }
+      );
+    }
+
+    if (!['INSTRUCTOR', 'REVIEWER'].includes(normalizedRole)) {
+      return NextResponse.json(
+        {
+          error: 'Please select a valid account role: Instructor or Reviewer / Auditor.'
+        },
+        { status: 400 }
+      );
+    }
 
     // Resolve tenant organization if applicable
     let effectiveOrgId = organizationId || null;
-    let orgBrandingName = 'MORENA TEACH';
-
     if (!effectiveOrgId && orgSlug) {
       const org = await prisma.organization.findUnique({
         where: { slug: String(orgSlug).trim().toLowerCase() },
-        select: { id: true, name: true }
+        select: { id: true }
       });
-      if (org) {
-        effectiveOrgId = org.id;
-        orgBrandingName = org.name;
-      }
-    } else if (effectiveOrgId) {
-      const org = await prisma.organization.findUnique({
-        where: { id: effectiveOrgId },
-        select: { name: true }
-      });
-      if (org) orgBrandingName = org.name;
+      if (org) effectiveOrgId = org.id;
     }
 
-    // Rate Limiting on Registrations (max 10 per 15 minutes per IP)
+    // Rate Limiting on Registrations (max 15 per 15 minutes per IP)
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
-    const rateLimit = checkRateLimit(`register_${ip}`, 10, 900);
+    const rateLimit = checkRateLimit(`register_${ip}`, 15, 900);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: `Too many registration attempts. Please try again in ${rateLimit.retryAfterSeconds} seconds.` },
@@ -39,61 +71,97 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validation
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: 'Full name is required.' }, { status: 400 });
+    // 2. Field Validations
+    if (!name || !String(name).trim()) {
+      return NextResponse.json({ error: 'Full Name is required.' }, { status: 400 });
     }
 
-    if (!email || !email.includes('@')) {
+    if (!email || !String(email).includes('@')) {
       return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = String(email).toLowerCase().trim();
+
+    // Mobile Number Validation (Mandatory, stored in profile, NO mobile OTP)
+    const cleanPhone = String(phone || '').trim();
+    const digitsOnlyPhone = cleanPhone.replace(/\D/g, '');
+    if (!cleanPhone || digitsOnlyPhone.length < 10 || digitsOnlyPhone.length > 15) {
+      return NextResponse.json(
+        { error: 'A valid Mobile Number (10–15 digits) is mandatory.' },
+        { status: 400 }
+      );
+    }
+
+    // Address Details Validation
+    if (!address || !String(address).trim()) {
+      return NextResponse.json({ error: 'Complete Address is required.' }, { status: 400 });
+    }
+    if (!city || !String(city).trim()) {
+      return NextResponse.json({ error: 'City is required.' }, { status: 400 });
+    }
+    if (!state || !String(state).trim()) {
+      return NextResponse.json({ error: 'State is required.' }, { status: 400 });
+    }
+    if (!country || !String(country).trim()) {
+      return NextResponse.json({ error: 'Country is required.' }, { status: 400 });
+    }
+    if (!pincode || !String(pincode).trim()) {
+      return NextResponse.json({ error: 'Pincode / Postal Code is required.' }, { status: 400 });
+    }
 
     if (!password) {
       return NextResponse.json({ error: 'Password is required.' }, { status: 400 });
     }
 
     if (password !== confirmPassword) {
-      return NextResponse.json({ error: 'Passwords do not match.' }, { status: 400 });
+      return NextResponse.json({ error: 'Password and Confirm Password do not match.' }, { status: 400 });
     }
 
-    // Password Strength Policy
-    const strength = evaluatePasswordStrength(password);
-    if (!strength.isValid) {
+    // Strong Password Policy (5 rules)
+    const passwordCheck = validateStrongPassword(password);
+    if (!passwordCheck.isValid) {
       return NextResponse.json(
         {
-          error:
-            'Password must be at least 8 characters long and contain at least 1 number and 1 symbol.'
+          error: passwordCheck.error,
+          passwordChecks: passwordCheck.checks
         },
         { status: 400 }
       );
     }
 
-    // Check for existing account
+    // 3. Check for existing account
     const existingUser = await prisma.user.findFirst({
       where: { email: normalizedEmail }
     });
 
     if (existingUser) {
-      if (existingUser.role !== 'STUDENT') {
-        return NextResponse.json(
-          {
-            error:
-              'An administrative or instructor account already exists with this email address. Please sign in through the designated Admin Portal at /admin/login.'
-          },
-          { status: 400 }
-        );
-      }
-
       if (!existingUser.emailVerified) {
-        // If user already registered but unverified, generate a fresh OTP and allow them to verify!
+        // Update unverified account details and issue a fresh 6-digit Email OTP
+        const passwordHash = await hashPassword(password);
+        const updatedUnverified = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            name: String(name).trim(),
+            password: passwordHash,
+            phone: cleanPhone,
+            address: String(address).trim(),
+            city: String(city).trim(),
+            state: String(state).trim(),
+            country: String(country).trim(),
+            pincode: String(pincode).trim(),
+            bio: bio ? String(bio).trim() : existingUser.bio,
+            role: normalizedRole,
+            status: 'PENDING_VERIFICATION',
+            emailVerified: false
+          }
+        });
+
         const { otp, hash: otpHash } = generateOtp(6);
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         await prisma.emailVerificationToken.create({
           data: {
-            userId: existingUser.id,
+            userId: updatedUnverified.id,
             email: normalizedEmail,
             otpHash,
             expiresAt,
@@ -101,68 +169,68 @@ export async function POST(req: NextRequest) {
           }
         });
 
-        await sendEmail({
+        await EmailService.sendVerificationOTP({
           to: normalizedEmail,
-          subject: `Verify your ${orgBrandingName} account`,
-          template: 'OTP_VERIFY',
-          userId: existingUser.id,
-          organizationId: existingUser.organizationId || effectiveOrgId,
-          data: {
-            name: existingUser.name,
-            otp,
-            expiresInMinutes: 10
-          }
+          name: updatedUnverified.name,
+          otp,
+          userId: updatedUnverified.id,
+          organizationId: updatedUnverified.organizationId || effectiveOrgId,
+          expiresInMinutes: 10
         });
 
         return NextResponse.json({
           success: true,
           email: normalizedEmail,
+          role: normalizedRole,
           previewOtp: otp,
           requiresEmailVerification: true,
-          message: 'Account exists but is unverified. A new verification code has been generated!'
+          message: 'Verification code sent to your email. Please verify your email to activate your account.'
         });
       }
 
       return NextResponse.json(
         {
-          error: 'This email is already registered. Please log in instead.',
+          error: 'An account with this email address already exists. Please log in instead.',
           code: 'ALREADY_REGISTERED'
         },
         { status: 400 }
       );
     }
 
-    // Secure Password Hashing
+    // 4. Hash Password & Create User with PENDING_VERIFICATION (emailVerified: false)
     const passwordHash = await hashPassword(password);
 
-    // Create Unverified Student in Database
     const user = await prisma.user.create({
       data: {
         organizationId: effectiveOrgId,
-        name: name.trim(),
+        name: String(name).trim(),
         email: normalizedEmail,
         password: passwordHash,
-        phone: phone?.trim() || null,
+        phone: cleanPhone,
+        address: String(address).trim(),
+        city: String(city).trim(),
+        state: String(state).trim(),
+        country: String(country).trim(),
+        pincode: String(pincode).trim(),
+        bio: bio ? String(bio).trim() : null,
         avatar: avatar || null,
-        role: 'STUDENT',
+        role: normalizedRole,
+        customRole: normalizedRole === 'REVIEWER' ? 'Course Auditor' : 'Instructor',
         status: 'PENDING_VERIFICATION',
         emailVerified: false,
+        welcomeEmailStatus: 'NOT_SENT',
         sessionVersion: 1
       }
     });
 
-    // Create default notification preferences for student
     await prisma.notificationPreference.create({
-      data: {
-        userId: user.id
-      }
+      data: { userId: user.id }
     }).catch(() => {});
 
-    // Generate Secure 6-Digit OTP
+    // 5. Generate & Send 6-Digit Email OTP (Welcome Email is NOT sent yet — only after OTP verification!)
     const { otp, hash: otpHash } = generateOtp(6);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Store secure OTP hash in database
     await prisma.emailVerificationToken.create({
       data: {
         userId: user.id,
@@ -173,27 +241,22 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Dispatch Email OTP through appropriate tenant/platform SMTP
-    await sendEmail({
+    await EmailService.sendVerificationOTP({
       to: normalizedEmail,
-      subject: `Verify your ${orgBrandingName} account`,
-      template: 'OTP_VERIFY',
+      name: user.name,
+      otp,
       userId: user.id,
       organizationId: user.organizationId,
-      data: {
-        name: user.name,
-        otp,
-        expiresInMinutes: 10
-      }
+      expiresInMinutes: 10
     });
 
-    // Log Security Events
+    // 6. Log Security Events & Audit Log
     await logSecurityEvent({
       userId: user.id,
       email: normalizedEmail,
       eventType: 'REGISTER',
       req,
-      metadata: { role: 'STUDENT', status: 'PENDING_VERIFICATION' }
+      metadata: { role: normalizedRole, status: 'PENDING_VERIFICATION', phone: cleanPhone }
     });
 
     await logSecurityEvent({
@@ -201,10 +264,21 @@ export async function POST(req: NextRequest) {
       email: normalizedEmail,
       eventType: 'OTP_SENT',
       req,
-      metadata: { purpose: 'EMAIL_VERIFICATION' }
+      metadata: { purpose: 'EMAIL_VERIFICATION', role: normalizedRole }
     });
 
-    // Automatically Notify All Super Admins of New Registration (Non-blocking)
+    await createAuditLog({
+      organizationId: effectiveOrgId,
+      actorId: user.id,
+      actorEmail: normalizedEmail,
+      action: 'USER_SELF_REGISTERED',
+      entity: 'User',
+      entityId: user.id,
+      description: `${normalizedRole} "${user.name}" (${normalizedEmail}) registered and awaits Email OTP verification.`,
+      req
+    }).catch(() => {});
+
+    // 7. Notify Super Admins
     try {
       const superAdmins = await prisma.user.findMany({
         where: { role: 'SUPER_ADMIN' },
@@ -215,27 +289,27 @@ export async function POST(req: NextRequest) {
         await prisma.notification.create({
           data: {
             userId: sa.id,
-            title: `New User Registered: ${user.name}`,
-            message: `A new student account has been registered for ${user.email} (${user.name}). Registration Date: ${new Date().toLocaleString()}. Status: PENDING_VERIFICATION.`,
+            title: `New ${normalizedRole === 'REVIEWER' ? 'Reviewer / Auditor' : 'Instructor'} Registered: ${user.name}`,
+            message: `${user.name} (${user.email}, Mobile: ${cleanPhone}) registered as ${normalizedRole} and is pending Email OTP verification.`,
             type: 'ACCOUNT',
-            link: '/super-admin/students'
+            link: '/super-admin/users'
           }
         });
       }
-    } catch (notifError) {
-      console.error('[Super Admin Registration Notification Failed]:', notifError);
-    }
+    } catch {}
 
     return NextResponse.json({
       success: true,
       email: normalizedEmail,
+      role: normalizedRole,
       previewOtp: otp,
       requiresEmailVerification: true,
-      message: 'Account created! Please enter the 6-digit verification code sent to your email.'
+      message: 'Account created! Please enter the 6-digit verification code sent to your email address.'
     });
   } catch (err: any) {
     console.error('[Register API Error]:', err);
     return NextResponse.json({ error: err.message || 'Registration failed.' }, { status: 500 });
   }
 }
+
 

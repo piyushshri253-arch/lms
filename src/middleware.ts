@@ -63,9 +63,15 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-pathname', pathname);
 
   // -------------------------------------------------------------------------
-  // 1. GENERAL / ENTRY ACCESS & DEDICATED ADMIN LOGIN
+  // 1. GENERAL / ENTRY ACCESS (/login, /signup, /verify-email, /forgot-password, /reset-password)
   // -------------------------------------------------------------------------
-  if (pathname === '/login') {
+  if (
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/verify-email' ||
+    pathname === '/forgot-password' ||
+    pathname.startsWith('/reset-password')
+  ) {
     return createSecureResponse(
       NextResponse.next({
         request: { headers: requestHeaders }
@@ -369,8 +375,17 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // Role boundary: /instructor/* requires INSTRUCTOR, ADMIN, or SUPER_ADMIN
+    // Role boundary: /instructor/* requires INSTRUCTOR, ADMIN, or SUPER_ADMIN and emailVerified !== false
     if (pathname.startsWith('/instructor')) {
+      if (lmsSession?.emailVerified === false) {
+        return NextResponse.redirect(
+          new URL(
+            `/verify-email?email=${encodeURIComponent(lmsSession.email || '')}&role=INSTRUCTOR`,
+            request.url
+          )
+        );
+      }
+
       const lmsRole = lmsSession?.role;
       const canAccessInstructor =
         lmsRole === 'INSTRUCTOR' ||

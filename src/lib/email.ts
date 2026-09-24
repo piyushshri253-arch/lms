@@ -5,6 +5,8 @@ import { getBaseUrl } from './base-url';
 
 export type EmailTemplateType =
   | 'WELCOME'
+  | 'INSTRUCTOR_WELCOME'
+  | 'REVIEWER_WELCOME'
   | 'OTP_VERIFY'
   | 'COMPANY_WELCOME'
   | 'COMPANY_INVITE'
@@ -22,6 +24,15 @@ export type EmailTemplateType =
   | 'TEST_EMAIL'
   | 'INSTRUCTOR_ENROLLMENT_ALERT'
   | 'ADMIN_ORDER_ALERT'
+  | 'BANK_ACCOUNT_ADDED'
+  | 'BANK_ACCOUNT_VERIFIED'
+  | 'BANK_ACCOUNT_REJECTED'
+  | 'BANK_ACCOUNT_DISABLED'
+  | 'PAYOUT_REQUESTED'
+  | 'PAYOUT_APPROVED'
+  | 'PAYOUT_REJECTED'
+  | 'PAYOUT_COMPLETED'
+  | 'ACCOUNT_STATUS_CHANGED'
   | 'NOTIFICATION';
 
 export interface SmtpConfigData {
@@ -398,6 +409,188 @@ export function renderEmailHtml(
         </div>
       `;
       break;
+
+    case 'INSTRUCTOR_WELCOME': {
+      const dashUrl = data.dashboardUrl || `${baseUrl}/instructor/dashboard`;
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 22px;">
+          <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🎓
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          Welcome to ${platformName} — Your Instructor Account is Now Active
+        </h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'Instructor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Welcome to <strong>${platformName}</strong>!<br/>
+          Your Instructor account has been successfully verified and activated.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 22px 0; font-size: 13px; color: #1e293b;">
+          <p style="margin: 0 0 10px 0; font-weight: 800; color: ${brandDark}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12px;">
+            Account Details
+          </p>
+          <p style="margin: 5px 0;"><strong>Name:</strong> ${data.name || 'Instructor'}</p>
+          <p style="margin: 5px 0;"><strong>Email:</strong> ${data.email || ''}</p>
+          <p style="margin: 5px 0;"><strong>Role:</strong> Instructor</p>
+          <p style="margin: 5px 0;"><strong>Account Status:</strong> <span style="color: #059669; font-weight: 700;">Active</span></p>
+        </div>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          You can now log in and access your Instructor Dashboard:
+        </p>
+        <div style="margin: 26px 0; text-align: center;">
+          <a href="${dashUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.25);">
+            Open Instructor Dashboard →
+          </a>
+        </div>
+        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 18px 20px; margin: 22px 0;">
+          <p style="margin: 0 0 10px 0; font-weight: 700; color: #3b0764; font-size: 13px;">
+            From your dashboard, you can:
+          </p>
+          <ul style="margin: 0; padding-left: 18px; color: #4c1d95; font-size: 13px; line-height: 1.7;">
+            <li>Create and publish courses</li>
+            <li>Manage course content</li>
+            <li>Track student enrollments</li>
+            <li>View earnings and transaction history</li>
+            <li>Add bank account details</li>
+            <li>Request payouts after bank verification</li>
+          </ul>
+        </div>
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 16px; margin-top: 20px; font-size: 12px; color: #92400e;">
+          <strong>🛡️ Security Reminder:</strong><br/>
+          Never share your password or OTP with anyone. Our team will never ask for your password.
+        </div>
+        <p style="color: #475569; font-size: 13px; margin-top: 22px; line-height: 1.5;">
+          Thank you,<br/>
+          <strong>${platformName} Support Team</strong>
+        </p>
+      `;
+      break;
+    }
+
+    case 'REVIEWER_WELCOME': {
+      const dashUrl = data.dashboardUrl || `${baseUrl}/reviewer/dashboard`;
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 22px;">
+          <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🛡️
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          Welcome to ${platformName} — Your Reviewer / Auditor Account is Active
+        </h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'Auditor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Your Reviewer / Course Auditor account has been verified and activated.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 22px 0; font-size: 13px; color: #1e293b;">
+          <p style="margin: 5px 0;"><strong>Name:</strong> ${data.name || 'Auditor'}</p>
+          <p style="margin: 5px 0;"><strong>Email:</strong> ${data.email || ''}</p>
+          <p style="margin: 5px 0;"><strong>Role:</strong> Reviewer / Auditor</p>
+          <p style="margin: 5px 0;"><strong>Account Status:</strong> <span style="color: #059669; font-weight: 700;">Active</span></p>
+        </div>
+        <div style="margin: 26px 0; text-align: center;">
+          <a href="${dashUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800; font-size: 14px;">
+            Open Reviewer Dashboard →
+          </a>
+        </div>
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 16px; margin-top: 20px; font-size: 12px; color: #92400e;">
+          <strong>🛡️ Security Reminder:</strong> Never share your password or OTP with anyone. Our team will never ask for your password.
+        </div>
+      `;
+      break;
+    }
+
+    case 'BANK_ACCOUNT_ADDED':
+    case 'BANK_ACCOUNT_VERIFIED':
+    case 'BANK_ACCOUNT_REJECTED':
+    case 'BANK_ACCOUNT_DISABLED': {
+      const statusColor =
+        template === 'BANK_ACCOUNT_VERIFIED'
+          ? '#059669'
+          : template === 'BANK_ACCOUNT_ADDED'
+          ? '#d97706'
+          : '#dc2626';
+      const statusLabel =
+        template === 'BANK_ACCOUNT_VERIFIED'
+          ? 'Verified & Active for Payouts'
+          : template === 'BANK_ACCOUNT_ADDED'
+          ? 'Submitted — Pending Admin Verification'
+          : template === 'BANK_ACCOUNT_REJECTED'
+          ? 'Rejected — Action Required'
+          : 'Disabled by Administration';
+      bodyContent = `
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px; font-weight: 800;">
+          ${data.title || 'Bank Account Status Update'}
+        </h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'Instructor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          ${data.message || 'Your payout bank account details have been updated.'}
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin: 20px 0; font-size: 13px; color: #334155;">
+          <p style="margin: 5px 0;"><strong>Bank Name:</strong> ${data.bankName || 'N/A'}</p>
+          <p style="margin: 5px 0;"><strong>Account Number:</strong> ${data.accountNumberMasked || 'XXXX'}</p>
+          <p style="margin: 5px 0;"><strong>IFSC Code:</strong> ${data.ifscCode || 'N/A'}</p>
+          <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span></p>
+          ${data.reason ? `<p style="margin: 8px 0 0 0; color: #dc2626;"><strong>Reason:</strong> ${data.reason}</p>` : ''}
+        </div>
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="${baseUrl}/instructor/bank-details" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;">
+            Manage Bank Details →
+          </a>
+        </div>
+      `;
+      break;
+    }
+
+    case 'PAYOUT_REQUESTED':
+    case 'PAYOUT_APPROVED':
+    case 'PAYOUT_REJECTED':
+    case 'PAYOUT_COMPLETED': {
+      bodyContent = `
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px; font-weight: 800;">
+          ${data.title || 'Instructor Payout Update'}
+        </h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'Instructor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          ${data.message || 'There is an update regarding your payout request.'}
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin: 20px 0; font-size: 13px; color: #334155;">
+          <p style="margin: 5px 0;"><strong>Payout Amount:</strong> ₹${Number(data.amount || 0).toLocaleString('en-IN')}</p>
+          <p style="margin: 5px 0;"><strong>Net Payout:</strong> ₹${Number(data.netAmount || data.amount || 0).toLocaleString('en-IN')}</p>
+          <p style="margin: 5px 0;"><strong>Status:</strong> <strong>${data.status || template.replace('PAYOUT_', '')}</strong></p>
+          ${data.referenceNumber ? `<p style="margin: 5px 0;"><strong>Reference No:</strong> ${data.referenceNumber}</p>` : ''}
+          ${data.reason ? `<p style="margin: 8px 0 0 0; color: #dc2626;"><strong>Rejection Reason:</strong> ${data.reason}</p>` : ''}
+        </div>
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="${baseUrl}/instructor/payouts" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;">
+            View Payout History →
+          </a>
+        </div>
+      `;
+      break;
+    }
+
+    case 'ACCOUNT_STATUS_CHANGED': {
+      bodyContent = `
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px; font-weight: 800;">
+          Account Status Notification
+        </h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'User'}</strong>, your account status on <strong>${platformName}</strong> has been updated to <strong>${data.status}</strong>.
+        </p>
+        ${data.reason ? `<p style="color: #dc2626; font-size: 13px;"><strong>Notes:</strong> ${data.reason}</p>` : ''}
+      `;
+      break;
+    }
 
     default: {
       const actionLink = data.actionUrl
@@ -912,6 +1105,197 @@ export class EmailService {
     }).catch(() => {});
 
     return { success: true, messageId, provider: 'CONSOLE_FALLBACK' };
+  }
+
+  /**
+   * Send 6-Digit Email OTP Verification Code
+   */
+  static async sendVerificationOTP(params: {
+    to: string;
+    name: string;
+    otp: string;
+    userId?: string;
+    organizationId?: string | null;
+    expiresInMinutes?: number;
+  }) {
+    return EmailService.sendEmail({
+      to: params.to,
+      userId: params.userId,
+      organizationId: params.organizationId,
+      subject: `${params.otp} is your Morena Teach Email Verification Code`,
+      template: 'OTP_VERIFY',
+      data: {
+        name: params.name,
+        otp: params.otp,
+        expiresInMinutes: params.expiresInMinutes || 10
+      }
+    });
+  }
+
+  /**
+   * Send Welcome Email ONLY after Email OTP Verification is completed.
+   * Never includes passwords or OTP codes.
+   * If delivery fails, records failure in User & EmailLog without rolling back account verification.
+   */
+  static async sendWelcomeEmail(user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    organizationId?: string | null;
+  }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const baseUrl = getBaseUrl();
+    const isInstructor = user.role === 'INSTRUCTOR';
+    const isReviewer = user.role === 'REVIEWER';
+    const template: EmailTemplateType = isInstructor
+      ? 'INSTRUCTOR_WELCOME'
+      : isReviewer
+      ? 'REVIEWER_WELCOME'
+      : 'WELCOME';
+    const subject = isInstructor
+      ? 'Welcome to Morena Teach — Your Instructor Account is Now Active'
+      : isReviewer
+      ? 'Welcome to Morena Teach — Your Reviewer / Auditor Account is Now Active'
+      : 'Welcome to Morena Teach — Your Account is Now Active';
+    const dashboardUrl = isInstructor
+      ? `${baseUrl}/instructor/dashboard`
+      : isReviewer
+      ? `${baseUrl}/reviewer/dashboard`
+      : `${baseUrl}/student/dashboard`;
+
+    try {
+      const res = await EmailService.sendEmail({
+        to: user.email,
+        userId: user.id,
+        organizationId: user.organizationId || null,
+        subject,
+        template,
+        data: {
+          name: user.name,
+          email: user.email,
+          role: isInstructor ? 'Instructor' : isReviewer ? 'Reviewer / Auditor' : 'Student',
+          dashboardUrl
+        }
+      });
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          welcomeEmailStatus: res.success ? 'SENT' : 'FAILED',
+          welcomeEmailSentAt: res.success ? new Date() : null,
+          welcomeEmailError: res.error || null
+        }
+      }).catch(() => {});
+
+      return { success: res.success, messageId: res.messageId, error: res.error };
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Failed to deliver welcome email';
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          welcomeEmailStatus: 'FAILED',
+          welcomeEmailError: errorMessage
+        }
+      }).catch(() => {});
+
+      await prisma.emailLog.create({
+        data: {
+          userId: user.id,
+          organizationId: user.organizationId || null,
+          recipientEmail: user.email,
+          subject,
+          template,
+          status: 'FAILED',
+          errorMessage
+        }
+      }).catch(() => {});
+
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  static async sendBankAccountAdded(user: { id: string; name: string; email: string }, bank: { bankName: string; accountNumberMasked: string; ifscCode: string }) {
+    return EmailService.sendEmail({
+      to: user.email,
+      userId: user.id,
+      subject: 'Bank Account Submitted for Verification — Morena Teach',
+      template: 'BANK_ACCOUNT_ADDED',
+      data: {
+        title: 'Bank Account Submitted for Verification',
+        name: user.name,
+        message: 'Your payout bank account details have been received and are pending verification by our administration team.',
+        ...bank
+      }
+    });
+  }
+
+  static async sendBankAccountVerified(user: { id: string; name: string; email: string }, bank: { bankName: string; accountNumberMasked: string; ifscCode: string }) {
+    return EmailService.sendEmail({
+      to: user.email,
+      userId: user.id,
+      subject: 'Your Bank Account is Verified for Payouts — Morena Teach',
+      template: 'BANK_ACCOUNT_VERIFIED',
+      data: {
+        title: 'Bank Account Verified & Active',
+        name: user.name,
+        message: 'Great news! Your bank account has been verified by the administration team. You can now request payouts directly from your Instructor Dashboard.',
+        ...bank
+      }
+    });
+  }
+
+  static async sendBankAccountRejected(user: { id: string; name: string; email: string }, bank: { bankName: string; accountNumberMasked: string; ifscCode: string }, reason: string) {
+    return EmailService.sendEmail({
+      to: user.email,
+      userId: user.id,
+      subject: 'Action Required: Bank Account Verification Rejected — Morena Teach',
+      template: 'BANK_ACCOUNT_REJECTED',
+      data: {
+        title: 'Bank Account Verification Rejected',
+        name: user.name,
+        message: 'Your submitted bank account details could not be verified. Please review the reason below and resubmit accurate details from your dashboard.',
+        reason,
+        ...bank
+      }
+    });
+  }
+
+  static async sendPayoutNotification(
+    type: 'PAYOUT_REQUESTED' | 'PAYOUT_APPROVED' | 'PAYOUT_REJECTED' | 'PAYOUT_COMPLETED',
+    user: { id: string; name: string; email: string },
+    payout: { amount: number; netAmount?: number; status: string; referenceNumber?: string | null; reason?: string | null }
+  ) {
+    const titles: Record<string, string> = {
+      PAYOUT_REQUESTED: 'Payout Request Received',
+      PAYOUT_APPROVED: 'Payout Request Approved',
+      PAYOUT_REJECTED: 'Payout Request Rejected',
+      PAYOUT_COMPLETED: 'Payout Transferred to Your Bank Account'
+    };
+    return EmailService.sendEmail({
+      to: user.email,
+      userId: user.id,
+      subject: `${titles[type]} — Morena Teach`,
+      template: type,
+      data: {
+        title: titles[type],
+        name: user.name,
+        ...payout
+      }
+    });
+  }
+
+  static async sendAccountStatusChanged(user: { id: string; name: string; email: string }, status: string, reason?: string) {
+    return EmailService.sendEmail({
+      to: user.email,
+      userId: user.id,
+      subject: `Your Morena Teach Account Status: ${status}`,
+      template: 'ACCOUNT_STATUS_CHANGED',
+      data: {
+        name: user.name,
+        status,
+        reason
+      }
+    });
   }
 }
 

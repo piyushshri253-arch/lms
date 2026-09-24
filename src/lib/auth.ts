@@ -720,3 +720,42 @@ export function handleAuthError(err: any): NextResponse {
   );
 }
 
+export const getServerSession = getCurrentUser;
+
+export function validateStrongPassword(password: string): {
+  isValid: boolean;
+  checks: {
+    minLength: boolean;
+    uppercase: boolean;
+    lowercase: boolean;
+    number: boolean;
+    special: boolean;
+  };
+  error?: string;
+} {
+  const checks = {
+    minLength: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)
+  };
+  const isValid =
+    checks.minLength &&
+    checks.uppercase &&
+    checks.lowercase &&
+    checks.number &&
+    checks.special;
+
+  if (!isValid) {
+    return {
+      isValid: false,
+      checks,
+      error:
+        'Password must be at least 8 characters long and include at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character (e.g. Abc@12345).'
+    };
+  }
+  return { isValid: true, checks };
+}
+
+

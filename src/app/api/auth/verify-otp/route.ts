@@ -10,7 +10,7 @@ import {
   clearLmsSessionCookie,
   AuthSessionUser
 } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
+import { EmailService } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
 import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/lib/permissions';
 
@@ -109,12 +109,14 @@ export async function POST(req: NextRequest) {
       data: { usedAt: new Date() }
     });
 
-    // 2. Mark user emailVerified = true and status = ACTIVE
+    // 2. Mark user emailVerified = true, emailVerifiedAt = now, and status = ACTIVE
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: true,
-        status: 'ACTIVE'
+        emailVerifiedAt: new Date(),
+        status: 'ACTIVE',
+        lastLoginAt: new Date()
       },
       include: { organization: true }
     });
@@ -146,64 +148,64 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Create Welcome In-App Notification
+    const roleDashUrl =
+      updatedUser.role === 'SUPER_ADMIN'
+        ? '/super-admin/dashboard'
+        : updatedUser.role === 'LMS_ADMIN' || updatedUser.role === 'ADMIN'
+        ? '/admin/dashboard'
+        : updatedUser.role === 'INSTRUCTOR'
+        ? '/instructor/dashboard'
+        : updatedUser.role === 'REVIEWER'
+        ? '/reviewer/dashboard'
+        : '/student/dashboard';
+
     await prisma.notification.create({
       data: {
         userId: user.id,
         organizationId: user.organizationId || null,
-        title: 'Welcome to MORENA TEACH!',
-        message: 'Your email address has been verified. Welcome aboard!',
+        title: `Welcome to Morena Teach!`,
+        message: `Your ${updatedUser.role === 'INSTRUCTOR' ? 'Instructor' : updatedUser.role === 'REVIEWER' ? 'Reviewer / Auditor' : ''} account email has been verified and activated.`,
         type: 'ACCOUNT',
-        link: user.role === 'ADMIN' ? '/sales/dashboard' : user.role === 'INSTRUCTOR' ? '/instructor' : '/student/learning'
+        link: roleDashUrl
       }
     }).catch(() => {});
 
-    // 5. Send Welcome Email
-    await sendEmail({
-      to: normalizedEmail,
-      subject: 'Welcome to MORENA TEACH! 🚀',
-      template: 'WELCOME',
-      userId: user.id,
-      data: {
-        name: user.name
-      }
-    }).catch(() => {});
+    // 5. Send Welcome Email ONLY upon Email OTP Verification!
+    // If welcome email fails, account remains verified & active, failure is recorded on User & EmailLog.
+    const welcomeResult = await EmailService.sendWelcomeEmail({
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      organizationId: updatedUser.organizationId
+    });
 
     // 6. Log Security Event & Audit Log
     await logSecurityEvent({
       userId: user.id,
       email: normalizedEmail,
       eventType: 'OTP_VERIFIED',
-      req
+      req,
+      metadata: {
+        role: updatedUser.role,
+        welcomeEmailSent: welcomeResult.success,
+        welcomeEmailError: welcomeResult.error || null
+      }
     });
 
-    if (user.organizationId) {
-      await createAuditLog({
-        organizationId: user.organizationId,
-        actorId: user.id,
-        actorEmail: normalizedEmail,
-        action: 'USER_VERIFIED_EMAIL',
-        entity: 'User',
-        entityId: user.id,
-        description: `User "${user.name}" verified email address via OTP.`,
-        req
-      });
-    }
+    await createAuditLog({
+      organizationId: user.organizationId || null,
+      actorId: user.id,
+      actorEmail: normalizedEmail,
+      action: 'USER_VERIFIED_EMAIL',
+      entity: 'User',
+      entityId: user.id,
+      description: `User "${user.name}" (${updatedUser.role}) verified email via OTP. Welcome email status: ${welcomeResult.success ? 'SENT' : 'FAILED'}.`,
+      req
+    }).catch(() => {});
 
-    // 7. Determine correct redirect URL
-    let redirectUrl = '/student/learning';
-    if (updatedUser.role === 'SUPER_ADMIN') {
-      redirectUrl = '/super-admin';
-    } else if (updatedUser.role === 'ADMIN' || updatedUser.role === 'SALES_ADMIN') {
-      redirectUrl = updatedUser.organization?.onboardingCompleted ? '/sales/dashboard' : '/sales/onboarding';
-    } else if (updatedUser.role === 'INSTRUCTOR') {
-      redirectUrl = '/instructor';
-    } else if (updatedUser.role === 'REVIEWER') {
-      redirectUrl = '/reviewer';
-    } else if (updatedUser.role === 'STUDENT') {
-      redirectUrl = '/student/learning';
-    } else {
-      redirectUrl = '/student/learning';
-    }
+    // 7. Determine exact role-based redirect URL
+    const redirectUrl = roleDashUrl;
 
     const sessionPayload: AuthSessionUser = {
       id: updatedUser.id,
@@ -240,7 +242,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email verified successfully!',
+      message: 'Email verified successfully! Your account is now active.',
+      welcomeEmailSent: welcomeResult.success,
       redirectUrl,
       hasOrganization: !!user.organizationId,
       user: sessionPayload
