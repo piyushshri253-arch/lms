@@ -188,7 +188,6 @@ export async function POST(req: NextRequest) {
           success: true,
           email: normalizedEmail,
           role: normalizedRole,
-          previewOtp: otp,
           requiresEmailVerification: true,
           message: 'Verification code sent to your email. Please verify your email to activate your account.'
         });
@@ -313,7 +312,6 @@ export async function POST(req: NextRequest) {
       success: true,
       email: normalizedEmail,
       role: normalizedRole,
-      previewOtp: otp,
       requiresEmailVerification: true,
       message: 'Account created! Please enter the 6-digit verification code sent to your email address.'
     });

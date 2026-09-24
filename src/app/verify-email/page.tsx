@@ -20,10 +20,9 @@ function VerifyEmailContent() {
 
   const initialEmail = searchParams.get('email') || '';
   const initialRole = searchParams.get('role') || 'INSTRUCTOR';
-  const previewOtpParam = searchParams.get('previewOtp') || '';
 
   const [email, setEmail] = useState(initialEmail);
-  const [otp, setOtp] = useState(previewOtpParam ? previewOtpParam.slice(0, 6) : '');
+  const [otp, setOtp] = useState('');
   const [countdown, setCountdown] = useState(60);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -98,9 +97,7 @@ function VerifyEmailContent() {
         setError(data.error || 'Could not resend verification code.');
       } else {
         setCountdown(60);
-        if (data.previewOtp) {
-          setOtp(String(data.previewOtp).slice(0, 6));
-        }
+        setOtp('');
         setSuccessMsg('A new 6-digit verification code has been sent to your email address.');
       }
     } catch {

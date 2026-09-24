@@ -223,7 +223,6 @@ export async function POST(request: Request) {
       success: true,
       requiresOtpVerification: true,
       email: newAccount.email,
-      previewOtp: otp,
       credentials: {
         email: newAccount.email,
         password

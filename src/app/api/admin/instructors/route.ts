@@ -317,7 +317,6 @@ export async function POST(request: Request) {
       success: true,
       requiresOtpVerification: true,
       email: result.email,
-      previewOtp: otp,
       credentials: {
         email: result.email,
         password

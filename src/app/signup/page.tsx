@@ -155,9 +155,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
         return;
       }
 
-      const otpParam = data.previewOtp ? `&previewOtp=${encodeURIComponent(data.previewOtp)}` : '';
       router.push(
-        `/verify-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}&role=${role}${otpParam}`
+        `/verify-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}&role=${role}`
       );
     } catch (err: any) {
       setError(err.message || 'Network error occurred. Please try again.');
@@ -189,9 +188,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
       if (!res.ok) {
         if (data.requiresEmailVerification) {
-          const otpParam = data.previewOtp ? `&previewOtp=${encodeURIComponent(data.previewOtp)}` : '';
           router.push(
-            `/verify-email?email=${encodeURIComponent(loginEmail.trim().toLowerCase())}${otpParam}`
+            `/verify-email?email=${encodeURIComponent(loginEmail.trim().toLowerCase())}`
           );
           return;
         }

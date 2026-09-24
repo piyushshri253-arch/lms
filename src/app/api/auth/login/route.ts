@@ -252,7 +252,6 @@ export async function POST(req: NextRequest) {
           requiresEmailVerification: true,
           email: user.email,
           role: user.role,
-          previewOtp: otp,
           redirectUrl: `/verify-email?email=${encodeURIComponent(user.email)}`,
           message: 'Please verify your email address via the 6-digit OTP sent to your inbox before accessing your dashboard.'
         },
