@@ -119,9 +119,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Optional Portal-Specific Checks (only when logging in from a dedicated sub-portal like /admin/login or /instructor/login)
-    // Unified /login (when requestedPortal is omitted or 'UNIFIED') automatically detects the role from DB and redirects!
-    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'UNIFIED';
+    // 5. Strict Portal Intent Boundaries:
+    // Home page /login (requestedPortal === 'STUDENT') is strictly reserved for Students ONLY!
+    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'STUDENT';
+
+    if (effectivePortal === 'STUDENT' && user.role !== 'STUDENT') {
+      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'LMS_ADMIN') {
+        return NextResponse.json(
+          {
+            error:
+              'Administrative accounts are not permitted on the Student storefront. Please sign in through the Admin Portal at /admin/login.'
+          },
+          { status: 403 }
+        );
+      }
+
+      if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
+        return NextResponse.json(
+          {
+            error:
+              'Instructor accounts are not permitted on the Student login page. Please sign in through the Instructor Portal at /instructor/login.'
+          },
+          { status: 403 }
+        );
+      }
+
+      if (user.role === 'REVIEWER') {
+        return NextResponse.json(
+          {
+            error:
+              'Course Auditor accounts please sign in through the Auditor Portal at /reviewer/login or /auditor/login.'
+          },
+          { status: 403 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: 'This login page is strictly for Students. Please use your designated portal.'
+        },
+        { status: 403 }
+      );
+    }
 
     if (effectivePortal === 'ADMIN' && !['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN', 'REVIEWER'].includes(user.role)) {
       return NextResponse.json(
@@ -140,6 +179,13 @@ export async function POST(req: NextRequest) {
     if (effectivePortal === 'REVIEWER' && !['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { error: 'This account does not have Reviewer / Auditor access.' },
+        { status: 403 }
+      );
+    }
+
+    if (effectivePortal === 'PARTNER' && !['INSTRUCTOR', 'TEACHER', 'REVIEWER'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'This portal is strictly for Instructors and Course Auditors.' },
         { status: 403 }
       );
     }

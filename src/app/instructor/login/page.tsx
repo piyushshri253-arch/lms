@@ -304,7 +304,13 @@ function InstructorLoginContent() {
           )}
 
           {/* Portal Switcher Footer */}
-          <div className="mt-6 pt-6 border-t border-slate-800 text-center space-y-2">
+          <div className="mt-6 pt-6 border-t border-slate-800 text-center space-y-2.5">
+            <Link
+              href="/instructor/signup"
+              className="block w-full py-2.5 px-4 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 font-bold text-xs transition-all"
+            >
+              ✨ New Instructor or Auditor? Create Account (/instructor/signup) →
+            </Link>
             <p className="text-xs text-slate-400">
               Course Auditor?{' '}
               <Link href="/reviewer/login" className="text-emerald-400 hover:underline font-bold">
@@ -312,9 +318,9 @@ function InstructorLoginContent() {
               </Link>
             </p>
             <p className="text-xs text-slate-400">
-              Are you a Student?{' '}
+              Unified Role Login?{' '}
               <Link href="/login" className="text-purple-400 hover:underline font-bold">
-                Student Sign In →
+                Open Unified Sign In (/login) →
               </Link>
             </p>
             <p className="text-xs text-slate-400">

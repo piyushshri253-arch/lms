@@ -307,16 +307,19 @@ function ReviewerLoginContent() {
             </>
           )}
 
-          <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-500 space-y-2">
-            <p>
-              Need an account? Contact your Platform Administrator to appoint you as a Course Auditor.
-            </p>
+          <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-500 space-y-2.5">
+            <Link
+              href="/auditor/signup?role=REVIEWER"
+              className="block w-full py-2.5 px-4 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition-all"
+            >
+              ✨ New Course Auditor or Instructor? Create Account (/auditor/signup) →
+            </Link>
             <div className="flex items-center justify-center gap-4 text-xs font-medium">
+              <Link href="/login" className="text-indigo-400 hover:text-white transition-colors">
+                Unified Login (/login) →
+              </Link>
               <Link href="/admin/login" className="text-slate-400 hover:text-white transition-colors">
                 Admin Portal →
-              </Link>
-              <Link href="/login" className="text-slate-400 hover:text-white transition-colors">
-                Student Login →
               </Link>
             </div>
           </div>

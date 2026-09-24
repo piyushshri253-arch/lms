@@ -3,214 +3,297 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  AlertCircle,
-  Loader2,
-  Sparkles,
-  ShieldCheck
-} from 'lucide-react';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
+import { Icon } from '@/components/ui/Icon';
+import { useApp } from '@/context/AppContext';
 
-function UnifiedLoginContent() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectOverride = searchParams.get('redirect') || '';
+  const { login, showToast } = useApp();
 
-  const [email, setEmail] = useState('');
+  const queryEmail = searchParams.get('email') || searchParams.get('verifyEmail') || '';
+  const [email, setEmail] = useState(queryEmail);
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const callbackUrl = searchParams.get('callbackUrl');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (!email.trim() || !password) return;
 
-    if (!email.trim() || !password) {
-      setError('Please enter your Email Address and Password.');
-      return;
-    }
-
-    setLoading(true);
+    setIsLoading(true);
+    setAuthError(null);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-          rememberMe,
-          requestedPortal: 'UNIFIED'
-        })
-      });
+      const user = await login(email.trim().toLowerCase(), password, 'STUDENT');
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.requiresEmailVerification) {
-          const otpParam = data.previewOtp ? `&previewOtp=${encodeURIComponent(data.previewOtp)}` : '';
-          router.push(
-            `/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}${otpParam}`
-          );
+      // Handle role-specific routing smoothly from the universal login
+      if (user.role !== 'STUDENT') {
+        if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+          showToast({
+            title: 'Admin Console Access ⚙️',
+            description: `Welcome ${user.name}! Opening Admin Console...`,
+            type: 'success'
+          });
+          router.push(callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/admin');
           return;
         }
-        setError(data.error || 'Invalid email or password.');
-        setLoading(false);
+
+        if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
+          showToast({
+            title: 'Welcome to Instructor Studio! 👨‍🏫',
+            description: `Logged in as ${user.name}. Opening Instructor Studio...`,
+            type: 'success'
+          });
+          router.push(callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/instructor');
+          return;
+        }
+
+        if (user.role === 'REVIEWER') {
+          showToast({
+            title: 'Course Reviewer Detected 📝',
+            description: `Welcome ${user.name}! Redirecting to Course Review Studio...`,
+            type: 'info'
+          });
+          router.push('/reviewer');
+          return;
+        }
+
+        showToast({
+          title: 'Access Restricted',
+          description: 'This portal is strictly reserved for Student learners.',
+          type: 'error'
+        });
         return;
       }
 
-      // Automatic Role-Based Redirection determined strictly by the backend database account
-      const targetUrl = redirectOverride || data.redirectUrl || '/instructor/dashboard';
-      window.location.href = targetUrl;
+      showToast({
+        title: 'Welcome Back!',
+        description: `Logged in as ${user.name}.`,
+        type: 'success'
+      });
+
+      // Redirect student to requested callback (e.g. /checkout) or learning dashboard
+      if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+        router.push(callbackUrl);
+      } else {
+        router.push('/student/learning');
+      }
     } catch (err: any) {
-      setError(err.message || 'Could not sign in. Please try again.');
-      setLoading(false);
+      if (err.requiresEmailVerification) {
+        showToast({
+          title: 'Email Verification Required 📩',
+          description: 'A 6-digit code has been sent to your inbox. Please verify to continue.',
+          type: 'info'
+        });
+        router.push(
+          `/register?verifyEmail=${encodeURIComponent(email.trim().toLowerCase())}${
+            callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''
+          }`
+        );
+        return;
+      }
+
+      const code = err.code || (err.message?.includes('not registered') ? 'USER_NOT_FOUND' : undefined);
+      const message =
+        code === 'USER_NOT_FOUND'
+          ? 'This email is not registered. Please sign up first.'
+          : code === 'INVALID_CREDENTIALS' || err.message?.includes('Invalid') || err.message?.includes('password')
+          ? 'Please enter correct email or password.'
+          : err.message || 'Please enter correct email or password.';
+
+      setAuthError({ message, code });
+
+      showToast({
+        title: code === 'USER_NOT_FOUND' ? 'Account Not Found' : 'Sign In Failed',
+        description: message,
+        type: 'error'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
-      </div>
+    <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col font-sans antialiased">
+      <UdemyNavbar />
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 text-2xl font-black tracking-tight text-white">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-600/30">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span>MORENA TEACH</span>
-          </Link>
-          <h1 className="mt-4 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Sign In to Your Account
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-400">
-            Unified Login — Automatically routes to your Super Admin, Admin, Instructor, Auditor, or Student Dashboard.
-          </p>
-        </div>
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-8 py-12">
+        <div className="w-full max-w-[400px] space-y-6">
+          {/* Header */}
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#1c1d1f] tracking-tight">
+              Log in to continue your learning journey
+            </h1>
+            <p className="text-xs text-[#6a6f73]">
+              Access your enrolled courses, certifications, and learning progress.
+            </p>
+          </div>
 
-        <div className="bg-[#0f131d] border border-slate-800/80 rounded-2xl shadow-2xl p-6 sm:p-8">
-          {error && (
-            <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-red-300 text-xs">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <span>{error}</span>
+          {/* Inline Error Alert */}
+          {authError && (
+            <div
+              className={`p-4 rounded-md border text-sm animate-in fade-in duration-200 ${
+                authError.code === 'USER_NOT_FOUND'
+                  ? 'bg-purple-50 border-purple-200 text-purple-950'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <Icon
+                  name={authError.code === 'USER_NOT_FOUND' ? 'person_add' : 'error'}
+                  size={20}
+                  className={`mt-0.5 shrink-0 ${
+                    authError.code === 'USER_NOT_FOUND' ? 'text-[#5624d0]' : 'text-rose-600'
+                  }`}
+                />
+                <div className="flex-1 space-y-2">
+                  <p className="font-semibold text-xs leading-relaxed">{authError.message}</p>
+                  {authError.code === 'USER_NOT_FOUND' && (
+                    <div>
+                      <Link
+                        href={`/register?email=${encodeURIComponent(
+                          email.trim().toLowerCase()
+                        )}${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded shadow-xs transition-colors"
+                      >
+                        <span>Sign up for Morena Teach</span>
+                        <Icon name="arrow_forward" size={14} />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Email Address
+              <label className="block text-xs font-bold text-[#1c1d1f] mb-1">
+                Email
               </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
-                />
-              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full h-11 px-3 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
+              />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-300">Password</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-[#1c1d1f]">
+                  Password
+                </label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs font-semibold text-violet-400 hover:text-violet-300"
+                  className="text-xs text-[#5022c3] hover:underline font-semibold"
                 >
-                  Forgot Password?
+                  Forgot password?
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  placeholder="Enter password"
+                  className="w-full h-11 pl-3 pr-10 border border-[#2d2f31] text-sm focus:outline-none focus:ring-1 focus:ring-[#5022c3] rounded-[2px]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-violet-600 focus:ring-violet-500"
-                />
-                <span className="text-xs text-slate-300">Remember me on this device</span>
-              </label>
-              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                RBAC Protected
-              </span>
-            </div>
-
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2 transition-all"
+              disabled={isLoading}
+              className="w-full h-12 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-sm rounded-[2px] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              {loading ? (
+              {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Authenticating &amp; Routing...</span>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Logging in...</span>
                 </>
               ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+                <span>Log in</span>
               )}
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-800/80 text-center space-y-2">
-            <p className="text-xs text-slate-400">
-              Want to join as an Instructor or Course Auditor?{' '}
-              <Link href="/signup" className="text-violet-400 hover:text-violet-300 font-bold">
-                Create Account →
+          {/* Footer Note */}
+          <div className="pt-4 border-t border-[#d1d7dc] text-center text-xs text-[#6a6f73] space-y-2">
+            <p>
+              Don&apos;t have an account?{' '}
+              <Link
+                href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+                className="text-[#5022c3] font-bold hover:underline ml-1"
+              >
+                Sign up
               </Link>
+            </p>
+
+            <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-[#6a6f73]">
+              <Link
+                href="/instructor/login"
+                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
+              >
+                <Icon name="cast_for_education" size={13} />
+                <span>Instructor Studio &rarr;</span>
+              </Link>
+              <span className="text-gray-300">•</span>
+              <Link
+                href="/reviewer/login"
+                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
+              >
+                <Icon name="rate_review" size={13} />
+                <span>Reviewer Portal &rarr;</span>
+              </Link>
+              <span className="text-gray-300">•</span>
+              <Link
+                href="/admin/login"
+                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
+              >
+                <Icon name="admin_panel_settings" size={13} />
+                <span>Admin Console &rarr;</span>
+              </Link>
+            </div>
+
+            <p className="text-[11px] text-gray-400 pt-1">
+              By logging in, you agree to our Terms of Use and Privacy Policy.
             </p>
           </div>
         </div>
-      </div>
+      </main>
+
+      <UdemyFooter />
     </div>
   );
 }
 
-export default function UnifiedLoginPage() {
+export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#07090e] text-white flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#5022c3] border-t-transparent rounded-full animate-spin" />
         </div>
       }
     >
-      <UnifiedLoginContent />
+      <LoginContent />
     </Suspense>
   );
 }

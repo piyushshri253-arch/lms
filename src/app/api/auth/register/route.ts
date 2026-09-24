@@ -26,30 +26,27 @@ export async function POST(req: NextRequest) {
       orgSlug
     } = body;
 
-    // 1. Strict Role Restriction on Self-Registration (/signup)
-    const requestedRole = String(rawRole || 'INSTRUCTOR').trim().toUpperCase();
+    // 1. Determine Registration Mode:
+    // - If called from Student /register (rawRole omitted or 'STUDENT'), preserve 100% original Student signup behavior!
+    // - If called from Partner / Instructor / Auditor signup (rawRole is 'INSTRUCTOR', 'REVIEWER', or 'AUDITOR'), enforce Instructor/Auditor rules!
+    const requestedRole = String(rawRole || 'STUDENT').trim().toUpperCase();
     const normalizedRole =
       requestedRole === 'AUDITOR' || requestedRole === 'REVIEWER'
         ? 'REVIEWER'
+        : requestedRole === 'INSTRUCTOR'
+        ? 'INSTRUCTOR'
         : requestedRole;
 
-    if (['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'STUDENT'].includes(normalizedRole)) {
+    if (['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(normalizedRole)) {
       return NextResponse.json(
         {
-          error: `Self-registration as ${normalizedRole} is prohibited. Only Instructor and Reviewer / Auditor accounts can self-register on /signup.`
+          error: `Self-registration as ${normalizedRole} is prohibited.`
         },
         { status: 403 }
       );
     }
 
-    if (!['INSTRUCTOR', 'REVIEWER'].includes(normalizedRole)) {
-      return NextResponse.json(
-        {
-          error: 'Please select a valid account role: Instructor or Reviewer / Auditor.'
-        },
-        { status: 400 }
-      );
-    }
+    const isPartnerSignup = normalizedRole === 'INSTRUCTOR' || normalizedRole === 'REVIEWER';
 
     // Resolve tenant organization if applicable
     let effectiveOrgId = organizationId || null;
@@ -81,50 +78,59 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
-
-    // Mobile Number Validation (Mandatory, stored in profile, NO mobile OTP)
     const cleanPhone = String(phone || '').trim();
-    const digitsOnlyPhone = cleanPhone.replace(/\D/g, '');
-    if (!cleanPhone || digitsOnlyPhone.length < 10 || digitsOnlyPhone.length > 15) {
-      return NextResponse.json(
-        { error: 'A valid Mobile Number (10–15 digits) is mandatory.' },
-        { status: 400 }
-      );
-    }
 
-    // Address Details Validation
-    if (!address || !String(address).trim()) {
-      return NextResponse.json({ error: 'Complete Address is required.' }, { status: 400 });
-    }
-    if (!city || !String(city).trim()) {
-      return NextResponse.json({ error: 'City is required.' }, { status: 400 });
-    }
-    if (!state || !String(state).trim()) {
-      return NextResponse.json({ error: 'State is required.' }, { status: 400 });
-    }
-    if (!country || !String(country).trim()) {
-      return NextResponse.json({ error: 'Country is required.' }, { status: 400 });
-    }
-    if (!pincode || !String(pincode).trim()) {
-      return NextResponse.json({ error: 'Pincode / Postal Code is required.' }, { status: 400 });
+    if (isPartnerSignup) {
+      // Mobile Number Validation (Mandatory for Instructor/Auditor, stored in profile, NO mobile OTP)
+      const digitsOnlyPhone = cleanPhone.replace(/\D/g, '');
+      if (!cleanPhone || digitsOnlyPhone.length < 10 || digitsOnlyPhone.length > 15) {
+        return NextResponse.json(
+          { error: 'A valid Mobile Number (10–15 digits) is mandatory.' },
+          { status: 400 }
+        );
+      }
+
+      // Address Details Validation (Mandatory for Instructor/Auditor)
+      if (!address || !String(address).trim()) {
+        return NextResponse.json({ error: 'Complete Address is required.' }, { status: 400 });
+      }
+      if (!city || !String(city).trim()) {
+        return NextResponse.json({ error: 'City is required.' }, { status: 400 });
+      }
+      if (!state || !String(state).trim()) {
+        return NextResponse.json({ error: 'State is required.' }, { status: 400 });
+      }
+      if (!country || !String(country).trim()) {
+        return NextResponse.json({ error: 'Country is required.' }, { status: 400 });
+      }
+      if (!pincode || !String(pincode).trim()) {
+        return NextResponse.json({ error: 'Pincode / Postal Code is required.' }, { status: 400 });
+      }
     }
 
     if (!password) {
       return NextResponse.json({ error: 'Password is required.' }, { status: 400 });
     }
 
-    if (password !== confirmPassword) {
+    if (confirmPassword !== undefined && password !== confirmPassword) {
       return NextResponse.json({ error: 'Password and Confirm Password do not match.' }, { status: 400 });
     }
 
-    // Strong Password Policy (5 rules)
-    const passwordCheck = validateStrongPassword(password);
-    if (!passwordCheck.isValid) {
+    if (isPartnerSignup) {
+      // Strong Password Policy (5 rules) for Instructor / Auditor
+      const passwordCheck = validateStrongPassword(password);
+      if (!passwordCheck.isValid) {
+        return NextResponse.json(
+          {
+            error: passwordCheck.error,
+            passwordChecks: passwordCheck.checks
+          },
+          { status: 400 }
+        );
+      }
+    } else if (password.length < 8) {
       return NextResponse.json(
-        {
-          error: passwordCheck.error,
-          passwordChecks: passwordCheck.checks
-        },
+        { error: 'Password must be at least 8 characters long.' },
         { status: 400 }
       );
     }
@@ -206,16 +212,21 @@ export async function POST(req: NextRequest) {
         name: String(name).trim(),
         email: normalizedEmail,
         password: passwordHash,
-        phone: cleanPhone,
-        address: String(address).trim(),
-        city: String(city).trim(),
-        state: String(state).trim(),
-        country: String(country).trim(),
-        pincode: String(pincode).trim(),
+        phone: cleanPhone || null,
+        address: address ? String(address).trim() : null,
+        city: city ? String(city).trim() : null,
+        state: state ? String(state).trim() : null,
+        country: country ? String(country).trim() : null,
+        pincode: pincode ? String(pincode).trim() : null,
         bio: bio ? String(bio).trim() : null,
         avatar: avatar || null,
         role: normalizedRole,
-        customRole: normalizedRole === 'REVIEWER' ? 'Course Auditor' : 'Instructor',
+        customRole:
+          normalizedRole === 'REVIEWER'
+            ? 'Course Auditor'
+            : normalizedRole === 'INSTRUCTOR'
+            ? 'Instructor'
+            : null,
         status: 'PENDING_VERIFICATION',
         emailVerified: false,
         welcomeEmailStatus: 'NOT_SENT',

@@ -63,11 +63,14 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-pathname', pathname);
 
   // -------------------------------------------------------------------------
-  // 1. GENERAL / ENTRY ACCESS (/login, /signup, /verify-email, /forgot-password, /reset-password)
+  // 1. GENERAL / ENTRY ACCESS (/login, /signup, /instructor/signup, /auditor/signup, /reviewer/signup, /verify-email, /forgot-password, /reset-password)
   // -------------------------------------------------------------------------
   if (
     pathname === '/login' ||
     pathname === '/signup' ||
+    pathname === '/instructor/signup' ||
+    pathname === '/auditor/signup' ||
+    pathname === '/reviewer/signup' ||
     pathname === '/verify-email' ||
     pathname === '/forgot-password' ||
     pathname.startsWith('/reset-password')
