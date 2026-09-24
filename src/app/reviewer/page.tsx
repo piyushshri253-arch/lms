@@ -106,15 +106,15 @@ export default function ReviewerDashboardPage() {
         }
       } else {
         if (res.status === 401) {
-          showToast({ title: 'Session Expired', description: 'Please sign in with your Reviewer account.', type: 'error' });
+          showToast({ title: 'Session Expired', description: 'Please sign in with your Auditor account.', type: 'error' });
         } else if (res.status === 403) {
-          showToast({ title: 'Access Denied', description: data.error || 'Course Reviewer or Administrator permissions required.', type: 'error' });
+          showToast({ title: 'Access Denied', description: data.error || 'Course Auditor or Administrator permissions required.', type: 'error' });
         } else {
           showToast({ title: 'Error', description: data.error || 'Failed to load courses', type: 'error' });
         }
       }
     } catch (e: any) {
-      showToast({ title: 'Error', description: e.message || 'Failed to fetch review queue', type: 'error' });
+      showToast({ title: 'Error', description: e.message || 'Failed to fetch audit queue', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -177,8 +177,8 @@ export default function ReviewerDashboardPage() {
         fetchCourses();
       } else {
         showToast({
-          title: 'Review Error',
-          description: data.error || 'Could not submit review decision.',
+          title: 'Audit Error',
+          description: data.error || 'Could not submit audit decision.',
           type: 'error'
         });
       }
@@ -208,10 +208,10 @@ export default function ReviewerDashboardPage() {
             <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               <Icon name="rate_review" size={28} />
             </span>
-            Course Quality & Review Studio
+            Course Auditor Dashboard
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Evaluate instructor curriculum, verify instructional quality, and provide constructive feedback before courses go live.
+            Audit instructor curriculum, verify instructional quality, and provide constructive feedback before courses go live.
           </p>
         </div>
 
@@ -243,7 +243,7 @@ export default function ReviewerDashboardPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400/90">
-              Awaiting Review
+              Awaiting Audit
             </span>
             <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
               <Icon name="pending_actions" size={20} />

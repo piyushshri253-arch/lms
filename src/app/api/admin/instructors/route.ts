@@ -88,6 +88,7 @@ export async function GET(request: Request) {
         title,
         department,
         status: membership?.status || inst.status || 'ACTIVE',
+        emailVerified: inst.emailVerified,
         isSuspended: inst.isSuspended || membership?.status === 'SUSPENDED',
         createdAt: inst.createdAt.toLocaleDateString('en-US', {
           month: 'short',
@@ -135,7 +136,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const admin = await requireTenantRole(['ADMIN', 'SUPER_ADMIN']);
+    const admin = await requireTenantRole(['ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
     const body = await request.json();
     const { name, email, password, bio, avatar, inviteOnly = false } = body;
 
@@ -204,51 +205,17 @@ export async function POST(request: Request) {
       });
     }
 
-    // Direct account creation flow
+    // Direct account creation flow with Email OTP Verification
     if (!name || !password) {
       return NextResponse.json({ error: 'Name and password are required for direct creation.' }, { status: 400 });
     }
 
     const existing = await prisma.user.findFirst({ where: { email: normalizedEmail } });
     if (existing) {
-      // If user already exists, add membership to this org
-      await prisma.organizationMember.upsert({
-        where: {
-          organizationId_userId: {
-            organizationId: orgId!,
-            userId: existing.id
-          }
-        },
-        create: {
-          organizationId: orgId!,
-          userId: existing.id,
-          role: 'INSTRUCTOR',
-          permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR),
-          status: 'ACTIVE'
-        },
-        update: {
-          role: 'INSTRUCTOR',
-          permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR),
-          status: 'ACTIVE'
-        }
-      });
-
-      await createAuditLog({
-        organizationId: orgId,
-        actorId: admin.id,
-        actorEmail: admin.email,
-        action: 'ADD_INSTRUCTOR_MEMBERSHIP',
-        entity: 'OrganizationMember',
-        entityId: existing.id,
-        description: `Added instructor membership for existing user ${existing.email}.`,
-        req: request
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: `Instructor membership assigned to ${existing.email}.`,
-        instructor: existing
-      });
+      return NextResponse.json(
+        { error: `An account with email "${normalizedEmail}" already exists.` },
+        { status: 400 }
+      );
     }
 
     const hashedPassword = await hashPassword(password);
@@ -264,7 +231,7 @@ export async function POST(request: Request) {
           role: 'INSTRUCTOR',
           permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR),
           status: 'ACTIVE',
-          emailVerified: true
+          emailVerified: false
         }
       });
 
@@ -283,6 +250,35 @@ export async function POST(request: Request) {
       return instructor;
     });
 
+    // Generate 6-digit OTP and send verification email
+    const { otp, hash: otpHash } = generateOtp(6);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.emailVerificationToken.create({
+      data: {
+        userId: result.id,
+        email: normalizedEmail,
+        otpHash,
+        expiresAt,
+        attempts: 0
+      }
+    });
+
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'Verify Your Faculty Instructor Account — Morena Teach',
+      template: 'OTP_VERIFY',
+      userId: result.id,
+      organizationId: orgId,
+      data: {
+        name: result.name,
+        otp,
+        expiresInMinutes: 10
+      }
+    }).catch((err) => {
+      console.error('[Instructor OTP Email Error]:', err);
+    });
+
     await createAuditLog({
       organizationId: orgId,
       actorId: admin.id,
@@ -290,13 +286,20 @@ export async function POST(request: Request) {
       action: 'CREATE_INSTRUCTOR',
       entity: 'User',
       entityId: result.id,
-      description: `Admin created instructor account for ${result.name} (${result.email}).`,
+      description: `Admin created instructor account for ${result.name} (${result.email}) and dispatched OTP verification email.`,
       req: request
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Instructor account created successfully.',
+      requiresOtpVerification: true,
+      email: result.email,
+      previewOtp: otp,
+      credentials: {
+        email: result.email,
+        password
+      },
+      message: `Instructor account created! A 6-digit verification OTP has been sent to ${result.email}.`,
       instructor: result
     });
   } catch (err: any) {

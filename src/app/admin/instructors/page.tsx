@@ -29,7 +29,10 @@ function InstructorsPageContent() {
     password: 'Instructor@123'
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; password: string; isVerified?: boolean } | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
 
   const fetchInstructors = async () => {
     setIsLoading(true);
@@ -76,18 +79,81 @@ function InstructorsPageContent() {
         throw new Error(data.error || 'Failed to appoint instructor');
       }
 
+      setOtpCode('');
       setCreatedCredentials({
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        password: assignedPassword
+        password: assignedPassword,
+        isVerified: false
       });
 
-      showToast({ title: 'Instructor Appointed! 🎓', description: `${formData.name} added to database.`, type: 'success' });
+      showToast({
+        title: 'OTP Sent to Email! 📩',
+        description: `Verification OTP sent to ${formData.email.trim().toLowerCase()}.`,
+        type: 'success'
+      });
       setIsAddModalOpen(false);
       setFormData({ name: '', email: '', department: 'Early Childhood Education', title: 'Senior Educator', bio: '', password: 'Instructor@123' });
       fetchInstructors();
     } catch (err: any) {
       showToast({ title: 'Error', description: err.message, type: 'error' });
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createdCredentials || !otpCode.trim() || otpCode.trim().length < 6) {
+      showToast({ title: 'Invalid OTP', description: 'Please enter the 6-digit OTP sent to the email.', type: 'error' });
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: createdCredentials.email,
+          otp: otpCode.trim(),
+          skipSessionCookie: true
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'OTP verification failed');
+
+      setCreatedCredentials((prev) => (prev ? { ...prev, isVerified: true } : null));
+      showToast({
+        title: 'Instructor Email Verified! 🎓',
+        description: `${createdCredentials.email} is now verified and active.`,
+        type: 'success'
+      });
+      fetchInstructors();
+    } catch (err: any) {
+      showToast({ title: 'OTP Verification Failed', description: err.message, type: 'error' });
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async (targetEmail: string) => {
+    setIsResendingOtp(true);
+    try {
+      const res = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend OTP');
+      showToast({
+        title: 'OTP Resent! 📩',
+        description: `A new 6-digit verification code was sent to ${targetEmail}.`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setIsResendingOtp(false);
     }
   };
 
@@ -179,7 +245,7 @@ function InstructorsPageContent() {
           className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-outline hover:text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-1.5"
         >
           <Icon name="verified" size={16} />
-          Course Reviewers
+          Course Auditors
         </Link>
       </div>
 
@@ -507,7 +573,7 @@ function InstructorsPageContent() {
         </div>
       )}
 
-      {/* Created Credentials Success Modal */}
+      {/* Created Credentials & OTP Verification Modal */}
       {createdCredentials && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div
@@ -516,18 +582,58 @@ function InstructorsPageContent() {
           >
             <div className="text-center space-y-2">
               <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
-                <Icon name="verified" size={32} />
+                <Icon name="mark_email_read" size={32} />
               </div>
-              <h3 className="text-lg font-black text-on-surface">Instructor Account Created! 🎓</h3>
+              <h3 className="text-lg font-black text-on-surface">
+                {createdCredentials.isVerified ? 'Instructor Email Verified! 🎓' : 'Verify Instructor Email OTP'}
+              </h3>
               <p className="text-xs text-on-surface-variant">
-                Share these login credentials with <strong className="text-on-surface">{createdCredentials.name}</strong> so they can log in to their Instructor Studio.
+                A 6-digit verification OTP has been sent to <strong className="text-on-surface">{createdCredentials.email}</strong>.
               </p>
             </div>
+
+            {!createdCredentials.isVerified ? (
+              <form onSubmit={handleVerifyOtp} className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit OTP"
+                    className="flex-1 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant text-center font-mono text-base font-black tracking-[0.35em] text-primary focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isVerifyingOtp || otpCode.length < 6}
+                    className="px-4 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-outline">Or instructor can verify at login</span>
+                  <button
+                    type="button"
+                    disabled={isResendingOtp}
+                    onClick={() => handleResendOtp(createdCredentials.email)}
+                    className="text-primary font-bold hover:underline cursor-pointer"
+                  >
+                    {isResendingOtp ? 'Resending...' : 'Resend OTP'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 font-bold flex items-center gap-2">
+                <Icon name="verified" size={18} />
+                <span>OTP verified! Instructor account is active.</span>
+              </div>
+            )}
 
             <div className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant space-y-3 font-mono text-xs">
               <div>
                 <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Login URL</span>
-                <span className="font-bold text-primary select-all">https://lms-phi-plum.vercel.app/login</span>
+                <span className="font-bold text-primary select-all">https://lms-phi-plum.vercel.app/instructor/login</span>
               </div>
               <div>
                 <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Email Address</span>
@@ -544,7 +650,7 @@ function InstructorsPageContent() {
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    `Morena Teach LMS - Instructor Login Credentials:\nURL: https://lms-phi-plum.vercel.app/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
+                    `Morena Teach LMS - Instructor Login Credentials:\nURL: https://lms-phi-plum.vercel.app/instructor/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
                   );
                   showToast({ title: 'Copied!', description: 'Credentials copied to clipboard.', type: 'success' });
                 }}

@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashToken, logSecurityEvent } from '@/lib/security';
-import { setSessionCookie, clearSessionCookie, AuthSessionUser } from '@/lib/auth';
+import {
+  setSessionCookie,
+  clearSessionCookie,
+  setReviewerSessionCookie,
+  clearReviewerSessionCookie,
+  setLmsSessionCookie,
+  clearLmsSessionCookie,
+  AuthSessionUser
+} from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
 import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/lib/permissions';
@@ -9,7 +17,7 @@ import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/lib/permissions';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, otp } = body;
+    const { email, otp, skipSessionCookie } = body;
 
     if (!email || !otp) {
       return NextResponse.json({ error: 'Email and verification code are required.' }, { status: 400 });
@@ -181,7 +189,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 7. Determine correct redirect URL - Students ALWAYS redirect to /student/learning
+    // 7. Determine correct redirect URL
     let redirectUrl = '/student/learning';
     if (updatedUser.role === 'SUPER_ADMIN') {
       redirectUrl = '/super-admin';
@@ -189,14 +197,13 @@ export async function POST(req: NextRequest) {
       redirectUrl = updatedUser.organization?.onboardingCompleted ? '/sales/dashboard' : '/sales/onboarding';
     } else if (updatedUser.role === 'INSTRUCTOR') {
       redirectUrl = '/instructor';
+    } else if (updatedUser.role === 'REVIEWER') {
+      redirectUrl = '/reviewer';
     } else if (updatedUser.role === 'STUDENT') {
       redirectUrl = '/student/learning';
     } else {
       redirectUrl = '/student/learning';
     }
-
-    // 8. Create Authenticated Session Cookie (Clean state: purge any prior admin/sales session)
-    await clearSessionCookie();
 
     const sessionPayload: AuthSessionUser = {
       id: updatedUser.id,
@@ -217,7 +224,19 @@ export async function POST(req: NextRequest) {
       sessionVersion: updatedUser.sessionVersion
     };
 
-    await setSessionCookie(sessionPayload);
+    // 8. Only set session cookie if not verifying on behalf of another user (e.g. Admin/SuperAdmin modal)
+    if (!skipSessionCookie) {
+      if (updatedUser.role === 'REVIEWER') {
+        await clearReviewerSessionCookie();
+        await setReviewerSessionCookie(sessionPayload);
+      } else if (updatedUser.role === 'INSTRUCTOR') {
+        await clearLmsSessionCookie();
+        await setLmsSessionCookie(sessionPayload);
+      } else {
+        await clearSessionCookie();
+        await setSessionCookie(sessionPayload);
+      }
+    }
 
     return NextResponse.json({
       success: true,

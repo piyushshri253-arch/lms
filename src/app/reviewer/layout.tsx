@@ -96,7 +96,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout?portal=reviewer', { method: 'POST' });
-      showToast({ title: 'Logged Out', description: 'Reviewer session signed out.', type: 'info' });
+      showToast({ title: 'Logged Out', description: 'Auditor session signed out.', type: 'info' });
       router.push('/reviewer/login');
     } catch (e: any) {
       showToast({ title: 'Error', description: e.message || 'Logout failed', type: 'error' });
@@ -115,12 +115,12 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
             <Icon name="verified_user" size={32} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Review Studio Restricted</h2>
+            <h2 className="text-xl font-bold text-white">Audit Studio Restricted</h2>
             <p className="mt-2 text-sm text-slate-400 leading-relaxed">
               You are currently signed in as <span className="font-semibold text-slate-200">{currentUser.name || currentUser.email}</span> with role <span className="font-bold text-amber-400 uppercase tracking-wide text-xs px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20">{currentUser.role}</span>.
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              The Course Review Studio is exclusively reserved for Course Reviewers and Platform Administrators to evaluate and approve submissions.
+              The Course Audit Studio is exclusively reserved for Course Auditors and Platform Administrators to evaluate and approve submissions.
             </p>
           </div>
           <div className="space-y-3 pt-2">
@@ -130,7 +130,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
               }}
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
             >
-              Sign In with Reviewer Account
+              Sign In with Auditor Account
             </button>
             <button
               onClick={() => {
@@ -167,10 +167,10 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
                     MORENA TEACH
                   </span>
                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
-                    REVIEW STUDIO
+                    AUDITOR STUDIO
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Quality Assurance & Curriculum Review</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Quality Assurance & Curriculum Audit</p>
               </div>
             </Link>
           </div>
@@ -186,7 +186,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
               }`}
             >
               <Icon name="rate_review" size={18} />
-              Review Queue
+              Audit Queue
             </Link>
           </nav>
 
@@ -266,18 +266,18 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
             {/* User Profile Chip */}
             <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800">
               <UserAvatar
-                name={activeReviewer?.name || 'Reviewer'}
+                name={activeReviewer?.name || 'Auditor'}
                 avatar={activeReviewer?.avatar}
                 size="sm"
               />
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight">
-                  {activeReviewer?.name || 'Quality Reviewer'}
+                  {activeReviewer?.name || 'Quality Auditor'}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">
-                    {activeReviewer?.role === 'SUPER_ADMIN' ? 'Super Admin' : activeReviewer?.role === 'ADMIN' ? 'Admin' : 'Course Reviewer'}
+                    {activeReviewer?.role === 'SUPER_ADMIN' ? 'Super Admin' : activeReviewer?.role === 'ADMIN' ? 'Admin' : 'Course Auditor'}
                   </span>
                 </div>
               </div>
@@ -302,7 +302,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 py-6 text-center text-xs text-slate-500 transition-colors">
-        <p>MORENA TEACH LMS • Course Quality & Content Evaluation Portal</p>
+        <p>MORENA TEACH LMS • Course Quality & Content Audit Portal</p>
       </footer>
     </div>
   );

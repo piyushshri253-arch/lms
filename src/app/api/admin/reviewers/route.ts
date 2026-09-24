@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantRole, hashPassword } from '@/lib/auth';
+import { generateOtp } from '@/lib/security';
+import { sendEmail } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
 import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
 
 export async function GET(request: Request) {
   try {
-    const admin = await requireTenantRole(['ADMIN', 'SUPER_ADMIN']);
+    const admin = await requireTenantRole(['ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim().toLowerCase();
 
@@ -22,7 +24,11 @@ export async function GET(request: Request) {
     }
 
     if (admin.role !== 'SUPER_ADMIN' && admin.organizationId) {
-      where.organizationId = admin.organizationId;
+      where.OR = [
+        ...(where.OR || []),
+        { organizationId: admin.organizationId },
+        { organizationId: null }
+      ];
     }
 
     const reviewers = await prisma.user.findMany({
@@ -36,6 +42,7 @@ export async function GET(request: Request) {
         avatar: true,
         bio: true,
         status: true,
+        emailVerified: true,
         role: true,
         customRole: true,
         lastLoginAt: true,
@@ -46,7 +53,7 @@ export async function GET(request: Request) {
       }
     });
 
-    // Count courses reviewed by each reviewer
+    // Count courses audited by each auditor
     const reviewerIds = reviewers.map((r) => r.id);
     const reviewCounts = await prisma.course.groupBy({
       by: ['reviewedById'],
@@ -73,14 +80,14 @@ export async function GET(request: Request) {
       reviewers: formattedReviewers
     });
   } catch (err: any) {
-    console.error('[Admin Reviewers GET Error]:', err);
+    console.error('[Admin Auditors GET Error]:', err);
     return NextResponse.json({ error: err.message || 'Unauthorized or server error' }, { status: 400 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const admin = await requireTenantRole(['ADMIN', 'SUPER_ADMIN']);
+    const admin = await requireTenantRole(['ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN']);
     const body = await request.json();
     const { name, email, password, phone, bio } = body;
 
@@ -89,7 +96,7 @@ export async function POST(request: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const assignedPassword = (password || '').trim() || 'Reviewer@123';
+    const assignedPassword = (password || '').trim() || 'Auditor@123';
 
     if (assignedPassword.length < 6) {
       return NextResponse.json({ error: 'Password must be at least 6 characters long.' }, { status: 400 });
@@ -97,7 +104,7 @@ export async function POST(request: Request) {
 
     // Check for duplicate account
     const existing = await prisma.user.findFirst({
-      where: { email: normalizedEmail, platform: 'LMS' }
+      where: { email: normalizedEmail }
     });
 
     if (existing) {
@@ -116,12 +123,12 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         password: hashedPassword,
         phone: phone?.trim() || null,
-        bio: bio?.trim() || 'Official Quality Assurance & Course Reviewer',
+        bio: bio?.trim() || 'Official Quality Assurance & Course Auditor',
         role: 'REVIEWER',
-        customRole: 'Course Reviewer',
+        customRole: 'Course Auditor',
         platform: 'LMS',
         status: 'ACTIVE',
-        emailVerified: true,
+        emailVerified: false,
         permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.REVIEWER),
         organizationId: orgId
       },
@@ -131,7 +138,9 @@ export async function POST(request: Request) {
         email: true,
         phone: true,
         role: true,
+        customRole: true,
         status: true,
+        emailVerified: true,
         createdAt: true
       }
     });
@@ -148,27 +157,59 @@ export async function POST(request: Request) {
       }).catch(() => {});
     }
 
+    // Generate 6-digit OTP and send verification email
+    const { otp, hash: otpHash } = generateOtp(6);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await prisma.emailVerificationToken.create({
+      data: {
+        userId: reviewer.id,
+        email: normalizedEmail,
+        otpHash,
+        expiresAt,
+        attempts: 0
+      }
+    });
+
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'Verify Your Course Auditor Account — Morena Teach',
+      template: 'OTP_VERIFY',
+      userId: reviewer.id,
+      organizationId: orgId,
+      data: {
+        name: reviewer.name,
+        otp,
+        expiresInMinutes: 10
+      }
+    }).catch((err) => {
+      console.error('[Auditor OTP Email Error]:', err);
+    });
+
     await createAuditLog({
       organizationId: orgId || undefined,
       actorId: admin.id,
       actorEmail: admin.email,
-      action: 'CREATE_COURSE_REVIEWER',
+      action: 'CREATE_COURSE_AUDITOR',
       entity: 'User',
       entityId: reviewer.id,
-      description: `Admin created new Course Reviewer "${reviewer.name}" (${reviewer.email}).`
+      description: `Admin appointed new Course Auditor "${reviewer.name}" (${reviewer.email}) and dispatched email verification OTP.`
     });
 
     return NextResponse.json({
       success: true,
       reviewer,
+      requiresOtpVerification: true,
+      email: reviewer.email,
+      previewOtp: otp,
       credentials: {
         email: reviewer.email,
         password: assignedPassword
       },
-      message: `Course Reviewer "${reviewer.name}" successfully appointed.`
+      message: `Course Auditor "${reviewer.name}" created! A 6-digit verification OTP has been sent to ${reviewer.email}.`
     });
   } catch (err: any) {
-    console.error('[Admin Reviewers POST Error]:', err);
+    console.error('[Admin Auditors POST Error]:', err);
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
 }

@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             error:
-              'Course Reviewer accounts please sign in through the Reviewer Studio at /reviewer/login.'
+              'Course Auditor accounts please sign in through the Auditor Studio at /reviewer/login.'
           },
           { status: 403 }
         );
