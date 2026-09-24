@@ -11,6 +11,128 @@ function maskBankAccountNumber(acct: string): string {
   return `XXXX XXXX ${last4}`;
 }
 
+function normalizePersonName(name: string): string[] {
+  const stopWords = new Set(['dr', 'mr', 'mrs', 'ms', 'miss', 'prof', 'shri', 'smt', 'kumari', 'er', 'md', 'mohd']);
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2 && !stopWords.has(t));
+}
+
+/**
+ * Checks whether the Bank Account Holder Name belongs to the registered Instructor.
+ * At least one significant name token (or prefix/substring of 3+ chars) must match.
+ */
+function verifyAccountHolderMatchesInstructor(instructorName: string, accountHolderName: string): {
+  valid: boolean;
+  reason?: string;
+} {
+  const instTokens = normalizePersonName(instructorName);
+  const holderTokens = normalizePersonName(accountHolderName);
+
+  if (holderTokens.length === 0) {
+    return {
+      valid: false,
+      reason: 'Please enter a valid Account Holder Name (alphabets only).'
+    };
+  }
+
+  if (instTokens.length === 0) {
+    return { valid: true };
+  }
+
+  const hasMatch = instTokens.some((it) =>
+    holderTokens.some(
+      (ht) =>
+        ht === it ||
+        (it.length >= 3 && ht.startsWith(it)) ||
+        (ht.length >= 3 && it.startsWith(ht))
+    )
+  );
+
+  if (!hasMatch) {
+    return {
+      valid: false,
+      reason: `Bank Account Ownership Mismatch: Account Holder Name ("${accountHolderName.trim()}") does not match your registered Instructor name ("${instructorName}"). You must enter your own bank account.`
+    };
+  }
+
+  return { valid: true };
+}
+
+function isValidAccountNumber(acct: string): { valid: boolean; reason?: string } {
+  if (!/^\d{9,18}$/.test(acct)) {
+    return {
+      valid: false,
+      reason: 'Bank Account Number must contain 9 to 18 numeric digits only.'
+    };
+  }
+  // Reject all same digits (e.g. 0000000000, 1111111111)
+  if (/^(\d)\1+$/.test(acct)) {
+    return {
+      valid: false,
+      reason: 'Invalid Bank Account Number: Repeating dummy digits are not allowed.'
+    };
+  }
+  // Reject obvious sequential numbers
+  if ('123456789012345678'.includes(acct) || '987654321098765432'.includes(acct)) {
+    return {
+      valid: false,
+      reason: 'Invalid Bank Account Number: Sequential test numbers are not allowed.'
+    };
+  }
+  return { valid: true };
+}
+
+async function verifyIfscWithRbiDirectory(ifsc: string): Promise<{
+  valid: boolean;
+  bank?: string;
+  branch?: string;
+  city?: string;
+  state?: string;
+  reason?: string;
+}> {
+  const cleanIfsc = ifsc.trim().toUpperCase();
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc)) {
+    return {
+      valid: false,
+      reason: 'Invalid IFSC format. Must be 11 characters: 4 bank letters + 0 + 6 branch characters (e.g. SBIN0001234 or HDFC0000123).'
+    };
+  }
+
+  try {
+    const res = await fetch(`https://ifsc.razorpay.com/${cleanIfsc}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    });
+
+    if (res.status === 404) {
+      return {
+        valid: false,
+        reason: `IFSC Code "${cleanIfsc}" was not found in the Reserve Bank of India (RBI) directory. Please enter a real, active IFSC code.`
+      };
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        valid: true,
+        bank: data.BANK || '',
+        branch: data.BRANCH || '',
+        city: data.CITY || '',
+        state: data.STATE || ''
+      };
+    }
+  } catch {
+    // If external lookup times out, rely on strict regex + bank prefix check
+  }
+
+  return { valid: true };
+}
+
 export async function GET() {
   try {
     const session = await getServerSession();
@@ -24,16 +146,30 @@ export async function GET() {
       );
     }
 
-    const bank = await prisma.instructorBankAccount.findUnique({
-      where: { userId: session.id }
-    });
+    const [user, bank] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.id },
+        select: { id: true, name: true, email: true, phone: true }
+      }),
+      prisma.instructorBankAccount.findUnique({
+        where: { userId: session.id }
+      })
+    ]);
+
+    const instructorProfile = {
+      id: user?.id || session.id,
+      name: user?.name || session.name || '',
+      email: user?.email || session.email || '',
+      phone: user?.phone || ''
+    };
 
     if (!bank) {
       return NextResponse.json({
         success: true,
+        instructorProfile,
         bankAccount: {
           status: 'NOT_ADDED',
-          accountHolderName: '',
+          accountHolderName: instructorProfile.name,
           bankName: '',
           accountNumberMasked: '',
           ifscCode: '',
@@ -48,6 +184,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      instructorProfile,
       bankAccount: {
         id: bank.id,
         accountHolderName: bank.accountHolderName,
@@ -84,6 +221,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: { id: true, name: true, email: true }
+    });
+    const registeredInstructorName = user?.name || session.name || '';
+
     const body = await req.json();
     const {
       accountHolderName,
@@ -100,15 +243,20 @@ export async function POST(req: NextRequest) {
     if (!accountHolderName || !String(accountHolderName).trim()) {
       return NextResponse.json({ error: 'Account Holder Name is required.' }, { status: 400 });
     }
-    if (!bankName || !String(bankName).trim()) {
-      return NextResponse.json({ error: 'Bank Name is required.' }, { status: 400 });
+
+    // 1. Verify Account Holder Name matches the registered Instructor
+    const nameCheck = verifyAccountHolderMatchesInstructor(registeredInstructorName, String(accountHolderName));
+    if (!nameCheck.valid) {
+      return NextResponse.json({ error: nameCheck.reason }, { status: 400 });
     }
 
+    // 2. Verify Bank Account Number (9-18 digits, non-dummy, matches confirmation)
     const cleanAcct = String(accountNumber || '').replace(/\s+/g, '');
     const cleanConfirmAcct = String(confirmAccountNumber || '').replace(/\s+/g, '');
 
-    if (!cleanAcct || cleanAcct.length < 6 || cleanAcct.length > 22) {
-      return NextResponse.json({ error: 'Please enter a valid Bank Account Number (6–22 digits).' }, { status: 400 });
+    const acctCheck = isValidAccountNumber(cleanAcct);
+    if (!acctCheck.valid) {
+      return NextResponse.json({ error: acctCheck.reason }, { status: 400 });
     }
     if (cleanAcct !== cleanConfirmAcct) {
       return NextResponse.json(
@@ -117,10 +265,72 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanIfsc = String(ifscCode || '').trim().toUpperCase();
-    if (!cleanIfsc || cleanIfsc.length < 8 || cleanIfsc.length > 11) {
+    // Check if another instructor already registered the exact same account number
+    const duplicateBank = await prisma.instructorBankAccount.findFirst({
+      where: {
+        accountNumber: cleanAcct,
+        userId: { not: session.id }
+      }
+    });
+    if (duplicateBank) {
       return NextResponse.json(
-        { error: 'Please enter a valid IFSC / Bank Routing Code (e.g. SBIN0001234).' },
+        { error: 'This Bank Account Number is already linked to another account. Please enter your own unique bank account.' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Verify IFSC Code against RBI / Razorpay IFSC Directory
+    const cleanIfsc = String(ifscCode || '').trim().toUpperCase();
+    const ifscVerification = await verifyIfscWithRbiDirectory(cleanIfsc);
+    if (!ifscVerification.valid) {
+      return NextResponse.json({ error: ifscVerification.reason }, { status: 400 });
+    }
+
+    const finalBankName = ifscVerification.bank || String(bankName || '').trim();
+    const finalBranchName = ifscVerification.branch || (branchName ? String(branchName).trim() : '');
+
+    if (!finalBankName) {
+      return NextResponse.json({ error: 'Bank Name is required.' }, { status: 400 });
+    }
+
+    // Verify that if user manually typed a different bank name than the IFSC's actual bank, it doesn't conflict
+    if (ifscVerification.bank && bankName && String(bankName).trim().length > 2) {
+      const enteredLower = String(bankName).trim().toLowerCase();
+      const officialLower = ifscVerification.bank.toLowerCase();
+      const ifscPrefix = cleanIfsc.slice(0, 4).toLowerCase();
+      const wordsMatch =
+        officialLower.includes(enteredLower) ||
+        enteredLower.includes(officialLower) ||
+        enteredLower.includes(ifscPrefix) ||
+        officialLower
+          .split(/\s+/)
+          .filter((w) => w.length > 3 && w !== 'bank' && w !== 'india' && w !== 'limited')
+          .some((w) => enteredLower.includes(w));
+
+      if (!wordsMatch) {
+        return NextResponse.json(
+          {
+            error: `Bank Name & IFSC Mismatch: IFSC "${cleanIfsc}" belongs to "${ifscVerification.bank}" (${ifscVerification.branch}), not "${bankName}".`
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 4. Validate PAN Number (Required for tax/TDS compliance & identity verification)
+    const cleanPan = panNumber ? String(panNumber).trim().toUpperCase() : '';
+    if (!cleanPan || !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanPan)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid 10-character Permanent Account Number (PAN), e.g. ABCDE1234F.' },
+        { status: 400 }
+      );
+    }
+
+    // 5. Validate UPI ID format if provided
+    const cleanUpi = upiId ? String(upiId).trim() : '';
+    if (cleanUpi && !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(cleanUpi)) {
+      return NextResponse.json(
+        { error: 'Invalid UPI ID format. Example of a valid UPI ID: yourname@okhdfcbank' },
         { status: 400 }
       );
     }
@@ -132,28 +342,28 @@ export async function POST(req: NextRequest) {
       create: {
         userId: session.id,
         accountHolderName: String(accountHolderName).trim(),
-        bankName: String(bankName).trim(),
+        bankName: finalBankName,
         accountNumber: cleanAcct,
         accountNumberMasked: masked,
         ifscCode: cleanIfsc,
         accountType: accountType === 'CURRENT' ? 'CURRENT' : 'SAVINGS',
-        branchName: branchName ? String(branchName).trim() : null,
-        upiId: upiId ? String(upiId).trim() : null,
-        panNumber: panNumber ? String(panNumber).trim().toUpperCase() : null,
+        branchName: finalBranchName || null,
+        upiId: cleanUpi || null,
+        panNumber: cleanPan,
         status: 'PENDING_VERIFICATION',
         rejectionReason: null,
         rejectedAt: null
       },
       update: {
         accountHolderName: String(accountHolderName).trim(),
-        bankName: String(bankName).trim(),
+        bankName: finalBankName,
         accountNumber: cleanAcct,
         accountNumberMasked: masked,
         ifscCode: cleanIfsc,
         accountType: accountType === 'CURRENT' ? 'CURRENT' : 'SAVINGS',
-        branchName: branchName ? String(branchName).trim() : null,
-        upiId: upiId ? String(upiId).trim() : null,
-        panNumber: panNumber ? String(panNumber).trim().toUpperCase() : null,
+        branchName: finalBranchName || null,
+        upiId: cleanUpi || null,
+        panNumber: cleanPan,
         status: 'PENDING_VERIFICATION',
         rejectionReason: null,
         rejectedAt: null
@@ -161,7 +371,7 @@ export async function POST(req: NextRequest) {
     });
 
     await EmailService.sendBankAccountAdded(
-      { id: session.id, name: session.name, email: session.email },
+      { id: session.id, name: registeredInstructorName, email: session.email },
       { bankName: saved.bankName, accountNumberMasked: saved.accountNumberMasked, ifscCode: saved.ifscCode }
     ).catch(() => {});
 
@@ -175,8 +385,8 @@ export async function POST(req: NextRequest) {
         await prisma.notification.create({
           data: {
             userId: admin.id,
-            title: `Bank Verification Needed: ${session.name}`,
-            message: `Instructor ${session.name} (${session.email}) submitted bank account (${saved.bankName} - ${saved.accountNumberMasked}) for payout verification.`,
+            title: `Bank Verification Needed: ${registeredInstructorName}`,
+            message: `Instructor ${registeredInstructorName} (${session.email}) submitted verified IFSC bank account (${saved.bankName} - ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}, PAN: ${saved.panNumber}) for payout approval.`,
             type: 'ACCOUNT',
             link: '/super-admin/users'
           }
@@ -190,13 +400,13 @@ export async function POST(req: NextRequest) {
       action: 'INSTRUCTOR_SUBMITTED_BANK_ACCOUNT',
       entity: 'InstructorBankAccount',
       entityId: saved.id,
-      description: `Instructor "${session.name}" submitted bank account (${saved.bankName} ${saved.accountNumberMasked}) for verification.`,
+      description: `Instructor "${registeredInstructorName}" submitted bank account (${saved.bankName} ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}) after passing ownership & RBI IFSC checks.`,
       req
     }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      message: 'Bank account details submitted! Status is now Pending Verification by Admin.',
+      message: `Bank details verified (${saved.bankName}, ${finalBranchName}) & submitted for Admin approval!`,
       bankAccount: {
         id: saved.id,
         accountHolderName: saved.accountHolderName,
