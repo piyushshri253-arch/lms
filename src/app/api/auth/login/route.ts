@@ -83,6 +83,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'STUDENT';
+
+    // If logging into Instructor / Reviewer / Partner portal with an email that has not registered for that role:
+    if (
+      effectivePortal === 'INSTRUCTOR' &&
+      !['INSTRUCTOR', 'TEACHER', 'SUPER_ADMIN', 'LMS_ADMIN'].includes(user.role)
+    ) {
+      return NextResponse.json(
+        {
+          error: 'This email is not registered. Please sign up first.',
+          code: 'USER_NOT_FOUND'
+        },
+        { status: 401 }
+      );
+    }
+
+    if (
+      effectivePortal === 'REVIEWER' &&
+      !['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)
+    ) {
+      return NextResponse.json(
+        {
+          error: 'This email is not registered. Please sign up first.',
+          code: 'USER_NOT_FOUND'
+        },
+        { status: 401 }
+      );
+    }
+
+    if (
+      effectivePortal === 'PARTNER' &&
+      !['INSTRUCTOR', 'TEACHER', 'REVIEWER'].includes(user.role)
+    ) {
+      return NextResponse.json(
+        {
+          error: 'This email is not registered. Please sign up first.',
+          code: 'USER_NOT_FOUND'
+        },
+        { status: 401 }
+      );
+    }
+
     // 3. Check Account Suspension
     if (user.isSuspended || user.status === 'SUSPENDED') {
       await logSecurityEvent({
@@ -112,7 +154,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error: 'Please enter correct email or password.',
+          error: 'Your email ID or password is wrong. Please enter the correct email and password.',
           code: 'INVALID_CREDENTIALS'
         },
         { status: 401 }
@@ -121,8 +163,6 @@ export async function POST(req: NextRequest) {
 
     // 5. Strict Portal Intent Boundaries:
     // Home page /login (requestedPortal === 'STUDENT') is strictly reserved for Students ONLY!
-    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'STUDENT';
-
     if (effectivePortal === 'STUDENT' && user.role !== 'STUDENT') {
       if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'LMS_ADMIN') {
         return NextResponse.json(
@@ -165,27 +205,6 @@ export async function POST(req: NextRequest) {
     if (effectivePortal === 'ADMIN' && !['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN', 'REVIEWER'].includes(user.role)) {
       return NextResponse.json(
         { error: 'This account does not have Administrator access.' },
-        { status: 403 }
-      );
-    }
-
-    if (effectivePortal === 'INSTRUCTOR' && !['INSTRUCTOR', 'TEACHER', 'SUPER_ADMIN', 'LMS_ADMIN'].includes(user.role)) {
-      return NextResponse.json(
-        { error: 'This account is not registered as an Instructor.' },
-        { status: 403 }
-      );
-    }
-
-    if (effectivePortal === 'REVIEWER' && !['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json(
-        { error: 'This account does not have Reviewer / Auditor access.' },
-        { status: 403 }
-      );
-    }
-
-    if (effectivePortal === 'PARTNER' && !['INSTRUCTOR', 'TEACHER', 'REVIEWER'].includes(user.role)) {
-      return NextResponse.json(
-        { error: 'This portal is strictly for Instructors and Course Auditors.' },
         { status: 403 }
       );
     }

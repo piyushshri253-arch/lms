@@ -15,6 +15,7 @@ function ReviewerLoginContent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(null);
 
   // OTP Verification State
   const [requiresOtp, setRequiresOtp] = useState(false);
@@ -29,14 +30,14 @@ function ReviewerLoginContent() {
     if (!email.trim() || !password) return;
 
     setIsLoading(true);
+    setAuthError(null);
     try {
       const user = await login(email.trim().toLowerCase(), password, 'REVIEWER');
 
       if (user.role !== 'REVIEWER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-        showToast({
-          title: 'Audit Studio Restricted',
-          description: 'This portal requires Course Auditor or Administrative permissions.',
-          type: 'error'
+        setAuthError({
+          code: 'USER_NOT_FOUND',
+          message: 'This email is not registered. Please sign up first.'
         });
         return;
       }
@@ -59,9 +60,19 @@ function ReviewerLoginContent() {
         return;
       }
 
+      const code =
+        err.code ||
+        (err.message?.toLowerCase().includes('not registered') ? 'USER_NOT_FOUND' : 'INVALID_CREDENTIALS');
+      const message =
+        code === 'USER_NOT_FOUND'
+          ? 'This email is not registered. Please sign up first.'
+          : 'Your email ID or password is wrong. Please enter the correct email and password.';
+
+      setAuthError({ message, code });
+
       showToast({
-        title: 'Sign In Failed',
-        description: err.message || 'Invalid auditor credentials.',
+        title: code === 'USER_NOT_FOUND' ? 'Account Not Found' : 'Wrong Email or Password',
+        description: message,
         type: 'error'
       });
     } finally {
@@ -247,6 +258,42 @@ function ReviewerLoginContent() {
                   Fill Credentials
                 </button>
               </div>
+
+              {authError && (
+                <div
+                  className={`p-4 rounded-xl border text-sm animate-in fade-in duration-200 ${
+                    authError.code === 'USER_NOT_FOUND'
+                      ? 'bg-purple-50 border-purple-200 text-purple-950'
+                      : 'bg-rose-50 border-rose-200 text-rose-900'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <Icon
+                      name={authError.code === 'USER_NOT_FOUND' ? 'person_add' : 'error'}
+                      size={20}
+                      className={`mt-0.5 shrink-0 ${
+                        authError.code === 'USER_NOT_FOUND' ? 'text-[#5624d0]' : 'text-rose-600'
+                      }`}
+                    />
+                    <div className="flex-1 space-y-2.5">
+                      <p className="font-bold text-xs leading-relaxed">{authError.message}</p>
+                      {authError.code === 'USER_NOT_FOUND' && (
+                        <div>
+                          <Link
+                            href={`/signup?role=REVIEWER&email=${encodeURIComponent(
+                              email.trim().toLowerCase()
+                            )}`}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
+                          >
+                            <span>Sign up for Morena Teach</span>
+                            <Icon name="arrow_forward" size={14} />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

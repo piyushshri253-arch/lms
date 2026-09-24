@@ -29,6 +29,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('mode') === 'login' ? 'LOGIN' : 'SIGNUP';
   const roleParam = searchParams.get('role')?.toUpperCase();
+  const initialEmail = searchParams.get('email') || '';
 
   const [authMode, setAuthMode] = useState<'SIGNUP' | 'LOGIN'>(initialTab);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -37,14 +38,14 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   );
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useState(initialEmail);
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Signup State
   const [form, setForm] = useState({
     name: '',
-    email: '',
+    email: initialEmail,
     phone: '',
     address: '',
     city: '',
@@ -59,6 +60,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState<string>('');
 
   // Live Password Strength & Requirement Checklist
   const pwChecks = {
@@ -193,7 +195,15 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           );
           return;
         }
-        setError(data.error || 'Invalid email or password.');
+        const code =
+          data.code ||
+          (data.error?.toLowerCase().includes('not registered') ? 'USER_NOT_FOUND' : 'INVALID_CREDENTIALS');
+        setErrorCode(code);
+        setError(
+          code === 'USER_NOT_FOUND'
+            ? 'This email is not registered. Please sign up first.'
+            : 'Your email ID or password is wrong. Please enter the correct email and password.'
+        );
         setLoading(false);
         return;
       }
@@ -201,7 +211,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
       window.location.href =
         data.user?.role === 'REVIEWER' ? '/reviewer/dashboard' : '/instructor/dashboard';
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      setErrorCode('INVALID_CREDENTIALS');
+      setError(err.message || 'Your email ID or password is wrong. Please enter the correct email and password.');
       setLoading(false);
     }
   };
@@ -231,6 +242,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
             onClick={() => {
               setAuthMode('SIGNUP');
               setError('');
+              setErrorCode('');
             }}
             className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
               authMode === 'SIGNUP'
@@ -246,6 +258,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
             onClick={() => {
               setAuthMode('LOGIN');
               setError('');
+              setErrorCode('');
             }}
             className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
               authMode === 'LOGIN'
@@ -260,9 +273,43 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700 text-sm">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div
+              className={`mb-6 p-4 rounded-xl border text-sm animate-in fade-in duration-200 ${
+                errorCode === 'USER_NOT_FOUND'
+                  ? 'bg-purple-50 border-purple-200 text-purple-950'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                {errorCode === 'USER_NOT_FOUND' ? (
+                  <UserPlus className="w-5 h-5 text-[#5624d0] shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1 space-y-2.5">
+                  <p className="font-bold text-xs leading-relaxed">{error}</p>
+                  {errorCode === 'USER_NOT_FOUND' && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            email: loginEmail.trim().toLowerCase()
+                          }));
+                          setAuthMode('SIGNUP');
+                          setError('');
+                          setErrorCode('');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
+                      >
+                        <span>Sign up for Morena Teach</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
