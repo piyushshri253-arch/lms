@@ -5,11 +5,8 @@ import Link from 'next/link';
 import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
 import {
   Wallet,
-  Landmark,
   CheckCircle2,
   XCircle,
-  Clock,
-  ArrowUpRight,
   Loader2,
   AlertCircle
 } from 'lucide-react';
@@ -69,7 +66,7 @@ export default function InstructorPayoutsPage() {
     return (
       <InstructorPortalShell title="Payout Requests & History">
         <div className="py-24 flex justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
         </div>
       </InstructorPortalShell>
     );
@@ -91,14 +88,14 @@ export default function InstructorPayoutsPage() {
         {/* Left: Request Payout & Payout History */}
         <div className="lg:col-span-2 space-y-6">
           {error && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2.5 text-red-300 text-xs">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2.5 text-red-700 text-xs">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
           )}
           {success && (
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-emerald-300 text-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2.5 text-emerald-700 text-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{success}</span>
             </div>
           )}
@@ -106,21 +103,21 @@ export default function InstructorPayoutsPage() {
           {/* Request Payout Form */}
           <form
             onSubmit={handleRequestPayout}
-            className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 space-y-4"
+            className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
                 Request New Payout
               </h2>
-              <span className="text-xs font-bold text-emerald-400">
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
                 Available Balance: ₹{Number(data?.availableBalance || 0).toLocaleString('en-IN')}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Withdrawal Amount (₹) <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Withdrawal Amount (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -130,18 +127,18 @@ export default function InstructorPayoutsPage() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder={`Min ₹${eligibility.minimumPayoutAmount || 500}`}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Payout Method
                 </label>
                 <select
                   value={payoutMethod}
                   onChange={(e) => setPayoutMethod(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 >
                   <option value="BANK_TRANSFER">
                     Verified Bank Account ({data?.bankAccount?.accountNumberMasked || 'Not Verified'})
@@ -154,7 +151,7 @@ export default function InstructorPayoutsPage() {
             <button
               type="submit"
               disabled={!canRequest || submitting}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-bold text-sm inline-flex items-center gap-2 shadow-lg shadow-violet-600/25"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-bold text-sm inline-flex items-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
               <span>Submit Payout Request</span>
@@ -162,8 +159,8 @@ export default function InstructorPayoutsPage() {
           </form>
 
           {/* Payout History Table */}
-          <div className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80">
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300 mb-4">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 mb-4">
               Payout History
             </h2>
 
@@ -175,7 +172,7 @@ export default function InstructorPayoutsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-400">
+                    <tr className="border-b border-slate-200 text-slate-500">
                       <th className="py-2.5 font-semibold">Requested Date</th>
                       <th className="py-2.5 font-semibold">Amount</th>
                       <th className="py-2.5 font-semibold">Method</th>
@@ -183,33 +180,33 @@ export default function InstructorPayoutsPage() {
                       <th className="py-2.5 font-semibold">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-slate-100">
                     {data?.payouts?.map((p: any) => (
-                      <tr key={p.id}>
-                        <td className="py-3 text-slate-300">
+                      <tr key={p.id} className="hover:bg-slate-50">
+                        <td className="py-3 text-slate-600">
                           {new Date(p.requestedAt).toLocaleString()}
                         </td>
-                        <td className="py-3 font-extrabold text-white">
+                        <td className="py-3 font-extrabold text-slate-900">
                           ₹{Number(p.amount).toLocaleString('en-IN')}
                         </td>
-                        <td className="py-3 text-slate-400">{p.payoutMethod}</td>
-                        <td className="py-3 text-slate-400">
+                        <td className="py-3 text-slate-600">{p.payoutMethod}</td>
+                        <td className="py-3 text-slate-600">
                           {p.referenceNumber ? (
-                            <span className="font-mono text-emerald-400">Ref: {p.referenceNumber}</span>
+                            <span className="font-mono text-emerald-600 font-bold">Ref: {p.referenceNumber}</span>
                           ) : p.rejectionReason ? (
-                            <span className="text-red-400">{p.rejectionReason}</span>
+                            <span className="text-red-600">{p.rejectionReason}</span>
                           ) : (
                             '—'
                           )}
                         </td>
                         <td className="py-3">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                               p.status === 'PAID' || p.status === 'APPROVED'
-                                ? 'bg-emerald-500/15 text-emerald-400'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : ['REQUESTED', 'PENDING', 'PROCESSING'].includes(p.status)
-                                ? 'bg-amber-500/15 text-amber-400'
-                                : 'bg-red-500/15 text-red-400'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
                             }`}
                           >
                             {p.status}
@@ -225,11 +222,11 @@ export default function InstructorPayoutsPage() {
         </div>
 
         {/* Right: Mandatory Payout Eligibility Checklist */}
-        <div className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 h-fit space-y-4">
-          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs h-fit space-y-4">
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
             Payout Eligibility Checklist
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             All 4 security &amp; financial requirements must be met before submitting a withdrawal request:
           </p>
 
@@ -258,22 +255,22 @@ export default function InstructorPayoutsPage() {
                 key={idx}
                 className={`p-3 rounded-xl border flex items-center justify-between ${
                   item.ok
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-slate-50 border-slate-200 text-slate-600'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   {item.ok ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   ) : (
-                    <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <XCircle className="w-4 h-4 text-red-500 shrink-0" />
                   )}
                   <span className="font-semibold">{item.label}</span>
                 </div>
                 {item.actionHref && (
                   <Link
                     href={item.actionHref}
-                    className="text-[11px] font-bold text-violet-400 hover:text-violet-300"
+                    className="text-[11px] font-bold text-violet-600 hover:text-violet-700"
                   >
                     {item.actionLabel}
                   </Link>

@@ -16,7 +16,7 @@ function ReviewerLoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // OTP Verification State (if account was just created by Admin/SuperAdmin and requires OTP verification)
+  // OTP Verification State
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
@@ -147,38 +147,38 @@ function ReviewerLoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link href="/" className="inline-flex items-center gap-2 group mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
             <Icon name="verified" size={28} />
           </div>
         </Link>
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900">
           Course Auditor Studio
         </h2>
-        <p className="mt-1.5 text-xs text-slate-400">
+        <p className="mt-1.5 text-xs text-slate-500">
           Sign in to audit curriculum, approve quality courses, and publish constructive feedback.
         </p>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-slate-900/90 py-8 px-6 shadow-2xl border border-slate-800 rounded-3xl sm:px-10 space-y-6">
+        <div className="bg-white py-8 px-6 shadow-xl border border-slate-200 rounded-3xl sm:px-10 space-y-6">
           {requiresOtp ? (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 mx-auto flex items-center justify-center">
                   <Icon name="mark_email_read" size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-white">Verify Your Auditor Email</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-slate-900">Verify Your Auditor Email</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
                   We sent a 6-digit verification OTP to{' '}
-                  <span className="font-mono font-bold text-indigo-400">{email}</span>. Enter it below to activate your Course Auditor account.
+                  <span className="font-mono font-bold text-indigo-700">{email}</span>. Enter it below to activate your Course Auditor account.
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 text-center">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 text-center">
                   6-Digit Verification OTP
                 </label>
                 <input
@@ -188,14 +188,14 @@ function ReviewerLoginContent() {
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                   placeholder="000000"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-center font-mono text-2xl font-black tracking-[0.5em] text-indigo-400 placeholder-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-center font-mono text-2xl font-black tracking-[0.5em] text-indigo-700 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isVerifyingOtp || otpCode.length < 6}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isVerifyingOtp ? (
                   <>
@@ -217,7 +217,7 @@ function ReviewerLoginContent() {
                     setRequiresOtp(false);
                     setOtpCode('');
                   }}
-                  className="text-slate-400 hover:text-white font-medium cursor-pointer"
+                  className="text-slate-500 hover:text-slate-900 font-semibold cursor-pointer"
                 >
                   ← Back to Login
                 </button>
@@ -225,7 +225,7 @@ function ReviewerLoginContent() {
                   type="button"
                   disabled={isResendingOtp}
                   onClick={handleResendOtp}
-                  className="text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer disabled:opacity-50"
+                  className="text-indigo-600 hover:text-indigo-700 font-bold cursor-pointer disabled:opacity-50"
                 >
                   {isResendingOtp ? 'Sending...' : 'Resend OTP'}
                 </button>
@@ -234,15 +234,15 @@ function ReviewerLoginContent() {
           ) : (
             <>
               {/* Quick Fill Button */}
-              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+              <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-200">Demo Auditor Login</p>
-                  <p className="text-[11px] text-slate-500">reviewer@morenateach.com</p>
+                  <p className="text-xs font-bold text-indigo-950">Demo Auditor Login</p>
+                  <p className="text-[11px] text-indigo-700">reviewer@morenateach.com</p>
                 </div>
                 <button
                   type="button"
                   onClick={handleQuickFill}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                 >
                   Fill Credentials
                 </button>
@@ -250,7 +250,7 @@ function ReviewerLoginContent() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Auditor Email Address
                   </label>
                   <input
@@ -259,12 +259,12 @@ function ReviewerLoginContent() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="auditor@morenateach.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Password
                   </label>
                   <div className="relative">
@@ -274,12 +274,12 @@ function ReviewerLoginContent() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all pr-10"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300"
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700"
                     >
                       <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={18} />
                     </button>
@@ -289,7 +289,7 @@ function ReviewerLoginContent() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isLoading ? (
                     <>
@@ -307,18 +307,18 @@ function ReviewerLoginContent() {
             </>
           )}
 
-          <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-500 space-y-2.5">
+          <div className="pt-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2.5">
             <Link
               href="/auditor/signup?role=REVIEWER"
-              className="block w-full py-2.5 px-4 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition-all"
+              className="block w-full py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs transition-all"
             >
               ✨ New Course Auditor or Instructor? Create Account (/auditor/signup) →
             </Link>
             <div className="flex items-center justify-center gap-4 text-xs font-medium">
-              <Link href="/login" className="text-indigo-400 hover:text-white transition-colors">
-                Unified Login (/login) →
+              <Link href="/instructor/login" className="text-violet-600 hover:underline font-bold">
+                Instructor Login →
               </Link>
-              <Link href="/admin/login" className="text-slate-400 hover:text-white transition-colors">
+              <Link href="/admin/login" className="text-slate-600 hover:text-slate-900">
                 Admin Portal →
               </Link>
             </div>
@@ -333,7 +333,7 @@ export default function ReviewerLoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-xs">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-600 text-xs font-semibold">
           Loading Course Auditor Studio...
         </div>
       }

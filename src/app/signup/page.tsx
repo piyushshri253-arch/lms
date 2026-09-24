@@ -74,10 +74,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
   const strengthLabel =
     passedChecksCount <= 2
-      ? { text: 'Weak', color: 'bg-red-500', textColor: 'text-red-400' }
+      ? { text: 'Weak', color: 'bg-red-500', textColor: 'text-red-600' }
       : passedChecksCount <= 4
-      ? { text: 'Good', color: 'bg-amber-500', textColor: 'text-amber-400' }
-      : { text: 'Strong', color: 'bg-emerald-500', textColor: 'text-emerald-400' };
+      ? { text: 'Good', color: 'bg-amber-500', textColor: 'text-amber-600' }
+      : { text: 'Strong', color: 'bg-emerald-500', textColor: 'text-emerald-600' };
 
   const validateStep1 = () => {
     setError('');
@@ -207,40 +207,35 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-white flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
-      </div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-xl relative z-10">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="sm:mx-auto sm:w-full sm:max-w-xl">
         <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center gap-2.5 text-2xl font-black tracking-tight text-white">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-600/30">
+          <Link href="/" className="inline-flex items-center gap-2.5 text-2xl font-black tracking-tight text-slate-900">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-md shadow-violet-600/25">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <span>MORENA TEACH</span>
           </Link>
-          <h1 className="mt-3 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="mt-3 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Instructor &amp; Course Auditor Portal
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-400">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
             Dedicated Registration &amp; Sign-In exclusively for Instructors and Course Auditors.
           </p>
         </div>
 
         {/* Mode Toggle Tabs: Sign Up vs Sign In */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-[#0f131d] border border-slate-800 mb-6">
+        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-2xs mb-6">
           <button
             type="button"
             onClick={() => {
               setAuthMode('SIGNUP');
               setError('');
             }}
-            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
               authMode === 'SIGNUP'
-                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <UserPlus className="w-4 h-4" />
@@ -252,10 +247,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
               setAuthMode('LOGIN');
               setError('');
             }}
-            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
               authMode === 'LOGIN'
-                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <LogIn className="w-4 h-4" />
@@ -263,10 +258,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           </button>
         </div>
 
-        <div className="bg-[#0f131d] border border-slate-800/80 rounded-2xl shadow-2xl p-6 sm:p-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-3 text-red-300 text-sm">
-              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700 text-sm">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
@@ -274,43 +269,43 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           {authMode === 'LOGIN' ? (
             <form onSubmit={handlePartnerLogin} className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Instructor / Auditor Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     required
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="instructor@example.com"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                   />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-300">Password</label>
-                  <Link href="/forgot-password" className="text-xs font-bold text-violet-400 hover:text-violet-300">
+                  <label className="block text-xs font-semibold text-slate-700">Password</label>
+                  <Link href="/forgot-password" className="text-xs font-bold text-violet-600 hover:text-violet-700">
                     Forgot Password?
                   </Link>
                 </div>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                   />
                   <button
                     type="button"
                     onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                   >
                     {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -320,7 +315,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm shadow-md shadow-violet-600/20 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -348,15 +343,15 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                         step === item.num
-                          ? 'bg-violet-600 text-white ring-4 ring-violet-600/25'
+                          ? 'bg-violet-600 text-white ring-4 ring-violet-100'
                           : step > item.num
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 text-slate-500 border border-slate-300'
                       }`}
                     >
                       {step > item.num ? '✓' : item.num}
                     </div>
-                    <span className={`text-xs font-semibold ${step >= item.num ? 'text-white' : 'text-slate-500'}`}>
+                    <span className={`text-xs font-semibold ${step >= item.num ? 'text-slate-900' : 'text-slate-400'}`}>
                       {item.label}
                     </span>
                   </div>
@@ -367,29 +362,29 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                 {step === 1 && (
                   <div className="space-y-5">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
                         Create Account As
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
                           type="button"
                           onClick={() => setRole('INSTRUCTOR')}
-                          className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 ${
+                          className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 cursor-pointer ${
                             role === 'INSTRUCTOR'
-                              ? 'bg-violet-600/15 border-violet-500 shadow-lg shadow-violet-600/10'
-                              : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                              ? 'bg-violet-50 border-violet-500 shadow-sm'
+                              : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                           }`}
                         >
                           <div
                             className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              role === 'INSTRUCTOR' ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-400'
+                              role === 'INSTRUCTOR' ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-500'
                             }`}
                           >
                             <GraduationCap className="w-5 h-5" />
                           </div>
                           <div>
-                            <div className="font-bold text-sm text-white">Instructor</div>
-                            <p className="text-xs text-slate-400 mt-0.5">
+                            <div className="font-bold text-sm text-slate-900">Instructor</div>
+                            <p className="text-xs text-slate-500 mt-0.5">
                               Create courses, teach students, track earnings &amp; payouts.
                             </p>
                           </div>
@@ -398,22 +393,22 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         <button
                           type="button"
                           onClick={() => setRole('REVIEWER')}
-                          className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 ${
+                          className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 cursor-pointer ${
                             role === 'REVIEWER'
-                              ? 'bg-emerald-600/15 border-emerald-500 shadow-lg shadow-emerald-600/10'
-                              : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                              ? 'bg-emerald-50 border-emerald-500 shadow-sm'
+                              : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                           }`}
                         >
                           <div
                             className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              role === 'REVIEWER' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'
+                              role === 'REVIEWER' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-500'
                             }`}
                           >
                             <ShieldCheck className="w-5 h-5" />
                           </div>
                           <div>
-                            <div className="font-bold text-sm text-white">Reviewer / Auditor</div>
-                            <p className="text-xs text-slate-400 mt-0.5">
+                            <div className="font-bold text-sm text-slate-900">Reviewer / Auditor</div>
+                            <p className="text-xs text-slate-500 mt-0.5">
                               Audit course quality, review submissions &amp; curriculum.
                             </p>
                           </div>
@@ -422,55 +417,55 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Full Name <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Full Name <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
                           required
                           value={form.name}
                           onChange={(e) => setForm({ ...form, name: e.target.value })}
                           placeholder="Dr. Aarav Sharma"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Email Address <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Email Address <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="email"
                           required
                           value={form.email}
                           onChange={(e) => setForm({ ...form, email: e.target.value })}
                           placeholder="instructor@example.com"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1">
+                      <p className="text-[11px] text-slate-500 mt-1">
                         A 6-digit verification OTP will be sent to this email address.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Mobile Number <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Mobile Number <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="tel"
                           required
                           value={form.phone}
                           onChange={(e) => setForm({ ...form, phone: e.target.value })}
                           placeholder="+91 98765 43210"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                     </div>
@@ -480,7 +475,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       onClick={() => {
                         if (validateStep1()) setStep(2);
                       }}
-                      className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2"
+                      className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                     >
                       <span>Continue to Address Details</span>
                       <ArrowRight className="w-4 h-4" />
@@ -491,26 +486,26 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                 {step === 2 && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Complete Street Address <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Complete Street Address <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                        <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                         <textarea
                           rows={2}
                           required
                           value={form.address}
                           onChange={(e) => setForm({ ...form, address: e.target.value })}
                           placeholder="House/Flat No., Building Name, Street, Area"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                          City <span className="text-red-400">*</span>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          City <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -518,12 +513,12 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           value={form.city}
                           onChange={(e) => setForm({ ...form, city: e.target.value })}
                           placeholder="Mumbai"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                          State / Province <span className="text-red-400">*</span>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          State / Province <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -531,15 +526,15 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           value={form.state}
                           onChange={(e) => setForm({ ...form, state: e.target.value })}
                           placeholder="Maharashtra"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                          Country <span className="text-red-400">*</span>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Country <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -547,12 +542,12 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           value={form.country}
                           onChange={(e) => setForm({ ...form, country: e.target.value })}
                           placeholder="India"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                          Pincode / Postal Code <span className="text-red-400">*</span>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Pincode / Postal Code <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -560,7 +555,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           value={form.pincode}
                           onChange={(e) => setForm({ ...form, pincode: e.target.value })}
                           placeholder="400001"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                       </div>
                     </div>
@@ -569,7 +564,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       <button
                         type="button"
                         onClick={() => setStep(1)}
-                        className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm flex items-center gap-1.5"
+                        className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold text-sm flex items-center gap-1.5 cursor-pointer"
                       >
                         <ArrowLeft className="w-4 h-4" />
                         Back
@@ -579,7 +574,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         onClick={() => {
                           if (validateStep2()) setStep(3);
                         }}
-                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2"
+                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                       >
                         <span>Continue to Security</span>
                         <ArrowRight className="w-4 h-4" />
@@ -591,36 +586,36 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                 {step === 3 && (
                   <div className="space-y-5">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Password <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type={showPassword ? 'text' : 'password'}
                           required
                           value={form.password}
                           onChange={(e) => setForm({ ...form, password: e.target.value })}
                           placeholder="e.g. Abc@12345"
-                          className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
 
-                      <div className="mt-3 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                      <div className="mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                         <div className="flex items-center justify-between text-xs mb-2">
-                          <span className="text-slate-400 font-medium">Password Strength</span>
+                          <span className="text-slate-600 font-medium">Password Strength</span>
                           <span className={`font-bold ${strengthLabel.textColor}`}>
                             {form.password ? strengthLabel.text : 'Enter Password'} ({passedChecksCount}/5)
                           </span>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-3">
                           <div
                             className={`h-full transition-all duration-300 ${strengthLabel.color}`}
                             style={{ width: `${(passedChecksCount / 5) * 100}%` }}
@@ -638,14 +633,14 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                             return (
                               <div
                                 key={rule.key}
-                                className={`flex items-center gap-1.5 ${
-                                  ok ? 'text-emerald-400' : 'text-slate-400'
+                                className={`flex items-center gap-1.5 font-medium ${
+                                  ok ? 'text-emerald-600' : 'text-slate-400'
                                 }`}
                               >
                                 {ok ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                 ) : (
-                                  <XCircle className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                                  <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                 )}
                                 <span>{rule.label}</span>
                               </div>
@@ -656,23 +651,23 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Confirm Password <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Confirm Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type={showConfirmPassword ? 'text' : 'password'}
                           required
                           value={form.confirmPassword}
                           onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                           placeholder="Re-enter your password"
-                          className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-sm text-white"
+                          className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                         >
                           {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -683,7 +678,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       <button
                         type="button"
                         onClick={() => setStep(2)}
-                        className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm flex items-center gap-1.5"
+                        className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold text-sm flex items-center gap-1.5 cursor-pointer"
                       >
                         <ArrowLeft className="w-4 h-4" />
                         Back
@@ -691,7 +686,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       <button
                         type="submit"
                         disabled={loading || !isPasswordValid || !passwordsMatch}
-                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2"
+                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                       >
                         {loading ? (
                           <>
@@ -721,8 +716,8 @@ export default function PartnerSignupAndLoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#07090e] text-white flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
         </div>
       }
     >

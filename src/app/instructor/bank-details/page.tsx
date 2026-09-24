@@ -94,7 +94,7 @@ export default function InstructorBankDetailsPage() {
     return (
       <InstructorPortalShell title="Bank Account & Payout Verification">
         <div className="py-24 flex justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
         </div>
       </InstructorPortalShell>
     );
@@ -112,13 +112,13 @@ export default function InstructorBankDetailsPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Status Banner */}
           {status === 'VERIFIED' && (
-            <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3.5">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3.5">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-sm text-emerald-300">
+                <div className="font-bold text-sm text-emerald-900">
                   Bank Account Verified &amp; Active for Payouts
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-xs text-emerald-700 mt-1">
                   Verified by {bank.verifiedByName || 'Administration'}{' '}
                   {bank.verifiedAt ? `on ${new Date(bank.verifiedAt).toLocaleDateString()}` : ''}. Note: Updating your bank account will reset its status to Pending Verification.
                 </p>
@@ -127,13 +127,13 @@ export default function InstructorBankDetailsPage() {
           )}
 
           {status === 'PENDING_VERIFICATION' && (
-            <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5">
-              <Clock className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" />
+            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3.5">
+              <Clock className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-sm text-amber-300">
+                <div className="font-bold text-sm text-amber-900">
                   Pending Admin Verification
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-xs text-amber-800 mt-1">
                   Your bank account ({bank.bankName} — {bank.accountNumberMasked}) has been submitted and is awaiting review by Super Admin / Admin.
                 </p>
               </div>
@@ -141,17 +141,17 @@ export default function InstructorBankDetailsPage() {
           )}
 
           {status === 'REJECTED' && (
-            <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-start gap-3.5">
-              <XCircle className="w-6 h-6 text-red-400 shrink-0 mt-0.5" />
+            <div className="p-5 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3.5">
+              <XCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-sm text-red-300">
+                <div className="font-bold text-sm text-red-900">
                   Bank Verification Rejected — Please Correct &amp; Resubmit
                 </div>
-                <p className="text-xs text-red-200 mt-1">
+                <p className="text-xs text-red-700 mt-1">
                   <strong>Reason:</strong> {bank.rejectionReason || 'Account details could not be verified.'}
                 </p>
                 {bank.rejectedAt && (
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-red-600 mt-1">
                     Rejected on {new Date(bank.rejectedAt).toLocaleString()} by {bank.verifiedByName || 'Admin'}
                   </p>
                 )}
@@ -160,13 +160,13 @@ export default function InstructorBankDetailsPage() {
           )}
 
           {status === 'DISABLED' && (
-            <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-start gap-3.5">
-              <AlertTriangle className="w-6 h-6 text-red-400 shrink-0 mt-0.5" />
+            <div className="p-5 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3.5">
+              <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-sm text-red-300">
+                <div className="font-bold text-sm text-red-900">
                   Bank Account Disabled by Administration
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-xs text-red-700 mt-1">
                   {bank.rejectionReason || 'Please submit a new active bank account or contact support.'}
                 </p>
               </div>
@@ -174,32 +174,32 @@ export default function InstructorBankDetailsPage() {
           )}
 
           {error && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2.5 text-red-300 text-xs">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2.5 text-red-700 text-xs">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-emerald-300 text-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2.5 text-emerald-700 text-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{success}</span>
             </div>
           )}
 
           <form
             onSubmit={handleSubmit}
-            className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 space-y-4"
+            className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4"
           >
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-              <Landmark className="w-4 h-4 text-violet-400" />
+            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <Landmark className="w-4 h-4 text-violet-600" />
               {status === 'NOT_ADDED' ? 'Add Payout Bank Account' : 'Update / Resubmit Bank Account Details'}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Account Holder Name <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Account Holder Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -207,13 +207,13 @@ export default function InstructorBankDetailsPage() {
                   value={form.accountHolderName}
                   onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
                   placeholder="As printed on bank passbook"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Bank Name <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Bank Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -221,15 +221,15 @@ export default function InstructorBankDetailsPage() {
                   value={form.bankName}
                   onChange={(e) => setForm({ ...form, bankName: e.target.value })}
                   placeholder="e.g. HDFC Bank / State Bank of India"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Bank Account Number <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Bank Account Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -237,13 +237,13 @@ export default function InstructorBankDetailsPage() {
                   value={form.accountNumber}
                   onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
                   placeholder="Enter full account number"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Confirm Bank Account Number <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Confirm Bank Account Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -251,15 +251,15 @@ export default function InstructorBankDetailsPage() {
                   value={form.confirmAccountNumber}
                   onChange={(e) => setForm({ ...form, confirmAccountNumber: e.target.value })}
                   placeholder="Re-enter full account number"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  IFSC / Routing Code <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  IFSC / Routing Code <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -267,18 +267,18 @@ export default function InstructorBankDetailsPage() {
                   value={form.ifscCode}
                   onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
                   placeholder="HDFC0001234"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white font-mono uppercase"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 font-mono uppercase focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Account Type <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Account Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={form.accountType}
                   onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 >
                   <option value="SAVINGS">Savings Account</option>
                   <option value="CURRENT">Current Account</option>
@@ -286,7 +286,7 @@ export default function InstructorBankDetailsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Branch Name
                 </label>
                 <input
@@ -294,14 +294,14 @@ export default function InstructorBankDetailsPage() {
                   value={form.branchName}
                   onChange={(e) => setForm({ ...form, branchName: e.target.value })}
                   placeholder="e.g. Nariman Point"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   UPI ID (Optional)
                 </label>
                 <input
@@ -309,12 +309,12 @@ export default function InstructorBankDetailsPage() {
                   value={form.upiId}
                   onChange={(e) => setForm({ ...form, upiId: e.target.value })}
                   placeholder="name@okhdfcbank"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   PAN / Tax Identification Number (Optional)
                 </label>
                 <input
@@ -322,7 +322,7 @@ export default function InstructorBankDetailsPage() {
                   value={form.panNumber}
                   onChange={(e) => setForm({ ...form, panNumber: e.target.value.toUpperCase() })}
                   placeholder="ABCDE1234F"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white uppercase font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 uppercase font-mono focus:outline-none focus:bg-white focus:border-violet-600"
                 />
               </div>
             </div>
@@ -331,7 +331,7 @@ export default function InstructorBankDetailsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm inline-flex items-center gap-2 shadow-lg shadow-violet-600/25"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm inline-flex items-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 <span>
@@ -345,42 +345,42 @@ export default function InstructorBankDetailsPage() {
         </div>
 
         {/* Right: Current Masked Bank Account Card */}
-        <div className="p-6 rounded-2xl bg-[#0f131d] border border-slate-800/80 h-fit space-y-4">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs h-fit space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-300">
+            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
               Current Linked Account
             </h2>
-            <ShieldCheck className="w-5 h-5 text-violet-400" />
+            <ShieldCheck className="w-5 h-5 text-violet-600" />
           </div>
 
           {status === 'NOT_ADDED' ? (
-            <div className="py-8 text-center text-xs text-slate-400">
+            <div className="py-8 text-center text-xs text-slate-500">
               No bank account has been added yet. Submit your bank details on the left to enable course payouts.
             </div>
           ) : (
             <div className="space-y-3 text-xs">
-              <div className="p-4 rounded-xl bg-gradient-to-br from-violet-900/40 to-indigo-900/30 border border-violet-500/30">
-                <div className="text-[10px] uppercase tracking-widest text-violet-300 font-bold">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200">
+                <div className="text-[10px] uppercase tracking-widest text-violet-700 font-bold">
                   {bank.bankName} ({bank.accountType})
                 </div>
-                <div className="mt-2 text-lg font-mono font-extrabold tracking-widest text-white">
+                <div className="mt-2 text-lg font-mono font-extrabold tracking-widest text-slate-900">
                   {bank.accountNumberMasked}
                 </div>
-                <div className="mt-2 flex items-center justify-between text-slate-300">
+                <div className="mt-2 flex items-center justify-between text-slate-700 font-medium">
                   <span>{bank.accountHolderName}</span>
                   <span className="font-mono">{bank.ifscCode}</span>
                 </div>
               </div>
 
-              <div className="flex justify-between py-2 border-b border-slate-800">
-                <span className="text-slate-400">Verification Status</span>
+              <div className="flex justify-between py-2 border-b border-slate-100">
+                <span className="text-slate-500">Verification Status</span>
                 <span
                   className={`font-bold ${
                     status === 'VERIFIED'
-                      ? 'text-emerald-400'
+                      ? 'text-emerald-600'
                       : status === 'PENDING_VERIFICATION'
-                      ? 'text-amber-400'
-                      : 'text-red-400'
+                      ? 'text-amber-600'
+                      : 'text-red-600'
                   }`}
                 >
                   {status}
@@ -388,23 +388,23 @@ export default function InstructorBankDetailsPage() {
               </div>
 
               {bank.branchName && (
-                <div className="flex justify-between py-2 border-b border-slate-800">
-                  <span className="text-slate-400">Branch</span>
-                  <span className="text-slate-200">{bank.branchName}</span>
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-500">Branch</span>
+                  <span className="text-slate-800 font-medium">{bank.branchName}</span>
                 </div>
               )}
 
               {bank.upiId && (
-                <div className="flex justify-between py-2 border-b border-slate-800">
-                  <span className="text-slate-400">UPI ID</span>
-                  <span className="text-slate-200 font-mono">{bank.upiId}</span>
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-500">UPI ID</span>
+                  <span className="text-slate-800 font-mono">{bank.upiId}</span>
                 </div>
               )}
 
               {bank.panNumber && (
-                <div className="flex justify-between py-2 border-b border-slate-800">
-                  <span className="text-slate-400">PAN Number</span>
-                  <span className="text-slate-200 font-mono">{bank.panNumber}</span>
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-500">PAN Number</span>
+                  <span className="text-slate-800 font-mono">{bank.panNumber}</span>
                 </div>
               )}
             </div>

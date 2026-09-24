@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Modal } from '@/components/ui/Modal';
-import { AppHeader } from '@/components/layout/AppHeader';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
 
 interface CourseAuthored {
   id: string;
@@ -32,8 +31,9 @@ interface CourseAuthored {
 
 type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'REJECTED' | 'CATALOG';
 
-export default function InstructorDashboardPage() {
+function InstructorCoursesStudioInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentUser, showToast } = useApp();
 
   // Courses State
@@ -61,11 +61,19 @@ export default function InstructorDashboardPage() {
   const [newCategory, setNewCategory] = useState('Engineering');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const sidebarTab = searchParams?.get('tab') || '';
+  const createParam = searchParams?.get('create');
+
+  useEffect(() => {
+    if (createParam === '1') {
+      setIsCreateOpen(true);
+    }
+  }, [createParam]);
+
   // Fetch Authored Courses
   const fetchInstructorCourses = async () => {
     try {
       setIsLoading(true);
-      // Use manage=true to fetch all authored courses for the authenticated instructor
       const res = await fetch('/api/courses?manage=true');
       const data = await res.json();
       if (res.ok && data.courses) {
@@ -80,7 +88,7 @@ export default function InstructorDashboardPage() {
     }
   };
 
-  // Fetch Entire Platform Catalog (Optional tab for instructors to view all platform offerings)
+  // Fetch Entire Platform Catalog
   const fetchPlatformCatalog = async () => {
     if (platformCourses.length > 0) return;
     try {
@@ -98,9 +106,7 @@ export default function InstructorDashboardPage() {
   };
 
   useEffect(() => {
-    if (currentUser) {
-      fetchInstructorCourses();
-    }
+    fetchInstructorCourses();
   }, [currentUser]);
 
   useEffect(() => {
@@ -320,7 +326,7 @@ export default function InstructorDashboardPage() {
       if (activeTab === 'IN_REVIEW') return c.status === 'IN_REVIEW';
       if (activeTab === 'DRAFT') return c.status === 'DRAFT';
       if (activeTab === 'REJECTED') return c.status === 'REJECTED';
-      return true; // 'ALL'
+      return true;
     })
     .filter((c) => {
       if (!searchQuery.trim()) return true;
@@ -342,42 +348,63 @@ export default function InstructorDashboardPage() {
     );
   });
 
-  return (
-    <div className="min-h-screen bg-surface flex flex-col antialiased">
-      <AppHeader />
+  const shellTitle =
+    sidebarTab === 'students'
+      ? 'Enrolled Students & Learners'
+      : sidebarTab === 'notifications'
+      ? 'Instructor Notifications & Review Updates'
+      : sidebarTab === 'manage'
+      ? 'Course Management & Curriculum Builder'
+      : 'My Courses & Curriculum Studio';
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* Welcome Banner */}
-        <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+  const shellSubtitle =
+    sidebarTab === 'students'
+      ? 'Track student enrollments and learner activity across your authored courses'
+      : sidebarTab === 'notifications'
+      ? 'Real-time updates on course audits, reviewer feedback, and payout verifications'
+      : 'Create courses, upload syllabus modules & video lessons, and submit for QA review';
+
+  return (
+    <InstructorPortalShell
+      title={shellTitle}
+      subtitle={shellSubtitle}
+      profile={{
+        name: currentUser?.name || 'Instructor',
+        email: currentUser?.email || '',
+        role: 'INSTRUCTOR',
+        emailVerified: true
+      }}
+    >
+      <div className="space-y-6">
+        {/* Top Action Bar */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <UserAvatar
               avatar={currentUser?.avatar}
               name={currentUser?.name || 'Instructor'}
-              size="2xl"
-              className="w-16 h-16 shadow-md"
+              size="xl"
+              className="w-14 h-14 shadow-xs"
             />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-on-surface">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900">
                   Instructor Studio: {currentUser?.name || 'Faculty Lead'}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-xs font-black uppercase">
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-mono text-xs font-bold uppercase">
                   Faculty
                 </span>
               </div>
-              <p className="text-xs text-on-surface-variant mt-1">
-                Create deep-tech courses, upload modules & lessons, manage drafts, and submit for review to launch live.
+              <p className="text-xs text-slate-500 mt-1">
+                Create deep-tech courses, upload modules &amp; lessons, manage drafts, and submit for review to launch live.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <ThemeToggle variant="pill" />
-
             <button
               type="button"
               onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 bg-primary text-on-primary font-bold text-xs px-5 py-3 rounded-2xl hover:bg-primary/90 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
+              className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md shadow-violet-600/20 transition-all cursor-pointer shrink-0"
             >
               <Icon name="add_circle" size={18} />
               <span>+ Create Course</span>
@@ -385,24 +412,137 @@ export default function InstructorDashboardPage() {
           </div>
         </div>
 
+        {/* Dedicated Students View when sidebar tab=students */}
+        {sidebarTab === 'students' && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Student Enrollments by Course ({totalStudents} Total Learners)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Breakdown of active student enrollments and gross revenue across your published courses
+                </p>
+              </div>
+            </div>
+
+            {courses.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-500">
+                No courses created yet. Click &quot;+ Create Course&quot; above to launch your first course.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-3 px-3 font-bold">Course Title</th>
+                      <th className="py-3 px-3 font-bold">Category</th>
+                      <th className="py-3 px-3 font-bold">Status</th>
+                      <th className="py-3 px-3 font-bold">Course Fee</th>
+                      <th className="py-3 px-3 font-bold">Enrolled Students</th>
+                      <th className="py-3 px-3 font-bold">Gross Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {courses.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-3 font-bold text-slate-900">{c.title}</td>
+                        <td className="py-3 px-3 text-slate-600">{c.category || 'Engineering'}</td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              c.status === 'PUBLISHED'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                          >
+                            {c.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-700">
+                          ₹{Number(c.price || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-3 font-extrabold text-violet-700">
+                          {c.studentsCount || 0} Learners
+                        </td>
+                        <td className="py-3 px-3 font-mono font-bold text-emerald-700">
+                          ₹{(Number(c.price || 0) * Number(c.studentsCount || 0)).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dedicated Notifications View when sidebar tab=notifications */}
+        {sidebarTab === 'notifications' && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <h3 className="text-base font-extrabold text-slate-900">
+              Course Review &amp; Account Notifications
+            </h3>
+            <div className="space-y-3">
+              {courses
+                .filter((c) => c.status === 'REJECTED' || c.status === 'APPROVED' || c.status === 'IN_REVIEW')
+                .map((c) => (
+                  <div
+                    key={c.id}
+                    className={`p-4 rounded-xl border text-xs flex items-start justify-between gap-4 ${
+                      c.status === 'REJECTED'
+                        ? 'bg-red-50 border-red-200 text-red-900'
+                        : c.status === 'APPROVED'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold text-sm">{c.title}</div>
+                      <p className="mt-1">
+                        {c.status === 'REJECTED'
+                          ? `Changes Requested by Auditor: "${c.reviewFeedback || 'Please update syllabus and resubmit.'}"`
+                          : c.status === 'APPROVED'
+                          ? 'Approved by Course Auditor! Ready to publish live.'
+                          : 'Currently in the Course Auditor review queue.'}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/instructor/courses/builder?courseId=${c.id}`}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-800 font-bold shrink-0 hover:bg-slate-50"
+                    >
+                      Open Course
+                    </Link>
+                  </div>
+                ))}
+              <div className="p-4 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 text-xs">
+                <div className="font-bold">Welcome to the Unified Instructor Studio</div>
+                <p className="mt-1 text-violet-700">
+                  All your courses, profile settings, bank account verification, earnings ledger, and payout requests are accessible right here from the left navigation sidebar.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Workflow Guide Alert */}
-        <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
               <Icon name="verified" size={18} />
             </div>
             <div>
-              <span className="font-bold text-indigo-950 dark:text-indigo-200">
+              <span className="font-bold text-indigo-950">
                 Course Lifecycle &amp; Revisions:
               </span>{' '}
-              <span className="text-indigo-800 dark:text-indigo-300">
-                Draft Syllabus &rarr; Submit for Review &rarr; Reviewer Evaluates &rarr; Approved &rarr; Publish Live. You can move any course back to <strong>Draft</strong> anytime to make private updates.
+              <span className="text-indigo-800">
+                Draft Syllabus &rarr; Submit for Review &rarr; Auditor Evaluates &rarr; Approved &rarr; Publish Live. You can move any course back to <strong>Draft</strong> anytime to make private updates.
               </span>
             </div>
           </div>
           <Link
             href="/instructor/courses/builder"
-            className="text-primary font-bold hover:underline shrink-0"
+            className="text-indigo-700 font-bold hover:underline shrink-0"
           >
             Launch Builder &rarr;
           </Link>
@@ -410,53 +550,53 @@ export default function InstructorDashboardPage() {
 
         {/* Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs text-on-surface-variant font-bold">Authored Courses</p>
-              <h3 className="text-2xl font-black text-on-surface mt-1">{courses.length}</h3>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">
+              <p className="text-xs text-slate-500 font-bold">Authored Courses</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{courses.length}</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 {publishedCount} Live &bull; {inReviewCount} In Review &bull; {draftCount} Drafts
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 border border-violet-100 flex items-center justify-center">
               <Icon name="menu_book" size={24} />
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs text-on-surface-variant font-bold">Total Active Learners</p>
-              <h3 className="text-2xl font-black text-on-surface mt-1">{totalStudents}</h3>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">Across all live published courses</p>
+              <p className="text-xs text-slate-500 font-bold">Total Active Learners</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{totalStudents}</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Across all live published courses</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-700 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
               <Icon name="groups" size={24} />
             </div>
           </div>
 
-          <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs text-on-surface-variant font-bold">Catalog Value</p>
-              <h3 className="text-2xl font-black text-emerald-700 font-mono mt-1">
+              <p className="text-xs text-slate-500 font-bold">Catalog Value</p>
+              <h3 className="text-2xl font-black text-emerald-600 font-mono mt-1">
                 ₹{totalRevenue.toLocaleString('en-IN')}
               </h3>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">Gross enrollment value</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Gross enrollment value</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
               <Icon name="payments" size={24} />
             </div>
           </div>
         </div>
 
         {/* Courses Table / Cards Container */}
-        <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-3xl p-6 shadow-sm space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
           {/* Header with Title and Search */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-on-surface">
+              <h2 className="text-lg font-black text-slate-900">
                 {activeTab === 'CATALOG' ? 'Academy Course Catalog' : 'Your Authored Masterclasses'}
               </h2>
-              <p className="text-xs text-on-surface-variant">
+              <p className="text-xs text-slate-500">
                 {activeTab === 'CATALOG'
                   ? 'Browse all live published courses available across Morena Teach'
                   : 'Manage syllabus, publish live, move to draft, or delete your courses'}
@@ -468,20 +608,20 @@ export default function InstructorDashboardPage() {
               <Icon
                 name="search"
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search courses by title or topic..."
-                className="w-full bg-surface-container-low border border-outline-variant rounded-xl pl-9 pr-8 py-2 text-xs text-on-surface focus:outline-none focus:border-primary"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                 >
                   <Icon name="close" size={14} />
                 </button>
@@ -490,14 +630,14 @@ export default function InstructorDashboardPage() {
           </div>
 
           {/* Navigation Filter Tabs */}
-          <div className="flex items-center gap-2 border-b border-outline-variant/70 pb-3 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setActiveTab('ALL')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'ALL'
-                  ? 'bg-primary text-on-primary shadow-xs'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  ? 'bg-violet-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
               <Icon name="dashboard" size={15} />
@@ -510,7 +650,7 @@ export default function InstructorDashboardPage() {
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'PUBLISHED'
                   ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
               <Icon name="rocket_launch" size={15} />
@@ -523,7 +663,7 @@ export default function InstructorDashboardPage() {
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'IN_REVIEW'
                   ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
               <Icon name="hourglass_top" size={15} />
@@ -535,8 +675,8 @@ export default function InstructorDashboardPage() {
               onClick={() => setActiveTab('DRAFT')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'DRAFT'
-                  ? 'bg-slate-700 text-white shadow-xs'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  ? 'bg-slate-800 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
               <Icon name="edit_note" size={15} />
@@ -550,7 +690,7 @@ export default function InstructorDashboardPage() {
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'REJECTED'
                     ? 'bg-rose-600 text-white shadow-xs'
-                    : 'bg-surface-container-low text-rose-600 hover:bg-rose-50'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
                 }`}
               >
                 <Icon name="feedback" size={15} />
@@ -558,7 +698,7 @@ export default function InstructorDashboardPage() {
               </button>
             )}
 
-            <div className="h-5 w-px bg-outline-variant mx-1" />
+            <div className="h-5 w-px bg-slate-200 mx-1" />
 
             <button
               type="button"
@@ -566,7 +706,7 @@ export default function InstructorDashboardPage() {
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'CATALOG'
                   ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
               title="Explore all courses on Morena Teach platform"
             >
@@ -578,17 +718,17 @@ export default function InstructorDashboardPage() {
           {/* Tab Content: Platform Catalog View */}
           {activeTab === 'CATALOG' ? (
             isCatalogLoading ? (
-              <div className="py-12 text-center text-on-surface-variant text-sm flex items-center justify-center gap-2">
-                <Icon name="sync" size={20} className="animate-spin text-primary" />
+              <div className="py-12 text-center text-slate-500 text-sm flex items-center justify-center gap-2">
+                <Icon name="sync" size={20} className="animate-spin text-violet-600" />
                 <span>Loading academy course catalog...</span>
               </div>
             ) : filteredCatalogCourses.length === 0 ? (
               <div className="py-12 text-center space-y-3">
-                <p className="text-sm font-bold text-on-surface">No courses found matching your search</p>
+                <p className="text-sm font-bold text-slate-900">No courses found matching your search</p>
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="text-xs text-primary font-bold hover:underline"
+                  className="text-xs text-violet-600 font-bold hover:underline"
                 >
                   Clear search filter
                 </button>
@@ -598,11 +738,11 @@ export default function InstructorDashboardPage() {
                 {filteredCatalogCourses.map((c) => (
                   <div
                     key={c.id}
-                    className="bg-surface-container-low/60 border border-outline-variant/70 rounded-2xl p-5 flex flex-col justify-between hover:border-primary/50 transition-all"
+                    className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:border-violet-400 hover:bg-white transition-all shadow-2xs"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20 text-[10px] font-bold">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
                           Live on Platform
                         </span>
                         <span className="font-mono text-sm font-black text-emerald-600">
@@ -610,13 +750,13 @@ export default function InstructorDashboardPage() {
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-sm text-on-surface line-clamp-2">{c.title}</h3>
-                      <p className="text-xs text-on-surface-variant line-clamp-2">
+                      <h3 className="font-bold text-sm text-slate-900 line-clamp-2">{c.title}</h3>
+                      <p className="text-xs text-slate-500 line-clamp-2">
                         {c.category || 'General'} &bull; {c.level}
                       </p>
 
                       {c.instructor && (
-                        <div className="flex items-center gap-2 pt-1 text-xs text-on-surface-variant">
+                        <div className="flex items-center gap-2 pt-1 text-xs text-slate-600">
                           <UserAvatar
                             avatar={c.instructor.avatar}
                             name={c.instructor.name || 'Instructor'}
@@ -628,14 +768,14 @@ export default function InstructorDashboardPage() {
                       )}
                     </div>
 
-                    <div className="pt-4 mt-4 border-t border-outline-variant/60 flex items-center justify-between">
-                      <span className="text-xs text-on-surface-variant font-mono">
+                    <div className="pt-4 mt-4 border-t border-slate-200 flex items-center justify-between">
+                      <span className="text-xs text-slate-600 font-mono">
                         ⭐ {c.rating || 5.0}
                       </span>
                       <Link
                         href={`/courses/${c.slug || c.id}`}
                         target="_blank"
-                        className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
+                        className="text-xs font-bold text-violet-600 hover:underline inline-flex items-center gap-1"
                       >
                         <span>View Course Page</span>
                         <Icon name="open_in_new" size={13} />
@@ -645,19 +785,18 @@ export default function InstructorDashboardPage() {
                 ))}
               </div>
             )
-          ) : /* Authored Courses Views */
-          isLoading ? (
-            <div className="py-12 text-center text-on-surface-variant text-sm flex items-center justify-center gap-2">
-              <Icon name="sync" size={20} className="animate-spin text-primary" />
+          ) : isLoading ? (
+            <div className="py-12 text-center text-slate-500 text-sm flex items-center justify-center gap-2">
+              <Icon name="sync" size={20} className="animate-spin text-violet-600" />
               <span>Loading authored courses...</span>
             </div>
           ) : filteredAuthoredCourses.length === 0 ? (
             <div className="py-16 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 rounded-full bg-violet-50 text-violet-600 border border-violet-100 flex items-center justify-center mx-auto">
                 <Icon name="school" size={32} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-on-surface">
+                <h3 className="text-base font-bold text-slate-900">
                   {searchQuery
                     ? 'No courses match your search'
                     : activeTab === 'PUBLISHED'
@@ -670,7 +809,7 @@ export default function InstructorDashboardPage() {
                     ? 'No courses pending revision'
                     : 'No courses authored yet'}
                 </h3>
-                <p className="text-xs text-on-surface-variant mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   {searchQuery
                     ? 'Try searching for another keyword or clear the search filter.'
                     : 'Create your syllabus, configure lesson videos, and submit for review.'}
@@ -681,7 +820,7 @@ export default function InstructorDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="px-4 py-2 bg-surface-container border border-outline-variant text-xs font-bold rounded-xl hover:bg-surface-container-high cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 cursor-pointer"
                 >
                   Clear Search
                 </button>
@@ -689,7 +828,7 @@ export default function InstructorDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary/90 shadow-sm cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white font-bold text-xs rounded-xl hover:bg-violet-500 shadow-sm cursor-pointer"
                 >
                   <Icon name="add_circle" size={16} />
                   <span>Create New Masterclass</span>
@@ -709,7 +848,7 @@ export default function InstructorDashboardPage() {
                 return (
                   <div
                     key={course.id}
-                    className="bg-surface-container-low/60 border border-outline-variant/70 hover:border-primary/50 rounded-2xl p-5 flex flex-col justify-between transition-all group"
+                    className="bg-slate-50 border border-slate-200 hover:border-violet-400 hover:bg-white rounded-2xl p-5 flex flex-col justify-between transition-all group shadow-2xs"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2">
@@ -717,14 +856,14 @@ export default function InstructorDashboardPage() {
                         <span
                           className={`px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
                             isPublished
-                              ? 'bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : isApproved
-                              ? 'bg-blue-500/10 text-blue-700 ring-1 ring-blue-500/30'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
                               : isUnderReview
-                              ? 'bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/30'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : isRejected
-                              ? 'bg-rose-500/10 text-rose-700 ring-1 ring-rose-500/30'
-                              : 'bg-slate-500/10 text-slate-700 ring-1 ring-slate-500/20'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-slate-200/70 text-slate-700 border border-slate-300'
                           }`}
                         >
                           {isUnderReview && (
@@ -733,7 +872,7 @@ export default function InstructorDashboardPage() {
                           {isPublished
                             ? 'Live on Landing Page'
                             : isApproved
-                            ? 'Approved by Reviewer ✅'
+                            ? 'Approved by Auditor ✅'
                             : isUnderReview
                             ? 'Under Review'
                             : isRejected
@@ -746,44 +885,44 @@ export default function InstructorDashboardPage() {
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-sm text-on-surface group-hover:text-primary transition-colors line-clamp-2">
+                      <h3 className="font-bold text-sm text-slate-900 group-hover:text-violet-600 transition-colors line-clamp-2">
                         {course.title}
                       </h3>
 
                       {isUnderReview && (
-                        <p className="text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2.5 rounded-xl border border-amber-200/50">
-                          ⏳ Under evaluation by the Course Review Studio. You will be notified once reviewed.
+                        <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                          ⏳ Under evaluation by the Course Auditor Studio. You will be notified once reviewed.
                         </p>
                       )}
 
                       {isApproved && (
-                        <p className="text-[11px] text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 p-2.5 rounded-xl border border-emerald-200/50 font-medium">
-                          🎉 Review Studio approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
+                        <p className="text-[11px] text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 font-medium">
+                          🎉 Auditor Studio approved this course! Click &quot;Publish Live&quot; below to launch it on the website.
                         </p>
                       )}
 
                       {isRejected && (
-                        <div className="space-y-1.5 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/60 text-[11px] text-rose-700 dark:text-rose-300">
-                          <div className="font-bold flex items-center gap-1 text-rose-600">
+                        <div className="space-y-1.5 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                          <div className="font-bold flex items-center gap-1 text-rose-700">
                             <Icon name="feedback" size={14} />
-                            Reviewer Feedback:
+                            Auditor Feedback:
                           </div>
                           {course.reviewFeedback ? (
-                            <p className="bg-white/70 dark:bg-rose-900/30 p-2 rounded-lg border border-rose-300/40 italic">
+                            <p className="bg-white p-2 rounded-lg border border-rose-200 italic">
                               &quot;{course.reviewFeedback}&quot;
                             </p>
                           ) : (
                             <p>Changes requested. Please update your syllabus and resubmit.</p>
                           )}
-                          <p className="text-[10px] text-rose-500">
-                            Click &quot;Edit Syllabus&quot; below to address this feedback and resubmit.
+                          <p className="text-[10px] text-rose-600">
+                            Click &quot;Edit&quot; below to address this feedback and resubmit.
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <div className="pt-4 mt-4 border-t border-outline-variant/60 flex flex-col gap-3">
-                      <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
+                    <div className="pt-4 mt-4 border-t border-slate-200 flex flex-col gap-3">
+                      <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Icon name="person" size={14} />
                           <span>{course.studentsCount || 0} enrolled</span>
@@ -799,7 +938,7 @@ export default function InstructorDashboardPage() {
                           {/* Edit Syllabus */}
                           <Link
                             href={`/instructor/courses/builder?courseId=${course.id}`}
-                            className="text-xs font-bold text-on-surface hover:text-primary border border-outline-variant px-2.5 py-1.5 rounded-xl hover:bg-surface-container transition-colors inline-flex items-center gap-1"
+                            className="text-xs font-bold text-slate-700 hover:text-violet-700 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
                             title="Edit curriculum, lectures, and settings"
                           >
                             <Icon name="edit" size={13} />
@@ -829,7 +968,7 @@ export default function InstructorDashboardPage() {
                               type="button"
                               disabled={isBusy}
                               onClick={() => handleSubmitForApproval(course.id, course.slug)}
-                              className="text-xs font-bold bg-primary text-on-primary hover:bg-primary/90 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              className="text-xs font-bold bg-violet-600 text-white hover:bg-violet-500 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
                             >
                               {isBusy ? (
                                 <Icon name="sync" size={13} className="animate-spin" />
@@ -840,13 +979,13 @@ export default function InstructorDashboardPage() {
                             </button>
                           )}
 
-                          {/* Move to Draft Option (for Published, In Review, or Approved) */}
+                          {/* Move to Draft Option */}
                           {(isPublished || isUnderReview || isApproved) && (
                             <button
                               type="button"
                               disabled={isBusy}
                               onClick={() => handleMoveToDraft(course)}
-                              className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
                               title="Unpublish / Move course back to draft for private revisions"
                             >
                               {isBusy ? (
@@ -863,7 +1002,7 @@ export default function InstructorDashboardPage() {
                             <Link
                               href={`/courses/${course.slug || course.id}`}
                               target="_blank"
-                              className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 px-1"
+                              className="text-xs font-bold text-violet-600 hover:underline inline-flex items-center gap-1 px-1"
                               title="Open public course page"
                             >
                               <Icon name="open_in_new" size={13} />
@@ -871,12 +1010,12 @@ export default function InstructorDashboardPage() {
                           )}
                         </div>
 
-                        {/* Delete Course Button (Opens Confirmation Modal) */}
+                        {/* Delete Course Button */}
                         <button
                           type="button"
                           disabled={isBusy}
                           onClick={() => handleOpenDeleteModal(course)}
-                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 p-1.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
                           title="Delete Course Permanently"
                         >
                           <Icon name="delete" size={16} />
@@ -889,7 +1028,7 @@ export default function InstructorDashboardPage() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Delete Course Confirmation Modal */}
       <Modal
@@ -905,26 +1044,26 @@ export default function InstructorDashboardPage() {
         subtitle="This action cannot be undone"
       >
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 flex items-start gap-3">
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
               <Icon name="warning" size={22} />
             </div>
             <div className="space-y-1">
-              <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200">
+              <h4 className="text-sm font-bold text-rose-900">
                 Are you sure you want to delete this course?
               </h4>
-              <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
-                You are about to delete <strong className="font-semibold text-rose-950 dark:text-white">&quot;{courseToDelete?.title}&quot;</strong>.
+              <p className="text-xs text-rose-700 leading-relaxed">
+                You are about to delete <strong className="font-semibold text-rose-950">&quot;{courseToDelete?.title}&quot;</strong>.
                 All curriculum sections, video lessons, and resources associated with this course will be permanently removed.
               </p>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 text-xs text-amber-800 dark:text-amber-200">
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
             💡 <strong>Helpful Tip:</strong> If you only want to take this course down to make revisions or updates, click <strong>Cancel</strong> and use <strong>&quot;Move to Draft&quot;</strong> instead!
           </div>
 
-          <div className="pt-3 border-t border-outline-variant/60 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
             <button
               type="button"
               disabled={isDeleting}
@@ -932,7 +1071,7 @@ export default function InstructorDashboardPage() {
                 setIsDeleteModalOpen(false);
                 setCourseToDelete(null);
               }}
-              className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
@@ -968,57 +1107,57 @@ export default function InstructorDashboardPage() {
       >
         <form onSubmit={handleCreateCourse} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-on-surface mb-1.5">Course Title *</label>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">Course Title *</label>
             <input
               type="text"
               required
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="e.g. Distributed Systems Architecture & Raft Consensus"
-              className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Fee / Price (₹ INR) *</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Fee / Price (₹ INR) *</label>
               <input
                 type="number"
                 required
                 min="0"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Category *</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Category *</label>
               <select
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
               >
                 <option value="Engineering">Engineering</option>
                 <option value="AI & Machine Learning">AI & Machine Learning</option>
                 <option value="System Design">System Design</option>
                 <option value="Cloud Architecture">Cloud Architecture</option>
-                <option value="Security">Security & Cryptography</option>
+                <option value="Security">Security &amp; Cryptography</option>
               </select>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-outline-variant/60 flex justify-end gap-2">
+          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary/90 shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2.5 bg-violet-600 text-white font-bold text-xs rounded-xl hover:bg-violet-500 shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
@@ -1026,12 +1165,26 @@ export default function InstructorDashboardPage() {
                   <span>Creating...</span>
                 </>
               ) : (
-                <span>Initialize & Open Studio</span>
+                <span>Initialize &amp; Open Studio</span>
               )}
             </button>
           </div>
         </form>
       </Modal>
-    </div>
+    </InstructorPortalShell>
+  );
+}
+
+export default function InstructorDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center text-xs font-semibold">
+          Loading Instructor Course Studio...
+        </div>
+      }
+    >
+      <InstructorCoursesStudioInner />
+    </Suspense>
   );
 }
