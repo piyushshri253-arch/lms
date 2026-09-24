@@ -66,9 +66,9 @@ function InstructorCoursesStudioInner() {
 
   useEffect(() => {
     if (createParam === '1') {
-      setIsCreateOpen(true);
+      router.replace('/instructor/courses/builder');
     }
-  }, [createParam]);
+  }, [createParam, router]);
 
   // Fetch Authored Courses
   const fetchInstructorCourses = async () => {
@@ -401,14 +401,13 @@ function InstructorCoursesStudioInner() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(true)}
+            <Link
+              href="/instructor/courses/builder"
               className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md shadow-violet-600/20 transition-all cursor-pointer shrink-0"
             >
               <Icon name="add_circle" size={18} />
               <span>+ Create Course</span>
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -825,14 +824,13 @@ function InstructorCoursesStudioInner() {
                   Clear Search
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(true)}
+                <Link
+                  href="/instructor/courses/builder"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white font-bold text-xs rounded-xl hover:bg-violet-500 shadow-sm cursor-pointer"
                 >
                   <Icon name="add_circle" size={16} />
                   <span>Create New Masterclass</span>
-                </button>
+                </Link>
               )}
             </div>
           ) : (
