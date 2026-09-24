@@ -276,7 +276,16 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
       }
     });
 
-    if (!dbUser || dbUser.isSuspended || dbUser.status === 'SUSPENDED') {
+    if (
+      !dbUser ||
+      dbUser.isSuspended ||
+      dbUser.status === 'SUSPENDED' ||
+      dbUser.status === 'INACTIVE' ||
+      dbUser.status === 'DISABLED' ||
+      dbUser.status === 'REJECTED' ||
+      dbUser.status === 'PENDING_VERIFICATION' ||
+      ((dbUser.role === 'INSTRUCTOR' || dbUser.role === 'REVIEWER') && dbUser.emailVerified === false)
+    ) {
       return null;
     }
 
@@ -393,7 +402,16 @@ export async function getReviewerCurrentUser(): Promise<AuthSessionUser | null> 
       }
     });
 
-    if (!dbUser || dbUser.isSuspended || dbUser.status === 'SUSPENDED') {
+    if (
+      !dbUser ||
+      dbUser.isSuspended ||
+      dbUser.status === 'SUSPENDED' ||
+      dbUser.status === 'INACTIVE' ||
+      dbUser.status === 'DISABLED' ||
+      dbUser.status === 'REJECTED' ||
+      dbUser.status === 'PENDING_VERIFICATION' ||
+      (dbUser.role === 'REVIEWER' && dbUser.emailVerified === false)
+    ) {
       return null;
     }
 

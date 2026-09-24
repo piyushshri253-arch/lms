@@ -154,6 +154,15 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    if (session.emailVerified === false) {
+      return NextResponse.redirect(
+        new URL(
+          `/verify-email?email=${encodeURIComponent(session.email || '')}&role=REVIEWER`,
+          request.url
+        )
+      );
+    }
+
     return createSecureResponse(
       NextResponse.next({
         request: { headers: requestHeaders }
@@ -187,12 +196,16 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    if (role === 'INSTRUCTOR') {
+      return NextResponse.redirect(new URL('/instructor/dashboard', request.url));
+    }
+
     if (role === 'REVIEWER') {
       return NextResponse.redirect(new URL('/reviewer', request.url));
     }
 
-    // C. Enforce authorized admin roles (SUPER_ADMIN, ADMIN, LMS_ADMIN, SALES_ADMIN, INSTRUCTOR)
-    if (!isAuthorizedAdminRole(role) && role !== 'INSTRUCTOR') {
+    // C. Enforce authorized admin roles strictly (SUPER_ADMIN, ADMIN, LMS_ADMIN, SALES_ADMIN)
+    if (!isAuthorizedAdminRole(role)) {
       return NextResponse.redirect(
         new URL(
           '/admin/login?error=' +
@@ -211,9 +224,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // -------------------------------------------------------------------------
-  // 3. ADMIN API PROTECTION (/api/admin and /api/admin/*)
+  // 3. ADMIN & SUPER-ADMIN API PROTECTION (/api/admin/* and /api/super-admin/*)
   // -------------------------------------------------------------------------
-  if (pathname.startsWith('/api/admin')) {
+  if (pathname.startsWith('/api/admin') || pathname.startsWith('/api/super-admin')) {
     const adminSession = lmsSession || salesSession;
     if (!adminSession) {
       return NextResponse.json(
@@ -225,6 +238,36 @@ export async function middleware(request: NextRequest) {
     if (!isAuthorizedAdminRole(adminSession.role)) {
       return NextResponse.json(
         { error: 'Access denied: Insufficient administrative privileges.' },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.next({
+      request: { headers: requestHeaders }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // 3.2. INSTRUCTOR API PROTECTION (/api/instructor/*)
+  // -------------------------------------------------------------------------
+  if (pathname.startsWith('/api/instructor')) {
+    if (!isLmsValid || !lmsSession) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please log into your Instructor account.' },
+        { status: 401 }
+      );
+    }
+
+    if (lmsSession.emailVerified === false) {
+      return NextResponse.json(
+        { error: 'Email OTP verification required before accessing Instructor APIs.' },
+        { status: 403 }
+      );
+    }
+
+    if (lmsSession.role !== 'INSTRUCTOR' && !isAuthorizedAdminRole(lmsSession.role)) {
+      return NextResponse.json(
+        { error: 'Forbidden: Instructor privileges required.' },
         { status: 403 }
       );
     }
@@ -247,6 +290,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json(
         { error: 'Authentication required. Please log into a Course Reviewer account.' },
         { status: 401 }
+      );
+    }
+
+    if (activeReviewer.emailVerified === false) {
+      return NextResponse.json(
+        { error: 'Email OTP verification required before accessing Auditor APIs.' },
+        { status: 403 }
       );
     }
 
@@ -502,6 +552,8 @@ export const config = {
     '/admin',
     '/admin/:path*',
     '/api/admin/:path*',
+    '/api/super-admin/:path*',
+    '/api/instructor/:path*',
     '/reviewer',
     '/reviewer/:path*',
     '/api/reviewer/:path*',

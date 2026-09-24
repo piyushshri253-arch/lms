@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashToken, logSecurityEvent } from '@/lib/security';
+import { hashToken, logSecurityEvent, checkRateLimit } from '@/lib/security';
 import {
   setSessionCookie,
   clearSessionCookie,
@@ -25,6 +25,26 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
     const cleanOtp = otp.toString().trim();
+
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid 6-digit numeric OTP code.' },
+        { status: 400 }
+      );
+    }
+
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const rateLimit = checkRateLimit(`verify_otp_${normalizedEmail}_${ip}`, 8, 900);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Too many verification attempts. Please wait ${Math.ceil(
+            rateLimit.retryAfterSeconds / 60
+          )} minutes before trying again.`
+        },
+        { status: 429 }
+      );
+    }
 
     // 1. Find user by email
     const user = await prisma.user.findFirst({
