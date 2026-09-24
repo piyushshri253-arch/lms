@@ -11,8 +11,9 @@ export default function SuperAdminInstructorsPage() {
   const { showToast } = useApp();
   const [instructors, setInstructors] = useState<any[]>([]);
   const [auditors, setAuditors] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'INSTRUCTORS' | 'AUDITORS'>('INSTRUCTORS');
+  const [activeTab, setActiveTab] = useState<'INSTRUCTORS' | 'AUDITORS' | 'BANK_APPROVALS'>('INSTRUCTORS');
   const [isLoading, setIsLoading] = useState(true);
+  const [bankActionLoading, setBankActionLoading] = useState<string | null>(null);
 
   // Create Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -232,6 +233,57 @@ export default function SuperAdminInstructorsPage() {
     }
   };
 
+  const handleBankDecision = async (
+    userId: string,
+    instructorName: string,
+    actionType: 'VERIFY_BANK' | 'REJECT_BANK'
+  ) => {
+    let reason = '';
+    if (actionType === 'REJECT_BANK') {
+      const input = window.prompt(
+        `Enter reason for rejecting ${instructorName}'s bank account:`
+      );
+      if (!input || !input.trim()) return;
+      reason = input.trim();
+    }
+
+    setBankActionLoading(userId);
+    try {
+      const res = await fetch('/api/super-admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: actionType,
+          userId,
+          reason
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update bank status');
+
+      showToast({
+        title:
+          actionType === 'VERIFY_BANK'
+            ? 'Bank Account Approved & Verified! ✅'
+            : 'Bank Account Rejected',
+        description: data.message,
+        type: actionType === 'VERIFY_BANK' ? 'success' : 'info'
+      });
+      await fetchInstructors();
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setBankActionLoading(null);
+    }
+  };
+
+  const pendingBankInstructors = instructors.filter(
+    (inst) => inst.bankAccount?.status === 'PENDING_VERIFICATION'
+  );
+  const submittedBankInstructors = instructors.filter(
+    (inst) => inst.bankAccount && inst.bankAccount.status !== 'NOT_ADDED'
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
@@ -245,10 +297,10 @@ export default function SuperAdminInstructorsPage() {
             <span className="text-primary font-bold">Faculty &amp; Course Auditors</span>
           </div>
           <h1 className="text-2xl font-black text-on-surface tracking-tight">
-            Faculty Instructors &amp; Course Auditors Governance
+            Faculty Instructors, Bank Approvals &amp; Course Auditors
           </h1>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Appoint verified instructors and course auditors with automated email OTP verification
+            Appoint verified instructors and auditors, and approve Instructor Bank Accounts for payouts
           </p>
         </div>
 
@@ -270,8 +322,132 @@ export default function SuperAdminInstructorsPage() {
         </div>
       </div>
 
+      {/* PROMINENT TOP PENDING BANK VERIFICATIONS BANNER */}
+      {pendingBankInstructors.length > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Icon name="account_balance" size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-black text-slate-900">
+                    Pending Instructor Bank Account Verification ({pendingBankInstructors.length})
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-200 text-amber-900">
+                    Awaiting Approval
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Review submitted IFSC, Account Number, Account Holder Name, and PAN below and click Approve to enable payouts.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('BANK_APPROVALS')}
+              className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold cursor-pointer transition-all self-start sm:self-auto"
+            >
+              View All Bank Submissions ({submittedBankInstructors.length})
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingBankInstructors.map((inst) => (
+              <div
+                key={inst.id}
+                className="bg-white rounded-2xl border border-amber-200 p-4 shadow-2xs flex flex-col justify-between gap-3"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <UserAvatar
+                        avatar={inst.avatar}
+                        name={inst.name}
+                        size="md"
+                        shape="rounded"
+                        className="w-10 h-10 border border-amber-300"
+                      />
+                      <div>
+                        <p className="font-extrabold text-sm text-slate-900">{inst.name}</p>
+                        <p className="text-[11px] text-slate-500 font-mono">{inst.email}</p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300">
+                      PENDING ADMIN VERIFICATION
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Bank Name
+                      </span>
+                      <span className="font-extrabold text-slate-900">
+                        {inst.bankAccount.bankName}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Account Number
+                      </span>
+                      <span className="font-mono font-extrabold text-slate-900">
+                        {inst.bankAccount.accountNumber || inst.bankAccount.accountNumberMasked}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        IFSC &amp; Branch
+                      </span>
+                      <span className="font-mono font-bold text-indigo-700">
+                        {inst.bankAccount.ifscCode}{' '}
+                        {inst.bankAccount.branchName ? `• ${inst.bankAccount.branchName}` : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Account Holder &amp; PAN
+                      </span>
+                      <span className="font-bold text-slate-800">
+                        {inst.bankAccount.accountHolderName}{' '}
+                        {inst.bankAccount.panNumber ? `(${inst.bankAccount.panNumber})` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={bankActionLoading === inst.id}
+                    onClick={() => handleBankDecision(inst.id, inst.name, 'REJECT_BANK')}
+                    className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    ✕ Reject
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bankActionLoading === inst.id}
+                    onClick={() => handleBankDecision(inst.id, inst.name, 'VERIFY_BANK')}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Icon name="verified" size={15} />
+                    <span>
+                      {bankActionLoading === inst.id
+                        ? 'Approving...'
+                        : '✓ Approve & Verify Bank Account'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-outline-variant/40 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-outline-variant/40 pb-3">
         <button
           type="button"
           onClick={() => setActiveTab('INSTRUCTORS')}
@@ -283,6 +459,23 @@ export default function SuperAdminInstructorsPage() {
         >
           <Icon name="school" size={16} />
           <span>Faculty Instructors ({instructors.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('BANK_APPROVALS')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'BANK_APPROVALS'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'bg-surface-container-lowest border border-outline-variant/60 text-outline hover:text-on-surface'
+          }`}
+        >
+          <Icon name="account_balance" size={16} />
+          <span>Bank &amp; Payout Approvals ({submittedBankInstructors.length})</span>
+          {pendingBankInstructors.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white">
+              {pendingBankInstructors.length} Pending
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -379,6 +572,90 @@ export default function SuperAdminInstructorsPage() {
                     <span className="font-bold text-amber-700">★ {inst.avgRating}</span>
                   </div>
                 </div>
+
+                {/* BANK ACCOUNT DETAILS & APPROVAL BOX ON EVERY INSTRUCTOR CARD */}
+                {inst.bankAccount && inst.bankAccount.status !== 'NOT_ADDED' ? (
+                  <div
+                    className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
+                      inst.bankAccount.status === 'VERIFIED'
+                        ? 'bg-emerald-50/70 border-emerald-200'
+                        : inst.bankAccount.status === 'PENDING_VERIFICATION'
+                        ? 'bg-amber-50 border-amber-300'
+                        : 'bg-rose-50/70 border-rose-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-extrabold text-slate-900 flex items-center gap-1">
+                        <Icon name="account_balance" size={14} className="text-indigo-600" />
+                        {inst.bankAccount.bankName}
+                      </span>
+                      <span
+                        className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                          inst.bankAccount.status === 'VERIFIED'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : inst.bankAccount.status === 'PENDING_VERIFICATION'
+                            ? 'bg-amber-200 text-amber-900 border border-amber-400'
+                            : 'bg-rose-100 text-rose-800 border border-rose-300'
+                        }`}
+                      >
+                        {inst.bankAccount.status === 'PENDING_VERIFICATION'
+                          ? 'PENDING APPROVAL'
+                          : inst.bankAccount.status}
+                      </span>
+                    </div>
+
+                    <div className="font-mono text-[11px] text-slate-700 space-y-0.5">
+                      <div>
+                        Acct:{' '}
+                        <strong className="text-slate-900">
+                          {inst.bankAccount.accountNumber || inst.bankAccount.accountNumberMasked}
+                        </strong>{' '}
+                        • IFSC: <strong className="text-indigo-700">{inst.bankAccount.ifscCode}</strong>
+                      </div>
+                      <div>
+                        Holder: <strong>{inst.bankAccount.accountHolderName}</strong>
+                        {inst.bankAccount.panNumber ? ` • PAN: ${inst.bankAccount.panNumber}` : ''}
+                      </div>
+                    </div>
+
+                    {inst.bankAccount.status !== 'VERIFIED' ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={bankActionLoading === inst.id}
+                          onClick={() => handleBankDecision(inst.id, inst.name, 'VERIFY_BANK')}
+                          className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {bankActionLoading === inst.id ? 'Approving...' : '✓ Approve Bank'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={bankActionLoading === inst.id}
+                          onClick={() => handleBankDecision(inst.id, inst.name, 'REJECT_BANK')}
+                          className="py-1.5 px-3 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 font-extrabold text-[11px] transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between pt-1 text-[10px] text-emerald-800 font-semibold">
+                        <span>✓ Approved for Payouts</span>
+                        <button
+                          type="button"
+                          onClick={() => handleBankDecision(inst.id, inst.name, 'REJECT_BANK')}
+                          className="text-rose-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 flex items-center justify-between">
+                    <span>Bank Account:</span>
+                    <span className="font-mono font-semibold text-slate-400">Not Submitted Yet</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-outline-variant/40 flex items-center justify-between">
@@ -413,6 +690,135 @@ export default function SuperAdminInstructorsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : activeTab === 'BANK_APPROVALS' ? (
+        /* Dedicated Bank & Payout Approvals Tab */
+        <div className="space-y-4">
+          {submittedBankInstructors.length === 0 ? (
+            <div className="bg-surface-container-lowest p-12 rounded-3xl border border-outline-variant/80 text-center space-y-3">
+              <Icon name="account_balance" size={40} className="mx-auto text-amber-500" />
+              <h3 className="text-sm font-extrabold text-on-surface">
+                No Instructor Bank Accounts Submitted Yet
+              </h3>
+              <p className="text-xs text-outline">
+                When an Instructor submits their bank account in /instructor/bank-details, it will appear here for 1-click verification.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {submittedBankInstructors.map((inst) => (
+                <div
+                  key={inst.id}
+                  className="bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/80 shadow-xs space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar
+                        avatar={inst.avatar}
+                        name={inst.name}
+                        size="lg"
+                        shape="rounded"
+                        className="w-12 h-12 border border-outline-variant"
+                      />
+                      <div>
+                        <h3 className="font-extrabold text-base text-on-surface">{inst.name}</h3>
+                        <p className="text-xs text-outline font-mono">{inst.email}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                        inst.bankAccount.status === 'VERIFIED'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : inst.bankAccount.status === 'PENDING_VERIFICATION'
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-rose-100 text-rose-800 border border-rose-300'
+                      }`}
+                    >
+                      {inst.bankAccount.status}
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Bank Name
+                      </span>
+                      <span className="font-extrabold text-slate-900">
+                        {inst.bankAccount.bankName}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Full Account Number
+                      </span>
+                      <span className="font-mono font-extrabold text-slate-900">
+                        {inst.bankAccount.accountNumber || inst.bankAccount.accountNumberMasked}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        IFSC Code &amp; Branch
+                      </span>
+                      <span className="font-mono font-bold text-indigo-700">
+                        {inst.bankAccount.ifscCode}{' '}
+                        {inst.bankAccount.branchName ? `• ${inst.bankAccount.branchName}` : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Account Holder Name
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {inst.bankAccount.accountHolderName}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        PAN Number
+                      </span>
+                      <span className="font-mono font-bold text-slate-800">
+                        {inst.bankAccount.panNumber || '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        UPI ID / Account Type
+                      </span>
+                      <span className="font-mono font-bold text-slate-800">
+                        {inst.bankAccount.upiId || inst.bankAccount.accountType || 'SAVINGS'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      disabled={bankActionLoading === inst.id}
+                      onClick={() => handleBankDecision(inst.id, inst.name, 'REJECT_BANK')}
+                      className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      ✕ Reject Bank Account
+                    </button>
+                    {inst.bankAccount.status !== 'VERIFIED' && (
+                      <button
+                        type="button"
+                        disabled={bankActionLoading === inst.id}
+                        onClick={() => handleBankDecision(inst.id, inst.name, 'VERIFY_BANK')}
+                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <Icon name="verified" size={15} />
+                        <span>
+                          {bankActionLoading === inst.id
+                            ? 'Approving...'
+                            : '✓ Approve & Verify Bank Account'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         /* Course Auditors Grid */

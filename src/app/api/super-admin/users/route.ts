@@ -186,35 +186,45 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. VERIFY / REJECT / DISABLE BANK ACCOUNT
-    if (action === 'VERIFY_BANK' || action === 'REJECT_BANK' || action === 'DISABLE_BANK') {
+    if (
+      action === 'VERIFY_BANK' ||
+      action === 'REJECT_BANK' ||
+      action === 'DISABLE_BANK' ||
+      action === 'VERIFY_BANK_ACCOUNT'
+    ) {
       if (!targetUser.bankAccount) {
         return NextResponse.json({ error: 'No bank account found for this instructor.' }, { status: 400 });
       }
 
-      if ((action === 'REJECT_BANK' || action === 'DISABLE_BANK') && !reason) {
-        return NextResponse.json({ error: 'Please provide a reason for rejecting or disabling the bank account.' }, { status: 400 });
+      const isVerify =
+        action === 'VERIFY_BANK' ||
+        (action === 'VERIFY_BANK_ACCOUNT' && (!status || status === 'VERIFIED'));
+      const isReject =
+        action === 'REJECT_BANK' ||
+        (action === 'VERIFY_BANK_ACCOUNT' && status === 'REJECTED');
+
+      if (!isVerify && !reason) {
+        return NextResponse.json(
+          { error: 'Please provide a reason for rejecting or disabling the bank account.' },
+          { status: 400 }
+        );
       }
 
-      const newBankStatus =
-        action === 'VERIFY_BANK'
-          ? 'VERIFIED'
-          : action === 'REJECT_BANK'
-          ? 'REJECTED'
-          : 'DISABLED';
+      const newBankStatus = isVerify ? 'VERIFIED' : isReject ? 'REJECTED' : 'DISABLED';
 
       const updatedBank = await prisma.instructorBankAccount.update({
         where: { id: targetUser.bankAccount.id },
         data: {
           status: newBankStatus,
-          rejectionReason: action === 'VERIFY_BANK' ? null : String(reason).trim(),
+          rejectionReason: isVerify ? null : String(reason).trim(),
           verifiedById: session.id,
           verifiedByName: session.name,
-          verifiedAt: action === 'VERIFY_BANK' ? new Date() : targetUser.bankAccount.verifiedAt,
-          rejectedAt: action !== 'VERIFY_BANK' ? new Date() : null
+          verifiedAt: isVerify ? new Date() : targetUser.bankAccount.verifiedAt,
+          rejectedAt: !isVerify ? new Date() : null
         }
       });
 
-      if (action === 'VERIFY_BANK') {
+      if (isVerify) {
         await EmailService.sendBankAccountVerified(
           { id: targetUser.id, name: targetUser.name, email: targetUser.email },
           {
@@ -238,14 +248,12 @@ export async function POST(req: NextRequest) {
       await prisma.notification.create({
         data: {
           userId: targetUser.id,
-          title:
-            action === 'VERIFY_BANK'
-              ? 'Bank Account Verified for Payouts!'
-              : `Bank Account ${newBankStatus}`,
-          message:
-            action === 'VERIFY_BANK'
-              ? `Your bank account (${updatedBank.bankName} ${updatedBank.accountNumberMasked}) has been verified by ${session.name}. You can now request payouts.`
-              : `Your bank account (${updatedBank.bankName} ${updatedBank.accountNumberMasked}) was marked ${newBankStatus}. Reason: ${reason}`,
+          title: isVerify
+            ? 'Bank Account Verified for Payouts!'
+            : `Bank Account ${newBankStatus}`,
+          message: isVerify
+            ? `Your bank account (${updatedBank.bankName} ${updatedBank.accountNumberMasked}) has been verified by ${session.name}. You can now request payouts.`
+            : `Your bank account (${updatedBank.bankName} ${updatedBank.accountNumberMasked}) was marked ${newBankStatus}. Reason: ${reason}`,
           type: 'ACCOUNT',
           link: '/instructor/bank-details'
         }

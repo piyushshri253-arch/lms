@@ -19,6 +19,7 @@ export const SuperAdminSidebar: React.FC = () => {
         { label: 'Tenant Organizations', href: '/super-admin/admins', icon: 'domain' },
         { label: 'Student Directory', href: '/super-admin/students', icon: 'school' },
         { label: 'Faculty & Auditors', href: '/super-admin/instructors', icon: 'groups' },
+        { label: 'Bank & Payout Approvals', href: '/super-admin/users', icon: 'account_balance' },
         { label: 'Audit Studio (QA)', href: '/reviewer', icon: 'verified' }
       ]
     },

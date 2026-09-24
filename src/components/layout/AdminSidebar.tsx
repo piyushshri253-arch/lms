@@ -81,6 +81,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       requiredPermission: 'instructor.view',
       subItems: [
         { label: 'All Instructors', href: '/admin/instructors' },
+        { label: 'Bank & Payout Approvals', href: '/admin/users' },
         { label: 'Course Auditors', href: '/admin/reviewers' },
         { label: 'Add Instructor', href: '/admin/instructors?action=create', requiredPermission: 'instructor.create' }
       ]

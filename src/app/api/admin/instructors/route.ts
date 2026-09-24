@@ -33,6 +33,10 @@ export async function GET(request: Request) {
       where,
       orderBy: { createdAt: 'desc' },
       include: {
+        bankAccount: true,
+        instructorPayouts: {
+          orderBy: { requestedAt: 'desc' }
+        },
         coursesAuthored: {
           include: {
             orders: { where: { status: 'SUCCESS' }, select: { amount: true } },
@@ -102,7 +106,26 @@ export async function GET(request: Request) {
         avgRating,
         rating: avgRating,
         courses: assignedCourses,
-        assignedCourses
+        assignedCourses,
+        bankAccount: inst.bankAccount
+          ? {
+              id: inst.bankAccount.id,
+              accountHolderName: inst.bankAccount.accountHolderName,
+              bankName: inst.bankAccount.bankName,
+              accountNumber: inst.bankAccount.accountNumber,
+              accountNumberMasked: inst.bankAccount.accountNumberMasked,
+              ifscCode: inst.bankAccount.ifscCode,
+              accountType: inst.bankAccount.accountType,
+              branchName: inst.bankAccount.branchName || '',
+              upiId: inst.bankAccount.upiId || '',
+              panNumber: inst.bankAccount.panNumber || '',
+              status: inst.bankAccount.status,
+              rejectionReason: inst.bankAccount.rejectionReason || '',
+              verifiedByName: inst.bankAccount.verifiedByName || '',
+              verifiedAt: inst.bankAccount.verifiedAt
+            }
+          : { status: 'NOT_ADDED' },
+        payouts: inst.instructorPayouts || []
       };
     });
 

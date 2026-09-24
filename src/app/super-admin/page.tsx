@@ -6,11 +6,12 @@ import { Icon } from '@/components/ui/Icon';
 import { useApp } from '@/context/AppContext';
 
 export default function SuperAdminDashboardPage() {
-  const { currentUser } = useApp();
+  const { currentUser, showToast } = useApp();
   const [overview, setOverview] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [range, setRange] = useState('30D');
   const [isLoading, setIsLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const fetchOverviewAndAnalytics = async (r: string) => {
     setIsLoading(true);
@@ -37,6 +38,42 @@ export default function SuperAdminDashboardPage() {
   useEffect(() => {
     fetchOverviewAndAnalytics(range);
   }, [range]);
+
+  const handleBankDecision = async (userId: string, actionType: 'VERIFY_BANK' | 'REJECT_BANK') => {
+    let reason = '';
+    if (actionType === 'REJECT_BANK') {
+      const input = window.prompt('Enter reason for rejecting this bank account:');
+      if (!input || !input.trim()) return;
+      reason = input.trim();
+    }
+    setActionLoadingId(userId);
+    try {
+      const res = await fetch('/api/super-admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: actionType,
+          userId,
+          reason
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Action failed');
+      showToast({
+        title: actionType === 'VERIFY_BANK' ? 'Bank Account Verified! ✅' : 'Bank Account Rejected',
+        description: data.message,
+        type: actionType === 'VERIFY_BANK' ? 'success' : 'info'
+      });
+      await fetchOverviewAndAnalytics(range);
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const pendingBanks: any[] = overview?.pendingBankAccounts || [];
+  const pendingPayouts: any[] = overview?.pendingPayouts || [];
 
   const saas = overview?.saas || {
     totalOrganizations: 0,
@@ -104,6 +141,16 @@ export default function SuperAdminDashboardPage() {
 
         <div className="flex flex-wrap items-center gap-3 relative z-10">
           <Link
+            href="/super-admin/instructors"
+            className="px-4 py-2.5 bg-amber-500 text-slate-950 hover:bg-amber-400 font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+          >
+            <Icon name="account_balance" size={16} />
+            <span>
+              Faculty &amp; Bank Approvals
+              {pendingBanks.length > 0 ? ` (${pendingBanks.length} Pending)` : ''}
+            </span>
+          </Link>
+          <Link
             href="/super-admin/students"
             className="px-4 py-2.5 bg-primary text-on-primary hover:bg-primary-container font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"
           >
@@ -119,6 +166,109 @@ export default function SuperAdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* PENDING INSTRUCTOR BANK VERIFICATIONS ALERT QUEUE */}
+      {pendingBanks.length > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Icon name="account_balance" size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-black text-slate-900">
+                    Pending Instructor Bank Account Approvals ({pendingBanks.length})
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-200 text-amber-900">
+                    Action Required
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Instructors have verified their IFSC &amp; PAN and are awaiting Super Admin / Admin approval for payouts.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/super-admin/instructors"
+              className="text-xs font-extrabold text-amber-900 hover:underline flex items-center gap-1"
+            >
+              <span>Manage All in Faculty &amp; Bank Approvals</span>
+              <Icon name="arrow_forward" size={15} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingBanks.map((b: any) => (
+              <div
+                key={b.id}
+                className="bg-white rounded-2xl border border-amber-200 p-4 shadow-2xs flex flex-col justify-between gap-4"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-black text-slate-900">{b.instructorName}</p>
+                      <p className="text-xs text-slate-500 font-mono">{b.instructorEmail}</p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300">
+                      PENDING VERIFICATION
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Bank Name</span>
+                      <span className="font-extrabold text-slate-900">{b.bankName}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Account Number</span>
+                      <span className="font-mono font-extrabold text-slate-900">
+                        {b.accountNumber || b.accountNumberMasked}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">IFSC &amp; Branch</span>
+                      <span className="font-mono font-bold text-indigo-700">
+                        {b.ifscCode} {b.branchName ? `• ${b.branchName}` : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Account Holder &amp; PAN</span>
+                      <span className="font-bold text-slate-800">
+                        {b.accountHolderName} {b.panNumber ? `(${b.panNumber})` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={actionLoadingId === b.userId}
+                    onClick={() => handleBankDecision(b.userId, 'REJECT_BANK')}
+                    className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    ✕ Reject Bank
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoadingId === b.userId}
+                    onClick={() => handleBankDecision(b.userId, 'VERIFY_BANK')}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Icon name="verified" size={15} />
+                    <span>
+                      {actionLoadingId === b.userId
+                        ? 'Approving...'
+                        : 'Approve & Verify Bank Account'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 4 Pillars Overview KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">

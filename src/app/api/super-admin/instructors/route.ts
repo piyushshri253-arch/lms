@@ -27,6 +27,10 @@ export async function GET() {
         emailVerified: true,
         isSuspended: true,
         createdAt: true,
+        bankAccount: true,
+        instructorPayouts: {
+          orderBy: { requestedAt: 'desc' }
+        },
         coursesAuthored: {
           select: {
             id: true,
@@ -92,7 +96,26 @@ export async function GET() {
           courses: courses.map((c) => ({ id: c.id, title: c.title, status: c.status })),
           studentCount: totalStudents,
           avgRating,
-          totalRevenue: Math.round(totalRevenue * 100) / 100
+          totalRevenue: Math.round(totalRevenue * 100) / 100,
+          bankAccount: inst.bankAccount
+            ? {
+                id: inst.bankAccount.id,
+                accountHolderName: inst.bankAccount.accountHolderName,
+                bankName: inst.bankAccount.bankName,
+                accountNumber: inst.bankAccount.accountNumber,
+                accountNumberMasked: inst.bankAccount.accountNumberMasked,
+                ifscCode: inst.bankAccount.ifscCode,
+                accountType: inst.bankAccount.accountType,
+                branchName: inst.bankAccount.branchName || '',
+                upiId: inst.bankAccount.upiId || '',
+                panNumber: inst.bankAccount.panNumber || '',
+                status: inst.bankAccount.status,
+                rejectionReason: inst.bankAccount.rejectionReason || '',
+                verifiedByName: inst.bankAccount.verifiedByName || '',
+                verifiedAt: inst.bankAccount.verifiedAt
+              }
+            : { status: 'NOT_ADDED' },
+          payouts: inst.instructorPayouts || []
         };
       });
 

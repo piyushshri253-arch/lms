@@ -27,7 +27,9 @@ export async function GET() {
       supportTickets,
       openTickets,
       organizationsData,
-      mediaAssets
+      mediaAssets,
+      pendingBankAccounts,
+      pendingPayouts
     ] = await Promise.all([
       prisma.organization.count(),
       prisma.organization.count({ where: { status: 'ACTIVE' } }),
@@ -70,7 +72,21 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
         take: 15
       }),
-      prisma.mediaAsset.findMany({ select: { sizeBytes: true, type: true } })
+      prisma.mediaAsset.findMany({ select: { sizeBytes: true, type: true } }),
+      prisma.instructorBankAccount.findMany({
+        where: { status: 'PENDING_VERIFICATION' },
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } }
+        },
+        orderBy: { updatedAt: 'desc' }
+      }),
+      prisma.instructorPayout.findMany({
+        where: { status: { in: ['REQUESTED', 'PENDING', 'APPROVED', 'PROCESSING'] } },
+        include: {
+          user: { select: { id: true, name: true, email: true } }
+        },
+        orderBy: { requestedAt: 'desc' }
+      })
     ]);
 
     // SaaS MRR / ARR Calculation based on active platform plans
@@ -180,7 +196,25 @@ export async function GET() {
         studentsCount: org._count.users,
         coursesCount: org._count.courses,
         enrollmentsCount: org._count.enrollments
-      }))
+      })),
+      pendingBankAccounts: pendingBankAccounts.map((b) => ({
+        id: b.id,
+        userId: b.userId,
+        instructorName: b.user?.name || b.accountHolderName,
+        instructorEmail: b.user?.email || '',
+        accountHolderName: b.accountHolderName,
+        bankName: b.bankName,
+        accountNumber: b.accountNumber,
+        accountNumberMasked: b.accountNumberMasked,
+        ifscCode: b.ifscCode,
+        accountType: b.accountType,
+        branchName: b.branchName || '',
+        upiId: b.upiId || '',
+        panNumber: b.panNumber || '',
+        status: b.status,
+        updatedAt: b.updatedAt
+      })),
+      pendingPayouts
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 403 });
