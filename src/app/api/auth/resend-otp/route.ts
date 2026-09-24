@@ -38,7 +38,63 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Find User
+    // 3. First check if there is a Pending Signup (not yet saved in prisma.user)
+    const pendingKey = `pending_signup_${normalizedEmail}`;
+    const pendingSetting = await prisma.platformSetting.findUnique({
+      where: { key: pendingKey }
+    });
+
+    if (pendingSetting) {
+      let pendingPayload: any = {};
+      try {
+        pendingPayload = JSON.parse(pendingSetting.value);
+      } catch {
+        pendingPayload = {};
+      }
+
+      const { otp, hash: otpHash } = generateOtp(6);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      pendingPayload.otpHash = otpHash;
+      pendingPayload.expiresAt = expiresAt.toISOString();
+      pendingPayload.attempts = 0;
+
+      await prisma.platformSetting.update({
+        where: { key: pendingKey },
+        data: { value: JSON.stringify(pendingPayload) }
+      });
+
+      const recipientName = pendingPayload?.userData?.name || normalizedEmail.split('@')[0];
+      const orgId = pendingPayload?.userData?.organizationId || null;
+
+      await sendEmail({
+        to: normalizedEmail,
+        subject: 'Verify your account',
+        template: 'OTP_VERIFY',
+        userId: undefined,
+        organizationId: orgId,
+        data: {
+          name: recipientName,
+          otp,
+          expiresInMinutes: 10
+        }
+      });
+
+      await logSecurityEvent({
+        userId: undefined,
+        email: normalizedEmail,
+        eventType: 'OTP_SENT',
+        req,
+        metadata: { reason: 'RESEND_REQUEST_PENDING_SIGNUP' }
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'A new 6-digit verification code has been dispatched to your email.'
+      });
+    }
+
+    // 4. Fallback: Find existing User in prisma.user
     const user = await prisma.user.findFirst({
       where: { email: normalizedEmail }
     });
@@ -57,7 +113,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Invalidate all previous unused verification tokens
+    // 5. Invalidate all previous unused verification tokens
     await prisma.emailVerificationToken.updateMany({
       where: {
         userId: user.id,
@@ -68,11 +124,11 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 5. Generate fresh 6-digit OTP
+    // 6. Generate fresh 6-digit OTP
     const { otp, hash: otpHash } = generateOtp(6);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // 6. Save new token in database
+    // 7. Save new token in database
     await prisma.emailVerificationToken.create({
       data: {
         userId: user.id,
@@ -83,7 +139,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 7. Dispatch Email
+    // 8. Dispatch Email
     await sendEmail({
       to: normalizedEmail,
       subject: 'Verify your account',
@@ -97,7 +153,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 8. Log Security Event
+    // 9. Log Security Event
     await logSecurityEvent({
       userId: user.id,
       email: normalizedEmail,
@@ -108,7 +164,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      previewOtp: otp,
       message: 'A new 6-digit verification code has been dispatched to your email.'
     });
   } catch (err: any) {

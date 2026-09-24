@@ -66,7 +66,14 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    if (!user) {
+    if (!user || (!user.emailVerified && ['INSTRUCTOR', 'REVIEWER'].includes(user.role))) {
+      if (user && !user.emailVerified) {
+        await prisma.emailVerificationToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
+        await prisma.notificationPreference.deleteMany({ where: { userId: user.id } }).catch(() => {});
+        await prisma.organizationMember.deleteMany({ where: { userId: user.id } }).catch(() => {});
+        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+      }
+
       await logSecurityEvent({
         email: normalizedEmail,
         eventType: 'LOGIN_FAILED',

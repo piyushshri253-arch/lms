@@ -135,78 +135,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check for existing account
+    // 3. Check for existing account in prisma.user
     const existingUser = await prisma.user.findFirst({
       where: { email: normalizedEmail }
     });
 
     if (existingUser) {
       if (!existingUser.emailVerified) {
-        // Update unverified account details and issue a fresh 6-digit Email OTP
-        const passwordHash = await hashPassword(password);
-        const updatedUnverified = await prisma.user.update({
-          where: { id: existingUser.id },
-          data: {
-            name: String(name).trim(),
-            password: passwordHash,
-            phone: cleanPhone,
-            address: String(address).trim(),
-            city: String(city).trim(),
-            state: String(state).trim(),
-            country: String(country).trim(),
-            pincode: String(pincode).trim(),
-            bio: bio ? String(bio).trim() : existingUser.bio,
-            role: normalizedRole,
-            status: 'PENDING_VERIFICATION',
-            emailVerified: false
-          }
-        });
-
-        const { otp, hash: otpHash } = generateOtp(6);
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-        await prisma.emailVerificationToken.create({
-          data: {
-            userId: updatedUnverified.id,
-            email: normalizedEmail,
-            otpHash,
-            expiresAt,
-            attempts: 0
-          }
-        });
-
-        await EmailService.sendVerificationOTP({
-          to: normalizedEmail,
-          name: updatedUnverified.name,
-          otp,
-          userId: updatedUnverified.id,
-          organizationId: updatedUnverified.organizationId || effectiveOrgId,
-          expiresInMinutes: 10
-        });
-
-        return NextResponse.json({
-          success: true,
-          email: normalizedEmail,
-          role: normalizedRole,
-          requiresEmailVerification: true,
-          message: 'Verification code sent to your email. Please verify your email to activate your account.'
-        });
+        // Clean up any legacy unverified user row so database never holds unverified accounts
+        await prisma.emailVerificationToken.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
+        await prisma.notificationPreference.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
+        await prisma.organizationMember.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
+        await prisma.user.delete({ where: { id: existingUser.id } }).catch(() => {});
+      } else {
+        return NextResponse.json(
+          {
+            error: 'An account with this email address already exists. Please log in instead.',
+            code: 'ALREADY_REGISTERED'
+          },
+          { status: 400 }
+        );
       }
-
-      return NextResponse.json(
-        {
-          error: 'An account with this email address already exists. Please log in instead.',
-          code: 'ALREADY_REGISTERED'
-        },
-        { status: 400 }
-      );
     }
 
-    // 4. Hash Password & Create User with PENDING_VERIFICATION (emailVerified: false)
+    // 4. Hash Password & Store Pending Registration (DO NOT save in prisma.user until OTP is verified!)
     const passwordHash = await hashPassword(password);
+    const { otp, hash: otpHash } = generateOtp(6);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const user = await prisma.user.create({
-      data: {
+    const pendingKey = `pending_signup_${normalizedEmail}`;
+    const pendingPayload = {
+      otpHash,
+      expiresAt: expiresAt.toISOString(),
+      attempts: 0,
+      createdAt: new Date().toISOString(),
+      userData: {
         organizationId: effectiveOrgId,
         name: String(name).trim(),
         email: normalizedEmail,
@@ -226,94 +189,46 @@ export async function POST(req: NextRequest) {
             : normalizedRole === 'INSTRUCTOR'
             ? 'Instructor'
             : null,
-        status: 'PENDING_VERIFICATION',
-        emailVerified: false,
-        welcomeEmailStatus: 'NOT_SENT',
-        sessionVersion: 1
+        platform: 'LMS'
+      }
+    };
+
+    await prisma.platformSetting.upsert({
+      where: { key: pendingKey },
+      create: {
+        key: pendingKey,
+        value: JSON.stringify(pendingPayload)
+      },
+      update: {
+        value: JSON.stringify(pendingPayload)
       }
     });
 
-    await prisma.notificationPreference.create({
-      data: { userId: user.id }
-    }).catch(() => {});
-
-    // 5. Generate & Send 6-Digit Email OTP (Welcome Email is NOT sent yet — only after OTP verification!)
-    const { otp, hash: otpHash } = generateOtp(6);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await prisma.emailVerificationToken.create({
-      data: {
-        userId: user.id,
-        email: normalizedEmail,
-        otpHash,
-        expiresAt,
-        attempts: 0
-      }
-    });
-
+    // 5. Send 6-Digit Email OTP (User is NOT created in prisma.user yet — only after OTP verification!)
     await EmailService.sendVerificationOTP({
       to: normalizedEmail,
-      name: user.name,
+      name: String(name).trim(),
       otp,
-      userId: user.id,
-      organizationId: user.organizationId,
+      userId: undefined,
+      organizationId: effectiveOrgId,
       expiresInMinutes: 10
     });
 
-    // 6. Log Security Events & Audit Log
+    // 6. Log Security Events
     await logSecurityEvent({
-      userId: user.id,
-      email: normalizedEmail,
-      eventType: 'REGISTER',
-      req,
-      metadata: { role: normalizedRole, status: 'PENDING_VERIFICATION', phone: cleanPhone }
-    });
-
-    await logSecurityEvent({
-      userId: user.id,
+      userId: undefined,
       email: normalizedEmail,
       eventType: 'OTP_SENT',
       req,
-      metadata: { purpose: 'EMAIL_VERIFICATION', role: normalizedRole }
+      metadata: { purpose: 'PENDING_SIGNUP_EMAIL_VERIFICATION', role: normalizedRole }
     });
-
-    await createAuditLog({
-      organizationId: effectiveOrgId,
-      actorId: user.id,
-      actorEmail: normalizedEmail,
-      action: 'USER_SELF_REGISTERED',
-      entity: 'User',
-      entityId: user.id,
-      description: `${normalizedRole} "${user.name}" (${normalizedEmail}) registered and awaits Email OTP verification.`,
-      req
-    }).catch(() => {});
-
-    // 7. Notify Super Admins
-    try {
-      const superAdmins = await prisma.user.findMany({
-        where: { role: 'SUPER_ADMIN' },
-        select: { id: true }
-      });
-
-      for (const sa of superAdmins) {
-        await prisma.notification.create({
-          data: {
-            userId: sa.id,
-            title: `New ${normalizedRole === 'REVIEWER' ? 'Reviewer / Auditor' : 'Instructor'} Registered: ${user.name}`,
-            message: `${user.name} (${user.email}, Mobile: ${cleanPhone}) registered as ${normalizedRole} and is pending Email OTP verification.`,
-            type: 'ACCOUNT',
-            link: '/super-admin/users'
-          }
-        });
-      }
-    } catch {}
 
     return NextResponse.json({
       success: true,
       email: normalizedEmail,
       role: normalizedRole,
       requiresEmailVerification: true,
-      message: 'Account created! Please enter the 6-digit verification code sent to your email address.'
+      message: 'Verification code sent! Please enter the 6-digit OTP sent to your email address to create and activate your account.'
     });
   } catch (err: any) {
     console.error('[Register API Error]:', err);

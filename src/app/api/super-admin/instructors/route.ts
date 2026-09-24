@@ -156,7 +156,11 @@ export async function POST(request: Request) {
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await prisma.user.findFirst({ where: { email: normalizedEmail } });
     if (existing) {
-      return NextResponse.json({ error: `User with email "${normalizedEmail}" already exists` }, { status: 400 });
+      if (!existing.emailVerified) {
+        await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
+      } else {
+        return NextResponse.json({ error: `User with email "${normalizedEmail}" already exists` }, { status: 400 });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -164,8 +168,17 @@ export async function POST(request: Request) {
     const targetRole = isAuditor ? 'REVIEWER' : 'INSTRUCTOR';
     const roleLabel = isAuditor ? 'Course Auditor' : 'Faculty Instructor';
 
-    const newAccount = await prisma.user.create({
-      data: {
+    // Generate 6-digit OTP and store in pending_signup_${normalizedEmail} (DO NOT save in prisma.user until OTP is verified!)
+    const { otp, hash: otpHash } = generateOtp(6);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const pendingKey = `pending_signup_${normalizedEmail}`;
+
+    const pendingPayload = {
+      otpHash,
+      expiresAt: expiresAt.toISOString(),
+      attempts: 0,
+      createdAt: new Date().toISOString(),
+      userData: {
         name: name.trim(),
         email: normalizedEmail,
         password: passwordHash,
@@ -174,33 +187,23 @@ export async function POST(request: Request) {
         customRole: customRole?.trim() || roleLabel,
         bio: bio?.trim() || (isAuditor ? 'Official Quality Assurance & Course Auditor' : 'Distinguished Faculty Instructor'),
         platform: 'LMS',
-        status: 'ACTIVE',
-        emailVerified: false,
         permissions: JSON.stringify(isAuditor ? DEFAULT_ROLE_PERMISSIONS.REVIEWER : DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR)
       }
-    });
+    };
 
-    // Generate 6-digit OTP and send verification email
-    const { otp, hash: otpHash } = generateOtp(6);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await prisma.emailVerificationToken.create({
-      data: {
-        userId: newAccount.id,
-        email: normalizedEmail,
-        otpHash,
-        expiresAt,
-        attempts: 0
-      }
+    await prisma.platformSetting.upsert({
+      where: { key: pendingKey },
+      create: { key: pendingKey, value: JSON.stringify(pendingPayload) },
+      update: { value: JSON.stringify(pendingPayload) }
     });
 
     await sendEmail({
       to: normalizedEmail,
       subject: `Verify Your ${roleLabel} Account — Morena Teach`,
       template: 'OTP_VERIFY',
-      userId: newAccount.id,
+      userId: null,
       data: {
-        name: newAccount.name,
+        name: name.trim(),
         otp,
         expiresInMinutes: 10
       }
@@ -214,21 +217,20 @@ export async function POST(request: Request) {
         adminEmail: superAdmin.email,
         action: isAuditor ? 'CREATE_COURSE_AUDITOR' : 'CREATE_INSTRUCTOR',
         entity: 'User',
-        entityId: newAccount.id,
-        description: `Super Admin appointed new ${roleLabel}: ${newAccount.name} (${newAccount.email}) and dispatched OTP verification email.`
+        entityId: normalizedEmail,
+        description: `Super Admin initiated ${roleLabel} registration for ${name.trim()} (${normalizedEmail}) — awaiting Email OTP verification before saving to database.`
       }
     });
 
     return NextResponse.json({
       success: true,
       requiresOtpVerification: true,
-      email: newAccount.email,
+      email: normalizedEmail,
       credentials: {
-        email: newAccount.email,
+        email: normalizedEmail,
         password
       },
-      message: `${roleLabel} ${newAccount.name} created! A 6-digit verification OTP has been sent to ${newAccount.email}.`,
-      instructor: newAccount
+      message: `A 6-digit verification OTP has been sent to ${normalizedEmail}. Verify the OTP to create and activate ${name.trim()}'s ${roleLabel} account.`
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });

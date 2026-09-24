@@ -228,73 +228,61 @@ export async function POST(request: Request) {
       });
     }
 
-    // Direct account creation flow with Email OTP Verification
+    // Direct account creation flow with Email OTP Verification (DO NOT save in prisma.user until OTP is verified!)
     if (!name || !password) {
       return NextResponse.json({ error: 'Name and password are required for direct creation.' }, { status: 400 });
     }
 
     const existing = await prisma.user.findFirst({ where: { email: normalizedEmail } });
     if (existing) {
-      return NextResponse.json(
-        { error: `An account with email "${normalizedEmail}" already exists.` },
-        { status: 400 }
-      );
+      if (!existing.emailVerified) {
+        await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
+      } else {
+        return NextResponse.json(
+          { error: `An account with email "${normalizedEmail}" already exists.` },
+          { status: 400 }
+        );
+      }
     }
 
     const hashedPassword = await hashPassword(password);
-    const result = await prisma.$transaction(async (tx) => {
-      const instructor = await tx.user.create({
-        data: {
-          organizationId: orgId,
-          name: name.trim(),
-          email: normalizedEmail,
-          password: hashedPassword,
-          bio: bio || 'Professional Instructor & Educator.',
-          avatar: avatar || null,
-          role: 'INSTRUCTOR',
-          permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR),
-          status: 'ACTIVE',
-          emailVerified: false
-        }
-      });
-
-      if (orgId) {
-        await tx.organizationMember.create({
-          data: {
-            organizationId: orgId,
-            userId: instructor.id,
-            role: 'INSTRUCTOR',
-            permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR),
-            status: 'ACTIVE'
-          }
-        });
-      }
-
-      return instructor;
-    });
-
-    // Generate 6-digit OTP and send verification email
     const { otp, hash: otpHash } = generateOtp(6);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const pendingKey = `pending_signup_${normalizedEmail}`;
 
-    await prisma.emailVerificationToken.create({
-      data: {
-        userId: result.id,
+    const pendingPayload = {
+      otpHash,
+      expiresAt: expiresAt.toISOString(),
+      attempts: 0,
+      createdAt: new Date().toISOString(),
+      userData: {
+        organizationId: orgId,
+        name: name.trim(),
         email: normalizedEmail,
-        otpHash,
-        expiresAt,
-        attempts: 0
+        password: hashedPassword,
+        bio: bio || 'Professional Instructor & Educator.',
+        avatar: avatar || null,
+        role: 'INSTRUCTOR',
+        customRole: 'Faculty Instructor',
+        platform: 'LMS',
+        permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.INSTRUCTOR)
       }
+    };
+
+    await prisma.platformSetting.upsert({
+      where: { key: pendingKey },
+      create: { key: pendingKey, value: JSON.stringify(pendingPayload) },
+      update: { value: JSON.stringify(pendingPayload) }
     });
 
     await sendEmail({
       to: normalizedEmail,
       subject: 'Verify Your Faculty Instructor Account — Morena Teach',
       template: 'OTP_VERIFY',
-      userId: result.id,
+      userId: null,
       organizationId: orgId,
       data: {
-        name: result.name,
+        name: name.trim(),
         otp,
         expiresInMinutes: 10
       }
@@ -308,21 +296,20 @@ export async function POST(request: Request) {
       actorEmail: admin.email,
       action: 'CREATE_INSTRUCTOR',
       entity: 'User',
-      entityId: result.id,
-      description: `Admin created instructor account for ${result.name} (${result.email}) and dispatched OTP verification email.`,
+      entityId: normalizedEmail,
+      description: `Admin initiated instructor registration for ${name.trim()} (${normalizedEmail}) — awaiting Email OTP verification before saving to database.`,
       req: request
     });
 
     return NextResponse.json({
       success: true,
       requiresOtpVerification: true,
-      email: result.email,
+      email: normalizedEmail,
       credentials: {
-        email: result.email,
+        email: normalizedEmail,
         password
       },
-      message: `Instructor account created! A 6-digit verification OTP has been sent to ${result.email}.`,
-      instructor: result
+      message: `A 6-digit verification OTP has been sent to ${normalizedEmail}. Verify the OTP to create and activate ${name.trim()}'s Instructor account.`
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });

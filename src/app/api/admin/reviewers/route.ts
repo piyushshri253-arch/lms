@@ -108,17 +108,30 @@ export async function POST(request: Request) {
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: `An account with email "${normalizedEmail}" already exists in the system.` },
-        { status: 400 }
-      );
+      if (!existing.emailVerified) {
+        await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
+      } else {
+        return NextResponse.json(
+          { error: `An account with email "${normalizedEmail}" already exists in the system.` },
+          { status: 400 }
+        );
+      }
     }
 
     const hashedPassword = await hashPassword(assignedPassword);
     const orgId = admin.role === 'SUPER_ADMIN' ? null : admin.organizationId;
 
-    const reviewer = await prisma.user.create({
-      data: {
+    // Generate 6-digit OTP and store in pending_signup_${normalizedEmail} (DO NOT save in prisma.user until OTP is verified!)
+    const { otp, hash: otpHash } = generateOtp(6);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const pendingKey = `pending_signup_${normalizedEmail}`;
+
+    const pendingPayload = {
+      otpHash,
+      expiresAt: expiresAt.toISOString(),
+      attempts: 0,
+      createdAt: new Date().toISOString(),
+      userData: {
         name: name.trim(),
         email: normalizedEmail,
         password: hashedPassword,
@@ -127,58 +140,25 @@ export async function POST(request: Request) {
         role: 'REVIEWER',
         customRole: 'Course Auditor',
         platform: 'LMS',
-        status: 'ACTIVE',
-        emailVerified: false,
         permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.REVIEWER),
         organizationId: orgId
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        customRole: true,
-        status: true,
-        emailVerified: true,
-        createdAt: true
       }
-    });
+    };
 
-    if (orgId) {
-      await prisma.organizationMember.create({
-        data: {
-          organizationId: orgId,
-          userId: reviewer.id,
-          role: 'REVIEWER',
-          permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.REVIEWER),
-          status: 'ACTIVE'
-        }
-      }).catch(() => {});
-    }
-
-    // Generate 6-digit OTP and send verification email
-    const { otp, hash: otpHash } = generateOtp(6);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await prisma.emailVerificationToken.create({
-      data: {
-        userId: reviewer.id,
-        email: normalizedEmail,
-        otpHash,
-        expiresAt,
-        attempts: 0
-      }
+    await prisma.platformSetting.upsert({
+      where: { key: pendingKey },
+      create: { key: pendingKey, value: JSON.stringify(pendingPayload) },
+      update: { value: JSON.stringify(pendingPayload) }
     });
 
     await sendEmail({
       to: normalizedEmail,
       subject: 'Verify Your Course Auditor Account — Morena Teach',
       template: 'OTP_VERIFY',
-      userId: reviewer.id,
+      userId: null,
       organizationId: orgId,
       data: {
-        name: reviewer.name,
+        name: name.trim(),
         otp,
         expiresInMinutes: 10
       }
@@ -192,21 +172,19 @@ export async function POST(request: Request) {
       actorEmail: admin.email,
       action: 'CREATE_COURSE_AUDITOR',
       entity: 'User',
-      entityId: reviewer.id,
-      description: `Admin appointed new Course Auditor "${reviewer.name}" (${reviewer.email}) and dispatched email verification OTP.`
+      entityId: normalizedEmail,
+      description: `Admin initiated Course Auditor registration for "${name.trim()}" (${normalizedEmail}) — awaiting Email OTP verification before saving to database.`
     });
 
     return NextResponse.json({
       success: true,
-      reviewer,
       requiresOtpVerification: true,
-      email: reviewer.email,
-      previewOtp: otp,
+      email: normalizedEmail,
       credentials: {
-        email: reviewer.email,
+        email: normalizedEmail,
         password: assignedPassword
       },
-      message: `Course Auditor "${reviewer.name}" created! A 6-digit verification OTP has been sent to ${reviewer.email}.`
+      message: `A 6-digit verification OTP has been sent to ${normalizedEmail}. Verify the OTP to create and activate "${name.trim()}"'s Course Auditor account.`
     });
   } catch (err: any) {
     console.error('[Admin Auditors POST Error]:', err);
