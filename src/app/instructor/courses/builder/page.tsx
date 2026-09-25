@@ -69,6 +69,13 @@ function CourseAssessmentsBanner() {
           Student Q&A
         </Link>
         <Link
+          href={`/instructor/course-seo${querySuffix}`}
+          className="px-3.5 py-2 rounded-xl border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
+        >
+          <span className="material-symbols-outlined text-[16px]">travel_explore</span>
+          Course SEO
+        </Link>
+        <Link
           href={`/instructor/course-versions${querySuffix}`}
           className="px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
         >

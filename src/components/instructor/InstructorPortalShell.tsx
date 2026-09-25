@@ -30,7 +30,9 @@ import {
   ClipboardList,
   MessageSquare,
   Megaphone,
-  GitBranch
+  GitBranch,
+  Globe,
+  LifeBuoy
 } from 'lucide-react';
 
 interface InstructorPortalShellProps {
@@ -136,6 +138,12 @@ function InstructorPortalShellInner({
       isActive: pathname?.startsWith('/instructor/content-security') || false
     },
     {
+      label: 'Course SEO',
+      href: '/instructor/course-seo',
+      icon: Globe,
+      isActive: pathname?.startsWith('/instructor/course-seo') || false
+    },
+    {
       label: 'Quizzes',
       href: '/instructor/quizzes',
       icon: FileQuestion,
@@ -194,6 +202,12 @@ function InstructorPortalShellInner({
       href: '/instructor/payouts',
       icon: Wallet,
       isActive: pathname === '/instructor/payouts'
+    },
+    {
+      label: 'Support & Help',
+      href: '/instructor/support',
+      icon: LifeBuoy,
+      isActive: pathname?.startsWith('/instructor/support') || false
     },
     {
       label: 'Notifications',
