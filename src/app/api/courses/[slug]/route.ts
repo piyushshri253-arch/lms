@@ -7,6 +7,7 @@ import {
   classifyCourseChanges,
   StagedCourseSnapshot
 } from '@/lib/course-versioning';
+import { getCourseSecurityPolicy } from '@/lib/content-security';
 import { createNotification } from '@/lib/notification';
 
 export async function GET(
@@ -66,6 +67,11 @@ export async function GET(
 
     let isEnrolled = false;
     let completedLessonIds: string[] = [];
+    const isPrivilegedViewer = Boolean(
+      currentUser &&
+        (currentUser.id === course.instructorId ||
+          ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'REVIEWER'].includes(currentUser.role))
+    );
 
     if (currentUser) {
       const enrollment = await prisma.enrollment.findFirst({
@@ -74,8 +80,23 @@ export async function GET(
           courseId: course.id
         }
       });
+
+      let isEnrollmentValid = !!enrollment && enrollment.status === 'ACTIVE';
+      if (
+        isEnrollmentValid &&
+        enrollment &&
+        (course as any).accessType === 'LIMITED_DAYS' &&
+        (course as any).accessDays
+      ) {
+        const expiryDate = new Date(enrollment.enrolledAt);
+        expiryDate.setDate(expiryDate.getDate() + Number((course as any).accessDays));
+        if (new Date() > expiryDate) {
+          isEnrollmentValid = false;
+        }
+      }
+
       isEnrolled =
-        !!enrollment ||
+        isEnrollmentValid ||
         currentUser.role === 'SUPER_ADMIN' ||
         (currentUser.role === 'ADMIN' && validateTenantOwnership(course.organizationId, currentUser)) ||
         course.instructorId === currentUser.id;
@@ -96,6 +117,8 @@ export async function GET(
         completedLessonIds = progress.map((p) => p.lessonId);
       }
     }
+
+    const securityPolicy = await getCourseSecurityPolicy(course.id);
 
     const avgRating =
       course.reviews.length > 0
@@ -153,24 +176,44 @@ export async function GET(
         description: sec.description || '',
         order: sec.order,
         moduleNumber: secIdx + 1,
-        lessons: sec.lessons.map((les) => ({
-          id: les.id,
-          title: les.title,
-          description: les.description || '',
-          duration: les.duration,
-          durationSeconds: les.durationSeconds,
-          type: (les as any).type || 'VIDEO',
-          content: (les as any).content || null,
-          videoUrl: les.videoUrl,
-          pdfUrl: (les as any).pdfUrl || null,
-          fileUrl: (les as any).fileUrl || null,
-          quizData: (les as any).quizData || null,
-          completed: completedLessonIds.includes(les.id),
-          locked: !isEnrolled && !les.isFree,
-          isFree: les.isFree,
-          isPublished: (les as any).isPublished ?? true,
-          order: les.order
-        }))
+        lessons: sec.lessons.map((les) => {
+          const isLocked = !isEnrolled && !les.isFree;
+          const canSeeMediaUrls = isPrivilegedViewer || !isLocked;
+          return {
+            id: les.id,
+            title: les.title,
+            description: les.description || '',
+            duration: les.duration,
+            durationSeconds: les.durationSeconds,
+            type: (les as any).type || 'VIDEO',
+            content: canSeeMediaUrls ? (les as any).content || null : null,
+            // If privileged (Instructor/Admin in Builder), return raw URLs so they can edit; for students, only return if unlocked
+            videoUrl: isPrivilegedViewer
+              ? les.videoUrl
+              : canSeeMediaUrls && !securityPolicy.signedUrlEnabled
+              ? les.videoUrl
+              : canSeeMediaUrls
+              ? les.videoUrl
+              : null,
+            pdfUrl: isPrivilegedViewer
+              ? (les as any).pdfUrl || null
+              : canSeeMediaUrls
+              ? (les as any).pdfUrl || null
+              : null,
+            fileUrl: isPrivilegedViewer
+              ? (les as any).fileUrl || null
+              : canSeeMediaUrls && (securityPolicy.allowResourceDownload || (les as any).allowDownload)
+              ? (les as any).fileUrl || null
+              : null,
+            allowDownload: Boolean((les as any).allowDownload && securityPolicy.allowResourceDownload),
+            quizData: canSeeMediaUrls ? (les as any).quizData || null : null,
+            completed: completedLessonIds.includes(les.id),
+            locked: isLocked,
+            isFree: les.isFree,
+            isPublished: (les as any).isPublished ?? true,
+            order: les.order
+          };
+        })
       })),
       reviews: course.reviews.map((r) => ({
         id: r.id,
@@ -192,6 +235,7 @@ export async function GET(
     let finalFormattedCourse: any = {
       ...formattedCourse,
       isEnrolled,
+      securityPolicy,
       versionState
     };
 

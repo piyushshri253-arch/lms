@@ -33,8 +33,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(videoUrl || null);
+  const [watermark, setWatermark] = useState<{ enabled: boolean; text: string }>({
+    enabled: true,
+    text: 'Protected Stream • Morena LMS DRM'
+  });
+  const [securityPolicy, setSecurityPolicy] = useState<{
+    signedUrlEnabled: boolean;
+    allowVideoDownload: boolean;
+    preventRightClick: boolean;
+    disablePictureInPicture: boolean;
+  }>({
+    signedUrlEnabled: true,
+    allowVideoDownload: false,
+    preventRightClick: true,
+    disablePictureInPicture: true
+  });
+  const [watermarkPosIndex, setWatermarkPosIndex] = useState(0);
 
-  // Fetch authorized stream URL if lessonId is provided
+  // Rotate anti-piracy watermark position every 18 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setWatermarkPosIndex((prev) => (prev + 1) % 4);
+    }, 18000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch authorized & signed stream URL if lessonId is provided
   useEffect(() => {
     let isMounted = true;
     const checkStreamAuth = async () => {
@@ -50,6 +74,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (res.ok && data.allowed) {
             setResolvedVideoUrl(data.videoUrl || videoUrl || null);
             if (data.durationSeconds) setDurationSeconds(data.durationSeconds);
+            if (data.watermark) setWatermark(data.watermark);
+            if (data.securityPolicy) {
+              setSecurityPolicy({
+                signedUrlEnabled: Boolean(data.securityPolicy.signedUrlEnabled),
+                allowVideoDownload: Boolean(data.securityPolicy.allowVideoDownload),
+                preventRightClick: data.securityPolicy.preventRightClick !== false,
+                disablePictureInPicture: data.securityPolicy.disablePictureInPicture !== false
+              });
+            }
             setStreamError(null);
           } else {
             setStreamError(data.error || 'Enrollment required to stream this masterclass video.');
@@ -136,6 +169,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const isYouTube = resolvedVideoUrl?.includes('youtube.com') || resolvedVideoUrl?.includes('youtu.be');
   const isVimeo = resolvedVideoUrl?.includes('vimeo.com');
 
+  const watermarkPositionClasses = [
+    'bottom-14 right-6',
+    'top-14 right-6',
+    'bottom-14 left-6',
+    'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
+  ][watermarkPosIndex];
+
   if (streamError) {
     return (
       <div className="w-full max-w-[1000px] mx-auto bg-slate-950 rounded-2xl aspect-video relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-8 text-center space-y-4 select-none">
@@ -147,7 +187,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <p className="text-xs text-slate-400 leading-relaxed">{streamError}</p>
         </div>
         <span className="text-[10px] font-mono font-bold uppercase px-3 py-1 rounded-full bg-white/10 text-slate-300">
-          Secure Stream Gateway
+          Secure Stream Gateway • Enrollment Validation Required
         </span>
       </div>
     );
@@ -155,6 +195,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div
+      onContextMenu={(e) => {
+        if (securityPolicy.preventRightClick) {
+          e.preventDefault();
+        }
+      }}
       className={`w-full max-w-[1000px] mx-auto bg-black rounded-2xl aspect-video relative overflow-hidden shadow-2xl flex items-center justify-center group select-none transition-all ${
         isFullscreen ? 'fixed inset-0 z-50 max-w-none rounded-none aspect-auto h-screen' : ''
       }`}
@@ -187,6 +232,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           ref={videoRef}
           src={resolvedVideoUrl}
           poster={thumbnail}
+          controlsList={securityPolicy.allowVideoDownload ? undefined : 'nodownload'}
+          disablePictureInPicture={securityPolicy.disablePictureInPicture}
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => {
             setIsPlaying(false);
@@ -211,11 +258,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Floating Watermark / Quality Badge */}
+      {/* Floating Quality Badge */}
       {!isYouTube && !isVimeo && (
         <div className="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-semibold text-white/90 border border-white/10 flex items-center gap-1.5 pointer-events-none">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>1080p HD Stream</span>
+        </div>
+      )}
+
+      {/* Signed Private Stream Security Badge */}
+      {securityPolicy.signedUrlEnabled && (
+        <div className="absolute top-4 right-4 z-20 bg-emerald-950/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 pointer-events-none">
+          <Icon name="verified_user" size={12} />
+          <span>Signed DRM Stream</span>
+        </div>
+      )}
+
+      {/* Dynamic Student Anti-Piracy Watermark */}
+      {watermark.enabled && watermark.text && (
+        <div
+          className={`absolute ${watermarkPositionClasses} z-20 pointer-events-none transition-all duration-1000 px-3 py-1 rounded-lg bg-black/25 backdrop-blur-[2px] border border-white/5 text-[10px] font-mono font-semibold text-white/45 tracking-wide select-none`}
+        >
+          {watermark.text}
         </div>
       )}
 

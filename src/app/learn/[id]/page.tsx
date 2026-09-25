@@ -508,10 +508,12 @@ export default function LearnPlayerPage() {
             ) : activeLesson?.type === 'TEXT' || activeLesson?.type === 'PDF' || activeLesson?.type === 'DOWNLOAD' ? (
               <ArticlePlayer
                 title={activeLesson.title}
+                lessonId={activeLesson.id}
                 type={activeLesson.type}
                 content={activeLesson.content}
                 pdfUrl={activeLesson.pdfUrl}
                 fileUrl={activeLesson.fileUrl}
+                allowDownload={Boolean(activeLesson.allowDownload)}
                 duration={activeLesson.duration}
                 isCompleted={isCurrentCompleted}
                 onComplete={handleToggleComplete}

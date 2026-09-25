@@ -37,6 +37,7 @@ interface InstructorPortalShellProps {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
+  actions?: React.ReactNode;
   profile?: {
     name?: string;
     email?: string;
@@ -51,6 +52,7 @@ function InstructorPortalShellInner({
   children,
   title,
   subtitle,
+  actions,
   profile
 }: InstructorPortalShellProps) {
   const pathname = usePathname();
@@ -126,6 +128,12 @@ function InstructorPortalShellInner({
       href: '/instructor/course-versions',
       icon: GitBranch,
       isActive: pathname?.startsWith('/instructor/course-versions') || false
+    },
+    {
+      label: 'Content Security',
+      href: '/instructor/content-security',
+      icon: Shield,
+      isActive: pathname?.startsWith('/instructor/content-security') || false
     },
     {
       label: 'Quizzes',
@@ -335,6 +343,7 @@ function InstructorPortalShellInner({
           </div>
 
           <div className="flex items-center gap-3">
+            {actions}
             {/* Account & Bank Status Badges */}
             {profile?.emailVerified !== undefined && (
               <span
@@ -394,7 +403,7 @@ function InstructorPortalShellInner({
   );
 }
 
-export default function InstructorPortalShell(props: InstructorPortalShellProps) {
+export function InstructorPortalShell(props: InstructorPortalShellProps) {
   return (
     <Suspense
       fallback={
@@ -407,3 +416,5 @@ export default function InstructorPortalShell(props: InstructorPortalShellProps)
     </Suspense>
   );
 }
+
+export default InstructorPortalShell;
