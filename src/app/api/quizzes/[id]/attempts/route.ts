@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
+import { createNotification } from '@/lib/notification';
+import {
+  getQuizMeta,
+  saveAttemptMeta,
+  evaluateQuizSubmissionServerSide,
+  normalizeQuestionType,
+  AttemptStatus
+} from '@/lib/assessment-engine';
 
 export async function POST(
   request: Request,
@@ -12,7 +20,13 @@ export async function POST(
     const user = await requireAuth();
     const body = await request.json();
 
-    const { answers = [] } = body; // Array of { questionId: string, selectedOptionIds: string[] }
+    const {
+      answers = [],
+      servedQuestionIds = [],
+      startedAt: clientStartedAt,
+      autoSubmitted = false,
+      isPreview = false
+    } = body;
 
     // 1. Fetch Quiz with Questions and correct options
     const quiz = await prisma.quiz.findFirst({
@@ -36,10 +50,12 @@ export async function POST(
           }
         },
         questions: {
-          include: { options: true }
+          include: { options: true },
+          orderBy: { order: 'asc' }
         },
         attempts: {
-          where: { userId: user.id }
+          where: { userId: user.id },
+          orderBy: { submittedAt: 'asc' }
         }
       }
     });
@@ -49,8 +65,61 @@ export async function POST(
     }
 
     const course = quiz.lesson.section.course;
+    const meta = await getQuizMeta(quiz.id);
 
-    // 2. Verify student has active enrollment or admin/instructor privileges
+    // Determine exact questions served in this attempt (for reproducible random question bank scoring!)
+    const targetQuestions =
+      Array.isArray(servedQuestionIds) && servedQuestionIds.length > 0
+        ? quiz.questions.filter((q) => servedQuestionIds.includes(q.id))
+        : quiz.questions;
+
+    const questionsForEval = (targetQuestions.length > 0 ? targetQuestions : quiz.questions).map(
+      (q) => {
+        const qm = meta?.questionMeta?.[q.id];
+        return {
+          id: q.id,
+          question: q.question,
+          type: qm?.questionType || normalizeQuestionType(q.type),
+          explanation: q.explanation,
+          marks: qm?.marks && Number(qm.marks) > 0 ? Number(qm.marks) : 1,
+          options: q.options.map((o) => ({
+            id: o.id,
+            text: o.text,
+            isCorrect: o.isCorrect
+          }))
+        };
+      }
+    );
+
+    // 2. Evaluate server-side
+    const evalResult = evaluateQuizSubmissionServerSide({
+      questions: questionsForEval,
+      studentAnswers: answers,
+      passingPercentage: quiz.passingScore,
+      multipleAnswerRule: meta?.multipleAnswerScoringRule || 'EXACT_MATCH'
+    });
+
+    // If Instructor Preview Mode -> return evaluation result immediately WITHOUT saving a student attempt!
+    if (isPreview) {
+      return NextResponse.json({
+        success: true,
+        isPreview: true,
+        attempt: {
+          id: 'preview_attempt',
+          score: evalResult.percentage,
+          percentage: evalResult.percentage,
+          pointsEarned: evalResult.obtainedMarks,
+          pointsTotal: evalResult.totalMarks,
+          obtainedMarks: evalResult.obtainedMarks,
+          totalMarks: evalResult.totalMarks,
+          passed: evalResult.passed,
+          passingScore: quiz.passingScore,
+          questionBreakdown: evalResult.questionBreakdown
+        }
+      });
+    }
+
+    // 3. Verify student has active enrollment or admin/instructor privileges
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         userId: user.id,
@@ -71,63 +140,57 @@ export async function POST(
       );
     }
 
-    // 3. Check attempt limit
-    if (quiz.maxAttempts > 0 && quiz.attempts.length >= quiz.maxAttempts && !isPrivileged) {
+    // 4. Check attempt limit
+    const allowRetake = meta?.allowRetake ?? quiz.maxAttempts !== 1;
+    const effectiveMaxAttempts = !allowRetake ? 1 : quiz.maxAttempts;
+    if (
+      effectiveMaxAttempts > 0 &&
+      quiz.attempts.length >= effectiveMaxAttempts &&
+      !isPrivileged
+    ) {
       return NextResponse.json(
-        { error: `Maximum attempt limit (${quiz.maxAttempts}) reached for this quiz.` },
+        { error: `Maximum attempt limit (${effectiveMaxAttempts}) reached for this quiz.` },
         { status: 400 }
       );
     }
 
-    // 4. Server-Side Scoring Engine
-    let pointsEarned = 0;
-    const pointsTotal = quiz.questions.length;
-    const evaluatedAnswers: { questionId: string; selectedOptionIds: string[]; isCorrect: boolean }[] = [];
+    // 5. Server-Side Timer & Duration Validation
+    const submittedAtDate = new Date();
+    const startedAtDate =
+      clientStartedAt && !isNaN(new Date(clientStartedAt).getTime())
+        ? new Date(clientStartedAt)
+        : new Date(submittedAtDate.getTime() - 60 * 1000);
 
-    for (const q of quiz.questions) {
-      const studentAns = answers.find((a: any) => a.questionId === q.id);
-      const selected = Array.isArray(studentAns?.selectedOptionIds)
-        ? studentAns.selectedOptionIds
-        : studentAns?.selectedOptionId
-        ? [studentAns.selectedOptionId]
-        : [];
+    const durationSeconds = Math.max(
+      1,
+      Math.round((submittedAtDate.getTime() - startedAtDate.getTime()) / 1000)
+    );
 
-      const correctOptionIds = q.options.filter((opt) => opt.isCorrect).map((opt) => opt.id);
-
-      // Check if exact match of correct options
-      const isCorrect =
-        selected.length === correctOptionIds.length &&
-        selected.every((id: string) => correctOptionIds.includes(id)) &&
-        correctOptionIds.every((id) => selected.includes(id));
-
-      if (isCorrect) {
-        pointsEarned++;
+    let attemptStatus: AttemptStatus = autoSubmitted ? 'AUTO_SUBMITTED' : 'GRADED';
+    if (quiz.timeLimitMinutes && quiz.timeLimitMinutes > 0) {
+      const maxAllowedSeconds = quiz.timeLimitMinutes * 60 + 30; // 30s network buffer
+      if (durationSeconds > maxAllowedSeconds) {
+        attemptStatus = 'AUTO_SUBMITTED';
       }
-
-      evaluatedAnswers.push({
-        questionId: q.id,
-        selectedOptionIds: selected,
-        isCorrect
-      });
     }
 
-    const scorePercent = pointsTotal > 0 ? Number(((pointsEarned / pointsTotal) * 100).toFixed(1)) : 100.0;
-    const passed = scorePercent >= quiz.passingScore;
+    const attemptNumber = quiz.attempts.length + 1;
 
-    // 5. Save QuizAttempt and Answers
+    // 6. Save QuizAttempt and Answers in PostgreSQL
     const attempt = await prisma.$transaction(async (tx) => {
       const newAttempt = await tx.quizAttempt.create({
         data: {
           quizId: quiz.id,
           userId: user.id,
-          score: scorePercent,
-          pointsEarned,
-          pointsTotal,
-          passed
+          score: evalResult.percentage,
+          pointsEarned: Math.round(evalResult.obtainedMarks),
+          pointsTotal: Math.round(evalResult.totalMarks),
+          passed: evalResult.passed,
+          submittedAt: submittedAtDate
         }
       });
 
-      for (const ans of evaluatedAnswers) {
+      for (const ans of evalResult.questionBreakdown) {
         await tx.quizAnswer.create({
           data: {
             attemptId: newAttempt.id,
@@ -139,7 +202,7 @@ export async function POST(
       }
 
       // If passed, mark this quiz lesson as completed
-      if (passed) {
+      if (evalResult.passed) {
         await tx.lessonProgress.upsert({
           where: {
             userId_lessonId: {
@@ -163,11 +226,54 @@ export async function POST(
       return newAttempt;
     });
 
-    // 6. Check Course Completion & Auto-Issue Certificate
+    // 7. Save Detailed Attempt Metadata (Reproducible Random Questions + Marks + Timestamps)
+    await saveAttemptMeta(attempt.id, {
+      attemptId: attempt.id,
+      quizId: quiz.id,
+      userId: user.id,
+      attemptNumber,
+      status: attemptStatus,
+      startedAt: startedAtDate.toISOString(),
+      submittedAt: submittedAtDate.toISOString(),
+      durationSeconds,
+      totalMarks: evalResult.totalMarks,
+      obtainedMarks: evalResult.obtainedMarks,
+      percentage: evalResult.percentage,
+      passed: evalResult.passed,
+      servedQuestionIds: questionsForEval.map((q) => q.id),
+      questionBreakdown: evalResult.questionBreakdown
+    });
+
+    // 8. Notify Instructor & Student
+    if (course.instructorId && course.instructorId !== user.id) {
+      await createNotification({
+        organizationId: course.organizationId,
+        userId: course.instructorId,
+        title: `Quiz Attempt Submitted: ${quiz.title}`,
+        message: `${user.name} completed Attempt #${attemptNumber} on "${quiz.title}" — Score: ${evalResult.obtainedMarks}/${evalResult.totalMarks} (${evalResult.percentage}% — ${
+          evalResult.passed ? 'PASSED' : 'FAILED'
+        }).`,
+        type: 'QUIZ',
+        category: 'STUDENTS',
+        link: `/instructor/quizzes/${quiz.id}/results`
+      }).catch(() => {});
+    }
+
+    await createNotification({
+      organizationId: course.organizationId,
+      userId: user.id,
+      title: `Quiz Result: ${evalResult.passed ? 'Passed 🎉' : 'Completed'}`,
+      message: `You scored ${evalResult.obtainedMarks}/${evalResult.totalMarks} (${evalResult.percentage}%) on "${quiz.title}".`,
+      type: 'QUIZ',
+      category: 'COURSES',
+      link: `/learn/${course.slug || course.id}`
+    }).catch(() => {});
+
+    // 9. Check Course Completion & Auto-Issue Certificate
     let courseCompleted = false;
     let certificateIssued: any = null;
 
-    if (passed && enrollment) {
+    if (evalResult.passed && enrollment) {
       const allLessons = course.sections.flatMap((s) => s.lessons);
       const completedProgress = await prisma.lessonProgress.findMany({
         where: {
@@ -180,19 +286,18 @@ export async function POST(
       });
 
       const completedLessonIds = new Set(completedProgress.map((p) => p.lessonId));
-      const allRequiredCompleted = allLessons.every((l) => !l.isRequired || completedLessonIds.has(l.id));
+      const allRequiredCompleted = allLessons.every(
+        (l) => !l.isRequired || completedLessonIds.has(l.id)
+      );
 
       if (allRequiredCompleted) {
         courseCompleted = true;
 
         await prisma.enrollment.update({
           where: { id: enrollment.id },
-          data: {
-            status: 'COMPLETED'
-          }
+          data: { status: 'COMPLETED' }
         });
 
-        // Generate unique certificate ID
         const year = new Date().getFullYear();
         const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
         const certNumber = `MT-${year}-${randomHex}`;
@@ -213,22 +318,10 @@ export async function POST(
             metadata: JSON.stringify({
               studentName: user.name,
               courseTitle: course.title,
-              finalScore: `${scorePercent}%`
+              finalScore: `${evalResult.percentage}%`
             })
           },
-          update: {
-            status: 'VALID'
-          }
-        });
-
-        await createAuditLog({
-          organizationId: course.organizationId,
-          actorId: user.id,
-          actorEmail: user.email,
-          action: 'COURSE_COMPLETED',
-          entity: 'Certificate',
-          entityId: certificateIssued.id,
-          description: `Student "${user.name}" finished all modules in "${course.title}". Certificate ${certNumber} generated.`
+          update: { status: 'VALID' }
         });
       }
     }
@@ -237,11 +330,23 @@ export async function POST(
       success: true,
       attempt: {
         id: attempt.id,
-        score: scorePercent,
-        pointsEarned,
-        pointsTotal,
-        passed,
+        attemptNumber,
+        status: attemptStatus,
+        startedAt: startedAtDate.toISOString(),
+        submittedAt: submittedAtDate.toISOString(),
+        durationSeconds,
+        score: evalResult.percentage,
+        percentage: evalResult.percentage,
+        pointsEarned: evalResult.obtainedMarks,
+        pointsTotal: evalResult.totalMarks,
+        obtainedMarks: evalResult.obtainedMarks,
+        totalMarks: evalResult.totalMarks,
+        passed: evalResult.passed,
         passingScore: quiz.passingScore,
+        showResultImmediately: meta?.showResultImmediately ?? true,
+        showCorrectAnswers: meta?.showCorrectAnswers ?? true,
+        questionBreakdown:
+          meta?.showCorrectAnswers === false ? [] : evalResult.questionBreakdown,
         courseCompleted,
         certificate: certificateIssued
           ? {

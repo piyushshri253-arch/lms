@@ -24,7 +24,10 @@ import {
   Moon,
   CheckCircle2,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  FileQuestion,
+  Database,
+  ClipboardList
 } from 'lucide-react';
 
 interface InstructorPortalShellProps {
@@ -114,6 +117,24 @@ function InstructorPortalShellInner({
       href: '/instructor?tab=manage',
       icon: FolderKanban,
       isActive: pathname === '/instructor' && currentTab === 'manage'
+    },
+    {
+      label: 'Quizzes',
+      href: '/instructor/quizzes',
+      icon: FileQuestion,
+      isActive: pathname?.startsWith('/instructor/quizzes') || false
+    },
+    {
+      label: 'Question Bank',
+      href: '/instructor/question-bank',
+      icon: Database,
+      isActive: pathname?.startsWith('/instructor/question-bank') || false
+    },
+    {
+      label: 'Assignments',
+      href: '/instructor/assignments',
+      icon: ClipboardList,
+      isActive: pathname?.startsWith('/instructor/assignments') || false
     },
     {
       label: 'Students',
