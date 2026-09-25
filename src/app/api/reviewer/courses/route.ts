@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireReviewerAuth } from '@/lib/auth';
+import { getCourseVersionState } from '@/lib/course-versioning';
 
 export async function GET(request: Request) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       });
     }
 
-    if (statusFilter && statusFilter !== 'ALL') {
+    if (statusFilter && statusFilter !== 'ALL' && statusFilter !== 'IN_REVIEW') {
       andConditions.push({ status: statusFilter });
     }
 
@@ -55,7 +56,6 @@ export async function GET(request: Request) {
     const courses = await prisma.course.findMany({
       where,
       orderBy: [
-        // Prioritize IN_REVIEW courses at the top
         { updatedAt: 'desc' }
       ],
       include: {
@@ -105,48 +105,66 @@ export async function GET(request: Request) {
       }
     });
 
-    const parsedCourses = courses.map((c) => {
-      let learnPoints: string[] = [];
-      let reqList: string[] = [];
-      let audienceList: string[] = [];
+    const coursesWithVersions = await Promise.all(
+      courses.map(async (c) => {
+        const versionState = await getCourseVersionState(c.id);
+        let learnPoints: string[] = [];
+        let reqList: string[] = [];
+        let audienceList: string[] = [];
 
-      try {
-        learnPoints = JSON.parse(c.whatYouWillLearn || '[]');
-      } catch {
-        learnPoints = [];
-      }
-      try {
-        reqList = JSON.parse(c.requirements || '[]');
-      } catch {
-        reqList = [];
-      }
-      try {
-        audienceList = JSON.parse(c.targetAudience || '[]');
-      } catch {
-        audienceList = [];
-      }
+        try {
+          learnPoints = JSON.parse(c.whatYouWillLearn || '[]');
+        } catch {
+          learnPoints = [];
+        }
+        try {
+          reqList = JSON.parse(c.requirements || '[]');
+        } catch {
+          reqList = [];
+        }
+        try {
+          audienceList = JSON.parse(c.targetAudience || '[]');
+        } catch {
+          audienceList = [];
+        }
 
-      const totalLessons = c.sections.reduce((sum, s) => sum + s.lessons.length, 0);
+        const totalLessons = c.sections.reduce((sum, s) => sum + s.lessons.length, 0);
+        const hasPendingVersionReview =
+          c.status === 'PUBLISHED' &&
+          versionState.status === 'VERSION_IN_REVIEW' &&
+          Boolean(versionState.stagedSnapshot);
 
-      return {
-        ...c,
-        learningOutcomes: learnPoints,
-        requirementsList: reqList,
-        audienceList,
-        totalLessons,
-        totalSections: c.sections.length
-      };
-    });
+        return {
+          ...c,
+          versionState,
+          hasPendingVersionReview,
+          learningOutcomes: learnPoints,
+          requirementsList: reqList,
+          audienceList,
+          totalLessons,
+          totalSections: c.sections.length
+        };
+      })
+    );
+
+    const stagedPendingCount = coursesWithVersions.filter((c) => c.hasPendingVersionReview).length;
+
+    const filteredCourses =
+      statusFilter === 'IN_REVIEW'
+        ? coursesWithVersions.filter(
+            (c) => c.status === 'IN_REVIEW' || c.hasPendingVersionReview
+          )
+        : coursesWithVersions;
 
     return NextResponse.json({
       success: true,
       stats: {
-        pendingReview: pendingCount,
+        pendingReview: pendingCount + stagedPendingCount,
         approved: approvedCount,
         changesRequested: rejectedCount,
         total: totalCount
       },
-      courses: parsedCourses
+      courses: filteredCourses
     });
   } catch (err: any) {
     console.error('[Reviewer Courses GET Error]:', err);
