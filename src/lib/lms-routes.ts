@@ -42,6 +42,8 @@ export const LMS_ROUTES = {
   WISHLIST: '/lms/wishlist',
   ORDERS: '/lms/orders',
   REVIEWS: '/lms/reviews',
+  QUESTIONS: '/dashboard/questions',
+  LMS_QUESTIONS: '/lms/questions',
 
   // Authentication & Access
   LOGIN: '/lms/login',

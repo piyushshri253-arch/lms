@@ -38,6 +38,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ onClose }) => {
       title: 'Learning',
       items: [
         { label: 'Continue Learning', href: `${LMS_ROUTES.MY_COURSES}?tab=IN_PROGRESS`, tabKey: 'continue', icon: 'play_circle' },
+        { label: 'Ask Instructor (Q&A)', href: '/dashboard/questions', tabKey: 'questions', icon: 'forum' },
         { label: 'Certificates', href: LMS_ROUTES.CERTIFICATES, tabKey: 'certificates', icon: 'workspace_premium' },
         { label: 'My Reviews', href: LMS_ROUTES.REVIEWS, tabKey: 'reviews', icon: 'star' }
       ]

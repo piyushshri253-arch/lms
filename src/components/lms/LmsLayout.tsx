@@ -58,7 +58,8 @@ export function LmsLayout({ children, activePath, pageTitle }: LmsLayoutProps) {
         { label: 'Learning Progress', icon: 'trending_up', href: LMS_ROUTES.PROGRESS },
         { label: 'Certificates', icon: 'military_tech', href: LMS_ROUTES.CERTIFICATES },
         { label: 'Assignments', icon: 'assignment', href: LMS_ROUTES.ASSIGNMENTS },
-        { label: 'Quizzes', icon: 'quiz', href: LMS_ROUTES.QUIZZES }
+        { label: 'Quizzes', icon: 'quiz', href: LMS_ROUTES.QUIZZES },
+        { label: 'Ask Instructor (Q&A)', icon: 'forum', href: LMS_ROUTES.LMS_QUESTIONS }
       ]
     },
     {

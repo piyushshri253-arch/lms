@@ -441,7 +441,7 @@ export async function POST(request: Request) {
           message: `${user.name} replied to "${discussion.title}" in ${course.title}.`,
           type: 'COMMUNITY',
           category: 'COURSES',
-          link: `/learn/${course.id}`
+          link: `/dashboard/questions?questionId=${discussion.id}`
         });
       }
 
