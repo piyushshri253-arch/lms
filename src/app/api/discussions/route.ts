@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantAuth } from '@/lib/auth';
+import { createNotification } from '@/lib/notification';
 
 export async function GET(request: Request) {
   try {
@@ -34,27 +35,53 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    const formatted = discussions.map((d) => ({
-      id: d.id,
-      courseId: d.courseId,
-      lessonId: d.lessonId,
-      userId: d.userId,
-      userName: d.user.name,
-      userAvatar: d.user.avatar,
-      userRole: d.user.role,
-      title: d.title,
-      text: d.content,
-      createdAt: d.createdAt,
-      replies: d.replies.map((r) => ({
-        id: r.id,
-        userId: r.userId,
-        userName: r.user.name,
-        userAvatar: r.user.avatar,
-        userRole: r.user.role,
-        text: r.content,
-        createdAt: r.createdAt
-      }))
-    }));
+    // Load discussion metadata (isResolved, isPinned, category, bestReplyId)
+    const metaKeys = discussions.map((d) => `discussion_meta_${d.id}`);
+    const metaRows =
+      metaKeys.length > 0
+        ? await prisma.platformSetting.findMany({ where: { key: { in: metaKeys } } })
+        : [];
+    const metaMap: Record<string, any> = {};
+    for (const row of metaRows) {
+      try {
+        metaMap[row.key.replace('discussion_meta_', '')] = JSON.parse(row.value);
+      } catch {}
+    }
+
+    const formatted = discussions
+      .map((d) => {
+        const meta = metaMap[d.id] || {};
+        return {
+          id: d.id,
+          courseId: d.courseId,
+          lessonId: d.lessonId,
+          userId: d.userId,
+          userName: d.user.name,
+          userAvatar: d.user.avatar,
+          userRole: d.user.role,
+          title: d.title,
+          text: d.content,
+          isResolved: Boolean(meta.isResolved),
+          isPinned: Boolean(meta.isPinned),
+          category: meta.category || 'QUESTION',
+          bestReplyId: meta.bestReplyId || null,
+          createdAt: d.createdAt,
+          replies: d.replies.map((r) => ({
+            id: r.id,
+            userId: r.userId,
+            userName: r.user.name,
+            userAvatar: r.user.avatar,
+            userRole: r.user.role,
+            isBestAnswer: meta.bestReplyId === r.id,
+            text: r.content,
+            createdAt: r.createdAt
+          }))
+        };
+      })
+      .sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
 
     return NextResponse.json({ discussions: formatted });
   } catch (err: any) {
@@ -74,7 +101,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify enrollment
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, title: true, instructorId: true, organizationId: true }
+    });
+
+    if (!course) {
+      return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
+    }
+
+    // Verify enrollment for students
     const enrollment = await prisma.enrollment.findFirst({
       where: { userId: user.id, courseId, status: 'ACTIVE' }
     });
@@ -85,11 +121,11 @@ export async function POST(request: Request) {
 
     const discussion = await prisma.discussion.create({
       data: {
-        organizationId: user.organizationId || null,
+        organizationId: course.organizationId || user.organizationId || null,
         courseId,
         lessonId: lessonId || null,
         userId: user.id,
-        title: title || 'Discussion Query',
+        title: title?.trim() || 'Student Question',
         content: text.trim()
       },
       include: {
@@ -97,6 +133,19 @@ export async function POST(request: Request) {
         replies: true
       }
     });
+
+    // Notify Course Instructor when a Student posts a new question
+    if (course.instructorId && course.instructorId !== user.id) {
+      await createNotification({
+        organizationId: course.organizationId || user.organizationId || null,
+        userId: course.instructorId,
+        title: 'New Student Question Asked',
+        message: `${user.name} asked "${discussion.title}" in ${course.title}.`,
+        type: 'COMMUNITY',
+        category: 'COURSES',
+        link: `/instructor/questions?questionId=${discussion.id}`
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -110,6 +159,9 @@ export async function POST(request: Request) {
         userRole: discussion.user.role,
         title: discussion.title,
         text: discussion.content,
+        isResolved: false,
+        isPinned: false,
+        category: 'QUESTION',
         createdAt: discussion.createdAt,
         replies: []
       }
@@ -118,3 +170,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

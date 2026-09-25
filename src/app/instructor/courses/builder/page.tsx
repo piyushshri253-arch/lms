@@ -61,6 +61,13 @@ function CourseAssessmentsBanner() {
           <span className="material-symbols-outlined text-[15px]">library_books</span>
           Question Bank
         </Link>
+        <Link
+          href={`/instructor/questions${querySuffix}`}
+          className="px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1"
+        >
+          <span className="material-symbols-outlined text-[15px]">forum</span>
+          Student Q&A
+        </Link>
       </div>
     </div>
   );

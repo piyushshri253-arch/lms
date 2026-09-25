@@ -27,7 +27,8 @@ import {
   Sparkles,
   FileQuestion,
   Database,
-  ClipboardList
+  ClipboardList,
+  MessageSquare
 } from 'lucide-react';
 
 interface InstructorPortalShellProps {
@@ -135,6 +136,12 @@ function InstructorPortalShellInner({
       href: '/instructor/assignments',
       icon: ClipboardList,
       isActive: pathname?.startsWith('/instructor/assignments') || false
+    },
+    {
+      label: 'Student Q&A',
+      href: '/instructor/questions',
+      icon: MessageSquare,
+      isActive: pathname?.startsWith('/instructor/questions') || false
     },
     {
       label: 'Students',
