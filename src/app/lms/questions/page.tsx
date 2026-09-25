@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react';
 import { LmsLayout } from '@/components/lms/LmsLayout';
 import { LMS_ROUTES } from '@/lib/lms-routes';
-import { StudentQuestionsView } from '@/app/dashboard/questions/page';
+import { StudentQuestionsView } from '@/components/student/StudentQuestionsView';
 
 export default function LmsQuestionsPage() {
   return (

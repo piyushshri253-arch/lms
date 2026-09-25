@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { createNotification } from '@/lib/notification';
 import { EmailService } from '@/lib/email';
 
-export interface InstructorAnnouncementMeta {
+interface InstructorAnnouncementMeta {
   announcementId: string;
   instructorId: string;
   instructorName: string;

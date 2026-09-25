@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { createNotification } from '@/lib/notification';
 
-export interface DiscussionExtendedMeta {
+interface DiscussionExtendedMeta {
   discussionId: string;
   isResolved: boolean;
   resolvedAt: string | null;
