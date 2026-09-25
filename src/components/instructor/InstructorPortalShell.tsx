@@ -28,7 +28,8 @@ import {
   FileQuestion,
   Database,
   ClipboardList,
-  MessageSquare
+  MessageSquare,
+  Megaphone
 } from 'lucide-react';
 
 interface InstructorPortalShellProps {
@@ -142,6 +143,12 @@ function InstructorPortalShellInner({
       href: '/instructor/questions',
       icon: MessageSquare,
       isActive: pathname?.startsWith('/instructor/questions') || false
+    },
+    {
+      label: 'Announcements',
+      href: '/instructor/announcements',
+      icon: Megaphone,
+      isActive: pathname?.startsWith('/instructor/announcements') || false
     },
     {
       label: 'Students',
