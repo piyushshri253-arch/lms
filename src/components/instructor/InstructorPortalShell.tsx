@@ -29,7 +29,8 @@ import {
   Database,
   ClipboardList,
   MessageSquare,
-  Megaphone
+  Megaphone,
+  GitBranch
 } from 'lucide-react';
 
 interface InstructorPortalShellProps {
@@ -119,6 +120,12 @@ function InstructorPortalShellInner({
       href: '/instructor?tab=manage',
       icon: FolderKanban,
       isActive: pathname === '/instructor' && currentTab === 'manage'
+    },
+    {
+      label: 'Course Versions',
+      href: '/instructor/course-versions',
+      icon: GitBranch,
+      isActive: pathname?.startsWith('/instructor/course-versions') || false
     },
     {
       label: 'Quizzes',

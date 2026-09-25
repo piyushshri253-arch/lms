@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { requireReviewerAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { createNotification } from '@/lib/notification';
+import {
+  getCourseVersionState,
+  saveCourseVersionState,
+  applyApprovedVersionToLiveCourse
+} from '@/lib/course-versioning';
 
 export async function POST(
   request: Request,
@@ -48,6 +53,42 @@ export async function POST(
 
     if (!validateTenantOwnership(course.organizationId, user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Check if this is a Staged Version Update on an already PUBLISHED course
+    const versionState = await getCourseVersionState(course.id);
+    if (course.status === 'PUBLISHED' && versionState.stagedSnapshot) {
+      if (action === 'APPROVE') {
+        const applied = await applyApprovedVersionToLiveCourse(course.id, user, trimmedNote);
+        return NextResponse.json({
+          success: true,
+          versionState: applied,
+          message: `Course Version ${applied.liveVersionLabel} approved and published LIVE!`
+        });
+      } else {
+        const rejectedVer = await saveCourseVersionState(course.id, {
+          status: 'VERSION_REJECTED',
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: `${user.name} (${user.role})`,
+          reviewerFeedback: trimmedNote
+        });
+        if (course.instructorId) {
+          await createNotification({
+            organizationId: course.organizationId,
+            userId: course.instructorId,
+            title: `⚠️ Changes Requested on Version ${versionState.pendingVersionLabel || 'v2.0'}`,
+            message: `Auditor feedback for "${course.title}": "${trimmedNote}". Your live version (${versionState.liveVersionLabel}) remains untouched.`,
+            type: 'COURSES',
+            category: 'COURSES',
+            link: `/instructor/course-versions?courseId=${course.id}`
+          });
+        }
+        return NextResponse.json({
+          success: true,
+          versionState: rejectedVer,
+          message: `Version ${versionState.pendingVersionLabel || 'update'} marked as Revision Requested. Live course ${versionState.liveVersionLabel} stays active.`
+        });
+      }
     }
 
     const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';

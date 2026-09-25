@@ -477,6 +477,28 @@ export async function POST(req: NextRequest) {
 
     await saveQuizMeta(createdQuiz.id, metaPayload);
 
+    // 5b. If course is already PUBLISHED, record this Quiz addition in Course Version Control
+    if (course.status === 'PUBLISHED') {
+      try {
+        const { getCourseVersionState, saveCourseVersionState } = await import('@/lib/course-versioning');
+        const curVer = await getCourseVersionState(course.id);
+        const nextVerNum = (curVer.liveVersionNumber || 1) + 1;
+        await saveCourseVersionState(course.id, {
+          pendingVersionNumber: nextVerNum,
+          pendingVersionLabel: `v${nextVerNum}.0`,
+          status: curVer.status === 'LIVE_SYNCED' ? 'DRAFT_VERSION' : curVer.status,
+          detectedChanges: [
+            ...curVer.detectedChanges,
+            {
+              category: 'QUIZ',
+              field: `quiz.${createdQuiz.id}`,
+              summary: `Added/Modified Quiz "${createdQuiz.title}" (${questions.length} questions, ${totalMarks} marks)`
+            }
+          ]
+        });
+      } catch {}
+    }
+
     // 6. Audit Log
     await createAuditLog({
       organizationId: course.organizationId,

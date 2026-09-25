@@ -68,6 +68,13 @@ function CourseAssessmentsBanner() {
           <span className="material-symbols-outlined text-[15px]">forum</span>
           Student Q&A
         </Link>
+        <Link
+          href={`/instructor/course-versions${querySuffix}`}
+          className="px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
+        >
+          <span className="material-symbols-outlined text-[16px]">verified_user</span>
+          Version Protection & Review
+        </Link>
       </div>
     </div>
   );

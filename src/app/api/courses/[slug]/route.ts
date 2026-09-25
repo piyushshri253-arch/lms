@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, requireTenantRole, validateTenantOwnership, handleAuthError } from '@/lib/auth';
+import {
+  getCourseVersionState,
+  saveCourseVersionState,
+  classifyCourseChanges,
+  StagedCourseSnapshot
+} from '@/lib/course-versioning';
+import { createNotification } from '@/lib/notification';
 
 export async function GET(
   request: Request,
@@ -178,11 +185,38 @@ export async function GET(
       }))
     };
 
+    const versionState = await getCourseVersionState(course.id);
+    const { searchParams } = new URL(request.url);
+    const wantStaged = searchParams.get('version') === 'staged';
+
+    let finalFormattedCourse: any = {
+      ...formattedCourse,
+      isEnrolled,
+      versionState
+    };
+
+    if (
+      wantStaged &&
+      versionState.stagedSnapshot &&
+      currentUser &&
+      (currentUser.id === course.instructorId ||
+        ['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(currentUser.role))
+    ) {
+      const snap = versionState.stagedSnapshot;
+      finalFormattedCourse = {
+        ...finalFormattedCourse,
+        title: snap.title ?? finalFormattedCourse.title,
+        description: snap.description ?? finalFormattedCourse.description,
+        subtitle: snap.shortDescription ?? finalFormattedCourse.subtitle,
+        price: snap.price ?? finalFormattedCourse.price,
+        originalPrice: snap.discountPrice ?? finalFormattedCourse.originalPrice,
+        sections: snap.sections ?? finalFormattedCourse.sections
+      };
+    }
+
     return NextResponse.json({
-      course: {
-        ...formattedCourse,
-        isEnrolled
-      },
+      course: finalFormattedCourse,
+      versionState,
       isEnrolled,
       completedLessonIds
     });
@@ -212,7 +246,8 @@ export async function PUT(
       },
       include: {
         sections: {
-          include: { lessons: true }
+          include: { lessons: { orderBy: { order: 'asc' } } },
+          orderBy: { order: 'asc' }
         }
       }
     });
@@ -257,6 +292,152 @@ export async function PUT(
         });
         categoryId = newCat.id;
       }
+    }
+
+    // ============================================================================
+    // PUBLISHED COURSE VERSION PROTECTION (Major vs Minor Change Separation)
+    // ============================================================================
+    if (user.role === 'INSTRUCTOR' && course.status === 'PUBLISHED' && !body.forceDirectAdminOverride) {
+      const classification = classifyCourseChanges(course, body);
+
+      // 1. Always apply safe Minor Changes directly to the live course (description, thumbnail, SEO, etc.)
+      const updatedMinorLive = await prisma.course.update({
+        where: { id: course.id },
+        data: {
+          title: body.title !== undefined ? body.title.trim() : undefined,
+          description: body.description !== undefined ? body.description : undefined,
+          shortDescription: body.shortDescription !== undefined ? body.shortDescription : undefined,
+          thumbnail: body.thumbnail !== undefined ? body.thumbnail : undefined,
+          banner: body.banner !== undefined ? body.banner : undefined,
+          level: body.level !== undefined ? body.level : undefined,
+          language: body.language !== undefined ? body.language : undefined,
+          durationHours: body.durationHours !== undefined ? Number(body.durationHours) : undefined,
+          categoryId: categoryId || undefined,
+          whatYouWillLearn: body.whatYouWillLearn ? JSON.stringify(body.whatYouWillLearn) : undefined,
+          requirements: body.requirements ? JSON.stringify(body.requirements) : undefined,
+          targetAudience: body.targetAudience ? JSON.stringify(body.targetAudience) : undefined,
+          seoTitle: body.seoTitle !== undefined ? body.seoTitle : undefined,
+          seoDescription: body.seoDescription !== undefined ? body.seoDescription : undefined
+        }
+      });
+
+      // 2. If Major Changes (Price, Video, Curriculum, or Quiz) were made on a PUBLISHED course:
+      // Save as Staged Version (v2.0, v3.0...) instead of overwriting live student content!
+      if (classification.hasMajorChanges) {
+        const currentVer = await getCourseVersionState(course.id);
+        const nextVerNum = (currentVer.liveVersionNumber || 1) + 1;
+        const nextVerLabel = `v${nextVerNum}.0`;
+
+        const stagedSnapshot: StagedCourseSnapshot = {
+          title: body.title !== undefined ? body.title.trim() : course.title,
+          description: body.description !== undefined ? body.description : course.description,
+          shortDescription: body.shortDescription !== undefined ? body.shortDescription : (course.shortDescription || ''),
+          price: body.price !== undefined ? Number(body.price) : course.price,
+          discountPrice: body.discountPrice !== undefined ? (body.discountPrice ? Number(body.discountPrice) : null) : course.discountPrice,
+          currency: body.currency || course.currency,
+          level: body.level || course.level,
+          language: body.language || course.language,
+          durationHours: body.durationHours !== undefined ? Number(body.durationHours) : course.durationHours,
+          thumbnail: body.thumbnail !== undefined ? body.thumbnail : course.thumbnail,
+          banner: body.banner !== undefined ? body.banner : (course.banner || ''),
+          accessType: body.accessType || course.accessType,
+          accessDays: body.accessDays !== undefined ? (body.accessDays ? Number(body.accessDays) : null) : course.accessDays,
+          whatYouWillLearn: Array.isArray(body.whatYouWillLearn) ? body.whatYouWillLearn : undefined,
+          requirements: Array.isArray(body.requirements) ? body.requirements : undefined,
+          targetAudience: Array.isArray(body.targetAudience) ? body.targetAudience : undefined,
+          seoTitle: body.seoTitle !== undefined ? body.seoTitle : (course.seoTitle || ''),
+          seoDescription: body.seoDescription !== undefined ? body.seoDescription : (course.seoDescription || ''),
+          sections: Array.isArray(body.sections)
+            ? body.sections
+            : course.sections.map((s) => ({
+                id: s.id,
+                title: s.title,
+                description: s.description || '',
+                order: s.order,
+                lessons: s.lessons.map((l) => ({
+                  id: l.id,
+                  title: l.title,
+                  description: l.description || '',
+                  type: l.type,
+                  content: l.content,
+                  videoUrl: l.videoUrl,
+                  pdfUrl: l.pdfUrl,
+                  fileUrl: l.fileUrl,
+                  quizData: l.quizData,
+                  duration: l.duration,
+                  durationSeconds: l.durationSeconds,
+                  isFree: l.isFree,
+                  isPublished: l.isPublished,
+                  order: l.order
+                }))
+              }))
+        };
+
+        const targetVerStatus = body.submitVersionForReview ? 'PENDING_REVIEW' : 'DRAFT_VERSION';
+
+        const savedVersionState = await saveCourseVersionState(course.id, {
+          pendingVersionNumber: nextVerNum,
+          pendingVersionLabel: nextVerLabel,
+          status: targetVerStatus,
+          detectedChanges: [...classification.majorChanges, ...classification.minorChanges],
+          stagedSnapshot,
+          submittedAt: body.submitVersionForReview ? new Date().toISOString() : currentVer.submittedAt,
+          submittedBy: user.name
+        });
+
+        if (body.submitVersionForReview) {
+          const auditors = await prisma.user.findMany({
+            where: {
+              role: { in: ['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'] },
+              status: 'ACTIVE'
+            },
+            select: { id: true }
+          });
+          for (const aud of auditors) {
+            if (aud.id !== user.id) {
+              await createNotification({
+                organizationId: course.organizationId,
+                userId: aud.id,
+                title: `🛡️ Course Version ${nextVerLabel} Submitted for Review`,
+                message: `${user.name} edited major content (${classification.majorChanges.map((c) => c.category).join(', ')}) on published course "${course.title}".`,
+                type: 'COURSES',
+                category: 'COURSES',
+                link: `/instructor/course-versions?courseId=${course.id}`
+              });
+            }
+          }
+        }
+
+        await prisma.auditLog.create({
+          data: {
+            organizationId: course.organizationId,
+            adminId: user.id,
+            adminEmail: user.email,
+            action: 'STAGE_COURSE_VERSION',
+            entity: 'Course',
+            entityId: course.id,
+            description: `Instructor staged major updates (${classification.majorChanges.map((m) => m.summary).join('; ')}) as ${nextVerLabel} (${targetVerStatus}) for published course "${course.title}". Live version ${currentVer.liveVersionLabel} remains protected.`
+          }
+        });
+
+        return NextResponse.json({
+          course: updatedMinorLive,
+          versionProtected: true,
+          versionState: savedVersionState,
+          detectedMajorChanges: classification.majorChanges,
+          message:
+            targetVerStatus === 'PENDING_REVIEW'
+              ? `Major changes saved as Version ${nextVerLabel} and submitted for Auditor Approval! Live Version ${currentVer.liveVersionLabel} remains active for students.`
+              : `Published Course Protection: Major changes (${classification.majorChanges.map((m) => m.category).join(', ')}) saved as Draft Version ${nextVerLabel}. Submit for Auditor Review when ready!`
+        });
+      }
+
+      // Only minor changes were made -> already applied to updatedMinorLive
+      return NextResponse.json({
+        course: updatedMinorLive,
+        versionProtected: false,
+        message: 'Minor updates (description/metadata) applied directly to live course!'
+      });
     }
 
     const updated = await prisma.course.update({
