@@ -263,8 +263,7 @@ export default function AuditorCourseReviewPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
-            target="_blank"
+            href={`/reviewer/courses/${encodeURIComponent(course.id)}/preview`}
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-xs"
           >
             <Icon name="visibility" size={16} />

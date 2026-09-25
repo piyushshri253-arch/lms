@@ -1,16 +1,21 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useParams, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
 
-export default function InstructorCourseStudentPreviewPage() {
+function CourseStudentPreviewInner() {
   const params = useParams();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const courseId = (params?.id as string) || '';
+
+  const isAuditorMode =
+    Boolean(pathname?.startsWith('/reviewer')) || searchParams?.get('mode') === 'auditor';
 
   const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -29,17 +34,127 @@ export default function InstructorCourseStudentPreviewPage() {
         setLoading(true);
         const query = useStagedVersion ? '?version=staged' : '';
         const res = await fetch(`/api/courses/${encodeURIComponent(courseId)}${query}`);
-        const data = await res.json();
-        if (!isMounted) return;
+        let resolvedCourse: any = null;
 
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load course preview');
+        if (res.ok) {
+          const data = await res.json();
+          // Unwrap `{ course, versionState, isEnrolled }` returned by GET /api/courses/[slug]
+          resolvedCourse = data.course
+            ? {
+                ...data.course,
+                versionState: data.versionState || data.course.versionState,
+                isEnrolled: data.isEnrolled ?? data.course.isEnrolled
+              }
+            : data;
         }
 
-        setCourse(data);
-        const sections = data.sections || [];
-        setExpandedSections(sections.map((s: any) => s.id));
-        const firstLesson = sections.flatMap((s: any) => s.lessons || [])[0];
+        // Fallback / enrichment for Auditor session if GET /api/reviewer/courses is available
+        if (!resolvedCourse || isAuditorMode) {
+          try {
+            const auditRes = await fetch(
+              `/api/reviewer/courses?courseId=${encodeURIComponent(courseId)}`
+            );
+            if (auditRes.ok) {
+              const auditJson = await auditRes.json();
+              if (auditJson?.course) {
+                const ac = auditJson.course;
+                if (!resolvedCourse) {
+                  resolvedCourse = {
+                    ...ac,
+                    subtitle: ac.shortDescription || '',
+                    originalPrice: ac.discountPrice || undefined,
+                    category: ac.category?.name || ac.category || 'Masterclass',
+                    whatYouWillLearn: ac.parsedOutcomes || [],
+                    requirements: ac.parsedRequirements || [],
+                    targetAudience: ac.parsedTargetAudience || [],
+                    versionState: auditJson.versionState,
+                    submissionType: auditJson.submissionType,
+                    versionLabel: auditJson.versionLabel
+                  };
+                } else {
+                  resolvedCourse = {
+                    ...resolvedCourse,
+                    quizzes: resolvedCourse.quizzes?.length
+                      ? resolvedCourse.quizzes
+                      : ac.quizzes || [],
+                    submissionType: auditJson.submissionType,
+                    versionLabel: auditJson.versionLabel,
+                    effectiveReviewStatus:
+                      auditJson.auditMeta?.reviewStatus || resolvedCourse.status
+                  };
+                }
+              }
+            }
+          } catch {
+            // Ignore secondary fallback error if primary resolvedCourse succeeded
+          }
+        }
+
+        if (!isMounted) return;
+
+        if (!resolvedCourse || !resolvedCourse.id) {
+          throw new Error('Failed to load course preview data.');
+        }
+
+        // Normalize sections & attach standalone Course Quizzes if any exist outside lesson items
+        const baseSections: any[] = Array.isArray(resolvedCourse.sections)
+          ? [...resolvedCourse.sections]
+          : [];
+
+        const standaloneQuizzes: any[] = Array.isArray(resolvedCourse.quizzes)
+          ? resolvedCourse.quizzes
+          : [];
+
+        if (standaloneQuizzes.length > 0) {
+          const hasQuizLessons = baseSections.some((sec) =>
+            (sec.lessons || []).some((l: any) => l.type === 'QUIZ')
+          );
+          if (!hasQuizLessons) {
+            baseSections.push({
+              id: 'standalone-course-quizzes',
+              title: 'Course Quizzes & Assessments',
+              description: 'Interactive course assessments and certification quizzes',
+              order: baseSections.length + 1,
+              lessons: standaloneQuizzes.map((qz: any, idx: number) => ({
+                id: `quiz-${qz.id || idx}`,
+                title: qz.title || `Assessment Quiz #${idx + 1}`,
+                description: qz.description || '',
+                duration: `${qz.timeLimit || 15}:00`,
+                type: 'QUIZ',
+                isFree: true,
+                quizData: JSON.stringify({
+                  passingScore: qz.passingScore || 70,
+                  timeLimit: qz.timeLimit || 15,
+                  questions: (qz.questions || []).map((q: any) => {
+                    let parsedOpts: string[] = [];
+                    try {
+                      parsedOpts =
+                        typeof q.options === 'string' ? JSON.parse(q.options) : q.options || [];
+                    } catch {
+                      parsedOpts = [];
+                    }
+                    return {
+                      id: q.id,
+                      question: q.question,
+                      options: parsedOpts,
+                      correctAnswer: q.correctAnswer,
+                      explanation: q.explanation || ''
+                    };
+                  })
+                })
+              }))
+            });
+          }
+        }
+
+        const finalCourse = {
+          ...resolvedCourse,
+          sections: baseSections
+        };
+
+        setCourse(finalCourse);
+        setExpandedSections(baseSections.map((s: any) => s.id));
+        const firstLesson = baseSections.flatMap((s: any) => s.lessons || [])[0];
         if (firstLesson && !activeLessonId) {
           setActiveLessonId(firstLesson.id);
         }
@@ -55,7 +170,7 @@ export default function InstructorCourseStudentPreviewPage() {
     return () => {
       isMounted = false;
     };
-  }, [courseId, useStagedVersion]);
+  }, [courseId, useStagedVersion, isAuditorMode]);
 
   const allLessons: any[] = (course?.sections || []).flatMap((sec: any) => sec.lessons || []);
   const activeLesson =
@@ -84,14 +199,33 @@ export default function InstructorCourseStudentPreviewPage() {
         <Icon name="error" size={40} className="text-rose-400" />
         <h2 className="text-lg font-bold">Unable to Load Course Preview</h2>
         <p className="text-xs text-slate-400 max-w-md">
-          {error || 'Please save your course draft first in the Course Builder before launching Student Preview.'}
+          {error || 'Please verify the course ID and try again.'}
         </p>
-        <Link
-          href="/instructor/courses/builder"
-          className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold"
-        >
-          Back to Course Builder
-        </Link>
+        <div className="flex items-center gap-3">
+          {isAuditorMode ? (
+            <>
+              <Link
+                href={`/reviewer/courses/${encodeURIComponent(courseId)}`}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+              >
+                Back to Course Review
+              </Link>
+              <Link
+                href="/reviewer"
+                className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold"
+              >
+                Auditor Queue
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/instructor/courses/builder"
+              className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold"
+            >
+              Back to Course Builder
+            </Link>
+          )}
+        </div>
       </div>
     );
   }
@@ -104,29 +238,61 @@ export default function InstructorCourseStudentPreviewPage() {
       ? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
       : 0;
 
+  const displayStatus = course.effectiveReviewStatus || course.status || 'DRAFT';
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Top Sticky Instructor Simulation Control Bar */}
+      {/* Top Sticky Simulation Control Bar (Role-Aware for Auditor & Instructor) */}
       <header className="sticky top-0 z-50 bg-slate-900 text-white border-b border-indigo-500/30 px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/instructor/courses/builder?id=${encodeURIComponent(course.id)}`}
-            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold flex items-center gap-1.5 transition-all"
-          >
-            <Icon name="arrow_back" size={16} />
-            <span>Back to Builder</span>
-          </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          {isAuditorMode ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/reviewer/courses/${encodeURIComponent(course.id)}`}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all"
+              >
+                <Icon name="fact_check" size={16} />
+                <span>Back to Audit Review</span>
+              </Link>
+              <Link
+                href="/reviewer"
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold flex items-center gap-1.5 transition-all"
+              >
+                <Icon name="dashboard" size={15} />
+                <span>Auditor Queue</span>
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href={`/instructor/courses/builder?id=${encodeURIComponent(course.id)}`}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold flex items-center gap-1.5 transition-all"
+            >
+              <Icon name="arrow_back" size={16} />
+              <span>Back to Builder</span>
+            </Link>
+          )}
 
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-mono font-bold uppercase">
-              Instructor Student-View Sandbox
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
+                isAuditorMode
+                  ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
+                  : 'bg-amber-500/20 border-amber-400/40 text-amber-300'
+              }`}
+            >
+              {isAuditorMode ? 'Auditor Student-View Preview' : 'Instructor Student-View Sandbox'}
             </span>
             <span className="text-xs font-bold text-slate-200 truncate max-w-[260px] sm:max-w-md">
               {course.title}
             </span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-              Status: {course.status}
+              Status: {displayStatus}
             </span>
+            {course.versionLabel && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                {course.versionLabel}
+              </span>
+            )}
           </div>
         </div>
 
@@ -141,7 +307,9 @@ export default function InstructorCourseStudentPreviewPage() {
                   : 'bg-white/5 border-white/15 text-slate-300'
               }`}
             >
-              {useStagedVersion ? 'Viewing: Staged Draft v' + course.versionState.stagedVersion : 'Viewing: Live Published'}
+              {useStagedVersion
+                ? 'Viewing: Staged Draft ' + (course.versionState?.pendingVersionLabel || 'v2.0')
+                : 'Viewing: Live ' + (course.versionState?.liveVersionLabel || 'v1.0')}
             </button>
           )}
 
@@ -183,13 +351,18 @@ export default function InstructorCourseStudentPreviewPage() {
               <div className="lg:col-span-8 space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold">
-                    {course.category || 'Masterclass'}
+                    {typeof course.category === 'object'
+                      ? course.category?.name || 'Masterclass'
+                      : course.category || 'Masterclass'}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-200 text-[11px] font-semibold">
                     Level: {course.level || 'All Levels'}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-semibold">
                     Language: {course.language || 'English'}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-mono font-bold">
+                    Status: {displayStatus}
                   </span>
                 </div>
 
@@ -199,6 +372,7 @@ export default function InstructorCourseStudentPreviewPage() {
 
                 <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
                   {course.subtitle ||
+                    course.shortDescription ||
                     'Master practical production skills with real-world video lectures, hands-on quizzes, and downloadable architectural guides.'}
                 </p>
 
@@ -211,10 +385,14 @@ export default function InstructorCourseStudentPreviewPage() {
                     </span>
                   </div>
                   <div>
-                    <span className="font-bold text-white">{course.studentsCount || 0}</span> students enrolled
+                    <span className="font-bold text-white">{course.studentsCount || 0}</span>{' '}
+                    students enrolled
                   </div>
                   <div>
-                    Created by <span className="font-bold text-indigo-300">{course.instructor?.name}</span>
+                    Created by{' '}
+                    <span className="font-bold text-indigo-300">
+                      {course.instructor?.name || 'Course Instructor'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -232,7 +410,9 @@ export default function InstructorCourseStudentPreviewPage() {
                       className="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform"
                     />
                   ) : (
-                    <div className="text-center p-4 text-slate-400 text-xs">No Thumbnail Uploaded</div>
+                    <div className="text-center p-4 text-slate-400 text-xs">
+                      No Thumbnail Uploaded
+                    </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
                     <div className="w-12 h-12 rounded-full bg-white text-indigo-600 flex items-center justify-center shadow-lg">
@@ -248,7 +428,9 @@ export default function InstructorCourseStudentPreviewPage() {
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-2.5">
                     <span className="text-3xl font-black text-slate-900">
-                      {effectivePrice === 0 ? 'Free' : `₹${effectivePrice.toLocaleString('en-IN')}`}
+                      {effectivePrice === 0
+                        ? 'Free'
+                        : `₹${effectivePrice.toLocaleString('en-IN')}`}
                     </span>
                     {originalPrice && originalPrice > effectivePrice && (
                       <>
@@ -273,7 +455,7 @@ export default function InstructorCourseStudentPreviewPage() {
                   className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all flex items-center justify-center gap-2"
                 >
                   <Icon name="play_circle" size={18} />
-                  <span>Test Classroom Player (Video & Quiz)</span>
+                  <span>Test Classroom Player (Video, PDF & Quiz)</span>
                 </button>
 
                 <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
@@ -305,7 +487,11 @@ export default function InstructorCourseStudentPreviewPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {course.whatYouWillLearn.map((item: string, idx: number) => (
                       <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
-                        <Icon name="check_circle" size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <Icon
+                          name="check_circle"
+                          size={16}
+                          className="text-emerald-600 shrink-0 mt-0.5"
+                        />
                         <span>{item}</span>
                       </div>
                     ))}
@@ -319,90 +505,124 @@ export default function InstructorCourseStudentPreviewPage() {
                   <div>
                     <h2 className="text-lg font-extrabold text-slate-900">Course Curriculum</h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {(course.sections || []).length} modules • {allLessons.length} lectures (Click any lecture to preview its Video/Quiz/PDF)
+                      {(course.sections || []).length} modules • {allLessons.length} lectures
+                      (Click any lecture to preview its Video/Quiz/PDF)
                     </p>
                   </div>
                 </div>
 
-                <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
-                  {(course.sections || []).map((sec: any, sIdx: number) => {
-                    const isOpen = expandedSections.includes(sec.id);
-                    return (
-                      <div key={sec.id}>
-                        <button
-                          onClick={() => toggleSection(sec.id)}
-                          className="w-full px-4 py-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-left cursor-pointer"
-                        >
-                          <div>
-                            <span className="text-[10px] font-mono font-bold uppercase text-indigo-600 block">
-                              Module {sIdx + 1}
-                            </span>
-                            <span className="text-sm font-bold text-slate-900">{sec.title}</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-slate-500">
-                            <span>{(sec.lessons || []).length} lectures</span>
-                            <Icon name={isOpen ? 'expand_less' : 'expand_more'} size={18} />
-                          </div>
-                        </button>
+                {allLessons.length === 0 ? (
+                  <div className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                    No curriculum modules or lectures have been added to this course yet.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
+                    {(course.sections || []).map((sec: any, sIdx: number) => {
+                      const isOpen = expandedSections.includes(sec.id);
+                      return (
+                        <div key={sec.id}>
+                          <button
+                            onClick={() => toggleSection(sec.id)}
+                            className="w-full px-4 py-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-left cursor-pointer"
+                          >
+                            <div>
+                              <span className="text-[10px] font-mono font-bold uppercase text-indigo-600 block">
+                                Module {sIdx + 1}
+                              </span>
+                              <span className="text-sm font-bold text-slate-900">{sec.title}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                              <span>{(sec.lessons || []).length} lectures</span>
+                              <Icon name={isOpen ? 'expand_less' : 'expand_more'} size={18} />
+                            </div>
+                          </button>
 
-                        {isOpen && (
-                          <div className="divide-y divide-slate-100 bg-white">
-                            {(sec.lessons || []).map((les: any) => (
-                              <div
-                                key={les.id}
-                                className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-indigo-50/40"
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <Icon
-                                    name={
-                                      les.type === 'QUIZ'
-                                        ? 'quiz'
-                                        : les.type === 'PDF'
-                                        ? 'picture_as_pdf'
-                                        : 'play_circle'
-                                    }
-                                    size={18}
-                                    className="text-indigo-600 shrink-0"
-                                  />
-                                  <div className="min-w-0">
-                                    <div className="text-xs font-bold text-slate-800 truncate">
-                                      {les.title}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
-                                      <span>{les.type || 'VIDEO'}</span>
-                                      <span>•</span>
-                                      <span>{les.duration || '10:00'}</span>
-                                      {les.isFree ? (
-                                        <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">
-                                          Free Preview
-                                        </span>
-                                      ) : (
-                                        <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
-                                          🔒 Paid Enrolled Student Only
-                                        </span>
-                                      )}
+                          {isOpen && (
+                            <div className="divide-y divide-slate-100 bg-white">
+                              {(sec.lessons || []).map((les: any) => (
+                                <div
+                                  key={les.id}
+                                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-indigo-50/40"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <Icon
+                                      name={
+                                        les.type === 'QUIZ'
+                                          ? 'quiz'
+                                          : les.type === 'PDF'
+                                          ? 'picture_as_pdf'
+                                          : 'play_circle'
+                                      }
+                                      size={18}
+                                      className="text-indigo-600 shrink-0"
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-slate-800 truncate">
+                                        {les.title}
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+                                        <span>{les.type || 'VIDEO'}</span>
+                                        <span>•</span>
+                                        <span>{les.duration || '10:00'}</span>
+                                        {les.isFree ? (
+                                          <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">
+                                            Free Preview
+                                          </span>
+                                        ) : (
+                                          <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
+                                            🔒 Paid Enrolled Student Only
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                <button
-                                  onClick={() => {
-                                    setActiveLessonId(les.id);
-                                    setViewMode('CLASSROOM_PLAYER');
-                                  }}
-                                  className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 cursor-pointer"
-                                >
-                                  Test in Player →
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                                  <button
+                                    onClick={() => {
+                                      setActiveLessonId(les.id);
+                                      setViewMode('CLASSROOM_PLAYER');
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 cursor-pointer"
+                                  >
+                                    Test in Player →
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+
+              {/* Requirements & Target Audience */}
+              {((Array.isArray(course.requirements) && course.requirements.length > 0) ||
+                (Array.isArray(course.targetAudience) && course.targetAudience.length > 0)) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {Array.isArray(course.requirements) && course.requirements.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
+                      <h3 className="text-sm font-extrabold text-slate-900">Requirements</h3>
+                      <ul className="space-y-2 text-xs text-slate-700 list-disc pl-4">
+                        {course.requirements.map((r: string, i: number) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {Array.isArray(course.targetAudience) && course.targetAudience.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
+                      <h3 className="text-sm font-extrabold text-slate-900">Target Audience</h3>
+                      <ul className="space-y-2 text-xs text-slate-700 list-disc pl-4">
+                        {course.targetAudience.map((t: string, i: number) => (
+                          <li key={i}>{t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Full Course Description */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
@@ -518,5 +738,19 @@ export default function InstructorCourseStudentPreviewPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function InstructorCourseStudentPreviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-8 text-xs font-mono">
+          Loading Course Student-View Preview...
+        </div>
+      }
+    >
+      <CourseStudentPreviewInner />
+    </Suspense>
   );
 }

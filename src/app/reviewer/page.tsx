@@ -341,12 +341,12 @@ function ReviewerDashboardContent() {
                     <td className="py-4 px-5 text-right">
                       <div className="inline-flex items-center gap-2">
                         <Link
-                          href={`/instructor/courses/preview/${course.id}`}
-                          target="_blank"
-                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold"
-                          title="Preview as Student"
+                          href={`/reviewer/courses/${course.id}/preview`}
+                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1"
+                          title="Preview Course as Student"
                         >
-                          Preview
+                          <Icon name="visibility" size={14} />
+                          <span>Preview</span>
                         </Link>
                         <Link
                           href={`/reviewer/courses/${course.id}`}

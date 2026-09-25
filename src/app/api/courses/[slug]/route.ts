@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser, requireTenantRole, validateTenantOwnership, handleAuthError } from '@/lib/auth';
+import {
+  getCurrentUser,
+  getReviewerCurrentUser,
+  requireTenantRole,
+  validateTenantOwnership,
+  handleAuthError
+} from '@/lib/auth';
 import {
   getCourseVersionState,
   saveCourseVersionState,
@@ -16,7 +22,9 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const currentUser = await getCurrentUser();
+    const reviewerUser = await getReviewerCurrentUser();
+    const defaultUser = await getCurrentUser();
+    const currentUser = reviewerUser || defaultUser;
 
     const course = await prisma.course.findFirst({
       where: {
@@ -31,7 +39,14 @@ export async function GET(
         sections: {
           include: {
             lessons: {
-              orderBy: { order: 'asc' }
+              orderBy: { order: 'asc' },
+              include: {
+                quiz: {
+                  include: {
+                    questions: true
+                  }
+                }
+              }
             }
           },
           orderBy: { order: 'asc' }
@@ -55,23 +70,35 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
-    // Tenant Isolation Check for Draft/Private Courses
+    const courseQuizzes = await prisma.quiz.findMany({
+      where: {
+        lesson: {
+          section: {
+            courseId: course.id
+          }
+        }
+      },
+      include: { questions: true }
+    });
+
+    const isPrivilegedViewer = Boolean(
+      currentUser &&
+        (currentUser.id === course.instructorId ||
+          ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'REVIEWER'].includes(currentUser.role))
+    );
+
+    // Tenant Isolation Check for Draft / In-Review / Approved (Unpublished) Courses
     if (course.status !== 'PUBLISHED') {
       if (!currentUser) {
         return NextResponse.json({ error: 'Course not found' }, { status: 404 });
       }
-      if (!validateTenantOwnership(course.organizationId, currentUser)) {
+      if (!isPrivilegedViewer && !validateTenantOwnership(course.organizationId, currentUser)) {
         return NextResponse.json({ error: 'Course not found' }, { status: 404 });
       }
     }
 
     let isEnrolled = false;
     let completedLessonIds: string[] = [];
-    const isPrivilegedViewer = Boolean(
-      currentUser &&
-        (currentUser.id === course.instructorId ||
-          ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'REVIEWER'].includes(currentUser.role))
-    );
 
     if (currentUser) {
       const enrollment = await prisma.enrollment.findFirst({
@@ -97,6 +124,7 @@ export async function GET(
 
       isEnrolled =
         isEnrollmentValid ||
+        isPrivilegedViewer ||
         currentUser.role === 'SUPER_ADMIN' ||
         (currentUser.role === 'ADMIN' && validateTenantOwnership(course.organizationId, currentUser)) ||
         course.instructorId === currentUser.id;
@@ -215,6 +243,7 @@ export async function GET(
           };
         })
       })),
+      quizzes: courseQuizzes,
       reviews: course.reviews.map((r) => ({
         id: r.id,
         user: {

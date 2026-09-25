@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getReviewerCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
   getCourseSecurityPolicy,
@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ allowed: false, error: 'No lesson specified' }, { status: 400 });
     }
 
-    const user = await getCurrentUser();
+    const user = (await getReviewerCurrentUser()) || (await getCurrentUser());
 
     // 1. Fetch Lesson with Section and Course
     const lesson = await prisma.lesson.findUnique({

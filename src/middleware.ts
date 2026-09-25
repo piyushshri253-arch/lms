@@ -408,6 +408,21 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isLmsProtectedRoute) {
+    // Allow Course Reviewers (Auditors) and Admins to access the Course Preview Sandbox directly
+    if (
+      pathname.startsWith('/instructor/courses/preview/') &&
+      (isReviewerValid ||
+        lmsSession?.role === 'REVIEWER' ||
+        isAuthorizedAdminRole(lmsSession?.role) ||
+        isAuthorizedAdminRole(salesSession?.role))
+    ) {
+      return createSecureResponse(
+        NextResponse.next({
+          request: { headers: requestHeaders }
+        })
+      );
+    }
+
     if (!isLmsValid) {
       if (pathname.startsWith('/instructor')) {
         return NextResponse.redirect(
@@ -442,6 +457,7 @@ export async function middleware(request: NextRequest) {
       const lmsRole = lmsSession?.role;
       const canAccessInstructor =
         lmsRole === 'INSTRUCTOR' ||
+        lmsRole === 'REVIEWER' ||
         lmsRole === 'ADMIN' ||
         lmsRole === 'LMS_ADMIN' ||
         lmsRole === 'SUPER_ADMIN';
