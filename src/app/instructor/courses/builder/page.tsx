@@ -83,14 +83,23 @@ function CourseAssessmentsBanner() {
           Version Protection & Review
         </Link>
         {courseId && (
-          <Link
-            href={`/instructor/courses/preview/${encodeURIComponent(courseId)}`}
-            target="_blank"
-            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md transition-all"
-          >
-            <span className="material-symbols-outlined text-[16px]">visibility</span>
-            Preview Course (Student View)
-          </Link>
+          <>
+            <Link
+              href={`/instructor/course/${encodeURIComponent(courseId)}/review`}
+              className="px-3.5 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">fact_check</span>
+              Auditor Feedback
+            </Link>
+            <Link
+              href={`/instructor/courses/preview/${encodeURIComponent(courseId)}`}
+              target="_blank"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md transition-all"
+            >
+              <span className="material-symbols-outlined text-[16px]">visibility</span>
+              Preview Course (Student View)
+            </Link>
+          </>
         )}
       </div>
     </div>
