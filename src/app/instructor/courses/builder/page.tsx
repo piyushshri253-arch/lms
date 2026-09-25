@@ -75,6 +75,16 @@ function CourseAssessmentsBanner() {
           <span className="material-symbols-outlined text-[16px]">verified_user</span>
           Version Protection & Review
         </Link>
+        {courseId && (
+          <Link
+            href={`/instructor/courses/preview/${encodeURIComponent(courseId)}`}
+            target="_blank"
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md transition-all"
+          >
+            <span className="material-symbols-outlined text-[16px]">visibility</span>
+            Preview Course (Student View)
+          </Link>
+        )}
       </div>
     </div>
   );

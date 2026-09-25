@@ -587,6 +587,18 @@ function CourseBuilderContent() {
         </button>
 
         <div className="flex items-center gap-3">
+          {(courseState.id || courseState.slug) && (
+            <a
+              href={`/instructor/courses/preview/${encodeURIComponent(courseState.id || courseState.slug)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
+            >
+              <Icon name="visibility" size={16} />
+              <span>Preview Course</span>
+            </a>
+          )}
+
           <button
             type="button"
             disabled={isSaving}
