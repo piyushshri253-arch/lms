@@ -592,7 +592,7 @@ export async function POST(req: NextRequest) {
             <div>
               <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">3. Instructor Onboarding</div>
               <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-                Once your profile is approved, you will receive an onboarding email with a <strong>Log In to Instructor Portal →</strong> button.
+                Once your profile is approved, you will receive an onboarding email.
               </p>
               <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
                 You can then access the Instructor Portal and start creating and managing your courses.

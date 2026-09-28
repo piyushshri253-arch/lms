@@ -182,8 +182,7 @@ function VerifyEmailContent() {
               <div className="space-y-1">
                 <div className="font-bold text-slate-900">3. Instructor Onboarding</div>
                 <p className="text-slate-600 leading-relaxed">
-                  Once your profile is approved, you will receive an onboarding email with a{' '}
-                  <strong className="text-violet-700">Log In to Instructor Portal →</strong> button.
+                  Once your profile is approved, you will receive an onboarding email.
                 </p>
                 <p className="text-slate-600 leading-relaxed">
                   You can then access the Instructor Portal and start creating and managing your courses.
