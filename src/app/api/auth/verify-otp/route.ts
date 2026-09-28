@@ -274,6 +274,40 @@ export async function POST(req: NextRequest) {
         where: { key: pendingKey }
       }).catch(() => {});
 
+      // Immediately send the official "Under Review • 24–48 Hours Onboarding Process" confirmation email to the Instructor Applicant FIRST
+      if (updatedUser.role === 'INSTRUCTOR' && updatedUser.status === 'PENDING_APPROVAL') {
+        await EmailService.sendCustomNotificationEmail({
+          to: updatedUser.email,
+          subject: '⏳ Under Review • 24–48 Hours Onboarding Process — Your Application is Now Under Review!',
+          title: 'Your Application is Now Under Review!',
+          message: `
+          <div style="margin-bottom: 16px;">
+            <span style="display: inline-block; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800;">
+              ⏳ Under Review • 24–48 Hours Onboarding Process
+            </span>
+          </div>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
+            Hello <strong>${updatedUser.name}</strong>,<br/><br/>
+            Your Instructor profile, qualifications, experience, and resume have been submitted to our Course Auditor. Our onboarding &amp; verification process takes <strong>24 to 48 hours</strong>.
+          </p>
+          <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 18px 20px; margin: 18px 0; color: #1e293b;">
+            <div style="font-size: 14px; font-weight: 800; color: #5b21b6; margin-bottom: 12px;">
+              What Happens in the Next 24–48 Hours:
+            </div>
+            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+              <strong>1. Auditor Profile &amp; Resume Review:</strong> The Auditor will verify your qualifications, passing years, LinkedIn profile, and resume within 24–48 hours.
+            </p>
+            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+              <strong>2. Interview Decision:</strong> The Auditor will decide if a quick interview is needed or approve direct onboarding.
+            </p>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
+              <strong>3. Onboarding Email with Login Button:</strong> Once approved, you will receive an email at <strong>${updatedUser.email}</strong> with a direct <strong>Log In to Instructor Portal →</strong> button!
+            </p>
+          </div>`,
+          userId: updatedUser.id
+        }).catch(() => {});
+      }
+
       // Notify Course Auditors (REVIEWER) & Admins about new Instructor Application (or Reviewer signup)
       if (updatedUser.role === 'INSTRUCTOR' || updatedUser.role === 'REVIEWER') {
         try {
@@ -297,9 +331,12 @@ export async function POST(req: NextRequest) {
                 }
               }).catch(() => {});
 
-              // Also send email alert to Auditors (REVIEWER) so they know right away
-              if (rec.role === 'REVIEWER' || rec.role === 'SUPER_ADMIN') {
-                EmailService.sendCustomNotificationEmail({
+              // Also send email alert to real Auditors (non-demo emails)
+              if (
+                (rec.role === 'REVIEWER' || rec.role === 'SUPER_ADMIN') &&
+                !rec.email.toLowerCase().endsWith('@morenateach.com')
+              ) {
+                await EmailService.sendCustomNotificationEmail({
                   to: rec.email,
                   subject: `📋 New Instructor Application for Auditor Review: ${updatedUser.name}`,
                   title: `New Instructor Application & Resume Received`,
@@ -482,25 +519,41 @@ export async function POST(req: NextRequest) {
       }
     }).catch(() => {});
 
-    // 5. If Instructor is pending Auditor approval, send an Application Received (24-48 Hours Onboarding) email; otherwise send Welcome Email
+    // 5. If Instructor is pending Auditor approval (and wasn't already emailed in step 1), send the exact "Under Review • 24–48 Hours Onboarding Process" email; otherwise send Welcome Email
     let welcomeResult: { success: boolean; error?: string | null } = { success: true, error: null };
     if (isPendingInstructorOnboarding) {
-      await EmailService.sendCustomNotificationEmail({
-        to: updatedUser.email,
-        subject: '⏳ Your Morena Teach Instructor Application is Under Review (24–48 Hours Onboarding Process)',
-        title: 'Application Under Review — 24 to 48 Hours Onboarding Process',
-        message: `Hello <strong>${updatedUser.name}</strong>,<br/><br/>
-        Thank you for registering as an Instructor on <strong>Morena Teach</strong>! Your email address is verified and your complete profile, qualifications, experience, and resume have been submitted for <strong>Auditor Review &amp; Onboarding</strong>.<br/><br/>
-        <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 14px 18px; margin: 14px 0; color: #4c1d95;">
-          <strong>⏱️ Estimated Onboarding &amp; Review Timeline: 24 – 48 Hours</strong><br/>
-          Your profile is currently in our Auditor Review Queue. The complete verification, interview decision, and onboarding process takes <strong>24 to 48 hours</strong>.
-        </div>
-        <strong>What happens next?</strong><br/>
-        1. <strong>Profile &amp; Resume Review (Within 24–48 Hours):</strong> Our Course Auditor will verify your qualifications, experience, LinkedIn profile, and uploaded resume.<br/>
-        2. <strong>Interview Decision:</strong> If an interview is required, you will receive an interview schedule email.<br/>
-        3. <strong>Final Onboarding &amp; Login Link:</strong> Once your onboarding is approved by the Auditor, you will receive an <strong>Onboarding Confirmation Email</strong> containing a direct <strong>Log In to Instructor Portal →</strong> button so you can sign in and publish courses.`,
-        userId: updatedUser.id
-      }).catch(() => {});
+      if (!pendingSetting) {
+        await EmailService.sendCustomNotificationEmail({
+          to: updatedUser.email,
+          subject: '⏳ Under Review • 24–48 Hours Onboarding Process — Your Application is Now Under Review!',
+          title: 'Your Application is Now Under Review!',
+          message: `
+          <div style="margin-bottom: 16px;">
+            <span style="display: inline-block; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800;">
+              ⏳ Under Review • 24–48 Hours Onboarding Process
+            </span>
+          </div>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
+            Hello <strong>${updatedUser.name}</strong>,<br/><br/>
+            Your Instructor profile, qualifications, experience, and resume have been submitted to our Course Auditor. Our onboarding &amp; verification process takes <strong>24 to 48 hours</strong>.
+          </p>
+          <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 18px 20px; margin: 18px 0; color: #1e293b;">
+            <div style="font-size: 14px; font-weight: 800; color: #5b21b6; margin-bottom: 12px;">
+              What Happens in the Next 24–48 Hours:
+            </div>
+            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+              <strong>1. Auditor Profile &amp; Resume Review:</strong> The Auditor will verify your qualifications, passing years, LinkedIn profile, and resume within 24–48 hours.
+            </p>
+            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+              <strong>2. Interview Decision:</strong> The Auditor will decide if a quick interview is needed or approve direct onboarding.
+            </p>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
+              <strong>3. Onboarding Email with Login Button:</strong> Once approved, you will receive an email at <strong>${updatedUser.email}</strong> with a direct <strong>Log In to Instructor Portal →</strong> button!
+            </p>
+          </div>`,
+          userId: updatedUser.id
+        }).catch(() => {});
+      }
     } else {
       welcomeResult = await EmailService.sendWelcomeEmail({
         id: updatedUser.id,

@@ -194,18 +194,25 @@ export async function POST(req: NextRequest) {
       });
 
       if (decision === 'TAKE_INTERVIEW' && sendInviteEmail) {
+        const rawMeetingLink = String(appData.interviewMeetingLink || '').trim();
+        const validMeetingUrl = rawMeetingLink
+          ? rawMeetingLink.startsWith('http://') || rawMeetingLink.startsWith('https://')
+            ? rawMeetingLink
+            : `https://${rawMeetingLink}`
+          : undefined;
+
         await EmailService.sendCustomNotificationEmail({
           to: instructor.email,
           subject: `🎙️ Interview Scheduled for Your Morena Teach Instructor Application`,
           title: `Instructor Onboarding Interview Scheduled`,
           message: `Hello <strong>${instructor.name}</strong>,<br/><br/>
           Our Course Auditor (<strong>${auditor.name}</strong>) has reviewed your Instructor application and resume and scheduled an onboarding interview.<br/><br/>
-          ${appData.interviewDate ? `<strong>Scheduled Date & Time:</strong> ${appData.interviewDate}<br/>` : ''}
-          ${appData.interviewMeetingLink ? `<strong>Meeting Link:</strong> <a href="${appData.interviewMeetingLink}">${appData.interviewMeetingLink}</a><br/>` : ''}
+          ${appData.interviewDate ? `<strong>Scheduled Date &amp; Time:</strong> ${appData.interviewDate}<br/>` : ''}
+          ${validMeetingUrl ? `<strong>Interview Link:</strong> <a href="${validMeetingUrl}" target="_blank" rel="noopener noreferrer">${validMeetingUrl}</a><br/>` : ''}
           ${appData.interviewNotes ? `<strong>Instructions / Notes:</strong> ${appData.interviewNotes}<br/>` : ''}<br/>
           Once the interview is completed and approved by the Auditor, you will receive your final Onboarding Confirmation Email with your direct Login button.`,
-          actionUrl: appData.interviewMeetingLink || `/instructor/login?email=${encodeURIComponent(instructor.email)}`,
-          actionText: appData.interviewMeetingLink ? 'Join Interview Meeting →' : 'View Application Status →',
+          actionUrl: validMeetingUrl,
+          actionText: validMeetingUrl ? 'Join Interview Link →' : undefined,
           userId: instructor.id
         }).catch(() => {});
       }
