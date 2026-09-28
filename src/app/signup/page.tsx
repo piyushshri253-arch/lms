@@ -353,7 +353,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           code === 'PENDING_AUDITOR_ONBOARDING'
             ? data.error
             : code === 'USER_NOT_FOUND'
-            ? 'This email is not registered. Please sign up first.'
+            ? 'This email is not registered as an Instructor. Please sign up for Instructor first.'
             : 'Your email ID or password is wrong. Please enter the correct email and password.'
         );
         setLoading(false);
@@ -447,6 +447,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       <button
                         type="button"
                         onClick={() => {
+                          setRole('INSTRUCTOR');
                           setForm((prev) => ({
                             ...prev,
                             email: loginEmail.trim().toLowerCase()
@@ -457,7 +458,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         }}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
                       >
-                        <span>Sign up for Morena Teach</span>
+                        <span>Sign Up for Instructor</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>

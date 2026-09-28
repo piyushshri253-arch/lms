@@ -151,17 +151,27 @@ function LoginContent() {
                     authError.code === 'USER_NOT_FOUND' ? 'text-[#5624d0]' : 'text-rose-600'
                   }`}
                 />
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2.5">
                   <p className="font-semibold text-xs leading-relaxed">{authError.message}</p>
                   {authError.code === 'USER_NOT_FOUND' && (
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/register?email=${encodeURIComponent(
                           email.trim().toLowerCase()
                         )}${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded shadow-xs transition-colors"
                       >
-                        <span>Sign up for Morena Teach</span>
+                        <span>Sign Up as Student</span>
+                        <Icon name="arrow_forward" size={14} />
+                      </Link>
+                      <Link
+                        href={`/signup?role=INSTRUCTOR&email=${encodeURIComponent(
+                          email.trim().toLowerCase()
+                        )}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-purple-100 text-[#5624d0] border border-[#5624d0] text-xs font-bold rounded shadow-xs transition-colors"
+                      >
+                        <Icon name="cast_for_education" size={14} />
+                        <span>Sign Up for Instructor</span>
                         <Icon name="arrow_forward" size={14} />
                       </Link>
                     </div>
