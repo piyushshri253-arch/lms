@@ -191,19 +191,13 @@ function VerifyEmailContent() {
               </div>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row gap-3">
-              <Link
-                href={`/instructor/login?email=${encodeURIComponent(email)}`}
-                className="flex-1 py-3 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-violet-600/20"
-              >
-                <span>Go to Instructor Login Page</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+            <div className="pt-2">
               <Link
                 href="/"
-                className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center"
+                className="w-full py-3.5 px-5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 transition-all"
               >
-                Back to Home
+                <span>Back to Home</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
