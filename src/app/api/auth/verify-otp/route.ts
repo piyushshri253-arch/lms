@@ -179,6 +179,7 @@ export async function POST(req: NextRequest) {
           pincode: updatedUser.pincode || uData.pincode || '',
           qualification: uData.qualification || 'Not specified',
           additionalQualifications: uData.additionalQualifications || '',
+          qualificationsList: Array.isArray(uData.qualificationsList) ? uData.qualificationsList : [],
           experience: uData.experience || 'Not specified',
           experienceYears: uData.experienceYears || '',
           resumeDataUrl: uData.resumeDataUrl || null,

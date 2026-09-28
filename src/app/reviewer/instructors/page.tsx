@@ -42,6 +42,11 @@ interface InstructorApplicant {
   createdAt: string;
   qualification: string;
   additionalQualifications: string;
+  qualificationsList?: Array<{
+    degree: string;
+    specialization: string;
+    passingYear: string;
+  }>;
   experience: string;
   experienceYears: string;
   resumeFileName: string | null;
@@ -556,6 +561,34 @@ export default function AuditorInstructorOnboardingPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Detailed Qualifications & Passing Year List */}
+              {selected.qualificationsList && selected.qualificationsList.length > 0 && (
+                <div className="p-4 rounded-xl bg-violet-50/40 border border-violet-200/80 space-y-2.5">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-violet-950 flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-violet-600" />
+                    <span>Complete Qualifications &amp; Passing Years ({selected.qualificationsList.length})</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {selected.qualificationsList.map((q, i) => (
+                      <div
+                        key={i}
+                        className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900">{q.degree}</span>
+                          {q.specialization && (
+                            <span className="text-slate-600 ml-1.5">— {q.specialization}</span>
+                          )}
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 font-extrabold text-[11px] shrink-0">
+                          Passing Year: {q.passingYear}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Contact & Address Details */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

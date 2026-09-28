@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
         createdAt: u.createdAt,
         qualification: app.qualification || (u.bio ? u.bio.split('•')[0]?.trim() : 'B.Tech / M.Tech'),
         additionalQualifications: app.additionalQualifications || '',
+        qualificationsList: Array.isArray(app.qualificationsList) ? app.qualificationsList : [],
         experience: app.experience || (u.bio || '3+ Years Teaching & Industry Experience'),
         experienceYears: app.experienceYears || '',
         resumeFileName: app.resumeFileName || null,

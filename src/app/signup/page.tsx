@@ -21,8 +21,23 @@ import {
   AlertCircle,
   Loader2,
   LogIn,
-  UserPlus
+  UserPlus,
+  Plus,
+  Trash2,
+  Briefcase,
+  FileText
 } from 'lucide-react';
+
+export interface QualificationItem {
+  degree: string;
+  specialization: string;
+  passingYear: string;
+}
+
+const PASSING_YEARS = [
+  'Pursuing',
+  ...Array.from({ length: 42 }, (_, idx) => String(new Date().getFullYear() - idx))
+];
 
 function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INSTRUCTOR' | 'REVIEWER' }) {
   const router = useRouter();
@@ -32,7 +47,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const initialEmail = searchParams.get('email') || '';
 
   const [authMode, setAuthMode] = useState<'SIGNUP' | 'LOGIN'>(initialTab);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [role, setRole] = useState<'INSTRUCTOR' | 'REVIEWER'>(
     roleParam === 'REVIEWER' || roleParam === 'AUDITOR' ? 'REVIEWER' : defaultRole
   );
@@ -42,6 +57,15 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
+  // Dynamic Qualifications List (Graduation, Post-Graduation, Additional Qualifications with Passing Year)
+  const [qualificationsList, setQualificationsList] = useState<QualificationItem[]>([
+    {
+      degree: 'Graduation (B.Tech / B.E. / B.Sc. / BCA / B.A.)',
+      specialization: '',
+      passingYear: '2021'
+    }
+  ]);
+
   // Signup State
   const [form, setForm] = useState({
     firstName: '',
@@ -49,7 +73,6 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     name: '',
     email: initialEmail,
     phone: '',
-    qualification: 'M.Tech / M.E.',
     additionalQualifications: '',
     experienceYears: '3-5 Years',
     experience: '',
@@ -71,6 +94,28 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState<string>('');
+
+  const addQualificationRow = () => {
+    setQualificationsList((prev) => [
+      ...prev,
+      {
+        degree: 'Post-Graduation (M.Tech / M.Sc. / MCA / MBA)',
+        specialization: '',
+        passingYear: '2023'
+      }
+    ]);
+  };
+
+  const removeQualificationRow = (index: number) => {
+    if (qualificationsList.length <= 1) return;
+    setQualificationsList((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const updateQualificationRow = (index: number, field: keyof QualificationItem, value: string) => {
+    setQualificationsList((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+    );
+  };
 
   const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,6 +160,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
       ? { text: 'Good', color: 'bg-amber-500', textColor: 'text-amber-600' }
       : { text: 'Strong', color: 'bg-emerald-500', textColor: 'text-emerald-600' };
 
+  // Step 1 Validation: Role + First/Last Name + Email + Mobile
   const validateStep1 = () => {
     setError('');
     if (!form.firstName.trim()) {
@@ -134,11 +180,31 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
       setError('Please enter a valid 10–15 digit Mobile Number.');
       return false;
     }
+    return true;
+  };
 
+  // Step 2 Validation: Qualifications (with Degree, Stream & Passing Year) + Experience + Resume Upload
+  const validateStep2 = () => {
+    setError('');
     if (role === 'INSTRUCTOR') {
-      if (!form.qualification.trim()) {
-        setError('Please enter your Primary Qualification.');
+      if (qualificationsList.length === 0) {
+        setError('Please add at least one Qualification / Graduation entry.');
         return false;
+      }
+      for (let i = 0; i < qualificationsList.length; i++) {
+        const q = qualificationsList[i];
+        if (!q.degree.trim()) {
+          setError(`Please select or enter the Qualification / Degree for Entry #${i + 1}.`);
+          return false;
+        }
+        if (!q.specialization.trim()) {
+          setError(`Please enter your Stream / Course / University for Qualification #${i + 1} (e.g. B.Tech CS, M.Sc Maths).`);
+          return false;
+        }
+        if (!q.passingYear.trim()) {
+          setError(`Please select the Passing Year for Qualification #${i + 1}.`);
+          return false;
+        }
       }
       if (!form.experience.trim()) {
         setError('Please enter your Teaching / Industry Experience details.');
@@ -152,7 +218,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     return true;
   };
 
-  const validateStep2 = () => {
+  // Step 3 Validation: Address Details
+  const validateStep3 = () => {
     setError('');
     if (!form.address.trim()) {
       setError('Please enter your Complete Address.');
@@ -191,6 +258,27 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     }
 
     const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+    const formattedQualificationsSummary = qualificationsList
+      .map(
+        (q) =>
+          `${q.degree}${q.specialization ? ` - ${q.specialization.trim()}` : ''} (${q.passingYear})`
+      )
+      .join(' | ');
+
+    const primaryQual =
+      qualificationsList[0]
+        ? `${qualificationsList[0].specialization || qualificationsList[0].degree} (${qualificationsList[0].passingYear})`
+        : 'Graduate';
+
+    const extraQuals = [
+      ...qualificationsList
+        .slice(1)
+        .map((q) => `${q.specialization || q.degree} (${q.passingYear})`),
+      form.additionalQualifications.trim()
+    ]
+      .filter(Boolean)
+      .join(', ');
+
     const combinedExperience = form.experienceYears
       ? `${form.experienceYears} — ${form.experience.trim()}`
       : form.experience.trim();
@@ -204,6 +292,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           role,
           ...form,
           name: fullName,
+          qualification: formattedQualificationsSummary || primaryQual,
+          additionalQualifications: extraQuals,
+          qualificationsList,
           experience: combinedExperience
         })
       });
@@ -279,7 +370,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-xl">
+      <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center gap-2.5 text-2xl font-black tracking-tight text-slate-900">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-md shadow-violet-600/25">
@@ -291,7 +382,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
             Instructor &amp; Course Auditor Portal
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Dedicated Registration &amp; Sign-In exclusively for Instructors and Course Auditors.
+            Dedicated 4-Step Registration &amp; Sign-In exclusively for Instructors and Course Auditors.
           </p>
         </div>
 
@@ -337,6 +428,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
               className={`mb-6 p-4 rounded-xl border text-sm animate-in fade-in duration-200 ${
                 errorCode === 'USER_NOT_FOUND'
                   ? 'bg-purple-50 border-purple-200 text-purple-950'
+                  : errorCode === 'PENDING_AUDITOR_ONBOARDING'
+                  ? 'bg-amber-50 border-amber-200 text-amber-950'
                   : 'bg-rose-50 border-rose-200 text-rose-900'
               }`}
             >
@@ -439,16 +532,17 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
             </form>
           ) : (
             <>
-              {/* Stepper */}
-              <div className="flex items-center justify-between mb-6 px-2">
+              {/* 4-Step Wizard Stepper */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 pb-4 border-b border-slate-100">
                 {[
                   { num: 1, label: '1. Role & Personal' },
-                  { num: 2, label: '2. Address Details' },
-                  { num: 3, label: '3. Strong Password' }
+                  { num: 2, label: '2. Qualifications & CV' },
+                  { num: 3, label: '3. Address Details' },
+                  { num: 4, label: '4. Strong Password' }
                 ].map((item) => (
                   <div key={item.num} className="flex items-center gap-2">
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                         step === item.num
                           ? 'bg-violet-600 text-white ring-4 ring-violet-100'
                           : step > item.num
@@ -458,7 +552,11 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     >
                       {step > item.num ? '✓' : item.num}
                     </div>
-                    <span className={`text-xs font-semibold ${step >= item.num ? 'text-slate-900' : 'text-slate-400'}`}>
+                    <span
+                      className={`text-[11px] font-bold leading-tight ${
+                        step >= item.num ? 'text-slate-900' : 'text-slate-400'
+                      }`}
+                    >
                       {item.label}
                     </span>
                   </div>
@@ -466,6 +564,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
               </div>
 
               <form onSubmit={handleSignupSubmit}>
+                {/* STEP 1: Role & Personal Details (First Name, Last Name, Email, Mobile) */}
                 {step === 1 && (
                   <div className="space-y-5">
                     <div>
@@ -484,7 +583,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         >
                           <div
                             className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              role === 'INSTRUCTOR' ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-500'
+                              role === 'INSTRUCTOR'
+                                ? 'bg-violet-600 text-white'
+                                : 'bg-white border border-slate-200 text-slate-500'
                             }`}
                           >
                             <GraduationCap className="w-5 h-5" />
@@ -508,7 +609,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         >
                           <div
                             className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              role === 'REVIEWER' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-500'
+                              role === 'REVIEWER'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-white border border-slate-200 text-slate-500'
                             }`}
                           >
                             <ShieldCheck className="w-5 h-5" />
@@ -595,125 +698,243 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       </div>
                     </div>
 
-                    {role === 'INSTRUCTOR' && (
-                      <div className="p-4 rounded-2xl bg-violet-50/60 border border-violet-200/80 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-violet-900">
-                              Qualifications, Experience &amp; Resume (For Auditor Onboarding)
-                            </h3>
-                            <p className="text-[11px] text-slate-600 mt-0.5">
-                              Your profile &amp; resume will be reviewed by the Auditor for Interview &amp; Onboarding approval.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                              Primary Qualification <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                              value={form.qualification}
-                              onChange={(e) => setForm({ ...form, qualification: e.target.value })}
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
-                            >
-                              <option value="B.Tech / B.E.">B.Tech / B.E.</option>
-                              <option value="M.Tech / M.E.">M.Tech / M.E.</option>
-                              <option value="Ph.D. / Doctorate">Ph.D. / Doctorate</option>
-                              <option value="MCA / BCA">MCA / BCA</option>
-                              <option value="M.Sc. / B.Sc.">M.Sc. / B.Sc.</option>
-                              <option value="MBA / BBA">MBA / BBA</option>
-                              <option value="B.Ed. / M.Ed.">B.Ed. / M.Ed.</option>
-                              <option value="Post-Graduate / Other">Post-Graduate / Other</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                              Additional Qualification / Certs
-                            </label>
-                            <input
-                              type="text"
-                              value={form.additionalQualifications}
-                              onChange={(e) =>
-                                setForm({ ...form, additionalQualifications: e.target.value })
-                              }
-                              placeholder="e.g. AWS Certified, NET/JRF, PG Diploma"
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                              Total Exp (Years) <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                              value={form.experienceYears}
-                              onChange={(e) => setForm({ ...form, experienceYears: e.target.value })}
-                              className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
-                            >
-                              <option value="Fresher / < 1 Year">Fresher / &lt; 1 Year</option>
-                              <option value="1-2 Years">1-2 Years</option>
-                              <option value="3-5 Years">3-5 Years</option>
-                              <option value="5-10 Years">5-10 Years</option>
-                              <option value="10+ Years">10+ Years</option>
-                            </select>
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                              Experience &amp; Domain Details <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required={role === 'INSTRUCTOR'}
-                              value={form.experience}
-                              onChange={(e) => setForm({ ...form, experience: e.target.value })}
-                              placeholder="e.g. 5 yrs Full-Stack Architect & Senior Educator"
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            Upload Resume / CV (PDF, DOC, DOCX) <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white border border-dashed border-violet-300">
-                            <input
-                              type="file"
-                              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                              onChange={handleResumeUpload}
-                              className="text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-violet-600 file:text-white hover:file:bg-violet-500 cursor-pointer"
-                            />
-                            {form.resumeFileName && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold truncate">
-                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate">{form.resumeFileName}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     <button
                       type="button"
                       onClick={() => {
-                        if (validateStep1()) setStep(2);
+                        if (validateStep1()) {
+                          setStep(role === 'INSTRUCTOR' ? 2 : 3);
+                        }
                       }}
-                      className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
+                      className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                     >
-                      <span>Continue to Address Details</span>
+                      <span>
+                        {role === 'INSTRUCTOR'
+                          ? 'Continue to Step 2: Qualifications, Experience & Resume'
+                          : 'Continue to Address Details'}
+                      </span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 )}
 
+                {/* STEP 2: Qualifications (Dynamic Add + Passing Year), Experience & Resume Upload */}
                 {step === 2 && (
+                  <div className="space-y-5">
+                    <div className="p-4 rounded-2xl bg-violet-50/70 border border-violet-200 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-violet-950 flex items-center gap-1.5">
+                            <GraduationCap className="w-4 h-4 text-violet-600" />
+                            <span>Academic Qualifications &amp; Graduation Year</span>
+                          </h3>
+                          <p className="text-[11px] text-slate-600 mt-0.5">
+                            Add your Graduation, Post-Graduation, Doctorate, or Diplomas along with the Passing Year. Click <strong>+ Add Qualification</strong> to add more.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={addQualificationRow}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-xs cursor-pointer shrink-0 self-start sm:self-center"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add Qualification</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {qualificationsList.map((qItem, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700">
+                                Qualification #{idx + 1}
+                              </span>
+                              {qualificationsList.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeQualificationRow(idx)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Remove</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                              <div className="sm:col-span-5">
+                                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                  Qualification / Level <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                  value={qItem.degree}
+                                  onChange={(e) =>
+                                    updateQualificationRow(idx, 'degree', e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                                >
+                                  <option value="Graduation (B.Tech / B.E. / B.Sc. / BCA / B.A.)">
+                                    Graduation (B.Tech / B.E. / B.Sc. / BCA / B.A.)
+                                  </option>
+                                  <option value="Post-Graduation (M.Tech / M.Sc. / MCA / MBA)">
+                                    Post-Graduation (M.Tech / M.Sc. / MCA / MBA)
+                                  </option>
+                                  <option value="Ph.D. / Doctorate">Ph.D. / Doctorate</option>
+                                  <option value="B.Ed. / M.Ed. (Teaching Degree)">
+                                    B.Ed. / M.Ed. (Teaching Degree)
+                                  </option>
+                                  <option value="Diploma / PG Diploma">Diploma / PG Diploma</option>
+                                  <option value="Professional Certification / NET / GATE">
+                                    Professional Certification / NET / GATE
+                                  </option>
+                                  <option value="Other Qualification">Other Qualification</option>
+                                </select>
+                              </div>
+
+                              <div className="sm:col-span-4">
+                                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                  Course / Stream / University <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={qItem.specialization}
+                                  onChange={(e) =>
+                                    updateQualificationRow(idx, 'specialization', e.target.value)
+                                  }
+                                  placeholder="e.g. B.Tech CS (RGPV)"
+                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-3">
+                                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                  Passing Year <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                  value={qItem.passingYear}
+                                  onChange={(e) =>
+                                    updateQualificationRow(idx, 'passingYear', e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                                >
+                                  {PASSING_YEARS.map((yr) => (
+                                    <option key={yr} value={yr}>
+                                      {yr}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Additional Certifications / Achievements (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={form.additionalQualifications}
+                          onChange={(e) =>
+                            setForm({ ...form, additionalQualifications: e.target.value })
+                          }
+                          placeholder="e.g. AWS Solutions Architect, Gold Medalist, Google Certified Educator"
+                          className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Experience & Resume Box */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <Briefcase className="w-4 h-4 text-emerald-600" />
+                        <span>Teaching / Industry Experience &amp; Resume Upload</span>
+                      </h3>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                            Total Exp (Years) <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={form.experienceYears}
+                            onChange={(e) => setForm({ ...form, experienceYears: e.target.value })}
+                            className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                          >
+                            <option value="Fresher / < 1 Year">Fresher / &lt; 1 Year</option>
+                            <option value="1-2 Years">1-2 Years</option>
+                            <option value="3-5 Years">3-5 Years</option>
+                            <option value="5-10 Years">5-10 Years</option>
+                            <option value="10+ Years">10+ Years</option>
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                            Experience &amp; Domain Details <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={form.experience}
+                            onChange={(e) => setForm({ ...form, experience: e.target.value })}
+                            placeholder="e.g. 5 yrs Full-Stack Architect & Senior Educator"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Upload Resume / CV (PDF, DOC, DOCX) <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5 rounded-xl bg-white border border-dashed border-violet-300">
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            onChange={handleResumeUpload}
+                            className="text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-violet-600 file:text-white hover:file:bg-violet-500 cursor-pointer"
+                          />
+                          {form.resumeFileName && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold truncate">
+                              <FileText className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{form.resumeFileName}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setStep(1)}
+                        className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold text-sm flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (validateStep2()) setStep(3);
+                        }}
+                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
+                      >
+                        <span>Continue to Step 3: Address Details</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: Address Details */}
+                {step === 3 && (
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -793,7 +1014,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     <div className="flex items-center gap-3 pt-3">
                       <button
                         type="button"
-                        onClick={() => setStep(1)}
+                        onClick={() => setStep(role === 'INSTRUCTOR' ? 2 : 1)}
                         className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold text-sm flex items-center gap-1.5 cursor-pointer"
                       >
                         <ArrowLeft className="w-4 h-4" />
@@ -802,18 +1023,19 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       <button
                         type="button"
                         onClick={() => {
-                          if (validateStep2()) setStep(3);
+                          if (validateStep3()) setStep(4);
                         }}
                         className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                       >
-                        <span>Continue to Security</span>
+                        <span>Continue to Step 4: Strong Password</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 )}
 
-                {step === 3 && (
+                {/* STEP 4: Strong Password */}
+                {step === 4 && (
                   <div className="space-y-5">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -907,7 +1129,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setStep(2)}
+                        onClick={() => setStep(3)}
                         className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold text-sm flex items-center gap-1.5 cursor-pointer"
                       >
                         <ArrowLeft className="w-4 h-4" />
