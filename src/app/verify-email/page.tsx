@@ -129,38 +129,66 @@ function VerifyEmailContent() {
             </div>
             <div>
               <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300 mb-2.5">
-                ⏳ Under Review • 24–48 Hours Onboarding Process
+                ⏳ Submitted for Review
               </span>
               <h1 className="text-2xl font-extrabold text-slate-900">
-                Your Application is Now Under Review!
+                Submitted for Review
               </h1>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Your Instructor profile, qualifications, experience, and resume have been submitted to our{' '}
-                <strong className="text-slate-900">Course Auditor</strong>. Our onboarding &amp; verification process takes{' '}
-                <strong className="text-violet-700">24 to 48 hours</strong>.
+              <p className="mt-2 text-sm font-semibold text-slate-800">
+                Your application has been successfully submitted for review.
+              </p>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Our team will review your profile, qualifications, experience, and resume and will contact you within{' '}
+                <strong className="text-violet-700">24–48 hours</strong> with the next steps.
+              </p>
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                You will be guided through the verification and instructor onboarding process once your application has been reviewed.
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950 font-semibold">
-              📧 We have also sent an official <strong>Under Review (24–48 Hours Onboarding)</strong> confirmation email to{' '}
-              <span className="font-mono font-bold underline">{email}</span>.
+              📧 We have also sent an official confirmation email to your registered email address{' '}
+              {email ? <span className="font-mono font-bold underline">({email})</span> : null}.
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs text-slate-700 space-y-2">
-              <div className="font-bold text-slate-900 text-sm mb-1">
-                What Happens in the Next 24–48 Hours:
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 text-left text-xs text-slate-700 space-y-3">
+              <div>
+                <div className="font-extrabold text-slate-900 text-sm">
+                  What Happens in the Next:
+                </div>
+                <p className="text-slate-600 mt-1">
+                  Thank you for submitting your instructor profile and documents. Here’s what happens next:
+                </p>
               </div>
-              <p>
-                1. <strong>Auditor Profile &amp; Resume Review:</strong> The Auditor will verify your qualifications, passing years, LinkedIn profile, and resume within <strong>24–48 hours</strong>.
-              </p>
-              <p>
-                2. <strong>Interview Decision:</strong> The Auditor will decide if a quick interview is needed or approve direct onboarding.
-              </p>
-              <p>
-                3. <strong>Onboarding Email with Login Button:</strong> Once approved, you will receive an email at{' '}
-                <span className="font-mono font-bold text-violet-700">{email}</span> with a direct{' '}
-                <strong>Log In to Instructor Portal →</strong> button!
-              </p>
+
+              <div className="space-y-1">
+                <div className="font-bold text-slate-900">1. Profile &amp; Resume Review</div>
+                <p className="text-slate-600 leading-relaxed">
+                  Our team will review your profile, educational qualifications, experience, and resume.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <div className="font-bold text-slate-900">2. Review &amp; Interview Decision</div>
+                <p className="text-slate-600 leading-relaxed">
+                  Based on the information provided, our team may either:
+                </p>
+                <ul className="list-disc pl-5 space-y-0.5 text-slate-600">
+                  <li>Approve your profile for direct onboarding, or</li>
+                  <li>Invite you for a short interview to learn more about your experience and expertise.</li>
+                </ul>
+              </div>
+
+              <div className="space-y-1">
+                <div className="font-bold text-slate-900">3. Instructor Onboarding</div>
+                <p className="text-slate-600 leading-relaxed">
+                  Once your profile is approved, you will receive an onboarding email with a{' '}
+                  <strong className="text-violet-700">Log In to Instructor Portal →</strong> button.
+                </p>
+                <p className="text-slate-600 leading-relaxed">
+                  You can then access the Instructor Portal and start creating and managing your courses.
+                </p>
+              </div>
             </div>
 
             <div className="pt-2 flex flex-col sm:flex-row gap-3">

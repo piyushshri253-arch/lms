@@ -278,31 +278,55 @@ export async function POST(req: NextRequest) {
       if (updatedUser.role === 'INSTRUCTOR' && updatedUser.status === 'PENDING_APPROVAL') {
         await EmailService.sendCustomNotificationEmail({
           to: updatedUser.email,
-          subject: '⏳ Under Review • 24–48 Hours Onboarding Process — Your Application is Now Under Review!',
-          title: 'Your Application is Now Under Review!',
+          subject: '⏳ Submitted for Review — Your Instructor Application Has Been Submitted',
+          title: 'Submitted for Review',
           message: `
           <div style="margin-bottom: 16px;">
             <span style="display: inline-block; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800;">
-              ⏳ Under Review • 24–48 Hours Onboarding Process
+              ⏳ Submitted for Review
             </span>
           </div>
+          <p style="color: #0f172a; font-size: 15px; font-weight: 700; line-height: 1.5; margin: 0 0 12px 0;">
+            Your application has been successfully submitted for review.
+          </p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;">
+            Our team will review your profile, qualifications, experience, and resume and will contact you within <strong>24–48 hours</strong> with the next steps.
+          </p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
-            Hello <strong>${updatedUser.name}</strong>,<br/><br/>
-            Your Instructor profile, qualifications, experience, and resume have been submitted to our Course Auditor. Our onboarding &amp; verification process takes <strong>24 to 48 hours</strong>.
+            You will be guided through the verification and instructor onboarding process once your application has been reviewed.
           </p>
           <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 18px 20px; margin: 18px 0; color: #1e293b;">
-            <div style="font-size: 14px; font-weight: 800; color: #5b21b6; margin-bottom: 12px;">
-              What Happens in the Next 24–48 Hours:
+            <div style="font-size: 15px; font-weight: 800; color: #5b21b6; margin-bottom: 6px;">
+              What Happens in the Next:
             </div>
-            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-              <strong>1. Auditor Profile &amp; Resume Review:</strong> The Auditor will verify your qualifications, passing years, LinkedIn profile, and resume within 24–48 hours.
+            <p style="margin: 0 0 14px 0; font-size: 13px; line-height: 1.5; color: #475569;">
+              Thank you for submitting your instructor profile and documents. Here’s what happens next:
             </p>
-            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-              <strong>2. Interview Decision:</strong> The Auditor will decide if a quick interview is needed or approve direct onboarding.
-            </p>
-            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
-              <strong>3. Onboarding Email with Login Button:</strong> Once approved, you will receive an email at <strong>${updatedUser.email}</strong> with a direct <strong>Log In to Instructor Portal →</strong> button!
-            </p>
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">1. Profile &amp; Resume Review</div>
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                Our team will review your profile, educational qualifications, experience, and resume.
+              </p>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">2. Review &amp; Interview Decision</div>
+              <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                Based on the information provided, our team may either:
+              </p>
+              <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: #334155;">
+                <li>Approve your profile for direct onboarding, or</li>
+                <li>Invite you for a short interview to learn more about your experience and expertise.</li>
+              </ul>
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">3. Instructor Onboarding</div>
+              <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                Once your profile is approved, you will receive an onboarding email with a <strong>Log In to Instructor Portal →</strong> button.
+              </p>
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                You can then access the Instructor Portal and start creating and managing your courses.
+              </p>
+            </div>
           </div>`,
           userId: updatedUser.id
         }).catch(() => {});
@@ -525,31 +549,55 @@ export async function POST(req: NextRequest) {
       if (!pendingSetting) {
         await EmailService.sendCustomNotificationEmail({
           to: updatedUser.email,
-          subject: '⏳ Under Review • 24–48 Hours Onboarding Process — Your Application is Now Under Review!',
-          title: 'Your Application is Now Under Review!',
+          subject: '⏳ Submitted for Review — Your Instructor Application Has Been Submitted',
+          title: 'Submitted for Review',
           message: `
           <div style="margin-bottom: 16px;">
             <span style="display: inline-block; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800;">
-              ⏳ Under Review • 24–48 Hours Onboarding Process
+              ⏳ Submitted for Review
             </span>
           </div>
+          <p style="color: #0f172a; font-size: 15px; font-weight: 700; line-height: 1.5; margin: 0 0 12px 0;">
+            Your application has been successfully submitted for review.
+          </p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;">
+            Our team will review your profile, qualifications, experience, and resume and will contact you within <strong>24–48 hours</strong> with the next steps.
+          </p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
-            Hello <strong>${updatedUser.name}</strong>,<br/><br/>
-            Your Instructor profile, qualifications, experience, and resume have been submitted to our Course Auditor. Our onboarding &amp; verification process takes <strong>24 to 48 hours</strong>.
+            You will be guided through the verification and instructor onboarding process once your application has been reviewed.
           </p>
           <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 18px 20px; margin: 18px 0; color: #1e293b;">
-            <div style="font-size: 14px; font-weight: 800; color: #5b21b6; margin-bottom: 12px;">
-              What Happens in the Next 24–48 Hours:
+            <div style="font-size: 15px; font-weight: 800; color: #5b21b6; margin-bottom: 6px;">
+              What Happens in the Next:
             </div>
-            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-              <strong>1. Auditor Profile &amp; Resume Review:</strong> The Auditor will verify your qualifications, passing years, LinkedIn profile, and resume within 24–48 hours.
+            <p style="margin: 0 0 14px 0; font-size: 13px; line-height: 1.5; color: #475569;">
+              Thank you for submitting your instructor profile and documents. Here’s what happens next:
             </p>
-            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-              <strong>2. Interview Decision:</strong> The Auditor will decide if a quick interview is needed or approve direct onboarding.
-            </p>
-            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
-              <strong>3. Onboarding Email with Login Button:</strong> Once approved, you will receive an email at <strong>${updatedUser.email}</strong> with a direct <strong>Log In to Instructor Portal →</strong> button!
-            </p>
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">1. Profile &amp; Resume Review</div>
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                Our team will review your profile, educational qualifications, experience, and resume.
+              </p>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">2. Review &amp; Interview Decision</div>
+              <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                Based on the information provided, our team may either:
+              </p>
+              <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: #334155;">
+                <li>Approve your profile for direct onboarding, or</li>
+                <li>Invite you for a short interview to learn more about your experience and expertise.</li>
+              </ul>
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">3. Instructor Onboarding</div>
+              <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                Once your profile is approved, you will receive an onboarding email with a <strong>Log In to Instructor Portal →</strong> button.
+              </p>
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                You can then access the Instructor Portal and start creating and managing your courses.
+              </p>
+            </div>
           </div>`,
           userId: updatedUser.id
         }).catch(() => {});
