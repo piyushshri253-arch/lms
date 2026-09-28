@@ -1040,7 +1040,16 @@ export class EmailService {
       if (org) orgBranding = { name: org.name, primaryColor: org.primaryColor || '#4f46e5' };
     }
 
-    const html = renderEmailHtml(options.template, options.data || {}, orgBranding);
+    const html = options.html || renderEmailHtml(options.template, options.data || {}, orgBranding);
+    const plainText =
+      options.text ||
+      (options.template === 'OTP_VERIFY' && options.data?.otp
+        ? `Hello ${options.data?.name || 'User'},\n\nYour Morena Teach email verification OTP code is: ${options.data.otp}\n\nThis verification code will expire in ${options.data?.expiresInMinutes || 10} minutes.\n\nThank you,\nMorena Teach Team`
+        : html
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim());
 
     if (resolved && resolved.config) {
       try {
@@ -1053,6 +1062,19 @@ export class EmailService {
           process.env.SMTP_PASSWORD ||
           'hqovfbddslpeqvfp'
         ).trim().replace(/\s+/g, '');
+
+        // Ensure From address matches authenticated Gmail username so SPF/DKIM alignment succeeds for Yahoo/AOL/Outlook
+        const alignedFromEmail =
+          isGmail && config.smtpUsername && config.smtpUsername.includes('@')
+            ? config.smtpUsername
+            : config.fromEmail;
+
+        // Prevent hard bounces (550 5.1.1) when sending to seeded @morenateach.com addresses that don't have Google Workspace mailboxes
+        const targetToEmail =
+          options.to.toLowerCase().endsWith('@morenateach.com') &&
+          options.to.toLowerCase() !== 'morena@morenateach.com'
+            ? 'morena@morenateach.com'
+            : options.to;
 
         // On serverless platforms like Vercel, port 465 (direct SSL) is recommended for Gmail because AWS Lambda blocks/throttles port 587 STARTTLS!
         const initialPort = isGmail ? 465 : config.smtpPort;
@@ -1084,16 +1106,24 @@ export class EmailService {
           config.smtpHost.includes('example.com') ||
           config.smtpHost.includes('xyzgraphics.com');
 
+        const mailPayload = {
+          from: `"${config.fromName}" <${alignedFromEmail}>`,
+          to: targetToEmail,
+          replyTo: config.replyTo || alignedFromEmail,
+          subject: options.subject,
+          text: plainText,
+          html,
+          headers: {
+            'X-Entity-Ref-ID': messageId,
+            'X-Priority': '1 (Highest)',
+            Importance: 'High'
+          }
+        };
+
         if (!isMockHost) {
           try {
             const transporter = nodemailer.createTransport(transportOpts);
-            await transporter.sendMail({
-              from: `"${config.fromName}" <${config.fromEmail}>`,
-              to: options.to,
-              replyTo: config.replyTo || config.fromEmail,
-              subject: options.subject,
-              html
-            });
+            await transporter.sendMail(mailPayload);
           } catch (primaryErr: any) {
             console.warn(`[Primary SMTP Attempt Failed]: ${primaryErr.message}. Attempting fallback port...`);
             if (isGmail) {
@@ -1109,13 +1139,7 @@ export class EmailService {
                 tls: { rejectUnauthorized: false },
                 auth: transportOpts.auth
               });
-              await fallbackTransporter.sendMail({
-                from: `"${config.fromName}" <${config.fromEmail}>`,
-                to: options.to,
-                replyTo: config.replyTo || config.fromEmail,
-                subject: options.subject,
-                html
-              });
+              await fallbackTransporter.sendMail(mailPayload);
             } else {
               throw primaryErr;
             }
@@ -1232,7 +1256,7 @@ export class EmailService {
       to: params.to,
       userId: params.userId,
       organizationId: params.organizationId,
-      subject: `${params.otp} is your Morena Teach Email Verification Code`,
+      subject: `Morena Teach — Email Verification Code (${params.otp})`,
       template: 'OTP_VERIFY',
       data: {
         name: params.name,

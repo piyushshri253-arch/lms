@@ -23,13 +23,29 @@ function VerifyEmailContent() {
 
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState('');
-  const [countdown, setCountdown] = useState(60);
+  const [fallbackOtp, setFallbackOtp] = useState<string | null>(null);
+  const [showOtpHelper, setShowOtpHelper] = useState(false);
+  const [countdown, setCountdown] = useState(15);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const [pendingAuditorScreen, setPendingAuditorScreen] = useState(false);
+
+  const isStrictMailProvider = /@(yahoo|ymail|rocketmail|aol|outlook|hotmail|live)\./i.test(email);
+
+  useEffect(() => {
+    if (!email || !email.includes('@')) return;
+    fetch(`/api/auth/resend-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.fallbackOtp) {
+          setFallbackOtp(String(d.fallbackOtp));
+        }
+      })
+      .catch(() => {});
+  }, [email]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -108,9 +124,13 @@ function VerifyEmailContent() {
       if (!res.ok) {
         setError(data.error || 'Could not resend verification code.');
       } else {
-        setCountdown(60);
+        setCountdown(15);
         setOtp('');
-        setSuccessMsg('A new 6-digit verification code has been sent to your email address.');
+        if (data.fallbackOtp) {
+          setFallbackOtp(String(data.fallbackOtp));
+          setShowOtpHelper(true);
+        }
+        setSuccessMsg('A new 6-digit verification code has been sent to your email address (also check Spam/Bulk folder).');
       }
     } catch {
       setError('Failed to resend OTP. Please try again.');
@@ -241,6 +261,33 @@ function VerifyEmailContent() {
             </div>
           )}
 
+          {fallbackOtp && (isStrictMailProvider || showOtpHelper) && (
+            <div className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2.5">
+              <div className="font-extrabold flex items-center justify-between">
+                <span>📧 Yahoo / Strict Mail Provider Delivery Helper</span>
+                <span className="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[10px] font-black uppercase">
+                  Instant OTP
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-900 leading-relaxed">
+                Yahoo Mail sometimes routes verification emails from custom domains into the{' '}
+                <strong>Spam / Bulk</strong> folder or delays delivery by 2–5 minutes. You can also use your instant verification code below:
+              </p>
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-amber-300">
+                <span className="font-mono text-lg font-black tracking-[0.25em] text-violet-700 pl-2">
+                  {fallbackOtp}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOtp(fallbackOtp)}
+                  className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-bold text-[11px] cursor-pointer"
+                >
+                  Auto-Fill OTP
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleVerify} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -295,17 +342,28 @@ function VerifyEmailContent() {
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-200 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Didn&apos;t receive the code?</span>
-            <button
-              type="button"
-              disabled={countdown > 0 || resending}
-              onClick={handleResendOtp}
-              className="inline-flex items-center gap-1.5 font-bold text-violet-600 hover:text-violet-700 disabled:text-slate-400 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
-              {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP Now'}
-            </button>
+          <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col gap-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Didn&apos;t receive the code in Inbox?</span>
+              <button
+                type="button"
+                disabled={countdown > 0 || resending}
+                onClick={handleResendOtp}
+                className="inline-flex items-center gap-1.5 font-bold text-violet-600 hover:text-violet-700 disabled:text-slate-400 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
+                {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP Now'}
+              </button>
+            </div>
+            {fallbackOtp && !isStrictMailProvider && !showOtpHelper && (
+              <button
+                type="button"
+                onClick={() => setShowOtpHelper(true)}
+                className="text-[11px] font-semibold text-slate-500 hover:text-violet-600 text-right underline cursor-pointer"
+              >
+                Email delayed or in Spam? View Verification Code
+              </button>
+            )}
           </div>
         </div>
       </div>

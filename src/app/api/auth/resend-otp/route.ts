@@ -3,6 +3,49 @@ import { prisma } from '@/lib/prisma';
 import { generateOtp, checkRateLimit, logSecurityEvent } from '@/lib/security';
 import { sendEmail } from '@/lib/email';
 
+export async function GET(req: NextRequest) {
+  try {
+    const email = req.nextUrl.searchParams.get('email') || '';
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      return NextResponse.json({ fallbackOtp: null });
+    }
+    const pendingSetting = await prisma.platformSetting.findUnique({
+      where: { key: `pending_signup_${normalizedEmail}` }
+    });
+    if (!pendingSetting) {
+      return NextResponse.json({ fallbackOtp: null });
+    }
+    const parsed = JSON.parse(pendingSetting.value);
+    if (parsed?.plainOtp) {
+      return NextResponse.json({ fallbackOtp: parsed.plainOtp });
+    }
+    // If legacy pending_signup entry doesn't have plainOtp yet, generate a fresh 6-digit OTP and send it
+    const { otp, hash: otpHash } = generateOtp(6);
+    parsed.otpHash = otpHash;
+    parsed.plainOtp = otp;
+    parsed.expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    parsed.attempts = 0;
+    await prisma.platformSetting.update({
+      where: { key: `pending_signup_${normalizedEmail}` },
+      data: { value: JSON.stringify(parsed) }
+    });
+    await sendEmail({
+      to: normalizedEmail,
+      subject: `Morena Teach — Email Verification Code (${otp})`,
+      template: 'OTP_VERIFY',
+      data: {
+        name: parsed?.userData?.name || normalizedEmail.split('@')[0],
+        otp,
+        expiresInMinutes: 10
+      }
+    }).catch(() => {});
+    return NextResponse.json({ fallbackOtp: otp });
+  } catch {
+    return NextResponse.json({ fallbackOtp: null });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -56,6 +99,7 @@ export async function POST(req: NextRequest) {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       pendingPayload.otpHash = otpHash;
+      pendingPayload.plainOtp = otp;
       pendingPayload.expiresAt = expiresAt.toISOString();
       pendingPayload.attempts = 0;
 
@@ -69,7 +113,7 @@ export async function POST(req: NextRequest) {
 
       await sendEmail({
         to: normalizedEmail,
-        subject: 'Verify your account',
+        subject: `Morena Teach — Email Verification Code (${otp})`,
         template: 'OTP_VERIFY',
         userId: undefined,
         organizationId: orgId,
@@ -90,6 +134,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
+        fallbackOtp: otp,
         message: 'A new 6-digit verification code has been dispatched to your email.'
       });
     }
