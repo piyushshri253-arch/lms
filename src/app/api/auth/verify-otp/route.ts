@@ -179,6 +179,7 @@ export async function POST(req: NextRequest) {
           pincode: updatedUser.pincode || uData.pincode || '',
           qualification: uData.qualification || 'Not specified',
           additionalQualifications: uData.additionalQualifications || '',
+          linkedinUrl: uData.linkedinUrl || '',
           qualificationsList: Array.isArray(uData.qualificationsList) ? uData.qualificationsList : [],
           experience: uData.experience || 'Not specified',
           experienceYears: uData.experienceYears || '',
@@ -448,19 +449,23 @@ export async function POST(req: NextRequest) {
       }
     }).catch(() => {});
 
-    // 5. If Instructor is pending Auditor approval, send an Application Received email; otherwise send Welcome Email
+    // 5. If Instructor is pending Auditor approval, send an Application Received (24-48 Hours Onboarding) email; otherwise send Welcome Email
     let welcomeResult: { success: boolean; error?: string | null } = { success: true, error: null };
     if (isPendingInstructorOnboarding) {
       await EmailService.sendCustomNotificationEmail({
         to: updatedUser.email,
-        subject: '📋 Your Morena Teach Instructor Application & Resume Have Been Received',
-        title: 'Instructor Application Under Auditor Review',
+        subject: '⏳ Your Morena Teach Instructor Application is Under Review (24–48 Hours Onboarding Process)',
+        title: 'Application Under Review — 24 to 48 Hours Onboarding Process',
         message: `Hello <strong>${updatedUser.name}</strong>,<br/><br/>
-        Your email address has been verified! Your Instructor profile, qualifications, experience, and resume have been forwarded to our <strong>Course Auditor</strong>.<br/><br/>
+        Thank you for registering as an Instructor on <strong>Morena Teach</strong>! Your email address is verified and your complete profile, qualifications, experience, and resume have been submitted for <strong>Auditor Review &amp; Onboarding</strong>.<br/><br/>
+        <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 14px 18px; margin: 14px 0; color: #4c1d95;">
+          <strong>⏱️ Estimated Onboarding &amp; Review Timeline: 24 – 48 Hours</strong><br/>
+          Your profile is currently in our Auditor Review Queue. The complete verification, interview decision, and onboarding process takes <strong>24 to 48 hours</strong>.
+        </div>
         <strong>What happens next?</strong><br/>
-        1. The Auditor will review your qualifications, experience, and resume.<br/>
-        2. The Auditor will decide whether an interview is needed.<br/>
-        3. Once your onboarding is approved, you will receive an <strong>Onboarding Complete Email</strong> with a direct <strong>Log In to Instructor Portal</strong> button so you can sign in and start creating courses.`,
+        1. <strong>Profile &amp; Resume Review (Within 24–48 Hours):</strong> Our Course Auditor will verify your qualifications, experience, LinkedIn profile, and uploaded resume.<br/>
+        2. <strong>Interview Decision:</strong> If an interview is required, you will receive an interview schedule email.<br/>
+        3. <strong>Final Onboarding &amp; Login Link:</strong> Once your onboarding is approved by the Auditor, you will receive an <strong>Onboarding Confirmation Email</strong> containing a direct <strong>Log In to Instructor Portal →</strong> button so you can sign in and publish courses.`,
         userId: updatedUser.id
       }).catch(() => {});
     } else {
@@ -495,7 +500,7 @@ export async function POST(req: NextRequest) {
       entity: 'User',
       entityId: user.id,
       description: isPendingInstructorOnboarding
-        ? `Instructor applicant "${user.name}" verified email via OTP. Application & Resume routed to Auditor for Interview & Onboarding.`
+        ? `Instructor applicant "${user.name}" verified email via OTP. Application & Resume routed to Auditor (24-48 hrs onboarding SLA).`
         : `User "${user.name}" (${updatedUser.role}) verified email via OTP. Welcome email status: ${welcomeResult.success ? 'SENT' : 'FAILED'}.`,
       req
     }).catch(() => {});
@@ -509,7 +514,7 @@ export async function POST(req: NextRequest) {
         email: updatedUser.email,
         name: updatedUser.name,
         message:
-          'Email verified! Your Instructor profile, qualifications, experience, and resume have been sent to the Auditor for review & interview. Once onboarded by the Auditor, you will receive an email with a Login button to sign in.',
+          'Your profile is now Under Review! The Auditor Onboarding process takes 24–48 hours, and a confirmation email has been sent to your inbox.',
         redirectUrl: `/instructor/login?email=${encodeURIComponent(updatedUser.email)}&pending=auditor`
       });
     }

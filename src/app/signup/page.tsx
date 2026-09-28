@@ -74,6 +74,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     email: initialEmail,
     phone: '',
     additionalQualifications: '',
+    linkedinUrl: '',
     experienceYears: '3-5 Years',
     experience: '',
     resumeDataUrl: '',
@@ -833,19 +834,34 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         ))}
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Additional Certifications / Achievements (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={form.additionalQualifications}
-                          onChange={(e) =>
-                            setForm({ ...form, additionalQualifications: e.target.value })
-                          }
-                          placeholder="e.g. AWS Solutions Architect, Gold Medalist, Google Certified Educator"
-                          className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Additional Certifications / Achievements (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={form.additionalQualifications}
+                            onChange={(e) =>
+                              setForm({ ...form, additionalQualifications: e.target.value })
+                            }
+                            placeholder="e.g. AWS Solutions Architect, Gold Medalist"
+                            className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            LinkedIn Profile Link <span className="text-slate-400 font-normal">(Optional)</span>
+                          </label>
+                          <input
+                            type="url"
+                            value={form.linkedinUrl}
+                            onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
+                            placeholder="https://www.linkedin.com/in/your-profile"
+                            className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                          />
+                        </div>
                       </div>
                     </div>
 

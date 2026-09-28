@@ -42,6 +42,7 @@ interface InstructorApplicant {
   createdAt: string;
   qualification: string;
   additionalQualifications: string;
+  linkedinUrl?: string;
   qualificationsList?: Array<{
     degree: string;
     specialization: string;
@@ -604,6 +605,26 @@ export default function AuditorInstructorOnboardingPage() {
                     <strong>Mobile:</strong> {selected.phone || 'N/A'}
                   </span>
                 </div>
+                {selected.linkedinUrl && (
+                  <div className="sm:col-span-2 flex items-center gap-2 text-slate-700">
+                    <span className="text-sky-600 font-extrabold text-xs">in</span>
+                    <span>
+                      <strong>LinkedIn Profile:</strong>{' '}
+                      <a
+                        href={
+                          selected.linkedinUrl.startsWith('http')
+                            ? selected.linkedinUrl
+                            : `https://${selected.linkedinUrl}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-violet-600 hover:underline font-bold break-all"
+                      >
+                        {selected.linkedinUrl}
+                      </a>
+                    </span>
+                  </div>
+                )}
                 <div className="sm:col-span-2 flex items-start gap-2 text-slate-700">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                   <span>

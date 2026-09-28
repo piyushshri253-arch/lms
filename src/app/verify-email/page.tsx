@@ -128,23 +128,39 @@ function VerifyEmailContent() {
               <CheckCircle2 className="w-9 h-9" />
             </div>
             <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
-                Email Verified &amp; Application Forwarded to Auditor
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300 mb-2.5">
+                ⏳ Under Review • 24–48 Hours Onboarding Process
               </span>
               <h1 className="text-2xl font-extrabold text-slate-900">
-                Instructor Application Submitted!
+                Your Application is Now Under Review!
               </h1>
               <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Your profile, qualifications, experience, and resume have been sent to our{' '}
-                <strong className="text-slate-900">Course Auditor</strong> for review.
+                Your Instructor profile, qualifications, experience, and resume have been submitted to our{' '}
+                <strong className="text-slate-900">Course Auditor</strong>. Our onboarding &amp; verification process takes{' '}
+                <strong className="text-violet-700">24 to 48 hours</strong>.
               </p>
             </div>
 
+            <div className="p-3.5 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950 font-semibold">
+              📧 We have also sent an official <strong>Under Review (24–48 Hours Onboarding)</strong> confirmation email to{' '}
+              <span className="font-mono font-bold underline">{email}</span>.
+            </div>
+
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs text-slate-700 space-y-2">
-              <div className="font-bold text-slate-900 text-sm mb-1">Next Steps in Your Onboarding:</div>
-              <p>1. <strong>Auditor Review:</strong> The Auditor will review your details and download your uploaded resume.</p>
-              <p>2. <strong>Interview Decision:</strong> The Auditor will decide whether to schedule a quick interview or proceed directly.</p>
-              <p>3. <strong>Onboarding Email with Login Button:</strong> As soon as the Auditor clicks <em>Onboard Instructor</em>, you will receive an email at <span className="font-mono font-bold text-violet-700">{email}</span> with a direct <strong>Log In to Instructor Portal</strong> button!</p>
+              <div className="font-bold text-slate-900 text-sm mb-1">
+                What Happens in the Next 24–48 Hours:
+              </div>
+              <p>
+                1. <strong>Auditor Profile &amp; Resume Review:</strong> The Auditor will verify your qualifications, passing years, LinkedIn profile, and resume within <strong>24–48 hours</strong>.
+              </p>
+              <p>
+                2. <strong>Interview Decision:</strong> The Auditor will decide if a quick interview is needed or approve direct onboarding.
+              </p>
+              <p>
+                3. <strong>Onboarding Email with Login Button:</strong> Once approved, you will receive an email at{' '}
+                <span className="font-mono font-bold text-violet-700">{email}</span> with a direct{' '}
+                <strong>Log In to Instructor Portal →</strong> button!
+              </p>
             </div>
 
             <div className="pt-2 flex flex-col sm:flex-row gap-3">
