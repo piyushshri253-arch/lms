@@ -13,7 +13,16 @@ export async function POST(request: Request) {
   try {
     const user = await requireAuth();
     const body = await request.json();
-    const { orderId, orderNumber, paymentId, providerOrderId, signature, provider = 'RAZORPAY' } = body;
+    const {
+      orderId,
+      orderNumber,
+      paymentId,
+      providerOrderId,
+      signature,
+      provider = 'RAZORPAY',
+      simulateStatus,
+      failureReason
+    } = body;
 
     if (!orderId && !orderNumber) {
       return NextResponse.json({ error: 'orderId or orderNumber is required.' }, { status: 400 });
@@ -68,6 +77,86 @@ export async function POST(request: Request) {
         });
         order.organizationId = effectiveOrgId;
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // HANDLE FAILED / DECLINED PAYMENT (Zero-Entitlement Safety Guard)
+    // -------------------------------------------------------------------------
+    if (simulateStatus === 'FAILED' || simulateStatus === 'TIMEOUT') {
+      const reasonText =
+        failureReason ||
+        (simulateStatus === 'TIMEOUT'
+          ? 'GATEWAY_TIMEOUT: Bank authorization timed out before confirmation.'
+          : 'PAYMENT_DECLINED: Bank declined transaction (Insufficient funds / Invalid card or UPI PIN).');
+
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.create({
+          data: {
+            organizationId: order.organizationId,
+            orderId: order.id,
+            provider: provider.toUpperCase(),
+            providerPaymentId: `fail_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            providerOrderId: providerOrderId || null,
+            amount: order.total,
+            currency: order.currency,
+            status: 'FAILED'
+          }
+        });
+
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'FAILED',
+            metadata: JSON.stringify({
+              ...(() => {
+                try {
+                  return JSON.parse(order.metadata || '{}');
+                } catch {
+                  return {};
+                }
+              })(),
+              lastFailedAt: new Date().toISOString(),
+              failureReason: reasonText
+            })
+          }
+        });
+      });
+
+      await prisma.notification
+        .create({
+          data: {
+            userId: user.id,
+            title: `Payment Failed — Order #${order.orderNumber}`,
+            message: `Your payment of ₹${order.total} could not be processed (${reasonText}). Your course is still saved in your cart and no course access was charged.`,
+            type: 'PAYMENT_FAILED',
+            link: '/checkout'
+          }
+        })
+        .catch(() => {});
+
+      await createAuditLog({
+        organizationId: order.organizationId,
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'PAYMENT_FAILED',
+        entity: 'Order',
+        entityId: order.id,
+        description: `Payment of ₹${order.total} FAILED for Order #${order.orderNumber}: ${reasonText}. Enrollment blocked.`,
+        req: request
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          status: 'FAILED',
+          canRetry: true,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          total: order.total,
+          error: reasonText
+        },
+        { status: 402 }
+      );
     }
 
     // Perform atomic activation of payment and order

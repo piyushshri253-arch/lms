@@ -38,6 +38,13 @@ function CheckoutContent() {
   // Trial Payment Processing State
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(1);
+  const [testSimulationMode, setTestSimulationMode] = useState<'SUCCESS' | 'FAILED' | 'TIMEOUT'>('SUCCESS');
+  const [failedOrderDetails, setFailedOrderDetails] = useState<{
+    orderId: string;
+    orderNumber: string;
+    reason: string;
+    total: number;
+  } | null>(null);
 
   // Calculate Totals
   const subtotal = cartItems.reduce((acc, item) => acc + Number(item.price || 0), 0);
@@ -111,8 +118,12 @@ function CheckoutContent() {
     }
   };
 
-  // Execute Trial Payment & Order Processing
-  const handlePay = async () => {
+  // Execute Trial Payment & Order Processing (Supports both Normal & Retry flows)
+  const handlePay = async (
+    overrideMode?: 'SUCCESS' | 'FAILED' | 'TIMEOUT' | React.MouseEvent<any>,
+    existingOrderId?: string,
+    existingOrderNumber?: string
+  ) => {
     if (!currentUser) {
       showToast({
         title: 'Sign In Required',
@@ -133,69 +144,106 @@ function CheckoutContent() {
       return;
     }
 
+    const activeSimMode =
+      typeof overrideMode === 'string' ? overrideMode : testSimulationMode;
+    const isCardDeclineTrigger =
+      paymentMethod === 'card' &&
+      (cardNumber.replace(/\s+/g, '').endsWith('0000') || cardCvv === '000');
+    const isUpiDeclineTrigger =
+      paymentMethod === 'upi' &&
+      (upiId.toLowerCase().startsWith('fail@') || upiId.toLowerCase().startsWith('decline@'));
+
+    const effectiveSimStatus =
+      activeSimMode !== 'SUCCESS'
+        ? activeSimMode
+        : isCardDeclineTrigger || isUpiDeclineTrigger
+        ? 'FAILED'
+        : 'SUCCESS';
+
     setIsProcessing(true);
     setProcessingStep(1);
 
     try {
       // Step 1 Simulation: Connecting to Payment Switch
-      await new Promise((r) => setTimeout(r, 900));
+      await new Promise((r) => setTimeout(r, 700));
       setProcessingStep(2);
 
       // Step 2 Simulation: Authorizing Trial Payment
-      await new Promise((r) => setTimeout(r, 900));
+      await new Promise((r) => setTimeout(r, 700));
       setProcessingStep(3);
 
-      // 1. Initialize Order in Database
-      const checkoutRes = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: cartItems.map((item) => ({ courseId: item.id })),
-          couponCode: discountPercent > 0 ? couponCode : undefined,
-          provider: paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'netbanking' ? 'NETBANKING' : 'CARD'
-        })
-      });
+      let orderId = existingOrderId;
+      let orderNumber = existingOrderNumber;
 
-      const checkoutData = await checkoutRes.json();
-      if (!checkoutRes.ok) {
-        throw new Error(checkoutData.error || 'Failed to initialize order.');
+      if (!orderId) {
+        // 1. Initialize Order in Database
+        const checkoutRes = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: cartItems.map((item) => ({ courseId: item.id })),
+            couponCode: discountPercent > 0 ? couponCode : undefined,
+            provider: paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'netbanking' ? 'NETBANKING' : 'CARD'
+          })
+        });
+
+        const checkoutData = await checkoutRes.json();
+        if (!checkoutRes.ok) {
+          throw new Error(checkoutData.error || 'Failed to initialize order.');
+        }
+
+        orderId = checkoutData.order?.id || checkoutData.orderId;
+        orderNumber = checkoutData.order?.orderNumber || checkoutData.orderNumber;
+
+        if (checkoutData.isFree && effectiveSimStatus === 'SUCCESS') {
+          clearCart();
+          router.push(`/checkout/success?orderId=${orderId}&orderNumber=${orderNumber}`);
+          return;
+        }
       }
 
-      const orderId = checkoutData.order?.id || checkoutData.orderId;
-      const orderNumber = checkoutData.order?.orderNumber || checkoutData.orderNumber;
-
-      if (checkoutData.isFree) {
-        clearCart();
-        router.push(`/checkout/success?orderId=${orderId}&orderNumber=${orderNumber}`);
-        return;
-      }
-
-      // 2. Process Trial Payment Verification & Grant Entitlements
+      // 2. Process Payment Verification (or Simulated Failure)
       const verifyRes = await fetch('/api/payments/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId,
           orderNumber,
-          provider: 'TRIAL',
-          paymentId: `trial_${paymentMethod}_${Date.now()}`
+          provider: paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'netbanking' ? 'NETBANKING' : 'CARD',
+          paymentId: `trial_${paymentMethod}_${Date.now()}`,
+          simulateStatus: effectiveSimStatus,
+          failureReason:
+            effectiveSimStatus === 'TIMEOUT'
+              ? 'GATEWAY_TIMEOUT: Bank server did not respond within 30 seconds.'
+              : isCardDeclineTrigger
+              ? 'CARD_DECLINED: Test card 0000 / CVV 000 declined by issuing bank.'
+              : isUpiDeclineTrigger
+              ? 'UPI_DECLINED: UPI collect request rejected by bank handle.'
+              : 'PAYMENT_DECLINED: Insufficient funds or bank authorization declined.'
         })
       });
 
       const verifyData = await verifyRes.json();
       if (!verifyRes.ok) {
+        setFailedOrderDetails({
+          orderId: verifyData.orderId || orderId || '',
+          orderNumber: verifyData.orderNumber || orderNumber || 'ORD-FAILED',
+          reason: verifyData.error || 'Payment declined by bank.',
+          total: verifyData.total || finalTotal
+        });
         throw new Error(verifyData.error || 'Failed to verify payment.');
       }
 
-      // 3. Clear cart & redirect to success
+      // 3. Clear failed state & cart, then redirect to success
+      setFailedOrderDetails(null);
       clearCart();
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 400));
 
       router.push(`/checkout/success?orderId=${orderId}&orderNumber=${orderNumber}`);
     } catch (err: any) {
       showToast({
-        title: 'Payment Failed',
-        description: err.message || 'An error occurred during trial payment processing.',
+        title: 'Payment Failed ❌',
+        description: err.message || 'Transaction declined. Your cart items are safe — you can retry payment anytime.',
         type: 'error'
       });
       setIsProcessing(false);
@@ -344,20 +392,119 @@ function CheckoutContent() {
               </div>
             )}
 
-            {/* Trial Mode Simulation Banner */}
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 p-4 sm:p-5 rounded-xl flex items-start gap-3.5 shadow-xs">
-              <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Icon name="verified_user" size={20} />
+            {/* Trial Mode Simulation Banner + QA Payment Failure Tester */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 p-4 sm:p-5 rounded-xl space-y-3.5 shadow-xs">
+              <div className="flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Icon name="verified_user" size={20} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-extrabold text-purple-950">
+                    Trial / Sandbox Payment Mode Active (QA Testing Enabled)
+                  </h3>
+                  <p className="text-xs text-purple-800 mt-1 leading-relaxed">
+                    Choose a simulation scenario below to test <strong>Successful Enrollment</strong> or <strong>Payment Failure &amp; Retry Handling</strong> (or enter Card ending in <code>0000</code> / UPI <code>fail@upi</code>):
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-purple-950">
-                  Trial Payment Mode Active
-                </h3>
-                <p className="text-xs text-purple-800 mt-1 leading-relaxed">
-                  This transaction is in <strong>Trial / Sandbox Mode</strong>. No real credit card or bank account will be charged. Clicking <strong>Pay</strong> will immediately simulate banking authorization, activate your course access, and generate a verified invoice!
-                </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setTestSimulationMode('SUCCESS')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border text-left transition-all cursor-pointer ${
+                    testSimulationMode === 'SUCCESS'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-white text-slate-700 border-purple-200 hover:bg-purple-100/50'
+                  }`}
+                >
+                  ✅ Simulate Payment Success
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTestSimulationMode('FAILED')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border text-left transition-all cursor-pointer ${
+                    testSimulationMode === 'FAILED'
+                      ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                      : 'bg-white text-slate-700 border-purple-200 hover:bg-rose-50'
+                  }`}
+                >
+                  ❌ Simulate Payment Failed
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTestSimulationMode('TIMEOUT')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border text-left transition-all cursor-pointer ${
+                    testSimulationMode === 'TIMEOUT'
+                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                      : 'bg-white text-slate-700 border-purple-200 hover:bg-amber-50'
+                  }`}
+                >
+                  ⏳ Simulate Bank Timeout
+                </button>
               </div>
             </div>
+
+            {/* Payment Failed Diagnostics & 1-Click Retry Card */}
+            {failedOrderDetails && (
+              <div className="bg-rose-50 border-2 border-rose-300 rounded-xl p-5 space-y-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 font-black">
+                      !
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-rose-950">
+                        Payment Failed — Order #{failedOrderDetails.orderNumber} Marked as FAILED
+                      </h3>
+                      <p className="text-xs text-rose-800 mt-1 font-medium">
+                        {failedOrderDetails.reason}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-rose-200 text-rose-900 text-[10px] font-mono font-extrabold">
+                    STATUS: FAILED
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] bg-white/90 p-3 rounded-lg border border-rose-200 text-slate-700">
+                  <div>
+                    <span className="font-bold text-slate-900 block">🔒 Course Access:</span>
+                    <span>Not Granted (Enrollment Blocked)</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 block">🛒 Shopping Cart:</span>
+                    <span>Preserved ({cartItems.length} course kept safe)</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 block">🧾 Order Ledger:</span>
+                    <span>Logged as FAILED (₹{failedOrderDetails.total})</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTestSimulationMode('SUCCESS');
+                      handlePay('SUCCESS', failedOrderDetails.orderId, failedOrderDetails.orderNumber);
+                    }}
+                    className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs cursor-pointer flex items-center gap-2"
+                  >
+                    <Icon name="refresh" size={16} />
+                    <span>Retry Payment Now (Switch to Success &amp; Complete Order #{failedOrderDetails.orderNumber})</span>
+                  </button>
+                  <Link
+                    href="/student/learning?tab=orders"
+                    className="px-3.5 py-2 rounded-lg bg-white border border-rose-300 text-rose-900 text-xs font-bold hover:bg-rose-100"
+                  >
+                    View Failed Order in My Orders →
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Payment Method Selector */}
             <div className="bg-white border border-[#d1d7dc] rounded-xl p-5 sm:p-6 shadow-xs">
