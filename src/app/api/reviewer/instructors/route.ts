@@ -54,7 +54,12 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    const items = instructors.map((u) => {
+    // Strictly include ONLY real Instructor Signup applications (exclude seeded @morenateach.com demo accounts and legacy accounts without an application submission)
+    const realApplicantInstructors = instructors.filter(
+      (u) => appMap.has(u.id) && !u.email.toLowerCase().endsWith('@morenateach.com')
+    );
+
+    const items = realApplicantInstructors.map((u) => {
       const app = appMap.get(u.id) || {};
       const nameParts = (u.name || '').trim().split(' ');
       const firstName = app.firstName || nameParts[0] || '';
@@ -77,16 +82,16 @@ export async function GET(req: NextRequest) {
         address: u.address || app.address || '',
         city: u.city || app.city || '',
         state: u.state || app.state || '',
-        country: u.country || app.country || 'India',
+        country: u.country || app.country || '',
         pincode: u.pincode || app.pincode || '',
         userStatus: u.status,
         emailVerified: u.emailVerified,
         createdAt: u.createdAt,
-        qualification: app.qualification || (u.bio ? u.bio.split('•')[0]?.trim() : 'B.Tech / M.Tech'),
+        qualification: app.qualification || '',
         additionalQualifications: app.additionalQualifications || '',
         linkedinUrl: app.linkedinUrl || '',
         qualificationsList: Array.isArray(app.qualificationsList) ? app.qualificationsList : [],
-        experience: app.experience || (u.bio || '3+ Years Teaching & Industry Experience'),
+        experience: app.experience || '',
         experienceYears: app.experienceYears || '',
         resumeFileName: app.resumeFileName || null,
         resumeDataUrl: app.resumeDataUrl || null,
