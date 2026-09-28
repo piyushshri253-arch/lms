@@ -59,13 +59,19 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Dynamic Qualifications List (Qualification Level, Course Name, University Name, Passing Year)
+  // Dynamic Qualifications List (Row 1: Mandatory Graduation, Row 2: Removable Post-Graduation by default)
   const [qualificationsList, setQualificationsList] = useState<QualificationItem[]>([
     {
       degree: 'Graduation',
       courseName: '',
       university: '',
       passingYear: '2021'
+    },
+    {
+      degree: 'Post-Graduation',
+      courseName: '',
+      university: '',
+      passingYear: '2023'
     }
   ]);
 
@@ -99,6 +105,25 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState<string>('');
 
+  const countWords = (text: string) =>
+    text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+
+  const experienceWordCount = countWords(form.experience);
+
+  const handleExperienceSummaryChange = (val: string) => {
+    const words = val.trim() ? val.trim().split(/\s+/).filter(Boolean) : [];
+    if (words.length > 350) {
+      const cappedText = words.slice(0, 350).join(' ');
+      setForm((prev) => ({ ...prev, experience: cappedText }));
+      setError('Summary Experience cannot exceed 350 words.');
+      return;
+    }
+    if (error === 'Summary Experience cannot exceed 350 words.') {
+      setError('');
+    }
+    setForm((prev) => ({ ...prev, experience: val }));
+  };
+
   const addQualificationRow = () => {
     setQualificationsList((prev) => [
       ...prev,
@@ -112,13 +137,18 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   };
 
   const removeQualificationRow = (index: number) => {
-    if (qualificationsList.length <= 1) return;
+    // Graduation (index 0) is mandatory and cannot be removed
+    if (index === 0) return;
     setQualificationsList((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const updateQualificationRow = (index: number, field: keyof QualificationItem, value: string) => {
     setQualificationsList((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+      prev.map((item, idx) =>
+        idx === index
+          ? { ...item, [field]: idx === 0 && field === 'degree' ? 'Graduation' : value }
+          : item
+      )
     );
   };
 
@@ -217,6 +247,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
       }
       if (!form.experience.trim()) {
         setError('Please enter your Summary Experience.');
+        return false;
+      }
+      if (countWords(form.experience) > 350) {
+        setError('Summary Experience cannot exceed 350 words.');
         return false;
       }
       if (!form.resumeDataUrl) {
@@ -738,7 +772,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                             <span>Academic Qualifications &amp; Passing Year</span>
                           </h3>
                           <p className="text-[11px] text-slate-600 mt-0.5">
-                            Select Qualification Level (Graduation, Post-Graduation, Ph.D., or Professional Certification), enter Course Name, University Name, and Passing Year.
+                            Graduation is mandatory. Post-Graduation is shown below (you can remove it if not applicable, or click <strong>+ Add Qualification</strong> to add more).
                           </p>
                         </div>
 
@@ -760,9 +794,11 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700">
-                                Qualification #{idx + 1}
+                                {idx === 0
+                                  ? 'Qualification #1 (Graduation • Mandatory)'
+                                  : `Qualification #${idx + 1}`}
                               </span>
-                              {qualificationsList.length > 1 && (
+                              {idx > 0 && (
                                 <button
                                   type="button"
                                   onClick={() => removeQualificationRow(idx)}
@@ -779,20 +815,29 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                                   Qualification Level <span className="text-red-500">*</span>
                                 </label>
-                                <select
-                                  value={qItem.degree}
-                                  onChange={(e) =>
-                                    updateQualificationRow(idx, 'degree', e.target.value)
-                                  }
-                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
-                                >
-                                  <option value="Graduation">Graduation</option>
-                                  <option value="Post-Graduation">Post-Graduation</option>
-                                  <option value="Ph.D.">Ph.D.</option>
-                                  <option value="Professional Certification">
-                                    Professional Certification
-                                  </option>
-                                </select>
+                                {idx === 0 ? (
+                                  <div className="w-full px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-900 select-none">
+                                    Graduation
+                                  </div>
+                                ) : (
+                                  <select
+                                    value={
+                                      qItem.degree === 'Graduation'
+                                        ? 'Post-Graduation'
+                                        : qItem.degree
+                                    }
+                                    onChange={(e) =>
+                                      updateQualificationRow(idx, 'degree', e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                                  >
+                                    <option value="Post-Graduation">Post-Graduation</option>
+                                    <option value="Ph.D.">Ph.D.</option>
+                                    <option value="Professional Certification">
+                                      Professional Certification
+                                    </option>
+                                  </select>
+                                )}
                               </div>
 
                               <div className="sm:col-span-3">
@@ -806,7 +851,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                                   onChange={(e) =>
                                     updateQualificationRow(idx, 'courseName', e.target.value)
                                   }
-                                  placeholder="e.g. B.Tech CS, MBA, B.Ed"
+                                  placeholder={
+                                    idx === 0 ? 'e.g. B.Tech CS, B.Sc, BCA' : 'e.g. M.Tech, MBA, M.Sc'
+                                  }
                                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                                 />
                               </div>
@@ -875,8 +922,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         <span>Total Experience, Summary Experience &amp; Resume Upload</span>
                       </h3>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                        <div>
+                      <div className="space-y-3.5">
+                        <div className="sm:w-1/2">
                           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                             Total Experience <span className="text-red-500">*</span>
                           </label>
@@ -893,17 +940,28 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           </select>
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            Summary Experience <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-xs font-semibold text-slate-700">
+                              Summary Experience <span className="text-red-500">*</span>
+                            </label>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-md text-[11px] font-extrabold ${
+                                experienceWordCount >= 350
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-violet-100 text-violet-700'
+                              }`}
+                            >
+                              {experienceWordCount} / 350 Words Max
+                            </span>
+                          </div>
+                          <textarea
                             required
+                            rows={5}
                             value={form.experience}
-                            onChange={(e) => setForm({ ...form, experience: e.target.value })}
-                            placeholder="e.g. 5 yrs Full-Stack Architect & Senior Educator"
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                            onChange={(e) => handleExperienceSummaryChange(e.target.value)}
+                            placeholder="Write your detailed teaching & domain experience summary here (up to 350 words). You can scroll up/down or drag the bottom-right corner to resize..."
+                            className="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 leading-relaxed resize-y min-h-[125px] max-h-[300px] overflow-y-auto focus:outline-none focus:border-violet-600"
                           />
                         </div>
                       </div>
