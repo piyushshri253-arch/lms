@@ -469,7 +469,7 @@ function CheckoutContent() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] bg-white/90 p-3 rounded-lg border border-rose-200 text-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[11px] bg-white/90 p-3 rounded-lg border border-rose-200 text-slate-700">
                   <div>
                     <span className="font-bold text-slate-900 block">🔒 Course Access:</span>
                     <span>Not Granted (Enrollment Blocked)</span>
@@ -481,6 +481,10 @@ function CheckoutContent() {
                   <div>
                     <span className="font-bold text-slate-900 block">🧾 Order Ledger:</span>
                     <span>Logged as FAILED (₹{failedOrderDetails.total})</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-emerald-800 block">📧 Email Dispatched:</span>
+                    <span>Failure &amp; Retry Mail sent to {currentUser?.email}</span>
                   </div>
                 </div>
 

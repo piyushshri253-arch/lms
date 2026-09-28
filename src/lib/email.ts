@@ -276,6 +276,71 @@ export function renderEmailHtml(
       break;
     }
 
+    case 'PAYMENT_FAILED': {
+      const retryCheckoutUrl = data.retryUrl || `${baseUrl}/checkout`;
+      const ordersHistoryUrl = data.ordersUrl || `${baseUrl}/student/learning?tab=orders`;
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #fef2f2; border: 1px solid #fecaca; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 30px;">
+            ⚠️
+          </div>
+        </div>
+        <h2 style="color: #b91c1c; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          Payment Could Not Be Completed — Order #${data.orderNumber || 'PENDING'}
+        </h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+          Hi <strong>${data.name || 'Student'}</strong>, we noticed that your payment for <strong>${data.courseTitle || 'your selected course'}</strong> could not be completed. Don&apos;t worry — your course is still safely saved in your cart!
+        </p>
+        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; margin: 24px 0; font-size: 13px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; color: #881337;"><strong>Order Reference:</strong></td>
+              <td style="padding: 6px 0; color: #881337; text-align: right; font-family: monospace; font-weight: bold;">#${data.orderNumber || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #881337;"><strong>Course:</strong></td>
+              <td style="padding: 6px 0; color: #881337; text-align: right; font-weight: bold;">${data.courseTitle || 'Masterclass Course'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #881337;"><strong>Attempted Amount:</strong></td>
+              <td style="padding: 6px 0; color: #be123c; text-align: right; font-size: 16px; font-weight: 900;">₹${Number(data.total || 0).toLocaleString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #881337;"><strong>Payment Method:</strong></td>
+              <td style="padding: 6px 0; color: #881337; text-align: right;">${data.provider || 'Card / UPI / NetBanking'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #881337;"><strong>Status:</strong></td>
+              <td style="padding: 6px 0; color: #dc2626; text-align: right; font-weight: 800;">FAILED / NOT COMPLETED</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #881337;"><strong>Reason:</strong></td>
+              <td style="padding: 6px 0; color: #9f1239; text-align: right;">${data.failureReason || 'Bank authorization declined or payment session timed out.'}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; margin: 20px 0; font-size: 13px; color: #334155; line-height: 1.6;">
+          <p style="margin: 0 0 6px 0; font-weight: 800; color: #0f172a;">💡 Important Information:</p>
+          <ul style="margin: 0; padding-left: 18px;">
+            <li><strong>Cart &amp; Coupon Preserved:</strong> Your selected course and any discount coupon are still saved in your cart.</li>
+            <li><strong>Course Enrollment:</strong> Course access will unlock automatically as soon as payment succeeds.</li>
+            <li><strong>Bank Auto-Refund:</strong> If any amount was debited from your bank/UPI during a timeout, your bank will automatically refund it within 3–5 working days.</li>
+          </ul>
+        </div>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${retryCheckoutUrl}" style="display: inline-block; background: #dc2626; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25); margin-bottom: 12px;">
+            Retry Payment Now →
+          </a>
+          <div>
+            <a href="${ordersHistoryUrl}" style="display: inline-block; background: #ffffff; color: #1c1d1f; text-decoration: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; border: 1px solid #cbd5e1;">
+              View Order Status in Dashboard
+            </a>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
     case 'INSTRUCTOR_ENROLLMENT_ALERT':
       bodyContent = `
         <div style="text-align: center; margin-bottom: 20px;">

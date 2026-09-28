@@ -7,7 +7,10 @@ import { issueSoftwareLicense } from '@/lib/license';
 import { bookService } from '@/lib/services';
 import { creditSellerWallet } from '@/lib/wallet';
 import { sendEmail } from '@/lib/email';
-import { dispatchOrderPurchasedNotifications } from '@/lib/order-notifications';
+import {
+  dispatchOrderPurchasedNotifications,
+  dispatchOrderPaymentFailedNotifications
+} from '@/lib/order-notifications';
 
 export async function POST(request: Request) {
   try {
@@ -145,6 +148,9 @@ export async function POST(request: Request) {
         req: request
       });
 
+      // Dispatch Payment Failed Email to Student & Admin
+      await dispatchOrderPaymentFailedNotifications(order.id, reasonText);
+
       return NextResponse.json(
         {
           success: false,
@@ -153,6 +159,7 @@ export async function POST(request: Request) {
           orderId: order.id,
           orderNumber: order.orderNumber,
           total: order.total,
+          emailSent: true,
           error: reasonText
         },
         { status: 402 }

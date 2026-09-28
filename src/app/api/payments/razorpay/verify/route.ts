@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendMultiChannelNotification } from '@/lib/notifications';
+import {
+  dispatchOrderPurchasedNotifications,
+  dispatchOrderPaymentFailedNotifications
+} from '@/lib/order-notifications';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
@@ -10,8 +14,32 @@ export async function POST(req: Request) {
       orderId,
       razorpay_order_id,
       razorpay_payment_id,
-      razorpay_signature
+      razorpay_signature,
+      status,
+      failureReason
     } = body;
+
+    if (orderId && (status === 'FAILED' || !razorpay_payment_id)) {
+      await prisma.order
+        .update({
+          where: { id: orderId },
+          data: { status: 'FAILED' }
+        })
+        .catch(() => {});
+      await dispatchOrderPaymentFailedNotifications(
+        orderId,
+        failureReason || 'Payment window closed or declined by Razorpay gateway.'
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          status: 'FAILED',
+          emailSent: true,
+          error: failureReason || 'Payment was not completed.'
+        },
+        { status: 402 }
+      );
+    }
 
     if (!orderId || !razorpay_payment_id) {
       return NextResponse.json({ error: 'Missing payment verification parameters.' }, { status: 400 });

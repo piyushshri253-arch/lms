@@ -201,3 +201,82 @@ export async function dispatchOrderPurchasedNotifications(orderId: string): Prom
     return { success: false, error: err.message };
   }
 }
+
+/**
+ * Dispatches multi-party email & in-app notifications when a student's payment
+ * FAILS, TIMES OUT, or CANNOT BE COMPLETED for any reason.
+ */
+export async function dispatchOrderPaymentFailedNotifications(
+  orderId: string,
+  failureReason: string = 'Bank authorization declined or payment session interrupted.'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: true,
+        course: true,
+        items: true,
+        organization: true
+      }
+    });
+
+    if (!order || !order.user) {
+      return { success: false, error: 'Order or student not found' };
+    }
+
+    const student = order.user;
+    const primaryCourseTitle =
+      order.course?.title ||
+      order.items[0]?.productTitle ||
+      'Selected Masterclass Course';
+
+    const baseUrl = getBaseUrl();
+    const retryUrl = `${baseUrl}/checkout`;
+    const ordersUrl = `${baseUrl}/student/learning?tab=orders`;
+
+    // 1. Send Payment Failed Email to Student
+    await sendEmail({
+      to: student.email,
+      subject: `⚠️ Payment Failed for Order #${order.orderNumber} — Action Required (${primaryCourseTitle})`,
+      template: 'PAYMENT_FAILED',
+      userId: student.id,
+      organizationId: order.organizationId,
+      data: {
+        name: student.name,
+        courseTitle: primaryCourseTitle,
+        orderNumber: order.orderNumber,
+        total: order.total,
+        provider: order.provider || 'Online Payment',
+        failureReason,
+        retryUrl,
+        ordersUrl
+      }
+    }).catch((err) => console.error('[Student Payment Failed Email Error]:', err));
+
+    // 2. Send Payment Failed Alert Email to Platform Admin (so support can follow up)
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER || 'morena@morenateach.com';
+    await sendEmail({
+      to: adminEmail,
+      subject: `[Payment Failed Alert] Order #${order.orderNumber} — ${student.name} (${student.email})`,
+      template: 'PAYMENT_FAILED',
+      organizationId: order.organizationId,
+      data: {
+        name: `${student.name} (${student.email})`,
+        courseTitle: primaryCourseTitle,
+        orderNumber: order.orderNumber,
+        total: order.total,
+        provider: order.provider || 'Online Payment',
+        failureReason,
+        retryUrl: `${baseUrl}/admin`,
+        ordersUrl: `${baseUrl}/admin`
+      }
+    }).catch((err) => console.error('[Admin Payment Failed Email Error]:', err));
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Dispatch Payment Failed Notifications Error]:', err);
+    return { success: false, error: err.message };
+  }
+}
+
