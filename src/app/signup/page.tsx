@@ -105,19 +105,57 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState<string>('');
 
-  const countWords = (text: string) =>
-    text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+  const countWords = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\s+/).filter(Boolean).length;
+  };
 
   const experienceWordCount = countWords(form.experience);
 
+  const handleExperienceKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (experienceWordCount >= 350) {
+      const allowedKeys = [
+        'Backspace',
+        'Delete',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'Tab'
+      ];
+      const hasSelection =
+        e.currentTarget.selectionStart !== null &&
+        e.currentTarget.selectionEnd !== null &&
+        e.currentTarget.selectionEnd > e.currentTarget.selectionStart;
+
+      if (!allowedKeys.includes(e.key) && !e.ctrlKey && !e.metaKey && !hasSelection) {
+        e.preventDefault();
+      }
+    }
+  };
+
   const handleExperienceSummaryChange = (val: string) => {
-    const words = val.trim() ? val.trim().split(/\s+/).filter(Boolean) : [];
-    if (words.length > 350) {
-      const cappedText = words.slice(0, 350).join(' ');
-      setForm((prev) => ({ ...prev, experience: cappedText }));
-      setError('Summary Experience cannot exceed 350 words.');
+    const currentWords = countWords(form.experience);
+    const newWordsList = val.trim() ? val.trim().split(/\s+/).filter(Boolean) : [];
+
+    // If already at 350 words and user tries to add more characters/spaces, block completely
+    if (currentWords >= 350 && val.length > form.experience.length && newWordsList.length >= 350) {
       return;
     }
+
+    // If pasted or typed text exceeds 350 words, slice strictly to first 350 words
+    if (newWordsList.length > 350) {
+      const matchedChunks = val.trimStart().match(/\S+\s*/g);
+      const cappedText = matchedChunks
+        ? matchedChunks.slice(0, 350).join('').trimEnd()
+        : newWordsList.slice(0, 350).join(' ');
+      setForm((prev) => ({ ...prev, experience: cappedText }));
+      return;
+    }
+
     if (error === 'Summary Experience cannot exceed 350 words.') {
       setError('');
     }
@@ -953,7 +991,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                           <textarea
                             required
                             rows={5}
+                            maxLength={2400}
                             value={form.experience}
+                            onKeyDown={handleExperienceKeyDown}
                             onChange={(e) => handleExperienceSummaryChange(e.target.value)}
                             placeholder="Write your detailed teaching & domain experience summary here (up to 350 words). You can scroll up/down or drag the bottom-right corner to resize..."
                             className="w-full px-3.5 py-3 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 leading-relaxed resize-y min-h-[125px] max-h-[300px] overflow-y-auto focus:outline-none focus:border-violet-600"
