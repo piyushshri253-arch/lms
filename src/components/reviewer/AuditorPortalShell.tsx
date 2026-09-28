@@ -18,7 +18,8 @@ import {
   X,
   Sun,
   Moon,
-  Sparkles
+  Sparkles,
+  UserCheck
 } from 'lucide-react';
 
 interface AuditorPortalShellProps {
@@ -74,6 +75,12 @@ function AuditorPortalShellInner({
       href: '/reviewer',
       icon: LayoutDashboard,
       isActive: pathname === '/reviewer' && (!searchParams?.get('filter') || currentFilter === 'ALL')
+    },
+    {
+      label: 'Instructor Onboarding & Resumes',
+      href: '/reviewer/instructors',
+      icon: UserCheck,
+      isActive: pathname?.startsWith('/reviewer/instructors')
     },
     {
       label: 'Pending Review Queue',

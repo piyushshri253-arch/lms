@@ -33,6 +33,7 @@ export type EmailTemplateType =
   | 'PAYOUT_REJECTED'
   | 'PAYOUT_COMPLETED'
   | 'ACCOUNT_STATUS_CHANGED'
+  | 'INSTRUCTOR_ONBOARDED'
   | 'NOTIFICATION';
 
 export interface SmtpConfigData {
@@ -653,6 +654,50 @@ export function renderEmailHtml(
           Hello <strong>${data.name || 'User'}</strong>, your account status on <strong>${platformName}</strong> has been updated to <strong>${data.status}</strong>.
         </p>
         ${data.reason ? `<p style="color: #dc2626; font-size: 13px;"><strong>Notes:</strong> ${data.reason}</p>` : ''}
+      `;
+      break;
+    }
+
+    case 'INSTRUCTOR_ONBOARDED': {
+      const loginUrl =
+        data.loginUrl ||
+        `${baseUrl}/instructor/login${data.email ? `?email=${encodeURIComponent(data.email)}` : ''}`;
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🎓
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          Congratulations! Your Instructor Onboarding is Complete
+        </h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.name || 'Instructor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Great news! Our Course Auditor has reviewed your profile, qualifications, experience, and resume${
+            data.interviewDecision === 'TAKE_INTERVIEW' ? ' along with your interview assessment' : ''
+          }, and has officially <strong>approved and onboarded</strong> your Instructor account on <strong>${platformName}</strong>.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin: 20px 0; font-size: 13px; color: #334155;">
+          <p style="margin: 5px 0;"><strong>Instructor Name:</strong> ${data.name || 'N/A'}</p>
+          <p style="margin: 5px 0;"><strong>Registered Email:</strong> ${data.email || 'N/A'}</p>
+          ${data.qualification ? `<p style="margin: 5px 0;"><strong>Qualification:</strong> ${data.qualification}</p>` : ''}
+          ${data.experience ? `<p style="margin: 5px 0;"><strong>Experience:</strong> ${data.experience}</p>` : ''}
+          <p style="margin: 5px 0;"><strong>Onboarding Status:</strong> <span style="color: #059669; font-weight: 800;">APPROVED &amp; ACTIVE ✅</span></p>
+          ${data.auditorNotes ? `<p style="margin: 8px 0 0 0; color: #475569;"><strong>Auditor Remarks:</strong> ${data.auditorNotes}</p>` : ''}
+        </div>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+          You can now log in directly to the <strong>Instructor Studio</strong> using your registered email and password:
+        </p>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${loginUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 800; font-size: 15px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.25);">
+            Log In to Instructor Portal →
+          </a>
+        </div>
+        <p style="color: #94a3b8; font-size: 11px; text-align: center; word-break: break-all;">
+          Or click/copy this link to log in: <a href="${loginUrl}" style="color: ${brandPrimary}; text-decoration: underline;">${loginUrl}</a>
+        </p>
       `;
       break;
     }
@@ -1359,6 +1404,31 @@ export class EmailService {
         name: user.name,
         status,
         reason
+      }
+    });
+  }
+
+  static async sendCustomNotificationEmail(params: {
+    to: string;
+    subject: string;
+    title: string;
+    message: string;
+    actionUrl?: string;
+    actionText?: string;
+    userId?: string | null;
+    organizationId?: string | null;
+  }) {
+    return EmailService.sendEmail({
+      to: params.to,
+      userId: params.userId || null,
+      organizationId: params.organizationId || null,
+      subject: params.subject,
+      template: 'NOTIFICATION',
+      data: {
+        title: params.title,
+        message: params.message,
+        actionUrl: params.actionUrl,
+        actionText: params.actionText
       }
     });
   }

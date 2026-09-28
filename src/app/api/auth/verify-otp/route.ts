@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
           include: { organization: true }
         });
       } else {
+        const initialStatus = userRole === 'INSTRUCTOR' ? 'PENDING_APPROVAL' : 'ACTIVE';
         updatedUser = await prisma.user.create({
           data: {
             organizationId: uData.organizationId || null,
@@ -150,7 +151,7 @@ export async function POST(req: NextRequest) {
                 : null),
             platform: uData.platform || 'LMS',
             permissions: perms,
-            status: 'ACTIVE',
+            status: initialStatus,
             emailVerified: true,
             emailVerifiedAt: new Date(),
             lastLoginAt: new Date(),
@@ -159,6 +160,52 @@ export async function POST(req: NextRequest) {
           },
           include: { organization: true }
         });
+      }
+
+      // If INSTRUCTOR, store full Instructor Application & Resume payload for Auditor Review & Interview
+      if (userRole === 'INSTRUCTOR' && updatedUser) {
+        const appKey = `instructor_application_${updatedUser.id}`;
+        const applicationPayload = {
+          userId: updatedUser.id,
+          firstName: uData.firstName || updatedUser.name.split(' ')[0] || '',
+          lastName: uData.lastName || updatedUser.name.split(' ').slice(1).join(' ') || '',
+          fullName: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone || uData.phone || '',
+          address: updatedUser.address || uData.address || '',
+          city: updatedUser.city || uData.city || '',
+          state: updatedUser.state || uData.state || '',
+          country: updatedUser.country || uData.country || 'India',
+          pincode: updatedUser.pincode || uData.pincode || '',
+          qualification: uData.qualification || 'Not specified',
+          additionalQualifications: uData.additionalQualifications || '',
+          experience: uData.experience || 'Not specified',
+          experienceYears: uData.experienceYears || '',
+          resumeDataUrl: uData.resumeDataUrl || null,
+          resumeFileName: uData.resumeFileName || 'Instructor_Resume.pdf',
+          resumeMimeType: uData.resumeMimeType || 'application/pdf',
+          resumeSize: uData.resumeSize || 0,
+          applicationStatus: 'PENDING_REVIEW', // PENDING_REVIEW | INTERVIEW_SCHEDULED | INTERVIEW_COMPLETED | ONBOARDED | REJECTED
+          interviewDecision: 'PENDING', // PENDING | TAKE_INTERVIEW | SKIP_INTERVIEW
+          interviewStatus: 'NOT_SCHEDULED', // NOT_SCHEDULED | SCHEDULED | COMPLETED | SKIPPED
+          interviewDate: null,
+          interviewMeetingLink: '',
+          interviewNotes: '',
+          auditorNotes: '',
+          submittedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        await prisma.platformSetting.upsert({
+          where: { key: appKey },
+          create: {
+            key: appKey,
+            value: JSON.stringify(applicationPayload)
+          },
+          update: {
+            value: JSON.stringify(applicationPayload)
+          }
+        }).catch(() => {});
       }
 
       await prisma.notificationPreference.create({
@@ -178,11 +225,11 @@ export async function POST(req: NextRequest) {
             userId: updatedUser.id,
             role: userRole,
             permissions: perms,
-            status: 'ACTIVE'
+            status: userRole === 'INSTRUCTOR' ? 'PENDING_APPROVAL' : 'ACTIVE'
           },
           update: {
             role: userRole,
-            status: 'ACTIVE'
+            status: userRole === 'INSTRUCTOR' ? 'PENDING_APPROVAL' : 'ACTIVE'
           }
         }).catch(() => {});
       }
@@ -192,24 +239,58 @@ export async function POST(req: NextRequest) {
         where: { key: pendingKey }
       }).catch(() => {});
 
-      // Notify Super Admins that a verified Instructor / Reviewer has joined
+      // Notify Course Auditors (REVIEWER) & Admins about new Instructor Application (or Reviewer signup)
       if (updatedUser.role === 'INSTRUCTOR' || updatedUser.role === 'REVIEWER') {
         try {
-          const superAdmins = await prisma.user.findMany({
-            where: { role: 'SUPER_ADMIN' },
-            select: { id: true }
+          const recipients = await prisma.user.findMany({
+            where: {
+              role: { in: ['REVIEWER', 'SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN'] },
+              isSuspended: false
+            },
+            select: { id: true, name: true, email: true, role: true }
           });
 
-          for (const sa of superAdmins) {
-            await prisma.notification.create({
-              data: {
-                userId: sa.id,
-                title: `New Verified ${updatedUser.role === 'REVIEWER' ? 'Reviewer / Auditor' : 'Instructor'}: ${updatedUser.name}`,
-                message: `${updatedUser.name} (${updatedUser.email}) verified their email via OTP and activated their ${updatedUser.role} account.`,
-                type: 'ACCOUNT',
-                link: '/super-admin/users'
+          for (const rec of recipients) {
+            if (updatedUser.role === 'INSTRUCTOR') {
+              await prisma.notification.create({
+                data: {
+                  userId: rec.id,
+                  title: `📋 New Instructor Application: ${updatedUser.name}`,
+                  message: `${updatedUser.name} (${updatedUser.email}) submitted their Instructor Signup with Qualification (${uData.qualification || 'N/A'}), Experience (${uData.experience || 'N/A'}), and Resume. Please review, decide on interview, and onboard.`,
+                  type: 'ACCOUNT',
+                  link: '/reviewer/instructors'
+                }
+              }).catch(() => {});
+
+              // Also send email alert to Auditors (REVIEWER) so they know right away
+              if (rec.role === 'REVIEWER' || rec.role === 'SUPER_ADMIN') {
+                EmailService.sendCustomNotificationEmail({
+                  to: rec.email,
+                  subject: `📋 New Instructor Application for Auditor Review: ${updatedUser.name}`,
+                  title: `New Instructor Application & Resume Received`,
+                  message: `Instructor applicant <strong>${updatedUser.name}</strong> (${updatedUser.email}) has completed email verification and uploaded their Resume & Qualification details.<br/><br/>
+                  <strong>First & Last Name:</strong> ${uData.firstName || ''} ${uData.lastName || ''}<br/>
+                  <strong>Primary Qualification:</strong> ${uData.qualification || 'N/A'}<br/>
+                  <strong>Additional Qualifications:</strong> ${uData.additionalQualifications || 'None'}<br/>
+                  <strong>Experience:</strong> ${uData.experience || 'N/A'}<br/>
+                  <strong>Resume File:</strong> ${uData.resumeFileName || 'Attached in Auditor Portal'}<br/><br/>
+                  Please open the Auditor Instructor Onboarding Studio to download their resume, decide whether to take an interview, and complete onboarding.`,
+                  actionUrl: '/reviewer/instructors',
+                  actionText: 'Review Instructor & Download Resume →',
+                  userId: rec.id
+                }).catch(() => {});
               }
-            });
+            } else {
+              await prisma.notification.create({
+                data: {
+                  userId: rec.id,
+                  title: `New Verified Reviewer / Auditor: ${updatedUser.name}`,
+                  message: `${updatedUser.name} (${updatedUser.email}) verified their email via OTP and activated their Reviewer account.`,
+                  type: 'ACCOUNT',
+                  link: '/super-admin/users'
+                }
+              }).catch(() => {});
+            }
           }
         } catch {}
       }
@@ -330,7 +411,10 @@ export async function POST(req: NextRequest) {
 
     const user = updatedUser;
 
-    // 4. Create Welcome In-App Notification
+    const isPendingInstructorOnboarding =
+      updatedUser.role === 'INSTRUCTOR' && updatedUser.status === 'PENDING_APPROVAL';
+
+    // 4. Create Welcome / Application Received In-App Notification
     const roleDashUrl =
       updatedUser.role === 'SUPER_ADMIN'
         ? '/super-admin/dashboard'
@@ -346,22 +430,47 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         organizationId: user.organizationId || null,
-        title: `Welcome to Morena Teach!`,
-        message: `Your ${updatedUser.role === 'INSTRUCTOR' ? 'Instructor' : updatedUser.role === 'REVIEWER' ? 'Reviewer / Auditor' : ''} account email has been verified and activated.`,
+        title: isPendingInstructorOnboarding
+          ? 'Application Submitted for Auditor Review 📋'
+          : 'Welcome to Morena Teach!',
+        message: isPendingInstructorOnboarding
+          ? 'Your Instructor email is verified and your profile, qualifications, experience & resume have been forwarded to our Course Auditor. Once your interview/onboarding is approved, you will receive an email with your Login button.'
+          : `Your ${
+              updatedUser.role === 'INSTRUCTOR'
+                ? 'Instructor'
+                : updatedUser.role === 'REVIEWER'
+                ? 'Reviewer / Auditor'
+                : ''
+            } account email has been verified and activated.`,
         type: 'ACCOUNT',
         link: roleDashUrl
       }
     }).catch(() => {});
 
-    // 5. Send Welcome Email ONLY upon Email OTP Verification!
-    // If welcome email fails, account remains verified & active, failure is recorded on User & EmailLog.
-    const welcomeResult = await EmailService.sendWelcomeEmail({
-      id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      organizationId: updatedUser.organizationId
-    });
+    // 5. If Instructor is pending Auditor approval, send an Application Received email; otherwise send Welcome Email
+    let welcomeResult: { success: boolean; error?: string | null } = { success: true, error: null };
+    if (isPendingInstructorOnboarding) {
+      await EmailService.sendCustomNotificationEmail({
+        to: updatedUser.email,
+        subject: '📋 Your Morena Teach Instructor Application & Resume Have Been Received',
+        title: 'Instructor Application Under Auditor Review',
+        message: `Hello <strong>${updatedUser.name}</strong>,<br/><br/>
+        Your email address has been verified! Your Instructor profile, qualifications, experience, and resume have been forwarded to our <strong>Course Auditor</strong>.<br/><br/>
+        <strong>What happens next?</strong><br/>
+        1. The Auditor will review your qualifications, experience, and resume.<br/>
+        2. The Auditor will decide whether an interview is needed.<br/>
+        3. Once your onboarding is approved, you will receive an <strong>Onboarding Complete Email</strong> with a direct <strong>Log In to Instructor Portal</strong> button so you can sign in and start creating courses.`,
+        userId: updatedUser.id
+      }).catch(() => {});
+    } else {
+      welcomeResult = await EmailService.sendWelcomeEmail({
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        organizationId: updatedUser.organizationId
+      });
+    }
 
     // 6. Log Security Event & Audit Log
     await logSecurityEvent({
@@ -371,6 +480,7 @@ export async function POST(req: NextRequest) {
       req,
       metadata: {
         role: updatedUser.role,
+        status: updatedUser.status,
         welcomeEmailSent: welcomeResult.success,
         welcomeEmailError: welcomeResult.error || null
       }
@@ -383,9 +493,25 @@ export async function POST(req: NextRequest) {
       action: 'USER_VERIFIED_EMAIL',
       entity: 'User',
       entityId: user.id,
-      description: `User "${user.name}" (${updatedUser.role}) verified email via OTP. Welcome email status: ${welcomeResult.success ? 'SENT' : 'FAILED'}.`,
+      description: isPendingInstructorOnboarding
+        ? `Instructor applicant "${user.name}" verified email via OTP. Application & Resume routed to Auditor for Interview & Onboarding.`
+        : `User "${user.name}" (${updatedUser.role}) verified email via OTP. Welcome email status: ${welcomeResult.success ? 'SENT' : 'FAILED'}.`,
       req
     }).catch(() => {});
+
+    // If Instructor is awaiting Auditor onboarding, do NOT issue an active session cookie yet
+    if (isPendingInstructorOnboarding) {
+      await clearLmsSessionCookie();
+      return NextResponse.json({
+        success: true,
+        pendingAuditorApproval: true,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        message:
+          'Email verified! Your Instructor profile, qualifications, experience, and resume have been sent to the Auditor for review & interview. Once onboarded by the Auditor, you will receive an email with a Login button to sign in.',
+        redirectUrl: `/instructor/login?email=${encodeURIComponent(updatedUser.email)}&pending=auditor`
+      });
+    }
 
     // 7. Determine exact role-based redirect URL
     const redirectUrl = roleDashUrl;

@@ -11,7 +11,8 @@ function InstructorLoginContent() {
   const searchParams = useSearchParams();
   const { login, refreshUser, showToast } = useApp();
 
-  const [email, setEmail] = useState('');
+  const initialEmail = searchParams.get('email') || '';
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,18 +65,27 @@ function InstructorLoginContent() {
 
       const code =
         err.code ||
-        (err.message?.toLowerCase().includes('not registered') ? 'USER_NOT_FOUND' : 'INVALID_CREDENTIALS');
+        (err.message?.toLowerCase().includes('auditor') ? 'PENDING_AUDITOR_ONBOARDING' :
+        err.message?.toLowerCase().includes('not registered') ? 'USER_NOT_FOUND' : 'INVALID_CREDENTIALS');
       const message =
-        code === 'USER_NOT_FOUND'
+        code === 'PENDING_AUDITOR_ONBOARDING'
+          ? err.message ||
+            'Your Instructor application, qualifications & resume are currently under Auditor Review & Interview. Once onboarded by the Auditor, you will receive an email with a Login button.'
+          : code === 'USER_NOT_FOUND'
           ? 'This email is not registered. Please sign up first.'
           : 'Your email ID or password is wrong. Please enter the correct email and password.';
 
       setAuthError({ message, code });
 
       showToast({
-        title: code === 'USER_NOT_FOUND' ? 'Account Not Found' : 'Wrong Email or Password',
+        title:
+          code === 'PENDING_AUDITOR_ONBOARDING'
+            ? 'Pending Auditor Onboarding'
+            : code === 'USER_NOT_FOUND'
+            ? 'Account Not Found'
+            : 'Wrong Email or Password',
         description: message,
-        type: 'error'
+        type: code === 'PENDING_AUDITOR_ONBOARDING' ? 'info' : 'error'
       });
     } finally {
       setIsLoading(false);

@@ -169,8 +169,48 @@ function ReviewerDashboardContent() {
     );
   };
 
+  const [pendingInstructorsCount, setPendingInstructorsCount] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/reviewer/instructors')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.summary?.pendingOnboarding !== undefined) {
+          setPendingInstructorsCount(d.summary.pendingOnboarding);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="space-y-6">
+      {/* Instructor Onboarding & Resume Review Banner */}
+      <div className="bg-gradient-to-r from-violet-900 via-indigo-900 to-emerald-900 text-white rounded-2xl p-5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-bold uppercase tracking-wider">
+            <span>🎓 Instructor Onboarding &amp; Interview Studio</span>
+            {pendingInstructorsCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
+                {pendingInstructorsCount} Pending Approval
+              </span>
+            )}
+          </div>
+          <h2 className="text-base sm:text-lg font-black">
+            Review New Instructor Signups, Download Resumes &amp; Decide on Interviews
+          </h2>
+          <p className="text-xs text-slate-200">
+            Inspect First/Last Name, Qualification, Additional Qualifications, Experience, and Resume — schedule an interview or click Onboard to send the Instructor their Login Email.
+          </p>
+        </div>
+
+        <Link
+          href="/reviewer/instructors"
+          className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs whitespace-nowrap shadow-sm transition-all inline-flex items-center gap-2 self-start sm:self-center"
+        >
+          <span>Open Instructor Onboarding Studio →</span>
+        </Link>
+      </div>
+
       {/* 6 Auditor Dashboard KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">

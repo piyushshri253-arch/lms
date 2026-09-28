@@ -11,6 +11,8 @@ export async function POST(req: NextRequest) {
     const {
       role: rawRole,
       name,
+      firstName,
+      lastName,
       email,
       password,
       confirmPassword,
@@ -22,6 +24,14 @@ export async function POST(req: NextRequest) {
       pincode,
       bio,
       avatar,
+      qualification,
+      additionalQualifications,
+      experience,
+      experienceYears,
+      resumeDataUrl,
+      resumeFileName,
+      resumeMimeType,
+      resumeSize,
       organizationId,
       orgSlug
     } = body;
@@ -69,7 +79,21 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Field Validations
-    if (!name || !String(name).trim()) {
+    const cleanFirstName = String(firstName || '').trim();
+    const cleanLastName = String(lastName || '').trim();
+    const computedFullName =
+      cleanFirstName || cleanLastName
+        ? `${cleanFirstName} ${cleanLastName}`.trim()
+        : String(name || '').trim();
+
+    if (isPartnerSignup) {
+      if (!cleanFirstName) {
+        return NextResponse.json({ error: 'First Name is required.' }, { status: 400 });
+      }
+      if (!cleanLastName) {
+        return NextResponse.json({ error: 'Last Name is required.' }, { status: 400 });
+      }
+    } else if (!computedFullName) {
       return NextResponse.json({ error: 'Full Name is required.' }, { status: 400 });
     }
 
@@ -105,6 +129,28 @@ export async function POST(req: NextRequest) {
       }
       if (!pincode || !String(pincode).trim()) {
         return NextResponse.json({ error: 'Pincode / Postal Code is required.' }, { status: 400 });
+      }
+    }
+
+    // Instructor-Specific Qualifications, Experience & Resume Validation
+    if (normalizedRole === 'INSTRUCTOR') {
+      if (!qualification || !String(qualification).trim()) {
+        return NextResponse.json(
+          { error: 'Primary Qualification is required for Instructor registration.' },
+          { status: 400 }
+        );
+      }
+      if (!experience || !String(experience).trim()) {
+        return NextResponse.json(
+          { error: 'Teaching / Industry Experience details are required for Instructor registration.' },
+          { status: 400 }
+        );
+      }
+      if (!resumeDataUrl || !String(resumeDataUrl).startsWith('data:')) {
+        return NextResponse.json(
+          { error: 'Please upload your Resume / CV (PDF, DOC, or DOCX) for Auditor verification.' },
+          { status: 400 }
+        );
       }
     }
 
@@ -171,7 +217,9 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
       userData: {
         organizationId: effectiveOrgId,
-        name: String(name).trim(),
+        name: computedFullName,
+        firstName: cleanFirstName || computedFullName.split(' ')[0] || '',
+        lastName: cleanLastName || computedFullName.split(' ').slice(1).join(' ') || '',
         email: normalizedEmail,
         password: passwordHash,
         phone: cleanPhone || null,
@@ -180,8 +228,22 @@ export async function POST(req: NextRequest) {
         state: state ? String(state).trim() : null,
         country: country ? String(country).trim() : null,
         pincode: pincode ? String(pincode).trim() : null,
-        bio: bio ? String(bio).trim() : null,
+        bio: bio
+          ? String(bio).trim()
+          : normalizedRole === 'INSTRUCTOR'
+          ? `${String(qualification || '').trim()}${
+              additionalQualifications ? ` • ${String(additionalQualifications).trim()}` : ''
+            } • ${String(experience || '').trim()}`
+          : null,
         avatar: avatar || null,
+        qualification: qualification ? String(qualification).trim() : null,
+        additionalQualifications: additionalQualifications ? String(additionalQualifications).trim() : null,
+        experience: experience ? String(experience).trim() : null,
+        experienceYears: experienceYears ? String(experienceYears).trim() : null,
+        resumeDataUrl: resumeDataUrl || null,
+        resumeFileName: resumeFileName || 'Instructor_Resume.pdf',
+        resumeMimeType: resumeMimeType || 'application/pdf',
+        resumeSize: resumeSize || 0,
         role: normalizedRole,
         customRole:
           normalizedRole === 'REVIEWER'
@@ -207,7 +269,7 @@ export async function POST(req: NextRequest) {
     // 5. Send 6-Digit Email OTP (User is NOT created in prisma.user yet — only after OTP verification!)
     await EmailService.sendVerificationOTP({
       to: normalizedEmail,
-      name: String(name).trim(),
+      name: computedFullName,
       otp,
       userId: undefined,
       organizationId: effectiveOrgId,

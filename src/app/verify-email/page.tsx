@@ -29,6 +29,8 @@ function VerifyEmailContent() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const [pendingAuditorScreen, setPendingAuditorScreen] = useState(false);
+
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
@@ -63,6 +65,16 @@ function VerifyEmailContent() {
 
       if (!res.ok) {
         setError(data.error || 'Invalid or expired verification code.');
+        setLoading(false);
+        return;
+      }
+
+      if (data.pendingAuditorApproval) {
+        setPendingAuditorScreen(true);
+        setSuccessMsg(
+          data.message ||
+            'Email verified! Your Instructor profile, qualifications, experience, and resume have been sent to the Auditor for Interview & Onboarding.'
+        );
         setLoading(false);
         return;
       }
@@ -107,6 +119,55 @@ function VerifyEmailContent() {
     }
   };
 
+  if (pendingAuditorScreen) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
+        <div className="sm:mx-auto sm:w-full sm:max-w-lg">
+          <div className="bg-white border border-emerald-200 rounded-2xl shadow-xl p-6 sm:p-8 text-center space-y-5">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
+                Email Verified &amp; Application Forwarded to Auditor
+              </span>
+              <h1 className="text-2xl font-extrabold text-slate-900">
+                Instructor Application Submitted!
+              </h1>
+              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                Your profile, qualifications, experience, and resume have been sent to our{' '}
+                <strong className="text-slate-900">Course Auditor</strong> for review.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs text-slate-700 space-y-2">
+              <div className="font-bold text-slate-900 text-sm mb-1">Next Steps in Your Onboarding:</div>
+              <p>1. <strong>Auditor Review:</strong> The Auditor will review your details and download your uploaded resume.</p>
+              <p>2. <strong>Interview Decision:</strong> The Auditor will decide whether to schedule a quick interview or proceed directly.</p>
+              <p>3. <strong>Onboarding Email with Login Button:</strong> As soon as the Auditor clicks <em>Onboard Instructor</em>, you will receive an email at <span className="font-mono font-bold text-violet-700">{email}</span> with a direct <strong>Log In to Instructor Portal</strong> button!</p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <Link
+                href={`/instructor/login?email=${encodeURIComponent(email)}`}
+                className="flex-1 py-3 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-violet-600/20"
+              >
+                <span>Go to Instructor Login Page</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/"
+                className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center"
+              >
+                Back to Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -123,8 +184,8 @@ function VerifyEmailContent() {
           <h1 className="mt-4 text-2xl font-extrabold text-slate-900">Verify Your Email Address</h1>
           <p className="mt-1.5 text-sm text-slate-600">
             Enter the 6-digit OTP code sent to{' '}
-            <span className="text-slate-900 font-bold">{email || 'your email'}</span> to activate your{' '}
-            {initialRole === 'REVIEWER' ? 'Reviewer / Auditor' : 'Instructor'} account.
+            <span className="text-slate-900 font-bold">{email || 'your email'}</span> to verify your{' '}
+            {initialRole === 'REVIEWER' ? 'Reviewer / Auditor' : 'Instructor'} application.
           </p>
         </div>
 

@@ -266,6 +266,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (user.status === 'PENDING_APPROVAL') {
+      return NextResponse.json(
+        {
+          error:
+            'Your Instructor application, qualifications & resume are currently under Auditor Review & Interview. Once the Auditor completes your onboarding, you will receive an email with a Login button to sign in.',
+          code: 'PENDING_AUDITOR_ONBOARDING'
+        },
+        { status: 403 }
+      );
+    }
+
     if (user.status === 'INACTIVE' || user.status === 'DISABLED' || user.status === 'REJECTED') {
       return NextResponse.json(
         { error: `Your account is currently ${user.status}. Please contact administration.` },

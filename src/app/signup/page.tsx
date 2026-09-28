@@ -44,9 +44,19 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
   // Signup State
   const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
     name: '',
     email: initialEmail,
     phone: '',
+    qualification: 'M.Tech / M.E.',
+    additionalQualifications: '',
+    experienceYears: '3-5 Years',
+    experience: '',
+    resumeDataUrl: '',
+    resumeFileName: '',
+    resumeMimeType: '',
+    resumeSize: 0,
     address: '',
     city: '',
     state: '',
@@ -61,6 +71,30 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState<string>('');
+
+  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Resume file size must be under 8 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      setForm((prev) => ({
+        ...prev,
+        resumeDataUrl: dataUrl,
+        resumeFileName: file.name,
+        resumeMimeType: file.type || 'application/pdf',
+        resumeSize: file.size
+      }));
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Live Password Strength & Requirement Checklist
   const pwChecks = {
@@ -83,8 +117,12 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
   const validateStep1 = () => {
     setError('');
-    if (!form.name.trim()) {
-      setError('Please enter your Full Name.');
+    if (!form.firstName.trim()) {
+      setError('Please enter your First Name.');
+      return false;
+    }
+    if (!form.lastName.trim()) {
+      setError('Please enter your Last Name.');
       return false;
     }
     if (!form.email.trim() || !form.email.includes('@')) {
@@ -95,6 +133,21 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     if (!form.phone.trim() || digits.length < 10 || digits.length > 15) {
       setError('Please enter a valid 10–15 digit Mobile Number.');
       return false;
+    }
+
+    if (role === 'INSTRUCTOR') {
+      if (!form.qualification.trim()) {
+        setError('Please enter your Primary Qualification.');
+        return false;
+      }
+      if (!form.experience.trim()) {
+        setError('Please enter your Teaching / Industry Experience details.');
+        return false;
+      }
+      if (!form.resumeDataUrl) {
+        setError('Please upload your Resume / CV (PDF, DOC, or DOCX) for Auditor verification.');
+        return false;
+      }
     }
     return true;
   };
@@ -137,6 +190,11 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
       return;
     }
 
+    const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+    const combinedExperience = form.experienceYears
+      ? `${form.experienceYears} — ${form.experience.trim()}`
+      : form.experience.trim();
+
     setLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
@@ -144,7 +202,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role,
-          ...form
+          ...form,
+          name: fullName,
+          experience: combinedExperience
         })
       });
       const data = await res.json();
@@ -198,7 +258,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           (data.error?.toLowerCase().includes('not registered') ? 'USER_NOT_FOUND' : 'INVALID_CREDENTIALS');
         setErrorCode(code);
         setError(
-          code === 'USER_NOT_FOUND'
+          code === 'PENDING_AUDITOR_ONBOARDING'
+            ? data.error
+            : code === 'USER_NOT_FOUND'
             ? 'This email is not registered. Please sign up first.'
             : 'Your email ID or password is wrong. Please enter the correct email and password.'
         );
@@ -461,59 +523,182 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          required
-                          value={form.name}
-                          onChange={(e) => setForm({ ...form, name: e.target.value })}
-                          placeholder="Dr. Aarav Sharma"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          First Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            required
+                            value={form.firstName}
+                            onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                            placeholder="Aarav"
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Last Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            required
+                            value={form.lastName}
+                            onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                            placeholder="Sharma"
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Email Address <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="email"
-                          required
-                          value={form.email}
-                          onChange={(e) => setForm({ ...form, email: e.target.value })}
-                          placeholder="instructor@example.com"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Email Address <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="email"
+                            required
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            placeholder="instructor@example.com"
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                          />
+                        </div>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        A 6-digit verification OTP will be sent to this email address.
-                      </p>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Mobile Number <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="tel"
+                            required
+                            value={form.phone}
+                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                            placeholder="+91 98765 43210"
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                          />
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Mobile Number <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="tel"
-                          required
-                          value={form.phone}
-                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                          placeholder="+91 98765 43210"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
-                        />
+                    {role === 'INSTRUCTOR' && (
+                      <div className="p-4 rounded-2xl bg-violet-50/60 border border-violet-200/80 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-violet-900">
+                              Qualifications, Experience &amp; Resume (For Auditor Onboarding)
+                            </h3>
+                            <p className="text-[11px] text-slate-600 mt-0.5">
+                              Your profile &amp; resume will be reviewed by the Auditor for Interview &amp; Onboarding approval.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                              Primary Qualification <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={form.qualification}
+                              onChange={(e) => setForm({ ...form, qualification: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
+                            >
+                              <option value="B.Tech / B.E.">B.Tech / B.E.</option>
+                              <option value="M.Tech / M.E.">M.Tech / M.E.</option>
+                              <option value="Ph.D. / Doctorate">Ph.D. / Doctorate</option>
+                              <option value="MCA / BCA">MCA / BCA</option>
+                              <option value="M.Sc. / B.Sc.">M.Sc. / B.Sc.</option>
+                              <option value="MBA / BBA">MBA / BBA</option>
+                              <option value="B.Ed. / M.Ed.">B.Ed. / M.Ed.</option>
+                              <option value="Post-Graduate / Other">Post-Graduate / Other</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                              Additional Qualification / Certs
+                            </label>
+                            <input
+                              type="text"
+                              value={form.additionalQualifications}
+                              onChange={(e) =>
+                                setForm({ ...form, additionalQualifications: e.target.value })
+                              }
+                              placeholder="e.g. AWS Certified, NET/JRF, PG Diploma"
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                              Total Exp (Years) <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={form.experienceYears}
+                              onChange={(e) => setForm({ ...form, experienceYears: e.target.value })}
+                              className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
+                            >
+                              <option value="Fresher / < 1 Year">Fresher / &lt; 1 Year</option>
+                              <option value="1-2 Years">1-2 Years</option>
+                              <option value="3-5 Years">3-5 Years</option>
+                              <option value="5-10 Years">5-10 Years</option>
+                              <option value="10+ Years">10+ Years</option>
+                            </select>
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                              Experience &amp; Domain Details <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required={role === 'INSTRUCTOR'}
+                              value={form.experience}
+                              onChange={(e) => setForm({ ...form, experience: e.target.value })}
+                              placeholder="e.g. 5 yrs Full-Stack Architect & Senior Educator"
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-violet-600"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                            Upload Resume / CV (PDF, DOC, DOCX) <span className="text-red-500">*</span>
+                          </label>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white border border-dashed border-violet-300">
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                              onChange={handleResumeUpload}
+                              className="text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-violet-600 file:text-white hover:file:bg-violet-500 cursor-pointer"
+                            />
+                            {form.resumeFileName && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold truncate">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate">{form.resumeFileName}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <button
                       type="button"

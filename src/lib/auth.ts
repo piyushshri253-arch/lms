@@ -284,6 +284,7 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
       dbUser.status === 'DISABLED' ||
       dbUser.status === 'REJECTED' ||
       dbUser.status === 'PENDING_VERIFICATION' ||
+      dbUser.status === 'PENDING_APPROVAL' ||
       ((dbUser.role === 'INSTRUCTOR' || dbUser.role === 'REVIEWER') && dbUser.emailVerified === false)
     ) {
       return null;
