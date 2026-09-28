@@ -313,7 +313,7 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
       plan: dbUser.organization?.plan || null,
       name: dbUser.name,
       email: dbUser.email,
-      platform: (dbUser.platform as PlatformType) || 'LMS',
+      platform: 'LMS',
       role: dbUser.role as UserRole,
       avatar: dbUser.avatar,
       phone: dbUser.phone,

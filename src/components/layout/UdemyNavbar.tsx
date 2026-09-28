@@ -227,13 +227,38 @@ export const UdemyNavbar: React.FC = () => {
             TEACH Business
           </Link>
 
-          {/* Teach on Morena Teach Link */}
-          <Link
-            href={currentUser?.role === 'INSTRUCTOR' ? '/instructor' : '/instructor/login'}
-            className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
-          >
-            {currentUser?.role === 'INSTRUCTOR' ? 'Instructor Studio' : 'Teach on Morena Teach'}
-          </Link>
+          {/* Instructor Login / Studio Link:
+              - If logged in as INSTRUCTOR -> Instructor Studio
+              - If logged in as STUDENT -> ONLY show "Instructor Login" button if same email is ONBOARDED as an Instructor!
+              - If not logged in (public visitor) -> Teach on Morena Teach (/signup) */}
+          {currentUser?.role === 'INSTRUCTOR' ? (
+            <Link
+              href="/instructor"
+              className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
+            >
+              Instructor Studio
+            </Link>
+          ) : currentUser?.role === 'STUDENT' ? (
+            currentUser?.hasOnboardedInstructorAccount ? (
+              <Link
+                href={
+                  currentUser.instructorLoginUrl ||
+                  `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
+                }
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white bg-[#5022c3] hover:bg-[#3f1b99] rounded-full transition-colors shadow-xs"
+              >
+                <Icon name="cast_for_education" size={16} />
+                <span>Instructor Login</span>
+              </Link>
+            ) : null
+          ) : (
+            <Link
+              href="/signup"
+              className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
+            >
+              Teach on Morena Teach
+            </Link>
+          )}
 
           {/* My learning Link for Logged In Students */}
           {currentUser && currentUser.role === 'STUDENT' && (
@@ -473,13 +498,24 @@ export const UdemyNavbar: React.FC = () => {
                         </span>
                       )}
                     </Link>
-                    <Link
-                      href="/instructor"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Teach on Morena Teach
-                    </Link>
+                    {currentUser.hasOnboardedInstructorAccount && (
+                      <Link
+                        href={
+                          currentUser.instructorLoginUrl ||
+                          `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
+                        }
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center justify-between px-4 py-2.5 text-sm font-bold text-[#5022c3] bg-purple-50/70 hover:bg-purple-100/80 transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon name="cast_for_education" size={16} />
+                          <span>Instructor Login</span>
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                          Onboarded
+                        </span>
+                      </Link>
+                    )}
                   </div>
 
                   {/* Section 2: Notifications, Messages */}
@@ -657,6 +693,24 @@ export const UdemyNavbar: React.FC = () => {
                 >
                   My learning
                 </Link>
+                {currentUser.hasOnboardedInstructorAccount && (
+                  <Link
+                    href={
+                      currentUser.instructorLoginUrl ||
+                      `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
+                    }
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2 px-3 my-1 rounded-lg bg-purple-50 text-sm font-bold text-[#5022c3]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon name="cast_for_education" size={16} />
+                      <span>Instructor Login</span>
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                      Onboarded
+                    </span>
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -717,13 +771,15 @@ export const UdemyNavbar: React.FC = () => {
             >
               TEACH Business
             </Link>
-            <Link
-              href="/instructor"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block text-sm text-[#2d2f31] py-1"
-            >
-              Teach on TEACH
-            </Link>
+            {!currentUser && (
+              <Link
+                href="/signup"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-sm text-[#2d2f31] py-1"
+              >
+                Teach on Morena Teach
+              </Link>
+            )}
           </div>
         </div>
       )}

@@ -183,26 +183,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check for existing account in prisma.user
-    const existingUser = await prisma.user.findFirst({
+    // 3. Check for existing account in prisma.user (Allow 1 Student + 1 Instructor with the same email, block duplicate role signups)
+    const existingUsers = await prisma.user.findMany({
       where: { email: normalizedEmail }
     });
 
-    if (existingUser) {
-      if (!existingUser.emailVerified) {
+    for (const u of existingUsers) {
+      if (!u.emailVerified) {
         // Clean up any legacy unverified user row so database never holds unverified accounts
-        await prisma.emailVerificationToken.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
-        await prisma.notificationPreference.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
-        await prisma.organizationMember.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
-        await prisma.user.delete({ where: { id: existingUser.id } }).catch(() => {});
-      } else {
-        return NextResponse.json(
-          {
-            error: 'An account with this email address already exists. Please log in instead.',
-            code: 'ALREADY_REGISTERED'
-          },
-          { status: 400 }
-        );
+        await prisma.emailVerificationToken.deleteMany({ where: { userId: u.id } }).catch(() => {});
+        await prisma.notificationPreference.deleteMany({ where: { userId: u.id } }).catch(() => {});
+        await prisma.organizationMember.deleteMany({ where: { userId: u.id } }).catch(() => {});
+        await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
+      }
+    }
+
+    const verifiedUsers = existingUsers.filter((u) => u.emailVerified);
+    const existingSameRole = verifiedUsers.find((u) => u.role === normalizedRole);
+
+    if (existingSameRole) {
+      return NextResponse.json(
+        {
+          error:
+            normalizedRole === 'INSTRUCTOR'
+              ? 'An Instructor account or application with this email address already exists. Please log in to the Instructor Portal instead.'
+              : normalizedRole === 'STUDENT'
+              ? 'A Student account with this email address already exists. Please log in instead.'
+              : 'An account with this email address already exists for this role. Please log in instead.',
+          code: 'ALREADY_REGISTERED'
+        },
+        { status: 400 }
+      );
+    }
+
+    // If registering as a STUDENT and an existing INSTRUCTOR/REVIEWER row uses platform='LMS', migrate that row's platform so (email, 'LMS') is free for the Student
+    if (normalizedRole === 'STUDENT') {
+      for (const otherUser of verifiedUsers) {
+        if (otherUser.platform === 'LMS' && otherUser.role !== 'STUDENT') {
+          await prisma.user
+            .update({
+              where: { id: otherUser.id },
+              data: { platform: otherUser.role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'REVIEWER' }
+            })
+            .catch(() => {});
+        }
       }
     }
 
@@ -255,7 +279,12 @@ export async function POST(req: NextRequest) {
             : normalizedRole === 'INSTRUCTOR'
             ? 'Instructor'
             : null,
-        platform: 'LMS'
+        platform:
+          normalizedRole === 'INSTRUCTOR'
+            ? 'INSTRUCTOR'
+            : normalizedRole === 'REVIEWER'
+            ? 'REVIEWER'
+            : 'LMS'
       }
     };
 

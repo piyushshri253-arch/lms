@@ -46,8 +46,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Lookup User with Organization Relation and Memberships
-    const user: any = await prisma.user.findFirst({
+    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'STUDENT';
+
+    // 2. Lookup All User Accounts for Email (supports 1 Student + 1 Instructor on the same email)
+    const matchingUsers: any[] = await prisma.user.findMany({
       where: { email: normalizedEmail },
       include: {
         organization: {
@@ -66,66 +68,62 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    if (!user || (!user.emailVerified && ['INSTRUCTOR', 'REVIEWER'].includes(user.role))) {
-      if (user && !user.emailVerified) {
-        await prisma.emailVerificationToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
-        await prisma.notificationPreference.deleteMany({ where: { userId: user.id } }).catch(() => {});
-        await prisma.organizationMember.deleteMany({ where: { userId: user.id } }).catch(() => {});
-        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+    // Clean up any legacy unverified partner rows
+    const validUsers: any[] = [];
+    for (const u of matchingUsers) {
+      if (!u.emailVerified && ['INSTRUCTOR', 'REVIEWER'].includes(u.role)) {
+        await prisma.emailVerificationToken.deleteMany({ where: { userId: u.id } }).catch(() => {});
+        await prisma.notificationPreference.deleteMany({ where: { userId: u.id } }).catch(() => {});
+        await prisma.organizationMember.deleteMany({ where: { userId: u.id } }).catch(() => {});
+        await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
+      } else {
+        validUsers.push(u);
       }
+    }
 
+    // Select the account matching the requested login portal
+    let user: any = null;
+    if (effectivePortal === 'INSTRUCTOR') {
+      user =
+        validUsers.find((u) => u.role === 'INSTRUCTOR' || u.role === 'TEACHER') ||
+        validUsers.find((u) => ['SUPER_ADMIN', 'LMS_ADMIN'].includes(u.role));
+    } else if (effectivePortal === 'REVIEWER') {
+      user =
+        validUsers.find((u) => u.role === 'REVIEWER') ||
+        validUsers.find((u) => ['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(u.role));
+    } else if (effectivePortal === 'PARTNER') {
+      user = validUsers.find((u) => ['INSTRUCTOR', 'TEACHER', 'REVIEWER'].includes(u.role));
+    } else if (effectivePortal === 'ADMIN') {
+      user = validUsers.find((u) =>
+        ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(u.role)
+      );
+    } else {
+      // STUDENT portal login (/login): strictly match STUDENT account (or Admin fallback)
+      user =
+        validUsers.find((u) => u.role === 'STUDENT') ||
+        validUsers.find((u) => ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN'].includes(u.role));
+    }
+
+    if (!user) {
       await logSecurityEvent({
         email: normalizedEmail,
         eventType: 'LOGIN_FAILED',
         req,
-        metadata: { reason: 'USER_NOT_FOUND' }
+        metadata: { reason: 'USER_NOT_FOUND', requestedPortal: effectivePortal }
       });
 
+      const portalErrorMsg =
+        effectivePortal === 'INSTRUCTOR'
+          ? 'This email is not registered as an Instructor. Please sign up on the Instructor Portal first.'
+          : effectivePortal === 'REVIEWER'
+          ? 'This email is not registered as a Course Auditor. Please sign up first.'
+          : effectivePortal === 'STUDENT' && validUsers.some((u) => u.role === 'INSTRUCTOR')
+          ? 'This email is registered as an Instructor, not a Student. Please sign up as a Student first to access the Student Portal.'
+          : 'This email is not registered. Please sign up first.';
+
       return NextResponse.json(
         {
-          error: 'This email is not registered. Please sign up first.',
-          code: 'USER_NOT_FOUND'
-        },
-        { status: 401 }
-      );
-    }
-
-    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : 'STUDENT';
-
-    // If logging into Instructor / Reviewer / Partner portal with an email that has not registered for that role:
-    if (
-      effectivePortal === 'INSTRUCTOR' &&
-      !['INSTRUCTOR', 'TEACHER', 'SUPER_ADMIN', 'LMS_ADMIN'].includes(user.role)
-    ) {
-      return NextResponse.json(
-        {
-          error: 'This email is not registered. Please sign up first.',
-          code: 'USER_NOT_FOUND'
-        },
-        { status: 401 }
-      );
-    }
-
-    if (
-      effectivePortal === 'REVIEWER' &&
-      !['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)
-    ) {
-      return NextResponse.json(
-        {
-          error: 'This email is not registered. Please sign up first.',
-          code: 'USER_NOT_FOUND'
-        },
-        { status: 401 }
-      );
-    }
-
-    if (
-      effectivePortal === 'PARTNER' &&
-      !['INSTRUCTOR', 'TEACHER', 'REVIEWER'].includes(user.role)
-    ) {
-      return NextResponse.json(
-        {
-          error: 'This email is not registered. Please sign up first.',
+          error: portalErrorMsg,
           code: 'USER_NOT_FOUND'
         },
         { status: 401 }

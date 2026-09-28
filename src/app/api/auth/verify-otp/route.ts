@@ -8,6 +8,7 @@ import {
   clearReviewerSessionCookie,
   setLmsSessionCookie,
   clearLmsSessionCookie,
+  getLmsCurrentUser,
   AuthSessionUser
 } from '@/lib/auth';
 import { EmailService } from '@/lib/email';
@@ -114,8 +115,10 @@ export async function POST(req: NextRequest) {
         ? uData.permissions
         : JSON.stringify(DEFAULT_ROLE_PERMISSIONS[userRole] || []);
 
-      // Clean up any stale unverified row if one existed
-      const existingCheck = await prisma.user.findFirst({ where: { email: normalizedEmail } });
+      // Clean up any stale unverified row FOR THIS SPECIFIC ROLE if one existed
+      const existingCheck = await prisma.user.findFirst({
+        where: { email: normalizedEmail, role: userRole }
+      });
       if (existingCheck && !existingCheck.emailVerified) {
         await prisma.user.delete({ where: { id: existingCheck.id } }).catch(() => {});
       }
@@ -126,6 +129,36 @@ export async function POST(req: NextRequest) {
           include: { organization: true }
         });
       } else {
+        const targetPlatform =
+          userRole === 'INSTRUCTOR'
+            ? 'INSTRUCTOR'
+            : userRole === 'REVIEWER'
+            ? 'REVIEWER'
+            : 'LMS';
+
+        // If another role row currently occupies targetPlatform for this email, move it to its role-specific platform so @@unique([email, platform]) never collides
+        const platformConflict = await prisma.user.findFirst({
+          where: {
+            email: normalizedEmail,
+            platform: targetPlatform,
+            NOT: { role: userRole }
+          }
+        });
+        if (platformConflict) {
+          const movedPlatform =
+            platformConflict.role === 'INSTRUCTOR'
+              ? 'INSTRUCTOR'
+              : platformConflict.role === 'REVIEWER'
+              ? 'REVIEWER'
+              : `${platformConflict.role}_PORTAL`;
+          await prisma.user
+            .update({
+              where: { id: platformConflict.id },
+              data: { platform: movedPlatform }
+            })
+            .catch(() => {});
+        }
+
         const initialStatus = userRole === 'INSTRUCTOR' ? 'PENDING_APPROVAL' : 'ACTIVE';
         updatedUser = await prisma.user.create({
           data: {
@@ -149,7 +182,7 @@ export async function POST(req: NextRequest) {
                 : userRole === 'INSTRUCTOR'
                 ? 'Instructor'
                 : null),
-            platform: uData.platform || 'LMS',
+            platform: targetPlatform,
             permissions: perms,
             status: initialStatus,
             emailVerified: true,
@@ -505,9 +538,12 @@ export async function POST(req: NextRequest) {
       req
     }).catch(() => {});
 
-    // If Instructor is awaiting Auditor onboarding, do NOT issue an active session cookie yet
+    // If Instructor is awaiting Auditor onboarding, do NOT issue an active Instructor session cookie yet (preserve active Student session if they signed up as Instructor with the same email)
     if (isPendingInstructorOnboarding) {
-      await clearLmsSessionCookie();
+      const existingLmsUser = await getLmsCurrentUser();
+      if (!existingLmsUser || existingLmsUser.role !== 'STUDENT') {
+        await clearLmsSessionCookie();
+      }
       return NextResponse.json({
         success: true,
         pendingAuditorApproval: true,

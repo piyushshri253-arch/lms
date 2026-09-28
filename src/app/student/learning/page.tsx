@@ -130,8 +130,21 @@ function StudentLearningContent() {
               </p>
             </div>
 
-            {/* Quick Metrics Pills */}
-            <div className="flex items-center gap-3">
+            {/* Quick Metrics Pills & Conditional Onboarded Instructor Login Button */}
+            <div className="flex flex-wrap items-center gap-3">
+              {currentUser?.hasOnboardedInstructorAccount && (
+                <Link
+                  href={
+                    currentUser.instructorLoginUrl ||
+                    `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
+                  }
+                  className="bg-gradient-to-r from-[#a435f0] to-[#6d28d9] hover:from-[#8710d8] hover:to-[#5b21b6] text-white px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-purple-900/40 border border-purple-400/30 transition-all hover:scale-[1.02]"
+                >
+                  <Icon name="cast_for_education" size={18} className="text-white" />
+                  <span>Instructor Login</span>
+                  <Icon name="arrow_forward" size={16} className="text-purple-200" />
+                </Link>
+              )}
               <div className="bg-white/10 px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-white/10">
                 <Icon name="play_lesson" size={16} className="text-purple-400" />
                 <span>{courses.length} Enrolled</span>
@@ -142,6 +155,40 @@ function StudentLearningContent() {
               </div>
             </div>
           </div>
+
+          {/* Dedicated Onboarded Instructor Banner on Student Dashboard (ONLY visible if same email is Onboarded as Instructor) */}
+          {currentUser?.hasOnboardedInstructorAccount && (
+            <div className="mb-5 rounded-xl bg-gradient-to-r from-purple-950/90 via-indigo-950/90 to-purple-900/80 border border-purple-500/40 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0">
+                  <Icon name="verified" size={22} className="text-emerald-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-extrabold text-white">
+                      Your Instructor Account is Onboarded &amp; Active!
+                    </span>
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full">
+                      Onboarded
+                    </span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-purple-200 mt-0.5">
+                    Your Instructor profile ({currentUser.email}) has been verified and onboarded by our Course Auditor. You can log in to the Instructor Studio anytime.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={
+                  currentUser.instructorLoginUrl ||
+                  `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
+                }
+                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white text-[#1c1d1f] hover:bg-purple-50 font-extrabold text-xs sm:text-sm transition-colors shadow-sm"
+              >
+                <Icon name="login" size={16} className="text-[#5022c3]" />
+                <span>Login as Instructor →</span>
+              </Link>
+            </div>
+          )}
 
           {/* Navigation Tabs Bar */}
           <nav className="flex items-center gap-6 overflow-x-auto text-sm font-bold border-b border-transparent scrollbar-none">

@@ -26,6 +26,9 @@ export interface UserSession {
   enrollmentsCount?: number;
   wishlistCount?: number;
   coursesAuthoredCount?: number;
+  hasOnboardedInstructorAccount?: boolean;
+  instructorApplicationStatus?: string | null;
+  instructorLoginUrl?: string | null;
 }
 
 export interface CartItem {
@@ -241,6 +244,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setCurrentUser(data.user);
     setActiveRoleState(data.user.role === 'ADMIN' ? 'admin' : 'student');
+    refreshUser().catch(() => {});
     
     // Restore or merge user's personal cart
     try {
