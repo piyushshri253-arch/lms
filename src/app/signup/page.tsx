@@ -30,8 +30,10 @@ import {
 
 export interface QualificationItem {
   degree: string;
-  specialization: string;
+  courseName: string;
+  university: string;
   passingYear: string;
+  specialization?: string;
 }
 
 const PASSING_YEARS = [
@@ -57,11 +59,12 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Dynamic Qualifications List (Graduation, Post-Graduation, Additional Qualifications with Passing Year)
+  // Dynamic Qualifications List (Qualification Level, Course Name, University Name, Passing Year)
   const [qualificationsList, setQualificationsList] = useState<QualificationItem[]>([
     {
-      degree: 'Graduation (B.Tech / B.E. / B.Sc. / BCA / B.A.)',
-      specialization: '',
+      degree: 'Graduation',
+      courseName: '',
+      university: '',
       passingYear: '2021'
     }
   ]);
@@ -100,8 +103,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     setQualificationsList((prev) => [
       ...prev,
       {
-        degree: 'Post-Graduation (M.Tech / M.Sc. / MCA / MBA)',
-        specialization: '',
+        degree: 'Post-Graduation',
+        courseName: '',
+        university: '',
         passingYear: '2023'
       }
     ]);
@@ -184,22 +188,26 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     return true;
   };
 
-  // Step 2 Validation: Qualifications (with Degree, Stream & Passing Year) + Experience + Resume Upload
+  // Step 2 Validation: Qualifications (Qualification Level, Course Name, University Name & Passing Year) + Summary Experience + Resume Upload
   const validateStep2 = () => {
     setError('');
     if (role === 'INSTRUCTOR') {
       if (qualificationsList.length === 0) {
-        setError('Please add at least one Qualification / Graduation entry.');
+        setError('Please add at least one Qualification entry.');
         return false;
       }
       for (let i = 0; i < qualificationsList.length; i++) {
         const q = qualificationsList[i];
         if (!q.degree.trim()) {
-          setError(`Please select or enter the Qualification / Degree for Entry #${i + 1}.`);
+          setError(`Please select the Qualification Level for Qualification #${i + 1}.`);
           return false;
         }
-        if (!q.specialization.trim()) {
-          setError(`Please enter your Stream / Course / University for Qualification #${i + 1} (e.g. B.Tech CS, M.Sc Maths).`);
+        if (!q.courseName.trim()) {
+          setError(`Please enter the Course Name for Qualification #${i + 1} (e.g. B.Tech CS, M.Sc, MBA).`);
+          return false;
+        }
+        if (!q.university.trim()) {
+          setError(`Please enter the University Name for Qualification #${i + 1}.`);
           return false;
         }
         if (!q.passingYear.trim()) {
@@ -208,11 +216,11 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
         }
       }
       if (!form.experience.trim()) {
-        setError('Please enter your Teaching / Industry Experience details.');
+        setError('Please enter your Summary Experience.');
         return false;
       }
       if (!form.resumeDataUrl) {
-        setError('Please upload your Resume / CV (PDF, DOC, or DOCX) for Auditor verification.');
+        setError('Please upload your Resume / CV (PDF, DOC, or DOCX) for verification.');
         return false;
       }
     }
@@ -262,21 +270,18 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
     const formattedQualificationsSummary = qualificationsList
       .map(
         (q) =>
-          `${q.degree}${q.specialization ? ` - ${q.specialization.trim()}` : ''} (${q.passingYear})`
+          `${q.degree}: ${q.courseName.trim()}${q.university ? ` - ${q.university.trim()}` : ''} (${q.passingYear})`
       )
       .join(' | ');
 
     const primaryQual =
       qualificationsList[0]
-        ? `${qualificationsList[0].specialization || qualificationsList[0].degree} (${qualificationsList[0].passingYear})`
+        ? `${qualificationsList[0].courseName || qualificationsList[0].degree} - ${qualificationsList[0].university} (${qualificationsList[0].passingYear})`
         : 'Graduate';
 
-    const extraQuals = [
-      ...qualificationsList
-        .slice(1)
-        .map((q) => `${q.specialization || q.degree} (${q.passingYear})`),
-      form.additionalQualifications.trim()
-    ]
+    const extraQuals = qualificationsList
+      .slice(1)
+      .map((q) => `${q.courseName || q.degree} - ${q.university} (${q.passingYear})`)
       .filter(Boolean)
       .join(', ');
 
@@ -295,7 +300,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
           name: fullName,
           qualification: formattedQualificationsSummary || primaryQual,
           additionalQualifications: extraQuals,
-          qualificationsList,
+          qualificationsList: qualificationsList.map((q) => ({
+            ...q,
+            specialization: `${q.courseName.trim()} (${q.university.trim()})`
+          })),
           experience: combinedExperience
         })
       });
@@ -727,10 +735,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         <div>
                           <h3 className="text-xs font-extrabold uppercase tracking-wider text-violet-950 flex items-center gap-1.5">
                             <GraduationCap className="w-4 h-4 text-violet-600" />
-                            <span>Academic Qualifications &amp; Graduation Year</span>
+                            <span>Academic Qualifications &amp; Passing Year</span>
                           </h3>
                           <p className="text-[11px] text-slate-600 mt-0.5">
-                            Add your Graduation, Post-Graduation, Doctorate, or Diplomas along with the Passing Year. Click <strong>+ Add Qualification</strong> to add more.
+                            Select Qualification Level (Graduation, Post-Graduation, Ph.D., or Professional Certification), enter Course Name, University Name, and Passing Year.
                           </p>
                         </div>
 
@@ -767,9 +775,9 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                              <div className="sm:col-span-5">
+                              <div className="sm:col-span-3">
                                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                                  Qualification / Level <span className="text-red-500">*</span>
+                                  Qualification Level <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                   value={qItem.degree}
@@ -778,41 +786,48 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                                   }
                                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                                 >
-                                  <option value="Graduation (B.Tech / B.E. / B.Sc. / BCA / B.A.)">
-                                    Graduation (B.Tech / B.E. / B.Sc. / BCA / B.A.)
+                                  <option value="Graduation">Graduation</option>
+                                  <option value="Post-Graduation">Post-Graduation</option>
+                                  <option value="Ph.D.">Ph.D.</option>
+                                  <option value="Professional Certification">
+                                    Professional Certification
                                   </option>
-                                  <option value="Post-Graduation (M.Tech / M.Sc. / MCA / MBA)">
-                                    Post-Graduation (M.Tech / M.Sc. / MCA / MBA)
-                                  </option>
-                                  <option value="Ph.D. / Doctorate">Ph.D. / Doctorate</option>
-                                  <option value="B.Ed. / M.Ed. (Teaching Degree)">
-                                    B.Ed. / M.Ed. (Teaching Degree)
-                                  </option>
-                                  <option value="Diploma / PG Diploma">Diploma / PG Diploma</option>
-                                  <option value="Professional Certification / NET / GATE">
-                                    Professional Certification / NET / GATE
-                                  </option>
-                                  <option value="Other Qualification">Other Qualification</option>
                                 </select>
                               </div>
 
-                              <div className="sm:col-span-4">
+                              <div className="sm:col-span-3">
                                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                                  Course / Stream / University <span className="text-red-500">*</span>
+                                  Course Name <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                   type="text"
                                   required
-                                  value={qItem.specialization}
+                                  value={qItem.courseName}
                                   onChange={(e) =>
-                                    updateQualificationRow(idx, 'specialization', e.target.value)
+                                    updateQualificationRow(idx, 'courseName', e.target.value)
                                   }
-                                  placeholder="e.g. B.Tech CS (RGPV)"
+                                  placeholder="e.g. B.Tech CS, MBA, B.Ed"
                                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
                                 />
                               </div>
 
-                              <div className="sm:col-span-3">
+                              <div className="sm:col-span-4">
+                                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                  University Name <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={qItem.university}
+                                  onChange={(e) =>
+                                    updateQualificationRow(idx, 'university', e.target.value)
+                                  }
+                                  placeholder="e.g. Delhi University, RGPV"
+                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
                                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                                   Passing Year <span className="text-red-500">*</span>
                                 </label>
@@ -835,38 +850,21 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                         ))}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Additional Certifications / Achievements (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            value={form.additionalQualifications}
-                            onChange={(e) =>
-                              setForm({ ...form, additionalQualifications: e.target.value })
-                            }
-                            placeholder="e.g. AWS Solutions Architect, Gold Medalist"
-                            className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            LinkedIn Profile Link{' '}
-                            <span className="ml-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
-                              Optional
-                            </span>
-                          </label>
-                          <input
-                            type="text"
-                            required={false}
-                            value={form.linkedinUrl}
-                            onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
-                            placeholder="https://www.linkedin.com/in/your-profile (Optional)"
-                            className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          LinkedIn Profile Link{' '}
+                          <span className="ml-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
+                            Optional
+                          </span>
+                        </label>
+                        <input
+                          type="text"
+                          required={false}
+                          value={form.linkedinUrl}
+                          onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
+                          placeholder="https://www.linkedin.com/in/your-profile (Optional)"
+                          className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                        />
                       </div>
                     </div>
 
@@ -874,13 +872,13 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                       <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                         <Briefcase className="w-4 h-4 text-emerald-600" />
-                        <span>Teaching / Industry Experience &amp; Mandatory Resume Upload</span>
+                        <span>Total Experience, Summary Experience &amp; Resume Upload</span>
                       </h3>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                         <div>
                           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            Total Exp (Years) <span className="text-red-500">*</span>
+                            Total Experience <span className="text-red-500">*</span>
                           </label>
                           <select
                             value={form.experienceYears}
@@ -897,7 +895,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
                         <div className="sm:col-span-2">
                           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            Experience &amp; Domain Details <span className="text-red-500">*</span>
+                            Summary Experience <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"

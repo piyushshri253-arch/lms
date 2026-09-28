@@ -45,7 +45,9 @@ interface InstructorApplicant {
   linkedinUrl?: string;
   qualificationsList?: Array<{
     degree: string;
-    specialization: string;
+    courseName?: string;
+    university?: string;
+    specialization?: string;
     passingYear: string;
   }>;
   experience: string;
@@ -530,32 +532,22 @@ export default function AuditorInstructorOnboardingPage() {
                 </div>
               )}
 
-              {/* Qualifications, Additional Qualifications & Experience Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Qualifications & Summary Experience Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-violet-50/70 border border-violet-200">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-violet-700">
                     <GraduationCap className="w-4 h-4" />
-                    <span>Primary Qualification</span>
+                    <span>Qualifications Summary</span>
                   </div>
                   <div className="mt-1.5 text-sm font-extrabold text-slate-900">
                     {selected.qualification || 'Not specified'}
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
-                    <Award className="w-4 h-4" />
-                    <span>Additional Qualification</span>
-                  </div>
-                  <div className="mt-1.5 text-sm font-extrabold text-slate-900">
-                    {selected.additionalQualifications || 'None specified'}
-                  </div>
-                </div>
-
                 <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                     <Briefcase className="w-4 h-4" />
-                    <span>Total Experience (Exp)</span>
+                    <span>Total Experience &amp; Summary Experience</span>
                   </div>
                   <div className="mt-1.5 text-sm font-extrabold text-slate-900">
                     {selected.experience || 'Not specified'}
@@ -563,30 +555,42 @@ export default function AuditorInstructorOnboardingPage() {
                 </div>
               </div>
 
-              {/* Detailed Qualifications & Passing Year List */}
+              {/* Detailed Qualifications Table (Level, Course Name, University Name, Passing Year) */}
               {selected.qualificationsList && selected.qualificationsList.length > 0 && (
                 <div className="p-4 rounded-xl bg-violet-50/40 border border-violet-200/80 space-y-2.5">
                   <div className="text-xs font-extrabold uppercase tracking-wider text-violet-950 flex items-center gap-1.5">
                     <GraduationCap className="w-4 h-4 text-violet-600" />
-                    <span>Complete Qualifications &amp; Passing Years ({selected.qualificationsList.length})</span>
+                    <span>Complete Qualifications Breakdown ({selected.qualificationsList.length})</span>
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    {selected.qualificationsList.map((q, i) => (
-                      <div
-                        key={i}
-                        className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                      >
-                        <div>
-                          <span className="font-bold text-slate-900">{q.degree}</span>
-                          {q.specialization && (
-                            <span className="text-slate-600 ml-1.5">— {q.specialization}</span>
-                          )}
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 font-extrabold text-[11px] shrink-0">
-                          Passing Year: {q.passingYear}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                        <tr>
+                          <th className="px-3.5 py-2.5">Qualification Level</th>
+                          <th className="px-3.5 py-2.5">Course Name</th>
+                          <th className="px-3.5 py-2.5">University Name</th>
+                          <th className="px-3.5 py-2.5">Passing Year</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selected.qualificationsList.map((q, i) => (
+                          <tr key={i} className="hover:bg-slate-50/60">
+                            <td className="px-3.5 py-2.5 font-bold text-slate-900">{q.degree}</td>
+                            <td className="px-3.5 py-2.5 font-semibold text-violet-700">
+                              {q.courseName || q.specialization || '—'}
+                            </td>
+                            <td className="px-3.5 py-2.5 text-slate-700">
+                              {q.university || '—'}
+                            </td>
+                            <td className="px-3.5 py-2.5">
+                              <span className="px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 font-extrabold text-[11px]">
+                                {q.passingYear}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
