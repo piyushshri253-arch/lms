@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
+import { Modal } from '@/components/ui/Modal';
 import { useAdmin } from '@/context/AdminContext';
 import { useApp } from '@/context/AppContext';
 
@@ -9,49 +11,139 @@ function NotificationsPageContent() {
   const { hasPermission, activeFacility } = useAdmin();
   const { showToast } = useApp();
 
-  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    message: '',
-    audience: 'ALL_STUDENTS',
-    courseId: '',
-    priority: 'NORMAL'
-  });
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'ACCOUNT' | 'SYSTEM'>('ALL');
+  const [courses, setCourses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [notifications, setNotifications] = useState<any[]>([
-    {
-      id: 'notif-1',
-      title: 'Scheduled Maintenance Notice: Platform Upgrade',
-      message: 'The learning portal will undergo 15 minutes of routine database optimization tonight at 2:00 AM IST.',
-      audience: 'All Students in Facility',
-      priority: 'HIGH',
-      sentAt: 'Today, 10:30 AM',
-      deliveredCount: 1240,
-      readCount: 840
-    },
-    {
-      id: 'notif-2',
-      title: 'Next.js 15 Masterclass: Live Q&A Session Tomorrow',
-      message: 'Dr. Sameer Verma will host a live question & answer workshop on Turbopack caching strategies.',
-      audience: 'Course: Full-Stack Next.js 15',
-      priority: 'NORMAL',
-      sentAt: 'Yesterday, 04:15 PM',
-      deliveredCount: 540,
-      readCount: 420
-    },
-    {
-      id: 'notif-3',
-      title: 'Welcome to Term 2 Academic Schedule',
-      message: 'New coursework, syllabus guidelines, and grading rubrics have been published to your student dashboards.',
-      audience: 'All Facility Learners',
-      priority: 'NORMAL',
-      sentAt: '10 Sept 2026',
-      deliveredCount: 1210,
-      readCount: 1150
+  const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [targetAudience, setTargetAudience] = useState('ALL');
+  const [courseId, setCourseId] = useState('');
+  const [notifType, setNotifType] = useState('SYSTEM');
+  const [isDispatching, setIsDispatching] = useState(false);
+
+  const fetchNotificationsAndCourses = async (activeFilter = filter) => {
+    setIsLoading(true);
+    try {
+      const [nRes, cRes] = await Promise.all([
+        fetch(`/api/super-admin/notifications?filter=${activeFilter}`),
+        fetch('/api/super-admin/courses')
+      ]);
+
+      if (nRes.ok) {
+        const d = await nRes.json();
+        setNotifications(d.notifications || []);
+        setUnreadCount(d.unreadCount || 0);
+        setTotalCount(d.totalCount || (d.notifications || []).length);
+      } else {
+        // Fallback to /api/notifications if needed
+        const fallbackRes = await fetch(`/api/notifications?filter=${activeFilter}`);
+        if (fallbackRes.ok) {
+          const d = await fallbackRes.json();
+          setNotifications(d.notifications || []);
+          setUnreadCount(d.unreadCount || 0);
+          setTotalCount((d.notifications || []).length);
+        }
+      }
+
+      if (cRes.ok) {
+        const c = await cRes.json();
+        setCourses(c.courses || []);
+      }
+    } catch {
+      showToast({ title: 'Error', description: 'Failed to load notifications.', type: 'error' });
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
-  // RBAC Access Guard: notification.view
+  useEffect(() => {
+    fetchNotificationsAndCourses(filter);
+  }, [filter]);
+
+  const handleMarkAsRead = async (id: string, isRead = true) => {
+    try {
+      const res = await fetch('/api/super-admin/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isRead })
+      });
+      if (res.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, isRead } : n))
+        );
+        setUnreadCount((c) => Math.max(0, isRead ? c - 1 : c + 1));
+      }
+    } catch {}
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const res = await fetch('/api/super-admin/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true })
+      });
+      if (res.ok) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+        showToast({ title: 'Success', description: 'All notifications marked as read.', type: 'success' });
+      }
+    } catch {}
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/super-admin/notifications?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        setTotalCount((c) => Math.max(0, c - 1));
+        showToast({ title: 'Removed', description: 'Notification deleted.', type: 'info' });
+      }
+    } catch {}
+  };
+
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsDispatching(true);
+    try {
+      const res = await fetch('/api/super-admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          message,
+          targetAudience: courseId ? undefined : targetAudience,
+          courseId: courseId || undefined,
+          type: notifType
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to dispatch notification');
+
+      showToast({
+        title: 'Notification Broadcast Dispatched',
+        description: data.message || 'Broadcast sent successfully.',
+        type: 'success'
+      });
+      setIsBroadcastOpen(false);
+      setTitle('');
+      setMessage('');
+      setCourseId('');
+      await fetchNotificationsAndCourses(filter);
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setIsDispatching(false);
+    }
+  };
+
   if (!hasPermission('notification.view')) {
     return (
       <div className="p-8 text-center bg-surface-container-lowest border border-outline-variant rounded-3xl space-y-3 max-w-lg mx-auto mt-12">
@@ -67,206 +159,365 @@ function NotificationsPageContent() {
     );
   }
 
-  const handleSendBroadcast = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hasPermission('notification.send')) {
-      showToast('Permission notification.send required', 'error');
-      return;
-    }
-    const newNotif = {
-      id: `notif-${Date.now()}`,
-      title: form.title,
-      message: form.message,
-      audience:
-        form.audience === 'ALL_STUDENTS'
-          ? 'All Students in Facility'
-          : form.audience === 'FACULTY'
-          ? 'Facility Faculty & Instructors'
-          : 'Specific Course Learners',
-      priority: form.priority,
-      sentAt: 'Just now',
-      deliveredCount: 1240,
-      readCount: 0
-    };
-    setNotifications([newNotif, ...notifications]);
-    setIsBroadcastModalOpen(false);
-    setForm({
-      title: '',
-      message: '',
-      audience: 'ALL_STUDENTS',
-      courseId: '',
-      priority: 'NORMAL'
-    });
-    showToast('Broadcast notification dispatched across institutional channels', 'success');
-  };
-
   return (
-    <div className="space-y-6 select-none animate-in fade-in duration-150">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/80 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-on-surface tracking-tight">
-              Institutional Notifications &amp; Announcements
-            </h1>
-            <span className="text-[11px] font-mono font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2.5 py-0.5 rounded-full">
-              {activeFacility?.name}
-            </span>
+          <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant mb-1">
+            <Link href="/admin" className="hover:text-primary">
+              Admin Console
+            </Link>
+            <span>/</span>
+            <span className="text-primary font-bold">Notifications Center</span>
+            {activeFacility?.name && (
+              <span className="text-[11px] font-mono font-bold bg-indigo-500/10 text-indigo-700 px-2.5 py-0.5 rounded-full ml-1">
+                {activeFacility.name}
+              </span>
+            )}
           </div>
-          <p className="text-xs text-outline font-medium mt-1">
-            Dispatch urgent updates, lecture alerts, and system notices directly to student dashboards and emails.
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-black text-on-surface tracking-tight">
+              Platform Notifications &amp; Activity Alerts
+            </h1>
+            {unreadCount > 0 && (
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-700 font-mono text-xs font-black animate-pulse">
+                {unreadCount} Unread
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-on-surface-variant mt-0.5">
+            Real-time feed of student &amp; instructor registrations, course submissions, system events, and broadcast notices.
           </p>
         </div>
 
-        {/* Action Button: Send Broadcast (guarded by notification.send) */}
-        {hasPermission('notification.send') && (
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
-            onClick={() => setIsBroadcastModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary/90 transition-all self-start sm:self-auto cursor-pointer"
+            onClick={() => fetchNotificationsAndCourses(filter)}
+            className="px-3.5 py-2.5 bg-surface text-on-surface border border-outline-variant hover:bg-surface-container rounded-xl font-bold text-xs cursor-pointer transition-all inline-flex items-center gap-1.5"
+            title="Refresh Notifications"
           >
-            <Icon name="campaign" size={16} />
-            <span>+ Send Broadcast</span>
+            <Icon name="refresh" size={16} className={isLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
+
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="px-4 py-2.5 bg-surface text-on-surface border border-outline-variant hover:bg-surface-container rounded-xl font-bold text-xs cursor-pointer transition-all"
+            >
+              Mark All as Read
+            </button>
+          )}
+
+          {hasPermission('notification.send') && (
+            <button
+              type="button"
+              onClick={() => setIsBroadcastOpen(true)}
+              className="px-5 py-2.5 bg-primary text-on-primary font-extrabold text-xs rounded-xl hover:bg-primary/90 shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+            >
+              <Icon name="campaign" size={18} />
+              <span>+ Send Broadcast</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-outline-variant pb-2 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setFilter('ALL')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filter === 'ALL'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-on-surface-variant hover:bg-surface-container'
+          }`}
+        >
+          All ({totalCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('UNREAD')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filter === 'UNREAD'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-on-surface-variant hover:bg-surface-container'
+          }`}
+        >
+          Unread ({unreadCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('ACCOUNT')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filter === 'ACCOUNT'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-on-surface-variant hover:bg-surface-container'
+          }`}
+        >
+          Registrations &amp; Accounts
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('SYSTEM')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filter === 'SYSTEM'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-on-surface-variant hover:bg-surface-container'
+          }`}
+        >
+          System &amp; Announcements
+        </button>
+      </div>
+
+      {/* Notifications List Container */}
+      <div className="bg-surface-container-lowest rounded-3xl border border-outline-variant/80 shadow-xs overflow-hidden">
+        {isLoading ? (
+          <div className="py-16 text-center text-on-surface-variant text-sm flex items-center justify-center gap-2">
+            <Icon name="sync" size={20} className="animate-spin text-primary" />
+            <span>Loading real-time notifications...</span>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="py-16 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center mx-auto">
+              <Icon name="notifications_off" size={24} />
+            </div>
+            <p className="text-sm font-bold text-on-surface">No notifications found</p>
+            <p className="text-xs text-on-surface-variant">
+              When new users register, instructors apply, or platform events occur, they will appear here in real-time.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-outline-variant/40">
+            {notifications.map((n) => {
+              const isInstructorEvent =
+                n.title?.toLowerCase().includes('instructor') ||
+                n.title?.toLowerCase().includes('auditor') ||
+                n.message?.toLowerCase().includes('instructor') ||
+                n.message?.toLowerCase().includes('onboarding');
+              const isAccountEvent =
+                n.type === 'ACCOUNT' ||
+                n.title?.includes('Registered') ||
+                n.title?.includes('Activated') ||
+                n.title?.includes('Signup') ||
+                n.title?.includes('Application');
+
+              const targetHref =
+                n.link && n.link !== '/admin/notifications' && n.link !== '/super-admin/notifications'
+                  ? n.link
+                  : isInstructorEvent
+                  ? '/admin/instructors'
+                  : isAccountEvent
+                  ? '/admin/users'
+                  : null;
+
+              return (
+                <div
+                  key={n.id}
+                  className={`p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs transition-colors ${
+                    !n.isRead ? 'bg-primary/5 hover:bg-primary/8' : 'hover:bg-surface-container-low/40'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shrink-0 shadow-xs ${
+                        isAccountEvent
+                          ? 'bg-indigo-500/15 text-indigo-700'
+                          : n.type === 'SECURITY'
+                          ? 'bg-rose-500/15 text-rose-700'
+                          : 'bg-primary/10 text-primary'
+                      }`}
+                    >
+                      <Icon
+                        name={
+                          isAccountEvent
+                            ? 'person_add'
+                            : n.type === 'SECURITY'
+                            ? 'security'
+                            : 'notifications'
+                        }
+                        size={20}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-black text-sm ${!n.isRead ? 'text-primary' : 'text-on-surface'}`}>
+                          {n.title}
+                        </span>
+                        <span className="text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant/50">
+                          {n.type || 'SYSTEM'}
+                        </span>
+                        {!n.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping inline-block" />
+                        )}
+                      </div>
+
+                      <p className="text-on-surface-variant text-xs leading-relaxed max-w-2xl">
+                        {n.message}
+                      </p>
+
+                      {targetHref && (
+                        <div className="pt-1 flex items-center gap-3">
+                          <Link
+                            href={targetHref}
+                            onClick={() => {
+                              if (!n.isRead) handleMarkAsRead(n.id, true);
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                          >
+                            <span>
+                              {isInstructorEvent
+                                ? 'Review Instructor Application'
+                                : isAccountEvent
+                                ? 'Open Users Directory'
+                                : 'View Details'}
+                            </span>
+                            <Icon name="arrow_forward" size={12} />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                    <span className="text-[11px] font-mono text-outline">
+                      {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Just now'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleMarkAsRead(n.id, !n.isRead)}
+                      title={n.isRead ? 'Mark as unread' : 'Mark as read'}
+                      className="p-1.5 rounded-lg hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Icon name={n.isRead ? 'mark_email_unread' : 'drafts'} size={18} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(n.id)}
+                      title="Delete notification"
+                      className="p-1.5 rounded-lg hover:bg-error-container/30 text-outline hover:text-error transition-colors cursor-pointer"
+                    >
+                      <Icon name="delete" size={18} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* Notifications Log */}
-      <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-2xl p-5 shadow-2xs space-y-4">
-        <h3 className="font-extrabold text-sm text-on-surface">Sent Notification History</h3>
-
-        <div className="divide-y divide-outline-variant/30">
-          {notifications.map((notif) => (
-            <div key={notif.id} className="py-4 space-y-2 first:pt-0 last:pb-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                      notif.priority === 'HIGH'
-                        ? 'bg-rose-500/10 text-rose-700'
-                        : 'bg-indigo-500/10 text-indigo-700'
-                    }`}
-                  >
-                    {notif.priority}
-                  </span>
-                  <h4 className="font-bold text-xs sm:text-sm text-on-surface">{notif.title}</h4>
-                </div>
-                <span className="text-[11px] font-mono text-outline">{notif.sentAt}</span>
-              </div>
-
-              <p className="text-xs text-on-surface-variant font-medium leading-relaxed max-w-3xl">
-                {notif.message}
-              </p>
-
-              <div className="flex items-center justify-between text-[11px] font-mono text-outline pt-1">
-                <span className="flex items-center gap-1">
-                  <Icon name="groups" size={14} />
-                  <span>Audience: {notif.audience}</span>
-                </span>
-                <span>
-                  Delivered: <strong className="text-on-surface">{notif.deliveredCount}</strong> • Read: <strong className="text-emerald-600">{notif.readCount}</strong> ({Math.round((notif.readCount / notif.deliveredCount) * 100)}%)
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Modal: Send Broadcast Notification */}
-      {isBroadcastModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest border border-outline-variant/80 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-2 border-b border-outline-variant/40">
-              <div className="flex items-center gap-2">
-                <Icon name="campaign" size={20} className="text-primary" />
-                <h3 className="font-black text-sm text-on-surface">Dispatch Broadcast Notice</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBroadcastModalOpen(false)}
-                className="p-1 rounded-lg text-outline hover:text-on-surface"
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSendBroadcast} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-on-surface block mb-1">Notice Title</label>
-                <input
-                  type="text"
-                  required
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Schedule Change: Workshop Time"
-                  className="w-full bg-surface-container-low border border-outline-variant/80 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-on-surface block mb-1">Audience Scope</label>
-                <select
-                  value={form.audience}
-                  onChange={(e) => setForm({ ...form, audience: e.target.value })}
-                  className="w-full bg-surface-container-low border border-outline-variant/80 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary"
-                >
-                  <option value="ALL_STUDENTS">All Registered Students in {activeFacility?.name}</option>
-                  <option value="FACULTY">Facility Faculty &amp; Instructors</option>
-                  <option value="COURSE">Specific Course Enrollees</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-on-surface block mb-1">Priority</label>
-                <select
-                  value={form.priority}
-                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  className="w-full bg-surface-container-low border border-outline-variant/80 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary"
-                >
-                  <option value="NORMAL">Normal Announcement</option>
-                  <option value="HIGH">High Priority (Highlights in App)</option>
-                  <option value="URGENT">Urgent (App Banner + Email)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-on-surface block mb-1">Message Content</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="Type the announcement details here..."
-                  className="w-full bg-surface-container-low border border-outline-variant/80 rounded-xl p-3 text-xs font-medium focus:outline-none focus:border-primary resize-none"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-outline-variant/40">
-                <button
-                  type="button"
-                  onClick={() => setIsBroadcastModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-outline-variant/80 text-xs font-bold text-outline hover:bg-surface-container cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary/90 cursor-pointer"
-                >
-                  Send Announcement
-                </button>
-              </div>
-            </form>
+      {/* Broadcast Modal */}
+      <Modal
+        isOpen={isBroadcastOpen}
+        onClose={() => setIsBroadcastOpen(false)}
+        maxWidth="md"
+        title="Dispatch Targeted Notification"
+        subtitle="Broadcast directly to user inboxes and notification bells"
+      >
+        <form onSubmit={handleBroadcast} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Target Audience
+            </label>
+            <select
+              value={targetAudience}
+              onChange={(e) => {
+                setTargetAudience(e.target.value);
+                setCourseId('');
+              }}
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+            >
+              <option value="ALL">All Platform Users</option>
+              <option value="STUDENTS">All Students</option>
+              <option value="INSTRUCTORS">All Faculty Instructors</option>
+              <option value="ADMINS">All Administrative Staff</option>
+            </select>
           </div>
-        </div>
-      )}
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Or Target Specific Course Cohort
+            </label>
+            <select
+              value={courseId}
+              onChange={(e) => setCourseId(e.target.value)}
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+            >
+              <option value="">-- No specific course cohort --</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title} ({c.enrollmentCount || 0} enrolled)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Notification Title
+            </label>
+            <input
+              type="text"
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. New Live Workshop Added to Your Curriculum"
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Notification Body
+            </label>
+            <textarea
+              rows={3}
+              required
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Full notification details..."
+              className="w-full bg-surface border border-outline-variant rounded-xl p-3 text-xs focus:outline-none focus:border-primary"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-outline-variant/40 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBroadcastOpen(false)}
+              className="px-4 py-2 text-xs rounded-xl border border-outline-variant cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isDispatching}
+              className="px-5 py-2 text-xs font-bold rounded-xl bg-primary text-on-primary hover:bg-primary/90 shadow-xs cursor-pointer"
+            >
+              {isDispatching ? 'Broadcasting...' : 'Dispatch Notification'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
 
-export default function NotificationsAdminPage() {
+export default function NotificationsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-outline">Loading Notifications Hub...</div>}>
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs font-bold text-outline">
+          Loading Notifications Engine...
+        </div>
+      }
+    >
       <NotificationsPageContent />
     </Suspense>
   );

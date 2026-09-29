@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireAdmin();
     const { searchParams } = new URL(req.url);
-    const filter = searchParams.get('filter'); // ALL, UNREAD, REGISTRATION, SYSTEM
+    const filter = searchParams.get('filter'); // ALL, UNREAD, ACCOUNT, SYSTEM, ANNOUNCEMENT
 
     const where: any = { userId: admin.id };
     if (filter === 'UNREAD') {
       where.isRead = false;
-    } else if (filter && filter !== 'ALL') {
+    } else if (filter && filter !== 'ALL' && filter !== 'ANNOUNCEMENT') {
       where.type = filter;
     }
 
-    const [notifications, unreadCount, totalCount] = await Promise.all([
+    const [userNotifications, unreadDbCount, totalDbCount] = await Promise.all([
       prisma.notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -29,20 +29,52 @@ export async function GET(req: NextRequest) {
       })
     ]);
 
+    // Also fetch active announcements matching Admin/Super Admin (same as /api/notifications bell icon)
+    let announcementItems: any[] = [];
+    if (!filter || filter === 'ALL' || filter === 'UNREAD' || filter === 'SYSTEM' || filter === 'ANNOUNCEMENT') {
+      const audienceList = ['ALL', 'Everyone', 'everyone', 'ADMINS', 'admins', 'staff'];
+      const announcements = await prisma.announcement.findMany({
+        where: {
+          status: { in: ['ACTIVE', 'PUBLISHED', 'active', 'published'] },
+          targetAudience: { in: audienceList }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      });
+
+      announcementItems = announcements.map((a) => ({
+        id: `ann-${a.id}`,
+        userId: admin.id,
+        title: `📢 ${a.title}`,
+        message: a.message,
+        type: 'ANNOUNCEMENT',
+        link: '/admin/notifications',
+        isRead: false,
+        createdAt: a.createdAt
+      }));
+    }
+
+    const allNotifications =
+      filter === 'ACCOUNT'
+        ? userNotifications
+        : [...announcementItems, ...userNotifications].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+
     return NextResponse.json({
-      notifications,
-      unreadCount,
-      totalCount
+      notifications: allNotifications,
+      unreadCount: unreadDbCount + announcementItems.length,
+      totalCount: totalDbCount + announcementItems.length
     });
   } catch (err: any) {
-    const status = err.message?.includes('Authentication') ? 401 : 403;
+    const status = err.message?.includes('UNAUTHORIZED') || err.message?.includes('Authentication') ? 401 : 403;
     return NextResponse.json({ error: err.message }, { status });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireAdmin();
     const body = await req.json();
     const { id, markAllAsRead, isRead } = body;
 
@@ -58,6 +90,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Notification ID is required.' }, { status: 400 });
     }
 
+    if (String(id).startsWith('ann-')) {
+      return NextResponse.json({ success: true });
+    }
+
     const updated = await prisma.notification.update({
       where: { id, userId: admin.id },
       data: { isRead: isRead ?? true }
@@ -71,12 +107,20 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireAdmin();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Notification ID is required.' }, { status: 400 });
+    }
+
+    if (String(id).startsWith('ann-')) {
+      const annId = String(id).replace(/^ann-/, '');
+      await prisma.announcement.deleteMany({
+        where: { id: annId }
+      });
+      return NextResponse.json({ success: true, message: 'Announcement removed.' });
     }
 
     await prisma.notification.delete({
@@ -91,7 +135,7 @@ export async function DELETE(req: NextRequest) {
 
 export async function POST(request: Request) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireAdmin();
     const body = await request.json();
     const { targetAudience, specificUserId, courseId, title, message, type } = body;
 
