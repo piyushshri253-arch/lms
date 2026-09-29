@@ -159,7 +159,7 @@ function VerifyEmailContent() {
               </p>
               <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
                 Our team will review your profile, qualifications, experience, and resume and will contact you within{' '}
-                <strong className="text-violet-700">24–48 hours</strong> with the next steps.
+                <strong className="text-violet-700">24 - 48 hours</strong> with the next steps.
               </p>
               <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
                 You will be guided through the verification and instructor onboarding process once your application has been reviewed.

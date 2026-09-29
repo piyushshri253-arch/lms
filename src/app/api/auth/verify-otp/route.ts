@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
             Your application has been successfully submitted for review.
           </p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;">
-            Our team will review your profile, qualifications, experience, and resume and will contact you within <strong>24–48 hours</strong> with the next steps.
+            Our team will review your profile, qualifications, experience, and resume and will contact you within <strong>24 - 48 hours</strong> with the next steps.
           </p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
             You will be guided through the verification and instructor onboarding process once your application has been reviewed.
@@ -321,7 +321,7 @@ export async function POST(req: NextRequest) {
             <div>
               <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px;">3. Instructor Onboarding</div>
               <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-                Once your profile is approved, you will receive an onboarding email with a <strong>Log In to Instructor Portal →</strong> button.
+                Once your profile is approved, you will receive an onboarding email.
               </p>
               <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">
                 You can then access the Instructor Portal and start creating and managing your courses.
@@ -561,7 +561,7 @@ export async function POST(req: NextRequest) {
             Your application has been successfully submitted for review.
           </p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;">
-            Our team will review your profile, qualifications, experience, and resume and will contact you within <strong>24–48 hours</strong> with the next steps.
+            Our team will review your profile, qualifications, experience, and resume and will contact you within <strong>24 - 48 hours</strong> with the next steps.
           </p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
             You will be guided through the verification and instructor onboarding process once your application has been reviewed.
@@ -634,7 +634,7 @@ export async function POST(req: NextRequest) {
       entity: 'User',
       entityId: user.id,
       description: isPendingInstructorOnboarding
-        ? `Instructor applicant "${user.name}" verified email via OTP. Application & Resume routed to Auditor (24-48 hrs onboarding SLA).`
+        ? `Instructor applicant "${user.name}" verified email via OTP. Application & Resume routed to Auditor (24 - 48 hrs onboarding SLA).`
         : `User "${user.name}" (${updatedUser.role}) verified email via OTP. Welcome email status: ${welcomeResult.success ? 'SENT' : 'FAILED'}.`,
       req
     }).catch(() => {});
@@ -651,7 +651,7 @@ export async function POST(req: NextRequest) {
         email: updatedUser.email,
         name: updatedUser.name,
         message:
-          'Your profile is now Under Review! The Auditor Onboarding process takes 24–48 hours, and a confirmation email has been sent to your inbox.',
+          'Your profile is now Under Review! The Auditor Onboarding process takes 24 - 48 hours, and a confirmation email has been sent to your inbox.',
         redirectUrl: `/instructor/login?email=${encodeURIComponent(updatedUser.email)}&pending=auditor`
       });
     }
