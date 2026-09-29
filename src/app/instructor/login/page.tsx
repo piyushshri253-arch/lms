@@ -373,29 +373,11 @@ function InstructorLoginContent() {
           {/* Portal Switcher Footer */}
           <div className="mt-6 pt-6 border-t border-slate-200 text-center space-y-2.5">
             <Link
-              href="/instructor/signup"
+              href="/signup?role=INSTRUCTOR"
               className="block w-full py-2.5 px-4 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-bold text-xs transition-all"
             >
-              ✨ New Instructor or Auditor? Create Account (/instructor/signup) →
+              ✨ New Instructor? Create Instructor Account →
             </Link>
-            <p className="text-xs text-slate-500">
-              Course Auditor?{' '}
-              <Link href="/reviewer/login" className="text-emerald-600 hover:underline font-bold">
-                Auditor Studio →
-              </Link>
-            </p>
-            <p className="text-xs text-slate-500">
-              Student Sign In?{' '}
-              <Link href="/login" className="text-violet-600 hover:underline font-bold">
-                Student Login (/login) →
-              </Link>
-            </p>
-            <p className="text-xs text-slate-500">
-              Platform Admin?{' '}
-              <Link href="/admin/login" className="text-indigo-600 hover:underline font-bold">
-                Admin Console →
-              </Link>
-            </p>
           </div>
         </div>
       </main>
