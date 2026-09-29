@@ -101,6 +101,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState<string>('');
@@ -337,6 +338,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
       setError('Password and Confirm Password do not match.');
       return;
     }
+    if (!acceptedTerms) {
+      setError('Please accept the Terms & Conditions and Privacy & Data Protection Policy to complete registration.');
+      return;
+    }
 
     const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
     const formattedQualificationsSummary = qualificationsList
@@ -376,7 +381,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
             ...q,
             specialization: `${q.courseName.trim()} (${q.university.trim()})`
           })),
-          experience: combinedExperience
+          experience: combinedExperience,
+          acceptedTerms: true
         })
       });
       const data = await res.json();
@@ -1250,6 +1256,40 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       </div>
                     </div>
 
+                    {/* Mandatory Terms & Privacy Policy Acceptance Checkbox */}
+                    <div className="pt-1">
+                      <label className="flex items-start gap-3 cursor-pointer select-none p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-violet-400 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={acceptedTerms}
+                          onChange={(e) => setAcceptedTerms(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600 cursor-pointer shrink-0 accent-violet-600"
+                          required
+                        />
+                        <span className="text-xs text-slate-700 leading-relaxed">
+                          I have read and agree to the Morena Teach{' '}
+                          <Link
+                            href="/terms"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-violet-700 hover:underline"
+                          >
+                            Terms &amp; Conditions
+                          </Link>{' '}
+                          and{' '}
+                          <Link
+                            href="/privacy"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-violet-700 hover:underline"
+                          >
+                            Privacy &amp; Data Protection Policy
+                          </Link>
+                          . <span className="text-red-500 font-bold">*</span>
+                        </span>
+                      </label>
+                    </div>
+
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
@@ -1261,8 +1301,8 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                       </button>
                       <button
                         type="submit"
-                        disabled={loading || !isPasswordValid || !passwordsMatch}
-                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
+                        disabled={loading || !isPasswordValid || !passwordsMatch || !acceptedTerms}
+                        className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                       >
                         {loading ? (
                           <>

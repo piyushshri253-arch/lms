@@ -35,8 +35,18 @@ export async function POST(req: NextRequest) {
       resumeMimeType,
       resumeSize,
       organizationId,
-      orgSlug
+      orgSlug,
+      acceptedTerms
     } = body;
+
+    if (acceptedTerms === false) {
+      return NextResponse.json(
+        {
+          error: 'You must accept the Terms & Conditions and Privacy & Data Protection Policy to sign up.'
+        },
+        { status: 400 }
+      );
+    }
 
     // 1. Determine Registration Mode:
     // - If called from Student /register (rawRole omitted or 'STUDENT'), preserve 100% original Student signup behavior!

@@ -22,6 +22,7 @@ function RegisterContent() {
   const [email, setEmail] = useState(queryEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [registerError, setRegisterError] = useState<{ message: string; code?: string } | null>(null);
 
@@ -109,6 +110,14 @@ function RegisterContent() {
       });
       return;
     }
+    if (!acceptedTerms) {
+      showToast({
+        title: 'Terms & Privacy Acceptance Required',
+        description: 'Please accept the Terms & Conditions and Privacy & Data Protection Policy to sign up.',
+        type: 'error'
+      });
+      return;
+    }
 
     setIsLoading(true);
     setRegisterError(null);
@@ -122,7 +131,8 @@ function RegisterContent() {
           email: email.trim().toLowerCase(),
           password,
           confirmPassword: password,
-          role: 'STUDENT'
+          role: 'STUDENT',
+          acceptedTerms: true
         })
       });
 
@@ -400,12 +410,45 @@ function RegisterContent() {
                       ))}
                     </div>
                   </div>
+                  {/* Mandatory Terms & Privacy Policy Acceptance Checkbox */}
+                  <div className="pt-2">
+                    <label className="flex items-start gap-2.5 cursor-pointer select-none p-3 rounded-md bg-slate-50 border border-[#d1d7dc] hover:border-[#a435f0]/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#a435f0] focus:ring-[#a435f0] cursor-pointer shrink-0 accent-[#a435f0]"
+                        required
+                      />
+                      <span className="text-xs text-[#2d2f31] leading-relaxed">
+                        I have read and agree to the Morena Teach{' '}
+                        <Link
+                          href="/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-[#5022c3] hover:underline"
+                        >
+                          Terms &amp; Conditions
+                        </Link>{' '}
+                        and{' '}
+                        <Link
+                          href="/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-[#5022c3] hover:underline"
+                        >
+                          Privacy &amp; Data Protection Policy
+                        </Link>
+                        . <span className="text-red-500 font-bold">*</span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full h-12 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-sm rounded-[2px] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  disabled={isLoading || !acceptedTerms}
+                  className="w-full h-12 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-sm rounded-[2px] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer mt-2"
                 >
                   {isLoading ? (
                     <>
@@ -429,8 +472,16 @@ function RegisterContent() {
                     Log in
                   </Link>
                 </p>
-                <p className="text-[11px] text-gray-400 leading-normal">
-                  By signing up, you agree to our Terms of Service and Privacy Policy.
+                <p className="text-[11px] text-gray-500 leading-normal">
+                  View our{' '}
+                  <Link href="/terms" target="_blank" className="text-[#5022c3] font-semibold hover:underline">
+                    Terms &amp; Conditions
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" target="_blank" className="text-[#5022c3] font-semibold hover:underline">
+                    Privacy &amp; Data Protection Policy
+                  </Link>
+                  .
                 </p>
               </div>
             </>
