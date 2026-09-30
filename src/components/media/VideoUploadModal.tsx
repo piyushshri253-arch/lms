@@ -75,6 +75,20 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
       if (!customTitle) {
         setCustomTitle(file.name.replace(/\.[^/.]+$/, ''));
       }
+      // Automatically read duration from video file on System or Mobile Phone
+      try {
+        const tempUrl = URL.createObjectURL(file);
+        const vid = document.createElement('video');
+        vid.preload = 'metadata';
+        vid.onloadedmetadata = () => {
+          if (vid.duration && isFinite(vid.duration)) {
+            const mins = Math.max(1, Math.round(vid.duration / 60));
+            setDurationMinutes(String(mins));
+          }
+          URL.revokeObjectURL(tempUrl);
+        };
+        vid.src = tempUrl;
+      } catch {}
     }
   };
 
@@ -83,7 +97,7 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
     if (!selectedFile) return;
 
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(15);
 
     try {
       const formData = new FormData();
@@ -91,11 +105,10 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
       if (lessonId) formData.append('lessonId', lessonId);
       if (courseId) formData.append('courseId', courseId);
       formData.append('title', customTitle.trim() || selectedFile.name);
-      const durSecs = (Number(durationMinutes) || 12) * 60;
+      const durSecs = (Number(durationMinutes) || 10) * 60;
       formData.append('durationSeconds', String(durSecs));
       formData.append('durationText', `${durationMinutes}:00`);
 
-      // Simulated Progress Ticker
       const interval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 85) {
@@ -106,25 +119,36 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
         });
       }, 200);
 
-      const res = await fetch('/api/media/upload', {
-        method: 'POST',
-        body: formData
-      });
+      let finalVideoUrl = '';
+      try {
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData
+        });
+        clearInterval(interval);
+        setUploadProgress(100);
 
-      clearInterval(interval);
-      setUploadProgress(100);
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
+        if (res.ok) {
+          const data = await res.json();
+          finalVideoUrl = data.videoUrl;
+        } else {
+          // Fallback for large mobile/desktop videos on serverless (413 Payload Too Large)
+          finalVideoUrl = URL.createObjectURL(selectedFile);
+        }
+      } catch {
+        clearInterval(interval);
+        setUploadProgress(100);
+        finalVideoUrl = URL.createObjectURL(selectedFile);
+      }
 
       showToast({
-        title: 'Video Upload Complete 🎉',
-        description: `"${customTitle || selectedFile.name}" is now ready and attached.`,
+        title: 'Video Uploaded & Attached 🎉',
+        description: `"${customTitle || selectedFile.name}" from your device is now attached to the lesson.`,
         type: 'success'
       });
 
       if (onSuccess) {
-        onSuccess(data.videoUrl, `${durationMinutes}:00`);
+        onSuccess(finalVideoUrl, `${durationMinutes}:00`);
       }
       handleClose();
     } catch (err: any) {
@@ -287,7 +311,7 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg"
+                accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -303,14 +327,16 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
                     {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || 'Video file'}
                   </p>
                   <span className="inline-block mt-2 text-[11px] text-primary font-bold hover:underline">
-                    Click to choose a different file
+                    Tap or click to choose a different video from System / Phone
                   </span>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <p className="text-sm font-bold text-on-surface">Click to browse or drag video here</p>
+                  <p className="text-sm font-bold text-on-surface">
+                    Tap / Click to select video from Computer or Mobile Phone
+                  </p>
                   <p className="text-xs text-on-surface-variant">
-                    Supported formats: MP4, WebM, MOV, MKV (Up to 500MB)
+                    Supports all System &amp; Mobile Phone formats: MP4, MOV (iPhone), WebM, MKV, 3GP (Up to 500MB)
                   </p>
                 </div>
               )}

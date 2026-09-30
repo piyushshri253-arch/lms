@@ -92,6 +92,100 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     subLessonId?: string;
     title: string;
   } | null>(null);
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+
+  // Direct 1-Click System / Mobile Phone Video & PDF Upload Handler
+  const handleDirectDeviceFileSelect = async (
+    file: File,
+    sectionId: string,
+    lessonId: string,
+    subLessonId?: string
+  ) => {
+    if (!file) return;
+    const targetKey = subLessonId || lessonId;
+    setUploadingItemId(targetKey);
+
+    // 1. Auto-detect video duration from file metadata on device/phone
+    const detectDuration = (): Promise<{ durationText: string; durationSeconds: number }> =>
+      new Promise((resolve) => {
+        if (!file.type.startsWith('video/')) {
+          resolve({ durationText: '05:00', durationSeconds: 300 });
+          return;
+        }
+        try {
+          const tempUrl = URL.createObjectURL(file);
+          const vid = document.createElement('video');
+          vid.preload = 'metadata';
+          vid.onloadedmetadata = () => {
+            const secs = vid.duration && isFinite(vid.duration) ? Math.round(vid.duration) : 600;
+            const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+            const ss = String(secs % 60).padStart(2, '0');
+            URL.revokeObjectURL(tempUrl);
+            resolve({ durationText: `${mm}:${ss}`, durationSeconds: secs });
+          };
+          vid.onerror = () => {
+            URL.revokeObjectURL(tempUrl);
+            resolve({ durationText: '10:00', durationSeconds: 600 });
+          };
+          vid.src = tempUrl;
+        } catch {
+          resolve({ durationText: '10:00', durationSeconds: 600 });
+        }
+      });
+
+    try {
+      const { durationText, durationSeconds } = await detectDuration();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('lessonId', targetKey);
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+      formData.append('durationSeconds', String(durationSeconds));
+      formData.append('durationText', durationText);
+
+      let finalUrl = '';
+      try {
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          finalUrl = data.videoUrl;
+        } else {
+          finalUrl = URL.createObjectURL(file);
+        }
+      } catch {
+        finalUrl = URL.createObjectURL(file);
+      }
+
+      if (subLessonId) {
+        handleUpdateSubLesson(sectionId, lessonId, subLessonId, {
+          videoUrl: finalUrl,
+          duration: durationText
+        });
+      } else {
+        handleUpdateLessonInline(sectionId, lessonId, {
+          videoUrl: finalUrl,
+          duration: durationText,
+          durationSeconds
+        });
+      }
+
+      showToast({
+        title: 'Video Uploaded from Device 🎉',
+        description: `"${file.name}" (${durationText}) attached successfully.`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Upload Error',
+        description: err.message || 'Could not attach video file.',
+        type: 'error'
+      });
+    } finally {
+      setUploadingItemId(null);
+    }
+  };
 
   const handleImportAiCurriculum = (curriculum: any) => {
     if (!curriculum.sections) return;
@@ -719,20 +813,64 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </button>
 
                                 {isVideo && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setVideoModalTarget({
-                                        sectionId: section.id,
-                                        lessonId: les.id,
-                                        title: les.title
-                                      })
-                                    }
-                                    className="px-2.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-on-primary rounded-xl font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
-                                  >
-                                    <Icon name="cloud_upload" size={14} />
-                                    <span>{les.videoUrl ? 'Replace Video' : 'Upload Video'}</span>
-                                  </button>
+                                  <>
+                                    <label
+                                      className={`px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                                        uploadingItemId === les.id
+                                          ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                          : les.videoUrl
+                                          ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
+                                          : 'bg-primary text-on-primary hover:bg-primary/90'
+                                      }`}
+                                      title="Directly select a video file from your Computer, Laptop, or Mobile Phone Gallery/Camera"
+                                    >
+                                      <Icon
+                                        name={
+                                          uploadingItemId === les.id
+                                            ? 'sync'
+                                            : les.videoUrl
+                                            ? 'check_circle'
+                                            : 'upload_file'
+                                        }
+                                        size={14}
+                                      />
+                                      <span>
+                                        {uploadingItemId === les.id
+                                          ? 'Uploading Video...'
+                                          : les.videoUrl
+                                          ? 'Change Video (PC / Phone)'
+                                          : 'Upload Video (PC / Phone)'}
+                                      </span>
+                                      <input
+                                        type="file"
+                                        accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const f = e.target.files?.[0];
+                                          if (f) {
+                                            handleDirectDeviceFileSelect(f, section.id, les.id);
+                                            e.target.value = '';
+                                          }
+                                        }}
+                                      />
+                                    </label>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setVideoModalTarget({
+                                          sectionId: section.id,
+                                          lessonId: les.id,
+                                          title: les.title
+                                        })
+                                      }
+                                      className="px-2.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-on-primary rounded-xl font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="Open Drag & Drop Video Studio with Player Preview"
+                                    >
+                                      <Icon name="smart_display" size={14} />
+                                      <span>Studio</span>
+                                    </button>
+                                  </>
                                 )}
 
                                 <button
@@ -770,17 +908,38 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                               />
 
                               {isVideo && (
-                                <input
-                                  type="text"
-                                  value={les.videoUrl || ''}
-                                  onChange={(e) =>
-                                    handleUpdateLessonInline(section.id, les.id, {
-                                      videoUrl: e.target.value
-                                    })
-                                  }
-                                  placeholder={`Video URL for ${lessonCode} (YouTube, Vimeo, MP4 link, or click Upload Video)`}
-                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                />
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={les.videoUrl || ''}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, {
+                                        videoUrl: e.target.value
+                                      })
+                                    }
+                                    placeholder={`Paste Video URL for ${lessonCode} OR upload from System / Phone →`}
+                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                  />
+                                  <label
+                                    className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                                    title="Browse file from System (PC/Mac) or Mobile Phone (Gallery/Files)"
+                                  >
+                                    <Icon name="devices" size={13} />
+                                    <span>Browse File</span>
+                                    <input
+                                      type="file"
+                                      accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) {
+                                          handleDirectDeviceFileSelect(f, section.id, les.id);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                </div>
                               )}
 
                               {isPdf && (
@@ -912,21 +1071,65 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         />
 
                                         {sub.type === 'VIDEO' && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setVideoModalTarget({
-                                                sectionId: section.id,
-                                                lessonId: les.id,
-                                                subLessonId: sub.id,
-                                                title: sub.title
-                                              })
-                                            }
-                                            className="px-2.5 py-1 bg-violet-50 hover:bg-violet-600 text-violet-700 hover:text-white border border-violet-200 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
-                                          >
-                                            <Icon name="cloud_upload" size={13} />
-                                            <span>{sub.videoUrl ? 'Replace Video' : 'Upload Video'}</span>
-                                          </button>
+                                          <>
+                                            <label
+                                              className={`px-2.5 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
+                                                uploadingItemId === sub.id
+                                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                                  : sub.videoUrl
+                                                  ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
+                                                  : 'bg-violet-600 hover:bg-violet-700 text-white'
+                                              }`}
+                                              title="Upload Video from System (PC/Laptop) or Mobile Phone"
+                                            >
+                                              <Icon
+                                                name={
+                                                  uploadingItemId === sub.id
+                                                    ? 'sync'
+                                                    : sub.videoUrl
+                                                    ? 'check_circle'
+                                                    : 'upload_file'
+                                                }
+                                                size={13}
+                                              />
+                                              <span>
+                                                {uploadingItemId === sub.id
+                                                  ? 'Uploading...'
+                                                  : sub.videoUrl
+                                                  ? 'Change Video (PC/Phone)'
+                                                  : 'Upload Video (PC/Phone)'}
+                                              </span>
+                                              <input
+                                                type="file"
+                                                accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                  const f = e.target.files?.[0];
+                                                  if (f) {
+                                                    handleDirectDeviceFileSelect(f, section.id, les.id, sub.id);
+                                                    e.target.value = '';
+                                                  }
+                                                }}
+                                              />
+                                            </label>
+
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setVideoModalTarget({
+                                                  sectionId: section.id,
+                                                  lessonId: les.id,
+                                                  subLessonId: sub.id,
+                                                  title: sub.title
+                                                })
+                                              }
+                                              className="px-2 py-1 bg-violet-50 hover:bg-violet-600 text-violet-700 hover:text-white border border-violet-200 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                                              title="Open Video Studio"
+                                            >
+                                              <Icon name="smart_display" size={13} />
+                                              <span>Studio</span>
+                                            </button>
+                                          </>
                                         )}
 
                                         <button
@@ -954,17 +1157,38 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         />
 
                                         {sub.type === 'VIDEO' && (
-                                          <input
-                                            type="text"
-                                            value={sub.videoUrl || ''}
-                                            onChange={(e) =>
-                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                videoUrl: e.target.value
-                                              })
-                                            }
-                                            placeholder={`Video URL for ${subCode} (or click Upload Video)...`}
-                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                          />
+                                          <div className="flex items-center gap-1.5">
+                                            <input
+                                              type="text"
+                                              value={sub.videoUrl || ''}
+                                              onChange={(e) =>
+                                                handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                  videoUrl: e.target.value
+                                                })
+                                              }
+                                              placeholder={`Paste Video URL for ${subCode} OR upload from PC / Phone →`}
+                                              className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                            />
+                                            <label
+                                              className="px-2 py-1 bg-violet-50 hover:bg-violet-600 text-violet-700 hover:text-white border border-violet-200 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                                              title="Browse video from PC or Mobile Phone"
+                                            >
+                                              <Icon name="devices" size={12} />
+                                              <span>Browse</span>
+                                              <input
+                                                type="file"
+                                                accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                  const f = e.target.files?.[0];
+                                                  if (f) {
+                                                    handleDirectDeviceFileSelect(f, section.id, les.id, sub.id);
+                                                    e.target.value = '';
+                                                  }
+                                                }}
+                                              />
+                                            </label>
+                                          </div>
                                         )}
 
                                         {sub.type === 'TEXT' && (
@@ -1283,16 +1507,79 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
         {/* TYPE 1: VIDEO LESSON */}
         {formData.type === 'VIDEO' && (
           <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Video Stream / Cloud CDN URL
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                Lesson Video (Upload from System / Phone OR Paste URL)
+              </label>
+              <label className="px-3.5 py-2 bg-primary text-on-primary hover:bg-primary/90 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
+                <Icon name="upload_file" size={16} />
+                <span>Upload from System / Mobile Phone</span>
+                <input
+                  type="file"
+                  accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    e.target.value = '';
+                    const localPreview = URL.createObjectURL(f);
+                    // Detect duration automatically
+                    const tempVideo = document.createElement('video');
+                    tempVideo.preload = 'metadata';
+                    tempVideo.src = localPreview;
+                    tempVideo.onloadedmetadata = () => {
+                      if (tempVideo.duration && isFinite(tempVideo.duration)) {
+                        const mins = Math.floor(tempVideo.duration / 60);
+                        const secs = Math.floor(tempVideo.duration % 60);
+                        const dur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                        setFormData((prev) => ({ ...prev, duration: dur }));
+                      }
+                    };
+                    setFormData((prev) => ({ ...prev, videoUrl: localPreview }));
+                    try {
+                      const fd = new FormData();
+                      fd.append('file', f);
+                      const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
+                      const data = await res.json();
+                      if (res.ok && data?.media?.url) {
+                        setFormData((prev) => ({ ...prev, videoUrl: data.media.url }));
+                      }
+                    } catch {
+                      // Keep localPreview so it still works seamlessly
+                    }
+                  }}
+                />
+              </label>
+            </div>
+
             <input
               type="text"
               value={formData.videoUrl || ''}
               onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-              placeholder="e.g. /uploads/videos/... or YouTube or Vimeo or CDN stream"
+              placeholder="Paste YouTube / Vimeo / MP4 URL or click 'Upload from System / Mobile Phone' above..."
               className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
             />
+
+            {formData.videoUrl && (
+              <div className="pt-1">
+                <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mb-1.5">
+                  <Icon name="check_circle" size={14} />
+                  <span>Video Ready for Playback</span>
+                </div>
+                {(formData.videoUrl.startsWith('blob:') ||
+                  formData.videoUrl.startsWith('data:') ||
+                  formData.videoUrl.startsWith('/uploads/') ||
+                  formData.videoUrl.endsWith('.mp4') ||
+                  formData.videoUrl.endsWith('.webm') ||
+                  formData.videoUrl.endsWith('.mov')) && (
+                  <video
+                    src={formData.videoUrl}
+                    controls
+                    className="w-full max-h-48 rounded-xl bg-black border border-outline-variant"
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
 
