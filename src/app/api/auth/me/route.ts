@@ -43,15 +43,27 @@ export async function GET() {
       return NextResponse.json({ user: null });
     }
 
-    // Fetch user-specific stats & check if same email also has an Onboarded Instructor account
-    const [enrollmentsCount, wishlistCount, coursesAuthoredCount, linkedInstructorAccount] = await Promise.all([
+    // Fetch user-specific stats
+    const [enrollmentsCount, wishlistCount, coursesAuthoredCount] = await Promise.all([
       prisma.enrollment.count({ where: { userId: dbUser.id } }),
       prisma.wishlist.count({ where: { userId: dbUser.id } }),
-      prisma.course.count({ where: { instructorId: dbUser.id } }),
-      prisma.user.findFirst({
+      prisma.course.count({ where: { instructorId: dbUser.id } })
+    ]);
+
+    // Check if same email also has an Onboarded Instructor account
+    // STRICT REQUIREMENT: Only show the onboarded banner if the user explicitly registered
+    // as an Instructor with this email AND was verified/approved ('ONBOARDED') by the Course Auditor.
+    let linkedInstructorAccount: { id: string; status: string; name: string } | null = null;
+    let instructorApplicationStatus: string | null = null;
+    let hasOnboardedInstructorAccount = false;
+
+    if (dbUser.role === 'STUDENT') {
+      linkedInstructorAccount = await prisma.user.findFirst({
         where: {
+          id: { not: dbUser.id },
           email: { equals: dbUser.email.trim(), mode: 'insensitive' },
           role: 'INSTRUCTOR',
+          status: 'ACTIVE',
           emailVerified: true,
           isSuspended: false
         },
@@ -60,31 +72,28 @@ export async function GET() {
           status: true,
           name: true
         }
-      })
-    ]);
-
-    let instructorApplicationStatus: string | null = null;
-    if (linkedInstructorAccount) {
-      const appSetting = await prisma.platformSetting.findUnique({
-        where: { key: `instructor_application_${linkedInstructorAccount.id}` }
       });
-      if (appSetting?.value) {
-        try {
-          const parsedApp = JSON.parse(appSetting.value);
-          instructorApplicationStatus = parsedApp.applicationStatus || null;
-        } catch {}
-      }
-      if (!instructorApplicationStatus) {
-        instructorApplicationStatus =
-          linkedInstructorAccount.status === 'ACTIVE' ? 'ONBOARDED' : linkedInstructorAccount.status;
+
+      if (linkedInstructorAccount) {
+        const appSetting = await prisma.platformSetting.findUnique({
+          where: { key: `instructor_application_${linkedInstructorAccount.id}` }
+        });
+        if (appSetting?.value) {
+          try {
+            const parsedApp = JSON.parse(appSetting.value);
+            instructorApplicationStatus = parsedApp.applicationStatus || null;
+          } catch {}
+        }
+
+        // Must strictly have an application record that is 'ONBOARDED'
+        if (
+          linkedInstructorAccount.status === 'ACTIVE' &&
+          instructorApplicationStatus === 'ONBOARDED'
+        ) {
+          hasOnboardedInstructorAccount = true;
+        }
       }
     }
-
-    const hasOnboardedInstructorAccount = Boolean(
-      linkedInstructorAccount &&
-        linkedInstructorAccount.status === 'ACTIVE' &&
-        (!instructorApplicationStatus || instructorApplicationStatus === 'ONBOARDED')
-    );
 
     let permissions: string[] = [];
     try {
