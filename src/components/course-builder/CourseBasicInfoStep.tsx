@@ -1,10 +1,12 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { CourseAssessmentsBanner } from './CourseAssessmentsBanner';
 
 interface CourseBasicInfoProps {
   data: {
+    id?: string;
     title: string;
     slug: string;
     shortDescription: string;
@@ -477,6 +479,9 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           </div>
         </div>
       </div>
+
+      {/* Course Quizzes & Assignments Integration (Moved below SEO & Search Engine Optimization) */}
+      <CourseAssessmentsBanner courseId={data.slug || (data as any).id} />
     </div>
   );
 };
