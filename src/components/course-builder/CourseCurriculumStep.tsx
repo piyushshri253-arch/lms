@@ -96,6 +96,20 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   const [uploadingPdfItemId, setUploadingPdfItemId] = useState<string | null>(null);
   const [expandedQuickQuizIds, setExpandedQuickQuizIds] = useState<Record<string, boolean>>({});
+  const [openContentDrawerId, setOpenContentDrawerId] = useState<string | null>(null);
+  const [activeContentTab, setActiveContentTab] = useState<
+    Record<string, 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ'>
+  >({});
+
+  const toggleContentDrawer = (
+    itemId: string,
+    defaultTab?: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ'
+  ) => {
+    setOpenContentDrawerId((prev) => (prev === itemId ? null : itemId));
+    if (defaultTab) {
+      setActiveContentTab((prev) => ({ ...prev, [itemId]: defaultTab }));
+    }
+  };
 
   const toggleQuickQuizPanel = (itemId: string) => {
     setExpandedQuickQuizIds((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
@@ -679,10 +693,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             return (
               <div
                 key={section.id}
-                className="bg-surface-container-lowest border-2 border-outline-variant/80 rounded-3xl overflow-hidden shadow-xs"
+                className="bg-[#f7f9fa] border border-[#d1d7dc] rounded-lg p-4 sm:p-5 space-y-4 shadow-2xs transition-all"
               >
-                {/* Module Header + Inline Module Title & Module Description */}
-                <div className="p-4 sm:p-5 bg-slate-50/90 border-b border-outline-variant space-y-3">
+                {/* Section Header (Udemy Style) */}
+                <div className="space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       <div className="flex items-center gap-0.5">
@@ -690,312 +704,622 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           type="button"
                           disabled={sIdx === 0}
                           onClick={() => moveSection(sIdx, 'up')}
-                          className="p-1 text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
-                          title="Move Module Up"
+                          className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                          title="Move Section Up"
                         >
-                          <Icon name="arrow_upward" size={16} />
+                          <Icon name="arrow_upward" size={15} />
                         </button>
                         <button
                           type="button"
                           disabled={sIdx === sections.length - 1}
                           onClick={() => moveSection(sIdx, 'down')}
-                          className="p-1 text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
-                          title="Move Module Down"
+                          className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                          title="Move Section Down"
                         >
-                          <Icon name="arrow_downward" size={16} />
+                          <Icon name="arrow_downward" size={15} />
                         </button>
                       </div>
 
-                      <span className="px-3 py-1 rounded-xl bg-primary text-on-primary font-mono font-black text-xs uppercase shrink-0 shadow-2xs">
-                        Module {moduleNum}
+                      {/* Section Title Label & Inline Input */}
+                      <span className="font-extrabold text-sm text-slate-900 shrink-0 font-sans">
+                        Section {moduleNum}:
                       </span>
 
                       <input
                         type="text"
                         value={section.title}
                         onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
-                        placeholder={`Module ${moduleNum} Title (e.g., Classroom Pedagogy & Foundations)`}
-                        className="flex-1 bg-white border border-slate-300 focus:border-primary rounded-xl px-3.5 py-2 text-sm font-extrabold text-slate-900 focus:outline-none transition-colors"
+                        placeholder={`Section ${moduleNum} Title (e.g. Introduction & Foundations)`}
+                        className="flex-1 bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
                       />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center">
-                      {/* Quick Add Lesson Buttons */}
-                      <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
-                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (Video)`}
-                        >
-                          <Icon name="movie" size={14} className="text-primary" />
-                          <span>+ {moduleNum}.{section.lessons.length + 1} Video</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'TEXT', false)}
-                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (Article)`}
-                        >
-                          <Icon name="article" size={14} className="text-secondary" />
-                          <span>+ Text</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'PDF', false)}
-                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-rose-50 hover:text-rose-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (PDF)`}
-                        >
-                          <Icon name="picture_as_pdf" size={14} className="text-rose-600" />
-                          <span>+ PDF</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'QUIZ', true)}
-                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-amber-50 hover:text-amber-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (Quiz)`}
-                        >
-                          <Icon name="quiz" size={14} className="text-amber-600" />
-                          <span>+ Quiz</span>
-                        </button>
-                      </div>
-
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                       <button
                         type="button"
                         onClick={() => handleDeleteSection(section.id)}
-                        className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 cursor-pointer transition-colors"
-                        title="Delete Module"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
+                        title="Delete Section"
                       >
                         <Icon name="delete" size={16} />
                       </button>
                     </div>
                   </div>
 
-                  {/* Module Description Field */}
-                  <div className="pl-0 sm:pl-14">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                      Module {moduleNum} Description &amp; Learning Summary
+                  {/* Section Objective (Udemy exact prompt: "What will students be able to do at the end of this section?") */}
+                  <div className="pl-0 sm:pl-9">
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                      What will students be able to do at the end of this section?
                     </label>
                     <textarea
                       rows={2}
                       value={section.description || ''}
                       onChange={(e) => handleUpdateSectionField(section.id, 'description', e.target.value)}
-                      placeholder={`Write a brief description for Module ${moduleNum} (what key topics, skills, or goals students will cover in this module)...`}
-                      className="w-full bg-white border border-slate-200 focus:border-primary rounded-xl px-3.5 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none transition-colors resize-y"
+                      placeholder="Enter a learning objective or key takeaway for this section..."
+                      className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none transition-colors resize-y"
                     />
                   </div>
                 </div>
 
-                {/* Lessons (1.1, 1.2 / 2.1, 2.2) & Sub-Topics (1.1.1, 1.1.2 / 2.1.1) */}
-                <div className="p-4 sm:p-5 space-y-4 bg-white">
+                {/* Section Curriculum Items (Lectures & Sub-Topics) */}
+                <div className="space-y-3 pt-1">
                   {section.lessons.length === 0 ? (
-                    <div className="py-6 text-center text-xs text-on-surface-variant border-2 border-dashed border-slate-200 rounded-2xl">
-                      No lessons in Module {moduleNum} yet. Click{' '}
+                    <div className="py-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] bg-white rounded-md">
+                      No curriculum items in Section {moduleNum} yet.{' '}
                       <button
                         type="button"
                         onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
-                        className="font-bold text-primary underline cursor-pointer"
+                        className="font-bold text-[#2d2f31] underline cursor-pointer hover:text-primary"
                       >
-                        + {moduleNum}.1 Video
-                      </button>{' '}
-                      above to add your first lesson.
+                        + Add Lecture {moduleNum}.1
+                      </button>
                     </div>
                   ) : (
                     section.lessons.map((les, lIdx) => {
                       const lessonCode = `${moduleNum}.${lIdx + 1}`;
                       const subLessons = Array.isArray(les.subLessons) ? les.subLessons : [];
                       const nextSubCode = `${lessonCode}.${subLessons.length + 1}`;
-                      const isVideo = les.type === 'VIDEO';
-                      const isText = les.type === 'TEXT';
-                      const isPdf = les.type === 'PDF';
-                      const isQuiz = les.type === 'QUIZ';
+                      const qConf = parseQuizConfig(les.quizData);
+                      const qCount = qConf.questions.length;
+                      const hasContent = !!(les.videoUrl || les.content || les.pdfUrl || qCount > 0);
+                      const isDrawerOpen = openContentDrawerId === les.id;
+                      const currentTab =
+                        activeContentTab[les.id] ||
+                        (les.type === 'QUIZ'
+                          ? 'QUIZ'
+                          : les.type === 'TEXT'
+                          ? 'TEXT'
+                          : les.type === 'PDF'
+                          ? 'PDF'
+                          : 'VIDEO');
 
                       return (
-                        <div
-                          key={les.id}
-                          className="rounded-2xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition-all overflow-hidden shadow-2xs"
-                        >
-                          {/* Main Lesson Row (e.g. 1.1 or 2.1) */}
-                          <div className="p-3.5 sm:p-4 bg-white flex flex-col gap-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        <div key={les.id} className="space-y-2">
+                          {/* Udemy Lecture Card */}
+                          <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
+                            {/* Lecture Top Bar */}
+                            <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {/* Up/Down buttons */}
                                 <div className="flex items-center gap-0.5">
                                   <button
                                     type="button"
                                     disabled={lIdx === 0}
                                     onClick={() => moveLesson(section.id, lIdx, 'up')}
-                                    className="text-slate-400 hover:text-primary disabled:opacity-30 cursor-pointer"
-                                    title="Move up"
+                                    className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                    title="Move Lecture Up"
                                   >
-                                    <Icon name="arrow_upward" size={14} />
+                                    <Icon name="arrow_upward" size={13} />
                                   </button>
                                   <button
                                     type="button"
                                     disabled={lIdx === section.lessons.length - 1}
                                     onClick={() => moveLesson(section.id, lIdx, 'down')}
-                                    className="text-slate-400 hover:text-primary disabled:opacity-30 cursor-pointer"
-                                    title="Move down"
+                                    className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                    title="Move Lecture Down"
                                   >
-                                    <Icon name="arrow_downward" size={14} />
+                                    <Icon name="arrow_downward" size={13} />
                                   </button>
                                 </div>
 
-                                {/* Number Badge: 1.1, 1.2, 2.1 */}
-                                <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-mono font-black text-xs shrink-0 shadow-2xs">
-                                  {lessonCode}
+                                {/* Checkmark Status Circle (Udemy Style) */}
+                                {hasContent ? (
+                                  <span
+                                    className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
+                                    title="Content is attached to this lecture"
+                                  >
+                                    ✓
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0"
+                                    title="No content attached yet - click + Content below"
+                                  />
+                                )}
+
+                                {/* Lecture Code Label */}
+                                <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans">
+                                  Lecture {lessonCode}:
                                 </span>
 
-                                {/* Inline Lesson Title Input */}
+                                {/* Inline Title Input */}
                                 <input
                                   type="text"
                                   value={les.title}
                                   onChange={(e) =>
                                     handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                   }
-                                  placeholder={`${lessonCode} Lesson Title`}
-                                  className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-600 rounded-xl px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
+                                  placeholder={`${lessonCode} Lecture Title`}
+                                  className="flex-1 min-w-[140px] bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                 />
 
-                                {/* Lesson Type Selector */}
-                                <select
-                                  value={les.type}
-                                  onChange={(e) =>
-                                    handleUpdateLessonInline(section.id, les.id, {
-                                      type: e.target.value as any
-                                    })
-                                  }
-                                  className="bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer"
-                                >
-                                  <option value="VIDEO">🎬 Video</option>
-                                  <option value="TEXT">📄 Article</option>
-                                  <option value="PDF">📑 PDF</option>
-                                  <option value="QUIZ">❓ Quiz</option>
-                                </select>
+                                {/* Attached Content Badges */}
+                                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                                  {les.videoUrl && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                                      🎬 Video {les.duration ? `(${les.duration})` : ''}
+                                    </span>
+                                  )}
+                                  {les.pdfUrl && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
+                                      📑 PDF
+                                    </span>
+                                  )}
+                                  {les.content && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+                                      📝 Notes
+                                    </span>
+                                  )}
+                                  {qCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
+                                      ❓ Quiz ({qCount})
+                                    </span>
+                                  )}
+                                </div>
 
-                                {/* Duration Input */}
-                                <input
-                                  type="text"
-                                  value={les.duration || '10:00'}
-                                  onChange={(e) =>
-                                    handleUpdateLessonInline(section.id, les.id, { duration: e.target.value })
-                                  }
-                                  placeholder="10:00"
-                                  title="Duration (mm:ss)"
-                                  className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-mono text-center text-slate-700 focus:outline-none focus:border-indigo-600"
-                                />
+                                {/* Free Preview Checkbox */}
+                                <label className="hidden md:inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!les.isFree}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, {
+                                        isFree: e.target.checked
+                                      })
+                                    }
+                                    className="rounded border-slate-300 text-[#2d2f31] focus:ring-0"
+                                  />
+                                  <span>Free Preview</span>
+                                </label>
                               </div>
 
-                              {/* Action Buttons on Lesson 1.1 */}
-                              <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
-                                {/* + Add Sub-Category (1.1.1 / 2.1.1) Button */}
+                              {/* Action Buttons on Lecture: + Content ⌄, + Sub-Topic, Delete */}
+                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                                {/* Udemy's Signature + Content ⌄ Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleContentDrawer(les.id)}
+                                  className={`px-3 py-1.5 rounded border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                    isDrawerOpen
+                                      ? 'bg-[#2d2f31] text-white border-[#2d2f31]'
+                                      : 'bg-white hover:bg-slate-50 text-[#2d2f31] border-[#2d2f31]'
+                                  }`}
+                                  title="Add or edit video, PDF, notes, or quiz questions for this lecture"
+                                >
+                                  <span>
+                                    {isDrawerOpen
+                                      ? '✕ Close'
+                                      : hasContent
+                                      ? 'Edit Content'
+                                      : '+ Content'}
+                                  </span>
+                                  <Icon
+                                    name={isDrawerOpen ? 'expand_less' : 'expand_more'}
+                                    size={15}
+                                  />
+                                </button>
+
+                                {/* + Sub-Topic Button */}
                                 <button
                                   type="button"
                                   onClick={() => handleAddSubLesson(section.id, les.id)}
-                                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                                  title={`Add Sub-Topic ${nextSubCode} inside ${lessonCode}`}
+                                  className="px-2.5 py-1.5 rounded border border-indigo-200 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                  title={`Add nested Sub-Topic ${nextSubCode} inside Lecture ${lessonCode}`}
                                 >
-                                  <Icon name="subdirectory_arrow_right" size={14} />
-                                  <span>+ Add {nextSubCode}</span>
+                                  <Icon name="subdirectory_arrow_right" size={13} />
+                                  <span>+ {nextSubCode}</span>
                                 </button>
 
-                                {/* Direct 1-Click Video Upload (PC / Phone) */}
-                                <label
-                                  className={`px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                                    uploadingItemId === les.id
-                                      ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                      : les.videoUrl
-                                      ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
-                                      : 'bg-primary text-on-primary hover:bg-primary/90'
-                                  }`}
-                                  title="Directly select a video file from your Computer, Laptop, or Mobile Phone Gallery/Camera"
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
+                                  className="p-1.5 text-slate-400 hover:text-slate-800 rounded hover:bg-slate-100 cursor-pointer"
+                                  title="Open Full Multi-Content Modal"
                                 >
-                                  <Icon
-                                    name={
-                                      uploadingItemId === les.id
-                                        ? 'sync'
-                                        : les.videoUrl
-                                        ? 'check_circle'
-                                        : 'upload_file'
-                                    }
-                                    size={14}
-                                  />
-                                  <span>
-                                    {uploadingItemId === les.id
-                                      ? 'Uploading Video...'
-                                      : les.videoUrl
-                                      ? '✓ Video (Change)'
-                                      : 'Upload Video (PC/Phone)'}
-                                  </span>
-                                  <input
-                                    type="file"
-                                    accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const f = e.target.files?.[0];
-                                      if (f) {
-                                        handleDirectDeviceFileSelect(f, section.id, les.id);
-                                        e.target.value = '';
-                                      }
-                                    }}
-                                  />
-                                </label>
+                                  <Icon name="tune" size={15} />
+                                </button>
 
-                                {/* Direct 1-Click PDF Upload (PC / Phone) */}
-                                <label
-                                  className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-2xs ${
-                                    uploadingPdfItemId === les.id
-                                      ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                      : les.pdfUrl
-                                      ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
-                                      : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
-                                  }`}
-                                  title="Directly upload a PDF document from your System or Mobile Phone"
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLesson(section.id, les.id)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                  title="Delete Lecture"
                                 >
-                                  <Icon
-                                    name={
-                                      uploadingPdfItemId === les.id
-                                        ? 'sync'
-                                        : les.pdfUrl
-                                        ? 'check_circle'
-                                        : 'picture_as_pdf'
-                                    }
-                                    size={14}
-                                  />
-                                  <span>
-                                    {uploadingPdfItemId === les.id
-                                      ? 'Uploading PDF...'
-                                      : les.pdfUrl
-                                      ? '✓ PDF'
-                                      : '+ Upload PDF'}
-                                  </span>
-                                  <input
-                                    type="file"
-                                    accept=".pdf,application/pdf"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const f = e.target.files?.[0];
-                                      if (f) {
-                                        handleDirectPdfFileSelect(f, section.id, les.id);
-                                        e.target.value = '';
-                                      }
-                                    }}
-                                  />
-                                </label>
+                                  <Icon name="delete" size={15} />
+                                </button>
+                              </div>
+                            </div>
 
-                                {/* Quick Questions Toggle Button */}
-                                {(() => {
-                                  const qConf = parseQuizConfig(les.quizData);
-                                  const qCount = qConf.questions.length;
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (qCount === 0 && !expandedQuickQuizIds[les.id]) {
-                                          const newQuiz: QuizConfig = {
+                            {/* UDEMY + CONTENT ⌄ INLINE DRAWER (for Lecture 1.1) */}
+                            {isDrawerOpen && (
+                              <div className="border-t border-[#d1d7dc] bg-[#f7f9fa] p-4 sm:p-5 space-y-4 animate-in fade-in duration-150">
+                                {/* Drawer Top Bar */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#d1d7dc]">
+                                  <div>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                      Lecture {lessonCode} Content Manager
+                                    </h4>
+                                    <p className="text-[11px] text-slate-500">
+                                      Select content type to attach to this lecture. Video, PDF resources, study notes, and quiz questions can all be included.
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenContentDrawerId(null)}
+                                    className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 rounded bg-white self-start sm:self-auto cursor-pointer"
+                                  >
+                                    ✕ Close Content
+                                  </button>
+                                </div>
+
+                                {/* Udemy-style 4 Content Tabs */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {/* Tab 1: Video */}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'VIDEO' }))
+                                    }
+                                    className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                      currentTab === 'VIDEO'
+                                        ? 'bg-[#2d2f31] text-white shadow-2xs'
+                                        : 'bg-white text-slate-700 border border-[#d1d7dc] hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <Icon name="movie" size={14} />
+                                    <span>🎬 Video</span>
+                                    {les.videoUrl && (
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5" />
+                                    )}
+                                  </button>
+
+                                  {/* Tab 2: Notes / Article */}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'TEXT' }))
+                                    }
+                                    className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                      currentTab === 'TEXT'
+                                        ? 'bg-[#2d2f31] text-white shadow-2xs'
+                                        : 'bg-white text-slate-700 border border-[#d1d7dc] hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <Icon name="article" size={14} />
+                                    <span>📝 Article / Notes</span>
+                                    {les.content && (
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5" />
+                                    )}
+                                  </button>
+
+                                  {/* Tab 3: PDF Resource */}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'PDF' }))
+                                    }
+                                    className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                      currentTab === 'PDF'
+                                        ? 'bg-[#2d2f31] text-white shadow-2xs'
+                                        : 'bg-white text-slate-700 border border-[#d1d7dc] hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <Icon name="picture_as_pdf" size={14} />
+                                    <span>📑 Downloadable PDF</span>
+                                    {les.pdfUrl && (
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5" />
+                                    )}
+                                  </button>
+
+                                  {/* Tab 4: Quick Quiz */}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'QUIZ' }))
+                                    }
+                                    className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                      currentTab === 'QUIZ'
+                                        ? 'bg-[#2d2f31] text-white shadow-2xs'
+                                        : 'bg-white text-slate-700 border border-[#d1d7dc] hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <Icon name="quiz" size={14} />
+                                    <span>❓ Quick Quiz Questions ({qCount})</span>
+                                  </button>
+                                </div>
+
+                                {/* TAB 1 CONTENT: VIDEO (Upload PC/Phone + URL + Duration) */}
+                                {currentTab === 'VIDEO' && (
+                                  <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
+                                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                                      {/* Direct PC / Mobile Phone Video Upload */}
+                                      <div className="w-full md:w-1/2 p-4 bg-slate-50 border-2 border-dashed border-[#d1d7dc] rounded-md text-center space-y-2">
+                                        <div className="text-xs font-bold text-slate-800">
+                                          Select Video from Computer or Phone
+                                        </div>
+                                        <p className="text-[11px] text-slate-500">
+                                          Supports MP4, MOV, WEBM, MKV. Automatically calculates video duration.
+                                        </p>
+                                        <label
+                                          className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded font-bold text-xs cursor-pointer transition-colors shadow-2xs ${
+                                            uploadingItemId === les.id
+                                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                              : 'bg-[#2d2f31] hover:bg-black text-white'
+                                          }`}
+                                        >
+                                          <Icon
+                                            name={uploadingItemId === les.id ? 'sync' : 'upload_file'}
+                                            size={16}
+                                          />
+                                          <span>
+                                            {uploadingItemId === les.id
+                                              ? 'Uploading Video... Please wait'
+                                              : 'Select Video File (PC / Phone)'}
+                                          </span>
+                                          <input
+                                            type="file"
+                                            accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f) {
+                                                handleDirectDeviceFileSelect(f, section.id, les.id);
+                                                e.target.value = '';
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+
+                                      {/* Or Paste Video URL */}
+                                      <div className="w-full md:w-1/2 space-y-3">
+                                        <div className="space-y-1">
+                                          <label className="block text-xs font-bold text-slate-700">
+                                            Or Paste Video URL (YouTube, Vimeo, Cloud MP4)
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={les.videoUrl || ''}
+                                            onChange={(e) =>
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                videoUrl: e.target.value
+                                              })
+                                            }
+                                            placeholder="https://www.youtube.com/watch?v=... or direct MP4 link"
+                                            className="w-full bg-slate-50 focus:bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                          <div className="space-y-1">
+                                            <label className="block text-[11px] font-bold text-slate-600">
+                                              Video Duration (mm:ss)
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={les.duration || '10:00'}
+                                              onChange={(e) =>
+                                                handleUpdateLessonInline(section.id, les.id, {
+                                                  duration: e.target.value
+                                                })
+                                              }
+                                              placeholder="10:00"
+                                              className="w-24 bg-slate-50 border border-[#d1d7dc] rounded px-2.5 py-1.5 text-xs font-mono text-center text-slate-800 focus:outline-none"
+                                            />
+                                          </div>
+
+                                          {les.videoUrl && (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleUpdateLessonInline(section.id, les.id, { videoUrl: '' })
+                                              }
+                                              className="mt-4 text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
+                                            >
+                                              Remove Video
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Video Attached Status Banner */}
+                                    {les.videoUrl && (
+                                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-emerald-700 font-bold text-xs">
+                                            ✓ Video Attached:
+                                          </span>
+                                          <span className="text-xs font-mono text-slate-700 truncate max-w-sm">
+                                            {les.videoUrl}
+                                          </span>
+                                        </div>
+                                        <a
+                                          href={les.videoUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs font-bold text-[#2d2f31] hover:underline flex items-center gap-1"
+                                        >
+                                          <Icon name="open_in_new" size={13} />
+                                          <span>Preview Video</span>
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* TAB 2 CONTENT: ARTICLE / STUDY NOTES */}
+                                {currentTab === 'TEXT' && (
+                                  <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-xs font-bold text-slate-800">
+                                        Lecture Article &amp; Study Notes Content
+                                      </label>
+                                      <span className="text-[11px] text-slate-400">
+                                        {(les.content || '').length} characters
+                                      </span>
+                                    </div>
+                                    <textarea
+                                      rows={6}
+                                      value={les.content || ''}
+                                      onChange={(e) =>
+                                        handleUpdateLessonInline(section.id, les.id, {
+                                          content: e.target.value
+                                        })
+                                      }
+                                      placeholder="Write or paste your lecture article, markdown notes, code snippets, or key concepts for students to read..."
+                                      className="w-full bg-slate-50 focus:bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none transition-colors resize-y font-sans leading-relaxed"
+                                    />
+                                    <p className="text-[11px] text-slate-500">
+                                      💡 Students will be able to read this text directly in the course player while watching videos or reviewing lessons.
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* TAB 3 CONTENT: DOWNLOADABLE PDF RESOURCE */}
+                                {currentTab === 'PDF' && (
+                                  <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
+                                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                                      {/* Upload PDF from PC/Phone */}
+                                      <div className="w-full md:w-1/2 p-4 bg-slate-50 border-2 border-dashed border-[#d1d7dc] rounded-md text-center space-y-2">
+                                        <div className="text-xs font-bold text-slate-800">
+                                          Select PDF File from Computer or Phone
+                                        </div>
+                                        <p className="text-[11px] text-slate-500">
+                                          Upload cheat sheets, slides, or reading handouts in .pdf format.
+                                        </p>
+                                        <label
+                                          className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded font-bold text-xs cursor-pointer transition-colors shadow-2xs ${
+                                            uploadingPdfItemId === les.id
+                                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                              : 'bg-rose-600 hover:bg-rose-700 text-white'
+                                          }`}
+                                        >
+                                          <Icon
+                                            name={
+                                              uploadingPdfItemId === les.id ? 'sync' : 'picture_as_pdf'
+                                            }
+                                            size={16}
+                                          />
+                                          <span>
+                                            {uploadingPdfItemId === les.id
+                                              ? 'Uploading PDF... Please wait'
+                                              : 'Select PDF File (PC / Phone)'}
+                                          </span>
+                                          <input
+                                            type="file"
+                                            accept=".pdf,application/pdf"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f) {
+                                                handleDirectPdfFileSelect(f, section.id, les.id);
+                                                e.target.value = '';
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+
+                                      {/* Or Paste PDF URL */}
+                                      <div className="w-full md:w-1/2 space-y-3">
+                                        <div className="space-y-1">
+                                          <label className="block text-xs font-bold text-slate-700">
+                                            Or Paste PDF Document URL
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={les.pdfUrl || ''}
+                                            onChange={(e) =>
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                pdfUrl: e.target.value
+                                              })
+                                            }
+                                            placeholder="https://.../handout.pdf"
+                                            className="w-full bg-slate-50 focus:bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        </div>
+
+                                        {les.pdfUrl && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleUpdateLessonInline(section.id, les.id, { pdfUrl: '' })
+                                            }
+                                            className="text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
+                                          >
+                                            Remove PDF
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* PDF Attached Banner */}
+                                    {les.pdfUrl && (
+                                      <div className="p-3 bg-rose-50 border border-rose-200 rounded flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-rose-700 font-bold text-xs">
+                                            ✓ PDF Attached:
+                                          </span>
+                                          <span className="text-xs font-mono text-slate-700 truncate max-w-sm">
+                                            {les.pdfUrl}
+                                          </span>
+                                        </div>
+                                        <a
+                                          href={les.pdfUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs font-bold text-rose-700 hover:underline flex items-center gap-1"
+                                        >
+                                          <Icon name="open_in_new" size={13} />
+                                          <span>Open PDF</span>
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* TAB 4 CONTENT: QUICK QUIZ QUESTIONS */}
+                                {currentTab === 'QUIZ' && (
+                                  <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div>
+                                        <h5 className="text-xs font-bold text-slate-800">
+                                          Practice Quiz / Quick Questions for Lecture {lessonCode}
+                                        </h5>
+                                        <p className="text-[11px] text-slate-500">
+                                          Students test their comprehension after watching this lecture.
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextQ: QuizConfig = {
                                             ...qConf,
                                             questions: [
+                                              ...qConf.questions,
                                               {
-                                                id: `q-${Date.now()}`,
+                                                id: `q-${Date.now()}-${qConf.questions.length}`,
                                                 question: '',
                                                 options: ['Option A', 'Option B', 'Option C', 'Option D'],
                                                 correctIndex: 0,
@@ -1004,427 +1328,221 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                               }
                                             ]
                                           };
-                                          handleUpdateLessonInline(section.id, les.id, { quizData: newQuiz });
-                                        }
-                                        toggleQuickQuizPanel(les.id);
-                                      }}
-                                      className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer ${
-                                        qCount > 0
-                                          ? 'bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border border-amber-300'
-                                          : 'bg-slate-100 hover:bg-amber-600 text-slate-700 hover:text-white'
-                                      }`}
-                                      title="Add or edit Quick Questions / Practice Quiz for this lesson"
-                                    >
-                                      <Icon name="quiz" size={14} />
-                                      <span>
-                                        {qCount > 0 ? `❓ Quick Questions (${qCount})` : '+ Quick Question'}
-                                      </span>
-                                    </button>
-                                  );
-                                })()}
-
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
-                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                                  title="Open Full Multi-Content Editor"
-                                >
-                                  <Icon name="tune" size={14} />
-                                  <span>Full Editor</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteLesson(section.id, les.id)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                                  title="Delete Lesson"
-                                >
-                                  <Icon name="delete" size={16} />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* ALL-IN-ONE MULTI-CONTENT HUB FOR LESSON 1.1 (Video + PDF + Text Notes + Quick Questions) */}
-                            <div className="pl-0 sm:pl-14 space-y-2.5 pt-1">
-                              {/* Status Pills showing attached resources inside 1.1 */}
-                              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
-                                <span className="text-slate-400 uppercase tracking-wider mr-1">
-                                  Included in {lessonCode}:
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded-md border ${
-                                    les.videoUrl
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : 'bg-slate-50 text-slate-400 border-slate-200'
-                                  }`}
-                                >
-                                  🎬 Video {les.videoUrl ? '✓' : '(Optional)'}
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded-md border ${
-                                    les.pdfUrl
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : 'bg-slate-50 text-slate-400 border-slate-200'
-                                  }`}
-                                >
-                                  📑 PDF {les.pdfUrl ? '✓' : '(Optional)'}
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded-md border ${
-                                    les.content
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : 'bg-slate-50 text-slate-400 border-slate-200'
-                                  }`}
-                                >
-                                  📝 Text Notes {les.content ? '✓' : '(Optional)'}
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded-md border ${
-                                    parseQuizConfig(les.quizData).questions.length > 0
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : 'bg-slate-50 text-slate-400 border-slate-200'
-                                  }`}
-                                >
-                                  ❓ Quick Questions ({parseQuizConfig(les.quizData).questions.length})
-                                </span>
-                              </div>
-
-                              {/* Row 1: Video URL/Upload + PDF URL/Upload */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                {/* 1. VIDEO INPUT */}
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] font-bold text-indigo-700 shrink-0 w-14">
-                                    🎬 Video:
-                                  </span>
-                                  <input
-                                    type="text"
-                                    value={les.videoUrl || ''}
-                                    onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, {
-                                        videoUrl: e.target.value
-                                      })
-                                    }
-                                    placeholder={`Video URL for ${lessonCode} or Upload →`}
-                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                  />
-                                  <label
-                                    className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                                    title="Upload Video from System (PC/Laptop) or Mobile Phone"
-                                  >
-                                    <Icon name="upload_file" size={13} />
-                                    <span>Browse</span>
-                                    <input
-                                      type="file"
-                                      accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                                      className="hidden"
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) {
-                                          handleDirectDeviceFileSelect(f, section.id, les.id);
-                                          e.target.value = '';
-                                        }
-                                      }}
-                                    />
-                                  </label>
-                                </div>
-
-                                {/* 2. PDF INPUT */}
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] font-bold text-rose-700 shrink-0 w-14">
-                                    📑 PDF:
-                                  </span>
-                                  <input
-                                    type="text"
-                                    value={les.pdfUrl || ''}
-                                    onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, {
-                                        pdfUrl: e.target.value
-                                      })
-                                    }
-                                    placeholder={`PDF URL for ${lessonCode} or Upload PDF →`}
-                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-rose-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                  />
-                                  <label
-                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                                    title="Upload PDF from System (PC/Laptop) or Mobile Phone"
-                                  >
-                                    <Icon name="picture_as_pdf" size={13} />
-                                    <span>Browse</span>
-                                    <input
-                                      type="file"
-                                      accept=".pdf,application/pdf"
-                                      className="hidden"
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) {
-                                          handleDirectPdfFileSelect(f, section.id, les.id);
-                                          e.target.value = '';
-                                        }
-                                      }}
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-
-                              {/* Row 2: Text / Study Notes + Lesson Description */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                {/* 3. TEXT / STUDY NOTES */}
-                                <div className="flex items-start gap-1.5">
-                                  <span className="text-[11px] font-bold text-emerald-700 shrink-0 w-14 pt-1.5">
-                                    📝 Notes:
-                                  </span>
-                                  <textarea
-                                    rows={2}
-                                    value={les.content || ''}
-                                    onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, {
-                                        content: e.target.value
-                                      })
-                                    }
-                                    placeholder={`Write Text / Study Notes / Article for ${lessonCode} here...`}
-                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none resize-y"
-                                  />
-                                </div>
-
-                                {/* 4. LESSON OVERVIEW / DESCRIPTION */}
-                                <div className="flex items-start gap-1.5">
-                                  <span className="text-[11px] font-bold text-slate-600 shrink-0 w-14 pt-1.5">
-                                    📌 Info:
-                                  </span>
-                                  <textarea
-                                    rows={2}
-                                    value={les.description || ''}
-                                    onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, {
-                                        description: e.target.value
-                                      })
-                                    }
-                                    placeholder={`Short overview / summary for ${lessonCode} (optional)...`}
-                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none resize-y"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Row 3: Inline Quick Questions / Mini Quiz Builder for Lesson 1.1 */}
-                              {(() => {
-                                const qConf = parseQuizConfig(les.quizData);
-                                const isExpanded =
-                                  expandedQuickQuizIds[les.id] || qConf.questions.length > 0;
-                                if (!isExpanded) return null;
-
-                                return (
-                                  <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 space-y-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className="text-xs font-extrabold text-amber-900 flex items-center gap-1.5">
-                                        <Icon name="quiz" size={15} className="text-amber-600" />
-                                        <span>
-                                          Quick Questions / Practice Quiz for {lessonCode} (
-                                          {qConf.questions.length})
-                                        </span>
-                                      </span>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const updated: QuizConfig = {
-                                              ...qConf,
-                                              questions: [
-                                                ...qConf.questions,
-                                                {
-                                                  id: `q-${Date.now()}-${qConf.questions.length}`,
-                                                  question: '',
-                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                  correctIndex: 0,
-                                                  explanation: '',
-                                                  points: 10
-                                                }
-                                              ]
-                                            };
-                                            handleUpdateLessonInline(section.id, les.id, {
-                                              quizData: updated
-                                            });
-                                          }}
-                                          className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                                        >
-                                          <Icon name="add" size={13} />
-                                          <span>+ Add Question</span>
-                                        </button>
-                                      </div>
+                                          handleUpdateLessonInline(section.id, les.id, {
+                                            quizData: nextQ
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-[#2d2f31] hover:bg-black text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                      >
+                                        <Icon name="add" size={14} />
+                                        <span>+ Add Question</span>
+                                      </button>
                                     </div>
 
-                                    <div className="space-y-2.5">
-                                      {qConf.questions.map((q, qIdx) => (
-                                        <div
-                                          key={q.id || qIdx}
-                                          className="p-3 rounded-xl bg-white border border-amber-200 space-y-2 shadow-2xs"
-                                        >
-                                          <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[11px] font-black text-amber-800 font-mono">
-                                              Q{qIdx + 1} ({lessonCode})
-                                            </span>
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                const updated: QuizConfig = {
-                                                  ...qConf,
-                                                  questions: qConf.questions.filter((_, idx) => idx !== qIdx)
-                                                };
+                                    {qConf.questions.length === 0 ? (
+                                      <div className="p-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] rounded bg-slate-50">
+                                        No questions added yet. Click &ldquo;+ Add Question&rdquo; above to create practice questions for this lecture.
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {qConf.questions.map((q, qIdx) => (
+                                          <div
+                                            key={q.id || qIdx}
+                                            className="p-3.5 bg-slate-50 border border-[#d1d7dc] rounded-md space-y-3"
+                                          >
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span className="text-xs font-extrabold text-slate-800 font-mono">
+                                                Question {qIdx + 1}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const nextQuestions = qConf.questions.filter(
+                                                    (_, idx) => idx !== qIdx
+                                                  );
+                                                  handleUpdateLessonInline(section.id, les.id, {
+                                                    quizData: { ...qConf, questions: nextQuestions }
+                                                  });
+                                                }}
+                                                className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                                                title="Delete Question"
+                                              >
+                                                <Icon name="delete" size={15} />
+                                              </button>
+                                            </div>
+
+                                            <input
+                                              type="text"
+                                              value={q.question}
+                                              onChange={(e) => {
+                                                const nextQ = [...qConf.questions];
+                                                nextQ[qIdx] = { ...q, question: e.target.value };
                                                 handleUpdateLessonInline(section.id, les.id, {
-                                                  quizData: updated
+                                                  quizData: { ...qConf, questions: nextQ }
                                                 });
                                               }}
-                                              className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
-                                              title="Delete Question"
-                                            >
-                                              <Icon name="delete" size={15} />
-                                            </button>
+                                              placeholder="Enter the question prompt here..."
+                                              className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none"
+                                            />
+
+                                            {/* 4 Choices */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                              {q.options.map((opt, oIdx) => {
+                                                const isCorrect = q.correctIndex === oIdx;
+                                                return (
+                                                  <div
+                                                    key={oIdx}
+                                                    className={`flex items-center gap-2 p-2 rounded border transition-colors ${
+                                                      isCorrect
+                                                        ? 'bg-emerald-50 border-emerald-400'
+                                                        : 'bg-white border-[#d1d7dc]'
+                                                    }`}
+                                                  >
+                                                    <input
+                                                      type="radio"
+                                                      name={`les-q-${les.id}-${qIdx}`}
+                                                      checked={isCorrect}
+                                                      onChange={() => {
+                                                        const nextQ = [...qConf.questions];
+                                                        nextQ[qIdx] = { ...q, correctIndex: oIdx };
+                                                        handleUpdateLessonInline(section.id, les.id, {
+                                                          quizData: { ...qConf, questions: nextQ }
+                                                        });
+                                                      }}
+                                                      className="text-emerald-600 cursor-pointer"
+                                                      title="Mark as correct answer"
+                                                    />
+                                                    <input
+                                                      type="text"
+                                                      value={opt}
+                                                      onChange={(e) => {
+                                                        const nextOpts = [...q.options];
+                                                        nextOpts[oIdx] = e.target.value;
+                                                        const nextQ = [...qConf.questions];
+                                                        nextQ[qIdx] = { ...q, options: nextOpts };
+                                                        handleUpdateLessonInline(section.id, les.id, {
+                                                          quizData: { ...qConf, questions: nextQ }
+                                                        });
+                                                      }}
+                                                      className="flex-1 bg-transparent border-0 text-xs text-slate-800 focus:outline-none"
+                                                    />
+                                                    {isCorrect && (
+                                                      <span className="text-[10px] font-bold text-emerald-700">
+                                                        ✓ Correct
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+
+                                            <input
+                                              type="text"
+                                              value={q.explanation || ''}
+                                              onChange={(e) => {
+                                                const nextQ = [...qConf.questions];
+                                                nextQ[qIdx] = { ...q, explanation: e.target.value };
+                                                handleUpdateLessonInline(section.id, les.id, {
+                                                  quizData: { ...qConf, questions: nextQ }
+                                                });
+                                              }}
+                                              placeholder="Explanation of correct answer (optional)..."
+                                              className="w-full bg-white border border-[#d1d7dc] rounded px-2.5 py-1 text-[11px] text-slate-600 focus:outline-none"
+                                            />
                                           </div>
-
-                                          <input
-                                            type="text"
-                                            value={q.question}
-                                            onChange={(e) => {
-                                              const nextQuestions = [...qConf.questions];
-                                              nextQuestions[qIdx] = { ...q, question: e.target.value };
-                                              handleUpdateLessonInline(section.id, les.id, {
-                                                quizData: { ...qConf, questions: nextQuestions }
-                                              });
-                                            }}
-                                            placeholder={`Type Question ${qIdx + 1} here...`}
-                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-amber-500 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none"
-                                          />
-
-                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            {q.options.map((opt, oIdx) => {
-                                              const isCorrect = q.correctIndex === oIdx;
-                                              return (
-                                                <div
-                                                  key={oIdx}
-                                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${
-                                                    isCorrect
-                                                      ? 'bg-emerald-50 border-emerald-500'
-                                                      : 'bg-slate-50 border-slate-200'
-                                                  }`}
-                                                >
-                                                  <input
-                                                    type="radio"
-                                                    name={`inline-q-${les.id}-${qIdx}`}
-                                                    checked={isCorrect}
-                                                    onChange={() => {
-                                                      const nextQuestions = [...qConf.questions];
-                                                      nextQuestions[qIdx] = { ...q, correctIndex: oIdx };
-                                                      handleUpdateLessonInline(section.id, les.id, {
-                                                        quizData: { ...qConf, questions: nextQuestions }
-                                                      });
-                                                    }}
-                                                    className="text-emerald-600 cursor-pointer"
-                                                    title="Mark as correct option"
-                                                  />
-                                                  <input
-                                                    type="text"
-                                                    value={opt}
-                                                    onChange={(e) => {
-                                                      const nextOpts = [...q.options];
-                                                      nextOpts[oIdx] = e.target.value;
-                                                      const nextQuestions = [...qConf.questions];
-                                                      nextQuestions[qIdx] = { ...q, options: nextOpts };
-                                                      handleUpdateLessonInline(section.id, les.id, {
-                                                        quizData: { ...qConf, questions: nextQuestions }
-                                                      });
-                                                    }}
-                                                    placeholder={`Option ${oIdx + 1}`}
-                                                    className="flex-1 bg-transparent border-0 text-xs text-slate-800 focus:outline-none"
-                                                  />
-                                                  {isCorrect && (
-                                                    <span className="text-[10px] font-extrabold text-emerald-700">
-                                                      ✓ Correct
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-
-                                          <input
-                                            type="text"
-                                            value={q.explanation || ''}
-                                            onChange={(e) => {
-                                              const nextQuestions = [...qConf.questions];
-                                              nextQuestions[qIdx] = { ...q, explanation: e.target.value };
-                                              handleUpdateLessonInline(section.id, les.id, {
-                                                quizData: { ...qConf, questions: nextQuestions }
-                                              });
-                                            }}
-                                            placeholder="Explanation / answer hint (optional)..."
-                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-600 focus:outline-none"
-                                          />
-                                        </div>
-                                      ))}
-                                    </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
-                                );
-                              })()}
-                            </div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
-                          {/* Sub-Topics / Sub-Categories List (e.g. 1.1.1, 1.1.2, 2.1.1) */}
+                          {/* SUB-TOPICS LIST (e.g. 1.1.1, 1.1.2, 2.1.1) */}
                           {subLessons.length > 0 && (
-                            <div className="bg-indigo-50/40 border-t border-indigo-100 px-4 sm:px-6 py-3.5 space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
-                                  <Icon name="account_tree" size={14} className="text-indigo-600" />
-                                  <span>
-                                    Sub-Categories / Sub-Topics under {lessonCode} ({subLessons.length})
-                                  </span>
+                            <div className="ml-6 sm:ml-10 border-l-2 border-indigo-200 pl-3 sm:pl-4 space-y-2 py-1">
+                              <div className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-700 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                  <Icon name="subdirectory_arrow_right" size={14} />
+                                  <span>Sub-Topics under Lecture {lessonCode} ({subLessons.length})</span>
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleAddSubLesson(section.id, les.id)}
-                                  className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
+                                  className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer"
                                 >
-                                  <Icon name="add_circle" size={14} />
-                                  <span>+ Add {nextSubCode}</span>
+                                  + Add {nextSubCode}
                                 </button>
                               </div>
 
-                              <div className="space-y-2.5 pl-3 sm:pl-5 border-l-2 border-indigo-300">
-                                {subLessons.map((sub, subIdx) => {
-                                  const subCode = `${lessonCode}.${subIdx + 1}`;
-                                  const subQuiz = parseQuizConfig(sub.quizData);
+                              {subLessons.map((sub, subIdx) => {
+                                const subCode = `${lessonCode}.${subIdx + 1}`;
+                                const subQuiz = parseQuizConfig(sub.quizData);
+                                const subQCount = subQuiz.questions.length;
+                                const subHasContent = !!(
+                                  sub.videoUrl ||
+                                  sub.content ||
+                                  sub.pdfUrl ||
+                                  subQCount > 0
+                                );
+                                const isSubDrawerOpen = openContentDrawerId === sub.id;
+                                const subCurrentTab =
+                                  activeContentTab[sub.id] ||
+                                  (sub.type === 'QUIZ'
+                                    ? 'QUIZ'
+                                    : sub.type === 'TEXT'
+                                    ? 'TEXT'
+                                    : sub.type === 'PDF'
+                                    ? 'PDF'
+                                    : 'VIDEO');
 
-                                  return (
-                                    <div
-                                      key={sub.id}
-                                      className="p-3 rounded-xl bg-white border border-indigo-200/80 shadow-2xs space-y-2.5"
-                                    >
-                                      <div className="flex flex-wrap items-center gap-2">
+                                return (
+                                  <div
+                                    key={sub.id}
+                                    className="border border-[#d1d7dc] bg-white rounded-md shadow-2xs overflow-hidden"
+                                  >
+                                    <div className="p-2.5 sm:p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <div className="flex items-center gap-0.5">
                                           <button
                                             type="button"
                                             disabled={subIdx === 0}
                                             onClick={() => moveSubLesson(section.id, les.id, subIdx, 'up')}
-                                            className="text-slate-400 hover:text-indigo-600 disabled:opacity-30 cursor-pointer"
+                                            className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30 cursor-pointer"
                                             title="Move sub-topic up"
                                           >
-                                            <Icon name="arrow_upward" size={13} />
+                                            <Icon name="arrow_upward" size={12} />
                                           </button>
                                           <button
                                             type="button"
                                             disabled={subIdx === subLessons.length - 1}
                                             onClick={() => moveSubLesson(section.id, les.id, subIdx, 'down')}
-                                            className="text-slate-400 hover:text-indigo-600 disabled:opacity-30 cursor-pointer"
+                                            className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30 cursor-pointer"
                                             title="Move sub-topic down"
                                           >
-                                            <Icon name="arrow_downward" size={13} />
+                                            <Icon name="arrow_downward" size={12} />
                                           </button>
                                         </div>
 
-                                        {/* Sub-Topic Code Badge: 1.1.1, 1.1.2, 2.1.1 */}
-                                        <span className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 border border-violet-300 font-mono font-black text-[11px] shrink-0">
-                                          {subCode}
+                                        {subHasContent ? (
+                                          <span
+                                            className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-bold shrink-0"
+                                            title="Content attached"
+                                          >
+                                            ✓
+                                          </span>
+                                        ) : (
+                                          <span
+                                            className="w-4 h-4 rounded-full border border-slate-300 shrink-0"
+                                            title="No content attached"
+                                          />
+                                        )}
+
+                                        <span className="font-bold text-xs text-indigo-800 shrink-0 font-mono">
+                                          Sub-Topic {subCode}:
                                         </span>
 
-                                        {/* Sub-Topic Title */}
                                         <input
                                           type="text"
                                           value={sub.title}
@@ -1434,328 +1552,418 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                               code: subCode
                                             })
                                           }
-                                          placeholder={`${subCode} Sub-Topic Title...`}
-                                          className="flex-1 min-w-[180px] bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-600 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none"
+                                          placeholder={`${subCode} Sub-Topic Title`}
+                                          className="flex-1 min-w-[140px] bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-indigo-600 rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none"
                                         />
 
-                                        {/* Sub-Topic Duration */}
-                                        <input
-                                          type="text"
-                                          value={sub.duration || '05:00'}
-                                          onChange={(e) =>
-                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                              duration: e.target.value
-                                            })
-                                          }
-                                          placeholder="05:00"
-                                          className="w-14 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono text-center text-slate-700 focus:outline-none"
-                                        />
+                                        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                                          {sub.videoUrl && (
+                                            <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border">
+                                              🎬 Video {sub.duration ? `(${sub.duration})` : ''}
+                                            </span>
+                                          )}
+                                          {sub.pdfUrl && (
+                                            <span className="text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border">
+                                              📑 PDF
+                                            </span>
+                                          )}
+                                          {sub.content && (
+                                            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border">
+                                              📝 Notes
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
 
-                                        {/* Upload Video (PC/Phone) for Sub-Topic */}
-                                        <label
-                                          className={`px-2.5 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
-                                            uploadingItemId === sub.id
-                                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                              : sub.videoUrl
-                                              ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
-                                              : 'bg-violet-600 hover:bg-violet-700 text-white'
-                                          }`}
-                                          title="Upload Video from System (PC/Laptop) or Mobile Phone"
-                                        >
-                                          <Icon
-                                            name={
-                                              uploadingItemId === sub.id
-                                                ? 'sync'
-                                                : sub.videoUrl
-                                                ? 'check_circle'
-                                                : 'upload_file'
-                                            }
-                                            size={13}
-                                          />
-                                          <span>
-                                            {uploadingItemId === sub.id
-                                              ? 'Uploading...'
-                                              : sub.videoUrl
-                                              ? '✓ Video'
-                                              : '+ Video (PC/Phone)'}
-                                          </span>
-                                          <input
-                                            type="file"
-                                            accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                              const f = e.target.files?.[0];
-                                              if (f) {
-                                                handleDirectDeviceFileSelect(f, section.id, les.id, sub.id);
-                                                e.target.value = '';
-                                              }
-                                            }}
-                                          />
-                                        </label>
-
-                                        {/* Upload PDF (PC/Phone) for Sub-Topic */}
-                                        <label
-                                          className={`px-2 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
-                                            uploadingPdfItemId === sub.id
-                                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                              : sub.pdfUrl
-                                              ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
-                                              : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
-                                          }`}
-                                          title="Upload PDF from PC or Mobile Phone"
-                                        >
-                                          <Icon name="picture_as_pdf" size={12} />
-                                          <span>{sub.pdfUrl ? '✓ PDF' : '+ PDF'}</span>
-                                          <input
-                                            type="file"
-                                            accept=".pdf,application/pdf"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                              const f = e.target.files?.[0];
-                                              if (f) {
-                                                handleDirectPdfFileSelect(f, section.id, les.id, sub.id);
-                                                e.target.value = '';
-                                              }
-                                            }}
-                                          />
-                                        </label>
-
-                                        {/* Quick Question Button for Sub-Topic */}
+                                      <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                         <button
                                           type="button"
-                                          onClick={() => {
-                                            if (subQuiz.questions.length === 0 && !expandedQuickQuizIds[sub.id]) {
-                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                quizData: {
-                                                  ...subQuiz,
-                                                  questions: [
-                                                    {
-                                                      id: `sq-${Date.now()}`,
-                                                      question: '',
-                                                      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                      correctIndex: 0,
-                                                      explanation: '',
-                                                      points: 10
-                                                    }
-                                                  ]
-                                                }
-                                              });
-                                            }
-                                            toggleQuickQuizPanel(sub.id);
-                                          }}
-                                          className={`px-2 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
-                                            subQuiz.questions.length > 0
-                                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                              : 'bg-slate-100 hover:bg-amber-600 text-slate-700 hover:text-white'
+                                          onClick={() => toggleContentDrawer(sub.id)}
+                                          className={`px-2.5 py-1 rounded border text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
+                                            isSubDrawerOpen
+                                              ? 'bg-indigo-600 text-white border-indigo-600'
+                                              : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-300'
                                           }`}
                                         >
-                                          <Icon name="quiz" size={12} />
                                           <span>
-                                            {subQuiz.questions.length > 0
-                                              ? `❓ Questions (${subQuiz.questions.length})`
-                                              : '+ Quick Question'}
+                                            {isSubDrawerOpen
+                                              ? '✕ Close'
+                                              : subHasContent
+                                              ? 'Edit Content'
+                                              : '+ Content'}
                                           </span>
+                                          <Icon
+                                            name={isSubDrawerOpen ? 'expand_less' : 'expand_more'}
+                                            size={14}
+                                          />
                                         </button>
 
                                         <button
                                           type="button"
                                           onClick={() => handleDeleteSubLesson(section.id, les.id, sub.id)}
-                                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                                          className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
                                           title={`Remove ${subCode}`}
                                         >
-                                          <Icon name="close" size={15} />
+                                          <Icon name="delete" size={14} />
                                         </button>
                                       </div>
+                                    </div>
 
-                                      {/* All-in-One Multi-Format Grid for Sub-Topic 1.1.1 */}
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-6">
-                                        {/* Sub-Topic Video URL */}
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-bold text-violet-700 shrink-0 w-12">
-                                            🎬 Video:
+                                    {/* SUB-TOPIC CONTENT DRAWER */}
+                                    {isSubDrawerOpen && (
+                                      <div className="border-t border-[#d1d7dc] bg-[#f7f9fa] p-3.5 sm:p-4 space-y-3">
+                                        <div className="flex items-center justify-between pb-2 border-b border-[#d1d7dc]">
+                                          <span className="text-xs font-bold text-indigo-900">
+                                            Content for Sub-Topic {subCode}
                                           </span>
-                                          <input
-                                            type="text"
-                                            value={sub.videoUrl || ''}
-                                            onChange={(e) =>
-                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                videoUrl: e.target.value
-                                              })
-                                            }
-                                            placeholder={`Video URL for ${subCode} or click + Video...`}
-                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => setOpenContentDrawerId(null)}
+                                            className="text-xs text-slate-500 hover:text-slate-900 cursor-pointer"
+                                          >
+                                            ✕ Close
+                                          </button>
                                         </div>
 
-                                        {/* Sub-Topic PDF URL */}
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-bold text-rose-700 shrink-0 w-12">
-                                            📑 PDF:
-                                          </span>
-                                          <input
-                                            type="text"
-                                            value={sub.pdfUrl || ''}
-                                            onChange={(e) =>
-                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                pdfUrl: e.target.value
-                                              })
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setActiveContentTab((prev) => ({ ...prev, [sub.id]: 'VIDEO' }))
                                             }
-                                            placeholder={`PDF URL for ${subCode} or click + PDF...`}
-                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-rose-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                          />
+                                            className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                                              subCurrentTab === 'VIDEO'
+                                                ? 'bg-indigo-700 text-white'
+                                                : 'bg-white text-slate-700 border border-[#d1d7dc]'
+                                            }`}
+                                          >
+                                            🎬 Video {sub.videoUrl && '✓'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setActiveContentTab((prev) => ({ ...prev, [sub.id]: 'TEXT' }))
+                                            }
+                                            className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                                              subCurrentTab === 'TEXT'
+                                                ? 'bg-indigo-700 text-white'
+                                                : 'bg-white text-slate-700 border border-[#d1d7dc]'
+                                            }`}
+                                          >
+                                            📝 Notes {sub.content && '✓'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setActiveContentTab((prev) => ({ ...prev, [sub.id]: 'PDF' }))
+                                            }
+                                            className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                                              subCurrentTab === 'PDF'
+                                                ? 'bg-indigo-700 text-white'
+                                                : 'bg-white text-slate-700 border border-[#d1d7dc]'
+                                            }`}
+                                          >
+                                            📑 PDF {sub.pdfUrl && '✓'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setActiveContentTab((prev) => ({ ...prev, [sub.id]: 'QUIZ' }))
+                                            }
+                                            className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                                              subCurrentTab === 'QUIZ'
+                                                ? 'bg-indigo-700 text-white'
+                                                : 'bg-white text-slate-700 border border-[#d1d7dc]'
+                                            }`}
+                                          >
+                                            ❓ Quiz ({subQCount})
+                                          </button>
                                         </div>
 
-                                        {/* Sub-Topic Text Notes */}
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-bold text-emerald-700 shrink-0 w-12">
-                                            📝 Notes:
-                                          </span>
-                                          <input
-                                            type="text"
-                                            value={sub.content || ''}
-                                            onChange={(e) =>
-                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                content: e.target.value
-                                              })
-                                            }
-                                            placeholder={`Text / study notes for ${subCode}...`}
-                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        {/* Sub-Topic Description */}
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-bold text-slate-600 shrink-0 w-12">
-                                            📌 Info:
-                                          </span>
-                                          <input
-                                            type="text"
-                                            value={sub.description || ''}
-                                            onChange={(e) =>
-                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                description: e.target.value
-                                              })
-                                            }
-                                            placeholder={`Sub-topic ${subCode} summary...`}
-                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Sub-Topic Quick Questions Panel */}
-                                      {(expandedQuickQuizIds[sub.id] || subQuiz.questions.length > 0) && (
-                                        <div className="ml-6 p-3 rounded-xl bg-amber-50/60 border border-amber-200 space-y-2">
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-[11px] font-extrabold text-amber-900">
-                                              ❓ Quick Questions for {subCode} ({subQuiz.questions.length})
-                                            </span>
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                  quizData: {
-                                                    ...subQuiz,
-                                                    questions: [
-                                                      ...subQuiz.questions,
-                                                      {
-                                                        id: `sq-${Date.now()}`,
-                                                        question: '',
-                                                        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                        correctIndex: 0,
-                                                        explanation: '',
-                                                        points: 10
-                                                      }
-                                                    ]
+                                        {/* Sub-Topic Video */}
+                                        {subCurrentTab === 'VIDEO' && (
+                                          <div className="p-3 bg-white border border-[#d1d7dc] rounded space-y-3">
+                                            <div className="flex flex-col sm:flex-row gap-3 items-center">
+                                              <label
+                                                className={`px-3 py-2 rounded text-xs font-bold cursor-pointer transition-colors ${
+                                                  uploadingItemId === sub.id
+                                                    ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                }`}
+                                              >
+                                                <Icon
+                                                  name={
+                                                    uploadingItemId === sub.id ? 'sync' : 'upload_file'
                                                   }
-                                                });
-                                              }}
-                                              className="px-2.5 py-0.5 bg-amber-600 text-white rounded-md text-[10px] font-bold cursor-pointer"
-                                            >
-                                              + Add Question
-                                            </button>
-                                          </div>
-                                          {subQuiz.questions.map((sq, sqIdx) => (
-                                            <div
-                                              key={sq.id || sqIdx}
-                                              className="p-2.5 bg-white rounded-lg border border-amber-200 space-y-1.5"
-                                            >
-                                              <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-amber-800">
-                                                  Q{sqIdx + 1}
+                                                  size={14}
+                                                  className="inline mr-1"
+                                                />
+                                                <span>
+                                                  {uploadingItemId === sub.id
+                                                    ? 'Uploading...'
+                                                    : 'Upload Video (PC/Phone)'}
                                                 </span>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                      quizData: {
-                                                        ...subQuiz,
-                                                        questions: subQuiz.questions.filter(
-                                                          (_, idx) => idx !== sqIdx
-                                                        )
-                                                      }
-                                                    });
+                                                <input
+                                                  type="file"
+                                                  accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                                  className="hidden"
+                                                  onChange={(e) => {
+                                                    const f = e.target.files?.[0];
+                                                    if (f) {
+                                                      handleDirectDeviceFileSelect(
+                                                        f,
+                                                        section.id,
+                                                        les.id,
+                                                        sub.id
+                                                      );
+                                                      e.target.value = '';
+                                                    }
                                                   }}
-                                                  className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                                                >
-                                                  <Icon name="delete" size={13} />
-                                                </button>
-                                              </div>
+                                                />
+                                              </label>
                                               <input
                                                 type="text"
-                                                value={sq.question}
-                                                onChange={(e) => {
-                                                  const nextQ = [...subQuiz.questions];
-                                                  nextQ[sqIdx] = { ...sq, question: e.target.value };
+                                                value={sub.videoUrl || ''}
+                                                onChange={(e) =>
                                                   handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                    quizData: { ...subQuiz, questions: nextQ }
+                                                    videoUrl: e.target.value
+                                                  })
+                                                }
+                                                placeholder="Or paste video URL (YouTube, Vimeo, MP4)..."
+                                                className="flex-1 bg-slate-50 border border-[#d1d7dc] rounded px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
+                                              />
+                                            </div>
+                                            {sub.videoUrl && (
+                                              <div className="text-xs text-emerald-700 flex items-center justify-between">
+                                                <span>✓ Attached: {sub.videoUrl}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                      videoUrl: ''
+                                                    })
+                                                  }
+                                                  className="text-rose-600 hover:underline"
+                                                >
+                                                  Remove
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Sub-Topic Notes */}
+                                        {subCurrentTab === 'TEXT' && (
+                                          <div className="p-3 bg-white border border-[#d1d7dc] rounded space-y-2">
+                                            <textarea
+                                              rows={4}
+                                              value={sub.content || ''}
+                                              onChange={(e) =>
+                                                handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                  content: e.target.value
+                                                })
+                                              }
+                                              placeholder={`Study notes / reading text for ${subCode}...`}
+                                              className="w-full bg-slate-50 border border-[#d1d7dc] rounded p-2 text-xs text-slate-800 focus:outline-none"
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Sub-Topic PDF */}
+                                        {subCurrentTab === 'PDF' && (
+                                          <div className="p-3 bg-white border border-[#d1d7dc] rounded space-y-3">
+                                            <div className="flex flex-col sm:flex-row gap-3 items-center">
+                                              <label
+                                                className={`px-3 py-2 rounded text-xs font-bold cursor-pointer transition-colors ${
+                                                  uploadingPdfItemId === sub.id
+                                                    ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                                    : 'bg-rose-600 hover:bg-rose-700 text-white'
+                                                }`}
+                                              >
+                                                <Icon
+                                                  name={
+                                                    uploadingPdfItemId === sub.id
+                                                      ? 'sync'
+                                                      : 'picture_as_pdf'
+                                                  }
+                                                  size={14}
+                                                  className="inline mr-1"
+                                                />
+                                                <span>
+                                                  {uploadingPdfItemId === sub.id
+                                                    ? 'Uploading...'
+                                                    : 'Upload PDF (PC/Phone)'}
+                                                </span>
+                                                <input
+                                                  type="file"
+                                                  accept=".pdf,application/pdf"
+                                                  className="hidden"
+                                                  onChange={(e) => {
+                                                    const f = e.target.files?.[0];
+                                                    if (f) {
+                                                      handleDirectPdfFileSelect(
+                                                        f,
+                                                        section.id,
+                                                        les.id,
+                                                        sub.id
+                                                      );
+                                                      e.target.value = '';
+                                                    }
+                                                  }}
+                                                />
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={sub.pdfUrl || ''}
+                                                onChange={(e) =>
+                                                  handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                    pdfUrl: e.target.value
+                                                  })
+                                                }
+                                                placeholder="Or paste PDF document URL..."
+                                                className="flex-1 bg-slate-50 border border-[#d1d7dc] rounded px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
+                                              />
+                                            </div>
+                                            {sub.pdfUrl && (
+                                              <div className="text-xs text-rose-700 flex items-center justify-between">
+                                                <span>✓ Attached: {sub.pdfUrl}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                      pdfUrl: ''
+                                                    })
+                                                  }
+                                                  className="text-rose-600 hover:underline"
+                                                >
+                                                  Remove
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Sub-Topic Quiz */}
+                                        {subCurrentTab === 'QUIZ' && (
+                                          <div className="p-3 bg-white border border-[#d1d7dc] rounded space-y-3">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs font-bold text-slate-800">
+                                                Questions for {subCode} ({subQCount})
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                    quizData: {
+                                                      ...subQuiz,
+                                                      questions: [
+                                                        ...subQuiz.questions,
+                                                        {
+                                                          id: `sq-${Date.now()}`,
+                                                          question: '',
+                                                          options: [
+                                                            'Option A',
+                                                            'Option B',
+                                                            'Option C',
+                                                            'Option D'
+                                                          ],
+                                                          correctIndex: 0,
+                                                          explanation: '',
+                                                          points: 10
+                                                        }
+                                                      ]
+                                                    }
                                                   });
                                                 }}
-                                                placeholder="Enter quick question..."
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[11px] font-bold"
-                                              />
-                                              <div className="grid grid-cols-2 gap-1.5">
-                                                {sq.options.map((opt, oIdx) => (
-                                                  <div
-                                                    key={oIdx}
-                                                    className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border border-slate-200"
-                                                  >
-                                                    <input
-                                                      type="radio"
-                                                      name={`sub-q-${sub.id}-${sqIdx}`}
-                                                      checked={sq.correctIndex === oIdx}
-                                                      onChange={() => {
-                                                        const nextQ = [...subQuiz.questions];
-                                                        nextQ[sqIdx] = { ...sq, correctIndex: oIdx };
-                                                        handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                          quizData: { ...subQuiz, questions: nextQ }
-                                                        });
-                                                      }}
-                                                    />
-                                                    <input
-                                                      type="text"
-                                                      value={opt}
-                                                      onChange={(e) => {
-                                                        const nextOpts = [...sq.options];
-                                                        nextOpts[oIdx] = e.target.value;
-                                                        const nextQ = [...subQuiz.questions];
-                                                        nextQ[sqIdx] = { ...sq, options: nextOpts };
-                                                        handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                          quizData: { ...subQuiz, questions: nextQ }
-                                                        });
-                                                      }}
-                                                      className="w-full bg-transparent text-[10px] focus:outline-none"
-                                                    />
-                                                  </div>
-                                                ))}
-                                              </div>
+                                                className="px-2.5 py-1 bg-indigo-600 text-white text-xs font-bold rounded"
+                                              >
+                                                + Add Question
+                                              </button>
                                             </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
+
+                                            {subQuiz.questions.map((sq, sqIdx) => (
+                                              <div
+                                                key={sq.id || sqIdx}
+                                                className="p-2.5 bg-slate-50 border border-[#d1d7dc] rounded space-y-2"
+                                              >
+                                                <div className="flex items-center justify-between">
+                                                  <span className="text-[11px] font-bold text-slate-700">
+                                                    Q{sqIdx + 1}
+                                                  </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                        quizData: {
+                                                          ...subQuiz,
+                                                          questions: subQuiz.questions.filter(
+                                                            (_, idx) => idx !== sqIdx
+                                                          )
+                                                        }
+                                                      });
+                                                    }}
+                                                    className="text-slate-400 hover:text-rose-600 p-0.5"
+                                                  >
+                                                    <Icon name="delete" size={13} />
+                                                  </button>
+                                                </div>
+                                                <input
+                                                  type="text"
+                                                  value={sq.question}
+                                                  onChange={(e) => {
+                                                    const nextQ = [...subQuiz.questions];
+                                                    nextQ[sqIdx] = { ...sq, question: e.target.value };
+                                                    handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                      quizData: { ...subQuiz, questions: nextQ }
+                                                    });
+                                                  }}
+                                                  placeholder="Question prompt..."
+                                                  className="w-full bg-white border border-[#d1d7dc] rounded px-2.5 py-1 text-xs"
+                                                />
+                                                <div className="grid grid-cols-2 gap-1.5">
+                                                  {sq.options.map((opt, oIdx) => (
+                                                    <div
+                                                      key={oIdx}
+                                                      className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-[#d1d7dc]"
+                                                    >
+                                                      <input
+                                                        type="radio"
+                                                        name={`sub-q-${sub.id}-${sqIdx}`}
+                                                        checked={sq.correctIndex === oIdx}
+                                                        onChange={() => {
+                                                          const nextQ = [...subQuiz.questions];
+                                                          nextQ[sqIdx] = { ...sq, correctIndex: oIdx };
+                                                          handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                            quizData: { ...subQuiz, questions: nextQ }
+                                                          });
+                                                        }}
+                                                      />
+                                                      <input
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={(e) => {
+                                                          const nextOpts = [...sq.options];
+                                                          nextOpts[oIdx] = e.target.value;
+                                                          const nextQ = [...subQuiz.questions];
+                                                          nextQ[sqIdx] = { ...sq, options: nextOpts };
+                                                          handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                            quizData: { ...subQuiz, questions: nextQ }
+                                                          });
+                                                        }}
+                                                        className="w-full bg-transparent text-[11px] focus:outline-none"
+                                                      />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1763,23 +1971,49 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     })
                   )}
 
-                  {/* Quick Footer Button to Add Next Lesson in Module */}
-                  <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                  {/* UDEMY + CURRICULUM ITEM FOOTER BAR INSIDE SECTION */}
+                  <div className="pt-3 border-t border-[#d1d7dc]/60 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">
+                      + Add to Section {moduleNum}:
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
-                      className="px-4 py-2 rounded-xl border border-dashed border-indigo-300 hover:border-indigo-600 bg-indigo-50/40 hover:bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                      className="px-3.5 py-1.5 bg-white border border-[#2d2f31] hover:bg-slate-100 text-[#2d2f31] font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     >
-                      <Icon name="add_circle" size={16} />
-                      <span>
-                        + Add Lesson {moduleNum}.{section.lessons.length + 1} to Module {moduleNum}
-                      </span>
+                      <Icon name="add" size={14} />
+                      <span>+ Lecture</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
+                      className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Icon name="quiz" size={14} />
+                      <span>+ Quiz</span>
                     </button>
                   </div>
                 </div>
               </div>
             );
           })}
+
+          {/* BOTTOM DASHED BUTTON: + ADD SECTION */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingSectionId(null);
+                setNewSectionTitle(`Section ${sections.length + 1}: `);
+                setNewSectionDescription('');
+                setIsAddSectionOpen(true);
+              }}
+              className="w-full py-4 border-2 border-dashed border-[#2d2f31]/40 hover:border-[#2d2f31] bg-white hover:bg-slate-50 text-[#2d2f31] font-bold text-sm rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
+            >
+              <Icon name="add_circle" size={18} />
+              <span>+ Add Section (Section ${sections.length + 1})</span>
+            </button>
+          </div>
         </div>
       )}
 
