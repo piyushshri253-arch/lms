@@ -513,601 +513,192 @@ function CourseBuilderContent() {
     );
   }
 
-  // Calculate Udemy-style completion ticks for the left sidebar
-  const hasIntendedLearners =
-    (courseState.whatYouWillLearn || []).filter((x) => x.trim().length > 0).length >= 1;
-  const hasCurriculum =
-    (courseState.sections || []).length > 0 &&
-    (courseState.sections || []).some((s) => (s.lessons || []).length > 0);
-  const hasLandingPage =
-    Boolean(courseState.title?.trim()) &&
-    Boolean(courseState.description?.trim()) &&
-    Boolean(courseState.thumbnail?.trim());
-  const hasPricing = courseState.price >= 0;
-
-  const totalLecturesCount = (courseState.sections || []).reduce(
-    (acc, sec) =>
-      acc +
-      (sec.lessons || []).reduce(
-        (lAcc, les) => lAcc + 1 + ((les.subLessons || []).length || 0),
-        0
-      ),
-    0
-  );
-
   return (
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
-      {/* UDEMY-STYLE DARK STUDIO TOP BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#1c1d1f] text-white px-5 py-3.5 rounded-2xl shadow-md border border-slate-800">
-        <div className="flex items-center gap-3.5 min-w-0">
+      {/* Top Action Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant shadow-xs">
+        <div className="flex items-center gap-3">
           <Link
             href={isInstructor ? '/instructor' : '/admin/courses'}
-            className="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+            className="p-2 rounded-xl bg-surface border border-outline-variant hover:bg-surface-container text-on-surface-variant cursor-pointer"
+            title="Back to courses list"
           >
-            <Icon name="arrow_back" size={18} />
-            <span>Back to courses</span>
+            <Icon name="arrow_back" size={20} />
           </Link>
-
-          <span className="text-slate-600 hidden sm:inline">|</span>
-
-          <h1 className="text-sm sm:text-base font-black text-white truncate">
-            {courseState.title || 'Untitled Course'}
-          </h1>
-
-          <span
-            className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded shrink-0 ${
-              courseState.status === 'PUBLISHED'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : courseState.status === 'IN_REVIEW'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'bg-slate-700 text-slate-200'
-            }`}
-          >
-            {courseState.status === 'IN_REVIEW' ? 'IN REVIEW' : courseState.status || 'DRAFT'}
-          </span>
-
-          <span className="text-xs text-slate-400 hidden md:inline shrink-0">
-            {courseState.sections.length} sections • {totalLecturesCount} lectures
-          </span>
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
+              <span>{isInstructor ? 'Instructor Studio' : 'Course Builder'}</span>
+              <span>/</span>
+              <span className="text-primary font-bold">{courseState.category}</span>
+              <span
+                className={`text-[9px] font-bold uppercase font-mono px-2 py-0.2 rounded-full border ${
+                  courseState.status === 'PUBLISHED'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : courseState.status === 'IN_REVIEW'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-surface-container text-outline border-outline-variant'
+                }`}
+              >
+                {courseState.status === 'IN_REVIEW' ? 'Pending Approval' : courseState.status}
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-on-surface tracking-tight mt-0.5">
+              {courseState.title || 'Untitled Master Course'}
+            </h1>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto shrink-0">
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          {/* Live Course Preview Button (Opens modal without losing any form fields!) */}
           <button
             type="button"
             onClick={() => setIsLivePreviewOpen(true)}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-lg border border-white/20 flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <Icon name="visibility" size={15} />
-            <span>Preview</span>
+            <Icon name="visibility" size={16} />
+            <span>Preview Course</span>
           </button>
 
           <button
             type="button"
             disabled={isSaving}
             onClick={handleSaveDraft}
-            className="px-4 py-2 bg-white text-[#1c1d1f] hover:bg-slate-100 font-black text-xs rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+            className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <Icon name="save" size={15} />
-            <span>{isSaving ? 'Saving...' : 'Save'}</span>
+            <Icon name="save" size={16} />
+            <span>{isSaving ? 'Saving...' : 'Save Draft'}</span>
           </button>
 
-          <button
-            type="button"
-            disabled={isPublishing}
-            onClick={handlePublishCourse}
-            className="px-4 py-2 bg-[#a435f0] hover:bg-[#8710d8] text-white font-black text-xs rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
-          >
-            <Icon name="send" size={15} />
-            <span>
-              {isPublishing
-                ? 'Submitting...'
-                : isInstructor
-                ? 'Submit for Review'
-                : 'Publish Course'}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* UDEMY 2-COLUMN COURSE CREATION & MANAGEMENT LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: UDEMY VERTICAL CHECKLIST SIDEBAR */}
-        <div className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-6 sticky top-4">
-          {/* Group 1: Plan your course */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 px-2">
-              Plan your course
-            </h3>
+          {currentStep < steps.length - 1 ? (
             <button
               type="button"
-              onClick={() => setCurrentStep(0)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer border-l-4 ${
-                currentStep === 0
-                  ? 'border-[#a435f0] bg-purple-50/70 text-slate-950'
-                  : 'border-transparent hover:bg-slate-50 text-slate-700'
-              }`}
+              onClick={() => setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))}
+              className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
-                  hasIntendedLearners
-                    ? 'bg-slate-900 border-slate-900 text-white'
-                    : 'border-slate-400 text-transparent'
-                }`}
-              >
-                <Icon name="check" size={12} />
-              </span>
-              <span>Intended learners</span>
+              <span>Continue</span>
+              <Icon name="arrow_forward" size={16} />
             </button>
-          </div>
-
-          {/* Group 2: Create your content */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 px-2">
-              Create your content
-            </h3>
-            <button
-              type="button"
-              onClick={() => setCurrentStep(2)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer border-l-4 ${
-                currentStep === 2
-                  ? 'border-[#a435f0] bg-purple-50/70 text-slate-950'
-                  : 'border-transparent hover:bg-slate-50 text-slate-700'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
-                  hasCurriculum
-                    ? 'bg-slate-900 border-slate-900 text-white'
-                    : 'border-slate-400 text-transparent'
-                }`}
-              >
-                <Icon name="check" size={12} />
-              </span>
-              <div className="flex-1 flex items-center justify-between">
-                <span>Curriculum</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono">
-                  {totalLecturesCount}
-                </span>
-              </div>
-            </button>
-          </div>
-
-          {/* Group 3: Publish your course */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 px-2">
-              Publish your course
-            </h3>
-            <button
-              type="button"
-              onClick={() => setCurrentStep(1)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer border-l-4 ${
-                currentStep === 1
-                  ? 'border-[#a435f0] bg-purple-50/70 text-slate-950'
-                  : 'border-transparent hover:bg-slate-50 text-slate-700'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
-                  hasLandingPage
-                    ? 'bg-slate-900 border-slate-900 text-white'
-                    : 'border-slate-400 text-transparent'
-                }`}
-              >
-                <Icon name="check" size={12} />
-              </span>
-              <span>Course landing page</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCurrentStep(3)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer border-l-4 ${
-                currentStep === 3
-                  ? 'border-[#a435f0] bg-purple-50/70 text-slate-950'
-                  : 'border-transparent hover:bg-slate-50 text-slate-700'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
-                  hasPricing
-                    ? 'bg-slate-900 border-slate-900 text-white'
-                    : 'border-slate-400 text-transparent'
-                }`}
-              >
-                <Icon name="check" size={12} />
-              </span>
-              <span>Pricing</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCurrentStep(4)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer border-l-4 ${
-                currentStep === 4
-                  ? 'border-[#a435f0] bg-purple-50/70 text-slate-950'
-                  : 'border-transparent hover:bg-slate-50 text-slate-700'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
-                  courseState.status === 'PUBLISHED' || courseState.status === 'IN_REVIEW'
-                    ? 'bg-slate-900 border-slate-900 text-white'
-                    : 'border-slate-400 text-transparent'
-                }`}
-              >
-                <Icon name="check" size={12} />
-              </span>
-              <span>Course messages &amp; Review</span>
-            </button>
-          </div>
-
-          <div className="pt-3 border-t border-slate-200 space-y-2">
+          ) : (
             <button
               type="button"
               disabled={isPublishing}
               onClick={handlePublishCourse}
-              className="w-full py-3 bg-[#a435f0] hover:bg-[#8710d8] text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+              className="px-6 py-2.5 bg-primary text-on-primary font-black text-xs rounded-xl hover:bg-primary-container shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Icon name="send" size={15} />
+              <Icon name={isInstructor ? 'send' : 'rocket_launch'} size={16} />
               <span>
                 {isPublishing
-                  ? 'Submitting...'
+                  ? isInstructor
+                    ? 'Submitting...'
+                    : 'Publishing...'
                   : isInstructor
-                  ? 'Submit for Review'
+                  ? 'Submit for Approval'
                   : 'Publish Course Live'}
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => setIsLivePreviewOpen(true)}
-              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-            >
-              <Icon name="visibility" size={15} />
-              <span>Preview as Student</span>
-            </button>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: UDEMY MAIN CONTENT WORKSPACE */}
-        <div className="lg:col-span-9 space-y-6">
-          {/* STEP 0: UDEMY "INTENDED LEARNERS" PAGE */}
-          {currentStep === 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900">Intended learners</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    The following descriptions will be publicly visible on your Course Landing Page and will have a direct impact on your course performance.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-4 py-2 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs rounded-lg cursor-pointer shrink-0"
-                >
-                  Next: Curriculum →
-                </button>
-              </div>
-
-              <div className="p-6 space-y-8">
-                {/* Quick Working Title & Category Bar (Udemy quick edit) */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2 space-y-1">
-                    <label className="block text-xs font-bold text-slate-800">
-                      Working Course Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={courseState.title}
-                      onChange={(e) => handleUpdateField('title', e.target.value)}
-                      placeholder="e.g. Complete Full-Stack AI & Next.js Bootcamp"
-                      className="w-full bg-white border border-slate-300 focus:border-slate-900 rounded-lg px-3.5 py-2 text-sm font-bold text-slate-900 focus:outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-800">
-                      Course Category
-                    </label>
-                    <select
-                      value={courseState.category}
-                      onChange={(e) => handleUpdateField('category', e.target.value)}
-                      className="w-full bg-white border border-slate-300 focus:border-slate-900 rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-900 focus:outline-none cursor-pointer"
-                    >
-                      <option value="Engineering">Engineering &amp; Development</option>
-                      <option value="AI & Data Science">AI &amp; Data Science</option>
-                      <option value="Cloud & DevOps">Cloud &amp; DevOps</option>
-                      <option value="Cybersecurity">Cybersecurity</option>
-                      <option value="Design & Product">Design &amp; Product</option>
-                      <option value="Business & Management">Business &amp; Management</option>
-                      <option value="Teacher Education">Teacher Education</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Question 1: What will students learn in your course? */}
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900">
-                      What will students learn in your course?
-                    </h3>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      You must enter learning objectives or outcomes that learners can expect to achieve after completing your course.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {(courseState.whatYouWillLearn || []).map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={item}
-                          onChange={(e) => {
-                            const updated = [...courseState.whatYouWillLearn];
-                            updated[idx] = e.target.value;
-                            handleUpdateField('whatYouWillLearn', updated);
-                          }}
-                          placeholder={`Example: Define the roles and responsibilities of a project manager (Outcome ${idx + 1})`}
-                          className="flex-1 bg-white border border-slate-300 focus:border-slate-900 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none"
-                        />
-                        {courseState.whatYouWillLearn.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = courseState.whatYouWillLearn.filter((_, i) => i !== idx);
-                              handleUpdateField('whatYouWillLearn', updated);
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                          >
-                            <Icon name="delete" size={16} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleUpdateField('whatYouWillLearn', [
-                        ...(courseState.whatYouWillLearn || []),
-                        ''
-                      ])
-                    }
-                    className="text-xs font-black text-[#a435f0] hover:text-[#8710d8] flex items-center gap-1 cursor-pointer"
-                  >
-                    <Icon name="add" size={16} />
-                    <span>Add more to your response</span>
-                  </button>
-                </div>
-
-                {/* Question 2: What are the requirements or prerequisites? */}
-                <div className="space-y-3 pt-4 border-t border-slate-200">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900">
-                      What are the requirements or prerequisites for taking your course?
-                    </h3>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      List the required skills, experience, tools or equipment learners should have prior to taking your course. If there are no requirements, use this space as an opportunity to lower the barrier for beginners.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {(courseState.requirements || []).map((req, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={req}
-                          onChange={(e) => {
-                            const updated = [...courseState.requirements];
-                            updated[idx] = e.target.value;
-                            handleUpdateField('requirements', updated);
-                          }}
-                          placeholder="Example: No programming experience needed. You will learn everything you need to know"
-                          className="flex-1 bg-white border border-slate-300 focus:border-slate-900 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none"
-                        />
-                        {courseState.requirements.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = courseState.requirements.filter((_, i) => i !== idx);
-                              handleUpdateField('requirements', updated);
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                          >
-                            <Icon name="delete" size={16} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleUpdateField('requirements', [...(courseState.requirements || []), ''])
-                    }
-                    className="text-xs font-black text-[#a435f0] hover:text-[#8710d8] flex items-center gap-1 cursor-pointer"
-                  >
-                    <Icon name="add" size={16} />
-                    <span>Add more to your response</span>
-                  </button>
-                </div>
-
-                {/* Question 3: Who is this course for? */}
-                <div className="space-y-3 pt-4 border-t border-slate-200">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900">
-                      Who is this course for?
-                    </h3>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      Write a clear description of the intended learners for your course who will find your course content valuable.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {(courseState.targetAudience || []).map((aud, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={aud}
-                          onChange={(e) => {
-                            const updated = [...courseState.targetAudience];
-                            updated[idx] = e.target.value;
-                            handleUpdateField('targetAudience', updated);
-                          }}
-                          placeholder="Example: Beginner developers curious about AI and software architecture"
-                          className="flex-1 bg-white border border-slate-300 focus:border-slate-900 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none"
-                        />
-                        {courseState.targetAudience.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = courseState.targetAudience.filter((_, i) => i !== idx);
-                              handleUpdateField('targetAudience', updated);
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                          >
-                            <Icon name="delete" size={16} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleUpdateField('targetAudience', [
-                        ...(courseState.targetAudience || []),
-                        ''
-                      ])
-                    }
-                    className="text-xs font-black text-[#a435f0] hover:text-[#8710d8] flex items-center gap-1 cursor-pointer"
-                  >
-                    <Icon name="add" size={16} />
-                    <span>Add more to your response</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 1: UDEMY "COURSE LANDING PAGE" */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-xs flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900">Course landing page</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Your course landing page is crucial to your success on Morena Teach. Set your title, description, category, and course thumbnail image.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="px-4 py-2 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs rounded-lg cursor-pointer shrink-0"
-                >
-                  Next: Pricing →
-                </button>
-              </div>
-
-              <CourseBasicInfoStep
-                data={{
-                  title: courseState.title,
-                  slug: courseState.slug,
-                  shortDescription: courseState.shortDescription,
-                  description: courseState.description,
-                  category: courseState.category,
-                  level: courseState.level,
-                  language: courseState.language,
-                  durationHours: courseState.durationHours,
-                  whatYouWillLearn: courseState.whatYouWillLearn,
-                  requirements: courseState.requirements,
-                  targetAudience: courseState.targetAudience,
-                  seoTitle: courseState.seoTitle,
-                  seoDescription: courseState.seoDescription
-                }}
-                onChange={handleUpdateField}
-              />
-
-              <CourseMediaStep
-                thumbnail={courseState.thumbnail}
-                banner={courseState.banner}
-                onChange={handleUpdateField}
-              />
-            </div>
-          )}
-
-          {/* STEP 2: UDEMY "CURRICULUM" */}
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900">Curriculum</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Start putting together your course by creating sections, lectures (1.1), sub-topics (1.1.1), videos, PDFs, study notes, and quick quizzes.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="px-4 py-2 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs rounded-lg cursor-pointer shrink-0"
-                >
-                  Next: Course Landing Page →
-                </button>
-              </div>
-
-              <CourseCurriculumStep
-                sections={courseState.sections}
-                onChange={(newSections) => handleUpdateField('sections', newSections)}
-                courseSlug={courseState.slug}
-              />
-            </div>
-          )}
-
-          {/* STEP 3: UDEMY "PRICING" */}
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-xs flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900">Pricing</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Select the currency and price tier for your course, or offer it for free.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(4)}
-                  className="px-4 py-2 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs rounded-lg cursor-pointer shrink-0"
-                >
-                  Next: Submit for Review →
-                </button>
-              </div>
-
-              <CoursePricingStep
-                price={courseState.price}
-                discountPrice={courseState.discountPrice}
-                currency={courseState.currency}
-                accessType={courseState.accessType}
-                accessDays={courseState.accessDays}
-                onChange={handleUpdateField}
-              />
-            </div>
-          )}
-
-          {/* STEP 4: UDEMY "SUBMIT FOR REVIEW" */}
-          {currentStep === 4 && (
-            <CoursePublishStep
-              courseData={courseState}
-              userRole={currentUser?.role}
-              onJumpToStep={(stepIdx) => setCurrentStep(stepIdx)}
-              onPublish={handlePublishCourse}
-              onUnpublish={handleUnpublishCourse}
-              isPublishing={isPublishing}
-            />
           )}
         </div>
       </div>
+
+      {/* Step Navigation Tabs */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant/70">
+        {steps.map((s, idx) => {
+          const isActive = currentStep === idx;
+          const isDone = currentStep > idx;
+
+          return (
+            <button
+              key={s.title}
+              type="button"
+              onClick={() => setCurrentStep(idx)}
+              className={`p-3 rounded-xl text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                isActive
+                  ? 'bg-primary text-on-primary shadow-xs'
+                  : isDone
+                  ? 'bg-surface text-emerald-800 hover:bg-surface-container'
+                  : 'bg-surface text-on-surface-variant hover:bg-surface-container'
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-mono font-bold ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : isDone
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-surface-container text-outline'
+                }`}
+              >
+                {isDone ? <Icon name="check" size={14} /> : idx + 1}
+              </div>
+              <span className="text-xs font-bold truncate">{s.title.replace(/^\d+\.\s*/, '')}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Step 1: Basic Info */}
+      {currentStep === 0 && (
+        <CourseBasicInfoStep
+          data={{
+            title: courseState.title,
+            slug: courseState.slug,
+            shortDescription: courseState.shortDescription,
+            description: courseState.description,
+            category: courseState.category,
+            level: courseState.level,
+            language: courseState.language,
+            durationHours: courseState.durationHours,
+            whatYouWillLearn: courseState.whatYouWillLearn,
+            requirements: courseState.requirements,
+            targetAudience: courseState.targetAudience,
+            seoTitle: courseState.seoTitle,
+            seoDescription: courseState.seoDescription
+          }}
+          onChange={handleUpdateField}
+        />
+      )}
+
+      {/* Step 2: Media */}
+      {currentStep === 1 && (
+        <CourseMediaStep
+          thumbnail={courseState.thumbnail}
+          banner={courseState.banner}
+          onChange={handleUpdateField}
+        />
+      )}
+
+      {/* Step 3: Curriculum */}
+      {currentStep === 2 && (
+        <CourseCurriculumStep
+          sections={courseState.sections}
+          onChange={(newSections) => handleUpdateField('sections', newSections)}
+          courseSlug={courseState.slug}
+        />
+      )}
+
+      {/* Step 4: Pricing */}
+      {currentStep === 3 && (
+        <CoursePricingStep
+          price={courseState.price}
+          discountPrice={courseState.discountPrice}
+          currency={courseState.currency}
+          accessType={courseState.accessType}
+          accessDays={courseState.accessDays}
+          onChange={handleUpdateField}
+        />
+      )}
+
+      {/* Step 5: Publish & Pre-flight Checklist */}
+      {currentStep === 4 && (
+        <CoursePublishStep
+          courseData={courseState}
+          userRole={currentUser?.role}
+          onJumpToStep={(stepIdx) => setCurrentStep(stepIdx)}
+          onPublish={handlePublishCourse}
+          onUnpublish={handleUnpublishCourse}
+          isPublishing={isPublishing}
+        />
+      )}
 
       {/* Bottom Step Navigation Bar */}
       <div className="flex justify-between items-center pt-6 border-t border-outline-variant">

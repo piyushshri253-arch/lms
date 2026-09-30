@@ -54,14 +54,11 @@ function InstructorCoursesStudioInner() {
   const [courseToDelete, setCourseToDelete] = useState<CourseAuthored | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Create Course Modal State (Udemy 4-Step Wizard)
+  // Create Course Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
-  const [courseFormatType, setCourseFormatType] = useState<'COURSE' | 'PRACTICE_TEST'>('COURSE');
   const [newTitle, setNewTitle] = useState('');
   const [newPrice, setNewPrice] = useState('4999');
   const [newCategory, setNewCategory] = useState('Engineering');
-  const [weeklyTimeCommitment, setWeeklyTimeCommitment] = useState('2-4 hours');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const sidebarTab = searchParams?.get('tab') || '';
@@ -401,24 +398,13 @@ function InstructorCoursesStudioInner() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                setWizardStep(1);
-                setIsCreateOpen(true);
-              }}
-              className="flex items-center gap-2 bg-[#a435f0] hover:bg-[#8710d8] text-white font-black text-xs px-5 py-3 rounded-xl shadow-md transition-all cursor-pointer shrink-0"
-            >
-              <Icon name="add_circle" size={18} />
-              <span>New Course (Step-by-Step)</span>
-            </button>
+          <div className="flex items-center gap-3">
             <Link
               href="/instructor/courses/builder"
-              className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-3 rounded-xl transition-all cursor-pointer shrink-0"
+              className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md shadow-violet-600/20 transition-all cursor-pointer shrink-0"
             >
-              <Icon name="dashboard_customize" size={16} />
-              <span>Open Studio Directly</span>
+              <Icon name="add_circle" size={18} />
+              <span>+ Create Course</span>
             </Link>
           </div>
         </div>
@@ -1111,220 +1097,75 @@ function InstructorCoursesStudioInner() {
       <Modal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        maxWidth="lg"
-        title={`Step ${wizardStep} of 4`}
-        subtitle="Udemy-style Guided Course Creation Wizard"
+        maxWidth="md"
+        title="Initialize New Masterclass"
+        subtitle="Add a new verified course to your instructor profile"
       >
-        <div className="space-y-6">
-          {/* Progress Bar */}
-          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#a435f0] transition-all duration-300"
-              style={{ width: `${(wizardStep / 4) * 100}%` }}
+        <form onSubmit={handleCreateCourse} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">Course Title *</label>
+            <input
+              type="text"
+              required
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Distributed Systems Architecture & Raft Consensus"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
             />
           </div>
 
-          {/* STEP 1 OF 4: Course vs Practice Test */}
-          {wizardStep === 1 && (
-            <div className="space-y-5 py-2">
-              <div className="text-center space-y-1">
-                <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  First, let&apos;s find out what type of course you&apos;re making.
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Choose the format that best matches your teaching goals.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setCourseFormatType('COURSE')}
-                  className={`p-6 rounded-2xl border-2 text-center space-y-2.5 transition-all cursor-pointer ${
-                    courseFormatType === 'COURSE'
-                      ? 'border-[#a435f0] bg-purple-50/40 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-400 bg-white'
-                  }`}
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-purple-100 text-[#a435f0] flex items-center justify-center mx-auto">
-                    <Icon name="ondemand_video" size={26} />
-                  </div>
-                  <h4 className="text-sm font-black text-slate-900">Course</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Create rich learning experiences with the help of video lectures, quizzes, PDFs, study notes, and sub-topics (1.1, 1.1.1).
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCourseFormatType('PRACTICE_TEST')}
-                  className={`p-6 rounded-2xl border-2 text-center space-y-2.5 transition-all cursor-pointer ${
-                    courseFormatType === 'PRACTICE_TEST'
-                      ? 'border-[#a435f0] bg-purple-50/40 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-400 bg-white'
-                  }`}
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
-                    <Icon name="quiz" size={26} />
-                  </div>
-                  <h4 className="text-sm font-black text-slate-900">Practice Test</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Help students prepare for certification exams by providing timed practice questions and detailed explanations.
-                  </p>
-                </button>
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Fee / Price (₹ INR) *</label>
+              <input
+                type="number"
+                required
+                min="0"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+              />
             </div>
-          )}
-
-          {/* STEP 2 OF 4: Working Title */}
-          {wizardStep === 2 && (
-            <div className="space-y-5 py-4">
-              <div className="text-center space-y-1">
-                <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  How about a working title?
-                </h3>
-                <p className="text-xs text-slate-500">
-                  It&apos;s ok if you can&apos;t think of a good title now. You can change it later.
-                </p>
-              </div>
-
-              <div className="relative">
-                <input
-                  type="text"
-                  maxLength={60}
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Learn Python & Full-Stack AI Engineering from Scratch"
-                  className="w-full bg-white border-2 border-slate-300 focus:border-slate-900 rounded-xl px-4 py-3.5 pr-14 text-sm font-bold text-slate-900 focus:outline-none"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-400">
-                  {60 - (newTitle?.length || 0)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3 OF 4: Category */}
-          {wizardStep === 3 && (
-            <div className="space-y-5 py-4">
-              <div className="text-center space-y-1">
-                <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  What category best fits the knowledge you&apos;ll share?
-                </h3>
-                <p className="text-xs text-slate-500">
-                  If you&apos;re not sure about the right category, you can change it later.
-                </p>
-              </div>
-
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Category *</label>
               <select
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full bg-white border-2 border-slate-300 focus:border-slate-900 rounded-xl p-3.5 text-sm font-bold text-slate-900 focus:outline-none cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
               >
-                <option value="Engineering">Development &amp; Engineering</option>
-                <option value="AI & Data Science">AI &amp; Data Science</option>
-                <option value="Cloud & DevOps">IT, Cloud &amp; DevOps</option>
-                <option value="Cybersecurity">Security &amp; Cryptography</option>
-                <option value="Design & Product">Design &amp; Product</option>
-                <option value="Business & Management">Business &amp; Management</option>
-                <option value="Teacher Education">Teaching &amp; Academics</option>
+                <option value="Engineering">Engineering</option>
+                <option value="AI & Machine Learning">AI & Machine Learning</option>
+                <option value="System Design">System Design</option>
+                <option value="Cloud Architecture">Cloud Architecture</option>
+                <option value="Security">Security &amp; Cryptography</option>
               </select>
             </div>
-          )}
-
-          {/* STEP 4 OF 4: Time Commitment */}
-          {wizardStep === 4 && (
-            <div className="space-y-4 py-2">
-              <div className="text-center space-y-1">
-                <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  How much time can you spend creating your course per week?
-                </h3>
-                <p className="text-xs text-slate-500">
-                  There&apos;s no wrong answer. We can help you achieve your goals even if you don&apos;t have much time.
-                </p>
-              </div>
-
-              <div className="space-y-2.5">
-                {[
-                  'I’m very busy right now (0–2 hours)',
-                  'I’ll work on this on the side (2–4 hours)',
-                  'I have lots of flexibility (5+ hours)',
-                  'I haven’t decided if I have time'
-                ].map((opt) => (
-                  <label
-                    key={opt}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
-                      weeklyTimeCommitment === opt
-                        ? 'border-slate-900 bg-slate-50 font-bold'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="weeklyTime"
-                      checked={weeklyTimeCommitment === opt}
-                      onChange={() => setWeeklyTimeCommitment(opt)}
-                      className="w-4 h-4 text-[#a435f0]"
-                    />
-                    <span className="text-xs text-slate-900">{opt}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Wizard Navigation Footer */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-            {wizardStep > 1 ? (
-              <button
-                type="button"
-                onClick={() => setWizardStep((prev) => (prev - 1) as any)}
-                className="px-4 py-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer"
-              >
-                Previous
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(false)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-900 cursor-pointer"
-              >
-                Cancel
-              </button>
-            )}
-
-            {wizardStep < 4 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (wizardStep === 2 && !newTitle.trim()) {
-                    setNewTitle('Complete Masterclass Course');
-                  }
-                  setWizardStep((prev) => (prev + 1) as any);
-                }}
-                className="px-6 py-2.5 bg-[#a435f0] hover:bg-[#8710d8] text-white font-black text-xs rounded-xl shadow-sm cursor-pointer"
-              >
-                Continue
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={(e) => handleCreateCourse(e as any)}
-                className="px-6 py-2.5 bg-[#a435f0] hover:bg-[#8710d8] text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Icon name="sync" size={14} className="animate-spin" />
-                    <span>Creating Course...</span>
-                  </>
-                ) : (
-                  <span>Create Course →</span>
-                )}
-              </button>
-            )}
           </div>
-        </div>
+
+          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(false)}
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 bg-violet-600 text-white font-bold text-xs rounded-xl hover:bg-violet-500 shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <>
+                  <Icon name="sync" size={14} className="animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <span>Initialize &amp; Open Studio</span>
+              )}
+            </button>
+          </div>
+        </form>
       </Modal>
     </InstructorPortalShell>
   );
