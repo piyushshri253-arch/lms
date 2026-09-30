@@ -210,7 +210,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             disabled={
               !canPublish ||
               isPublishing ||
-              (userRole === 'INSTRUCTOR' && (courseData.status === 'IN_REVIEW' || courseData.status === 'PUBLISHED'))
+              (userRole === 'INSTRUCTOR' && courseData.status === 'IN_REVIEW')
             }
             onClick={handlePublishClick}
             className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -243,8 +243,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                 </>
               ) : courseData.status === 'PUBLISHED' ? (
                 <>
-                  <Icon name="check_circle" size={16} />
-                  <span>Course is Live ✅</span>
+                  <Icon name="send" size={16} />
+                  <span>Submit Changes for Approval 📋</span>
                 </>
               ) : courseData.status === 'REJECTED' ? (
                 <>
@@ -266,6 +266,21 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Live Course Notification & Edit Alert */}
+      {courseData.status === 'PUBLISHED' && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <Icon name="verified" size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div className="text-xs">
+              <span className="font-bold">This course is currently LIVE on Morena Teach.</span>{' '}
+              <span className="text-emerald-800 dark:text-emerald-300">
+                You can make curriculum, video, or pricing adjustments and click <strong>&quot;Submit Changes for Approval 📋&quot;</strong> to send your updates to the QA Auditor Studio.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reviewer Feedback / Critique Note Alert */}
       {courseData.reviewFeedback && (

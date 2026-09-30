@@ -244,7 +244,7 @@ function CourseBuilderContent() {
   };
 
   // Save as Draft
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = async (options?: { submitForApproval?: boolean }) => {
     if (!courseState.title.trim()) {
       showToast({
         title: 'Course Title Required',
@@ -260,6 +260,9 @@ function CourseBuilderContent() {
       let savedCourseId = courseState.id;
       let savedSlug = courseState.slug;
 
+      const isSubmitting = Boolean(options?.submitForApproval);
+      const isInstructorUser = currentUser?.role === 'INSTRUCTOR';
+
       const payload = {
         title: courseState.title,
         description: courseState.description || 'Draft course curriculum overview.',
@@ -273,7 +276,9 @@ function CourseBuilderContent() {
         thumbnail: courseState.thumbnail,
         banner: courseState.banner,
         durationHours: courseState.durationHours,
-        status: courseState.status,
+        status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : courseState.status,
+        submitForApproval: isSubmitting,
+        submitVersionForReview: isSubmitting,
         whatYouWillLearn: courseState.whatYouWillLearn,
         requirements: courseState.requirements,
         targetAudience: courseState.targetAudience,
@@ -353,11 +358,14 @@ function CourseBuilderContent() {
     }
   };
 
-  // Publish Course
+  // Publish Course or Submit for Approval
   const handlePublishCourse = async () => {
     setIsPublishing(true);
     try {
-      const savedInfo = await handleSaveDraft();
+      const isInstructor = currentUser?.role === 'INSTRUCTOR';
+      const isApprovalSubmit = isInstructor && courseState.status !== 'APPROVED';
+
+      const savedInfo = await handleSaveDraft({ submitForApproval: isApprovalSubmit });
       const targetIdentifier = savedInfo?.slug || savedInfo?.id || courseState.slug || courseState.id;
 
       if (!targetIdentifier) {
@@ -367,7 +375,10 @@ function CourseBuilderContent() {
       const res = await fetch(`/api/courses/${targetIdentifier}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publish: true })
+        body: JSON.stringify({
+          publish: true,
+          submitForApproval: isApprovalSubmit
+        })
       });
 
       let data: any = {};
@@ -381,13 +392,12 @@ function CourseBuilderContent() {
         throw new Error(`Server returned error (${res.status}). Please try again.`);
       }
 
-      if (!res.ok) throw new Error(data.error || 'Failed to publish course');
+      if (!res.ok) throw new Error(data.error || 'Failed to submit course');
 
       try {
         localStorage.removeItem('morena_course_builder_draft_new');
       } catch {}
 
-      const isInstructor = currentUser?.role === 'INSTRUCTOR';
       if (isInstructor) {
         if (courseState.status === 'APPROVED') {
           setCourseState((prev) => ({ ...prev, status: 'PUBLISHED' }));
@@ -400,7 +410,7 @@ function CourseBuilderContent() {
           setCourseState((prev) => ({ ...prev, status: 'IN_REVIEW' }));
           showToast({
             title: 'Course Submitted for Approval! 📋',
-            description: 'Your course has been submitted for Review. Once approved, you will be able to publish it live.',
+            description: 'Your course has been submitted to the Course Auditor. Once approved, you will be able to publish it live.',
             type: 'success'
           });
         }
@@ -552,7 +562,7 @@ function CourseBuilderContent() {
           <button
             type="button"
             disabled={isSaving}
-            onClick={handleSaveDraft}
+            onClick={() => handleSaveDraft()}
             className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <Icon name="save" size={16} />
@@ -571,18 +581,24 @@ function CourseBuilderContent() {
           ) : (
             <button
               type="button"
-              disabled={isPublishing}
+              disabled={isPublishing || (isInstructor && courseState.status === 'IN_REVIEW')}
               onClick={handlePublishCourse}
               className="px-6 py-2.5 bg-primary text-on-primary font-black text-xs rounded-xl hover:bg-primary-container shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Icon name={isInstructor ? 'send' : 'rocket_launch'} size={16} />
+              <Icon name={isInstructor ? (courseState.status === 'APPROVED' ? 'rocket_launch' : 'send') : 'rocket_launch'} size={16} />
               <span>
                 {isPublishing
                   ? isInstructor
-                    ? 'Submitting...'
+                    ? courseState.status === 'APPROVED' ? 'Publishing Live...' : 'Submitting...'
                     : 'Publishing...'
                   : isInstructor
-                  ? 'Submit for Approval'
+                  ? courseState.status === 'APPROVED'
+                    ? 'Publish Live 🚀'
+                    : courseState.status === 'PUBLISHED'
+                    ? 'Submit Changes for Approval 📋'
+                    : courseState.status === 'IN_REVIEW'
+                    ? 'Under Review ⏳'
+                    : 'Submit for Approval 📋'
                   : 'Publish Course Live'}
               </span>
             </button>
@@ -715,7 +731,7 @@ function CourseBuilderContent() {
           <button
             type="button"
             disabled={isSaving}
-            onClick={handleSaveDraft}
+            onClick={() => handleSaveDraft()}
             className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 cursor-pointer"
           >
             <Icon name="save" size={16} />
@@ -736,7 +752,7 @@ function CourseBuilderContent() {
               type="button"
               disabled={
                 isPublishing ||
-                (isInstructor && (courseState.status === 'IN_REVIEW' || courseState.status === 'PUBLISHED'))
+                (isInstructor && courseState.status === 'IN_REVIEW')
               }
               onClick={handlePublishCourse}
               className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -769,8 +785,8 @@ function CourseBuilderContent() {
                   </>
                 ) : courseState.status === 'PUBLISHED' ? (
                   <>
-                    <Icon name="check_circle" size={16} />
-                    <span>Course is Live ✅</span>
+                    <Icon name="send" size={16} />
+                    <span>Submit Changes for Approval 📋</span>
                   </>
                 ) : (
                   <>

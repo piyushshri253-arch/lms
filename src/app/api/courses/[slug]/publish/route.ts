@@ -150,21 +150,19 @@ export async function POST(
       targetStatus = 'DRAFT';
       responseMessage = 'Course successfully moved back to draft state.';
     } else if (user.role === 'INSTRUCTOR') {
-      // If course is already approved by Super Admin, instructor can publish live!
+      // If course is already approved by Super Admin / Auditor, instructor can publish live!
       if (course.status === 'APPROVED') {
         targetStatus = 'PUBLISHED';
         responseMessage = 'Congratulations! Your approved course is now published live on the platform! 🚀';
       } else if (course.status === 'PUBLISHED') {
-        return NextResponse.json({
-          success: true,
-          status: 'PUBLISHED',
-          course,
-          message: 'Course is already published live.'
-        });
+        // When an already-published course is submitted for approval after editing:
+        // Set status to IN_REVIEW so Course Auditor and Admins can review and approve the updated content!
+        targetStatus = 'IN_REVIEW';
+        responseMessage = 'Course updates submitted for Super Admin & Auditor review! Once approved, your changes will be published live.';
       } else if (course.status === 'IN_REVIEW') {
         return NextResponse.json(
           {
-            error: 'This course is currently under review by Super Admin. Please wait for approval before publishing.',
+            error: 'This course is currently under review by Super Admin / Course Auditor. Please wait for approval.',
             status: 'IN_REVIEW'
           },
           { status: 400 }
@@ -200,6 +198,19 @@ export async function POST(
     });
 
     if (targetStatus === 'IN_REVIEW') {
+      // Also update version state to PENDING_REVIEW if course versioning is active
+      try {
+        const { getCourseVersionState, saveCourseVersionState } = await import('@/lib/course-versioning');
+        const verState = await getCourseVersionState(course.id);
+        if (verState.stagedSnapshot || verState.status === 'DRAFT_VERSION') {
+          await saveCourseVersionState(course.id, {
+            status: 'PENDING_REVIEW',
+            submittedAt: new Date().toISOString(),
+            submittedBy: user.name
+          });
+        }
+      } catch {}
+
       // Find all Reviewers, Admins, and Super Admins
       const reviewerUsers = await prisma.user.findMany({
         where: {
@@ -215,11 +226,13 @@ export async function POST(
           await createNotification({
             organizationId: course.organizationId,
             userId: rev.id,
-            title: '📋 New Course Submitted for Review',
+            title: course.status === 'PUBLISHED'
+              ? '📋 Updated Course Submitted for Review'
+              : '📋 New Course Submitted for Review',
             message: `Instructor "${user.name}" submitted "${course.title}" for curriculum & quality review.`,
             type: 'COURSES',
             category: 'COURSES',
-            link: '/reviewer'
+            link: `/reviewer/courses/${course.id}`
           });
         }
       }
