@@ -283,11 +283,23 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
     } catch {}
   };
 
+  const [isPostingQuestion, setIsPostingQuestion] = useState(false);
+  const [isPostingReply, setIsPostingReply] = useState<{ [id: string]: boolean }>({});
+  const [isRefreshingDiscussions, setIsRefreshingDiscussions] = useState(false);
+
+  // Auto-refresh discussions when Q&A tab becomes active
+  useEffect(() => {
+    if (activeTab === 'discussion' && courseId) {
+      fetchDiscussions();
+    }
+  }, [activeTab, courseId]);
+
   // Handle Post Discussion Question
   const handlePostQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQuestionText.trim() || !courseId) return;
 
+    setIsPostingQuestion(true);
     try {
       const res = await fetch('/api/discussions', {
         method: 'POST',
@@ -299,13 +311,20 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
           text: newQuestionText.trim()
         })
       });
+      const data = await res.json();
       if (res.ok) {
-        showToast({ title: 'Question Posted', description: 'Faculty and peers can now reply.', type: 'success' });
+        showToast({ title: 'Question Posted 🎉', description: 'Your question has been sent to the instructor.', type: 'success' });
         setNewQuestionTitle('');
         setNewQuestionText('');
-        fetchDiscussions();
+        await fetchDiscussions();
+      } else {
+        showToast({ title: 'Could not post question', description: data.error || 'Please make sure you are enrolled in this course.', type: 'error' });
       }
-    } catch {}
+    } catch {
+      showToast({ title: 'Error', description: 'Network error while posting question.', type: 'error' });
+    } finally {
+      setIsPostingQuestion(false);
+    }
   };
 
   // Handle Post Reply
@@ -313,18 +332,26 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
     const text = replyTextMap[discussionId];
     if (!text || !text.trim()) return;
 
+    setIsPostingReply((prev) => ({ ...prev, [discussionId]: true }));
     try {
       const res = await fetch(`/api/discussions/${discussionId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: text.trim() })
       });
+      const data = await res.json();
       if (res.ok) {
-        showToast({ title: 'Reply Added', type: 'success' });
+        showToast({ title: 'Reply Added', description: 'Your response was posted to the thread.', type: 'success' });
         setReplyTextMap({ ...replyTextMap, [discussionId]: '' });
-        fetchDiscussions();
+        await fetchDiscussions();
+      } else {
+        showToast({ title: 'Reply Failed', description: data.error || 'Could not post reply.', type: 'error' });
       }
-    } catch {}
+    } catch {
+      showToast({ title: 'Error', description: 'Network error while posting reply.', type: 'error' });
+    } finally {
+      setIsPostingReply((prev) => ({ ...prev, [discussionId]: false }));
+    }
   };
 
   // Handle Assignment Submission
@@ -678,86 +705,200 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
       {/* 4. Discussions & Q&A */}
       {activeTab === 'discussion' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <form onSubmit={handlePostQuestion} className="space-y-3 bg-surface-container-lowest border border-outline-variant p-4 rounded-xl">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface">Ask a question or share thoughts</h4>
+          {/* Header Bar with Refresh */}
+          <div className="flex items-center justify-between gap-3 pb-2 border-b border-outline-variant/60">
+            <div>
+              <h3 className="text-base font-extrabold text-on-surface">Course Q&A ({discussions.length})</h3>
+              <p className="text-xs text-on-surface-variant">Ask questions about this lecture directly to your instructor and get answers.</p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setIsRefreshingDiscussions(true);
+                await fetchDiscussions();
+                setIsRefreshingDiscussions(false);
+                showToast({ title: 'Q&A Updated', description: 'Latest questions and instructor answers loaded.', type: 'info' });
+              }}
+              disabled={isRefreshingDiscussions}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high text-xs font-bold text-on-surface transition-colors cursor-pointer disabled:opacity-50"
+              title="Refresh questions and instructor replies"
+            >
+              <Icon name="refresh" size={14} className={isRefreshingDiscussions ? 'animate-spin' : ''} />
+              <span>{isRefreshingDiscussions ? 'Refreshing...' : 'Refresh Q&A'}</span>
+            </button>
+          </div>
+
+          {/* Ask Question Form */}
+          <form onSubmit={handlePostQuestion} className="space-y-3 bg-surface-container-lowest border border-outline-variant p-4 sm:p-5 rounded-2xl shadow-2xs">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                <Icon name="help" size={16} />
+              </div>
+              <h4 className="text-xs sm:text-sm font-bold text-on-surface">Ask a question or request guidance from the instructor</h4>
+            </div>
             <input
               type="text"
               value={newQuestionTitle}
               onChange={(e) => setNewQuestionTitle(e.target.value)}
-              placeholder="Question summary / topic..."
-              className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-xs focus:outline-none focus:border-primary"
+              placeholder="Question topic (e.g., How does responsive grid layout work in mobile view?)"
+              className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-3 text-xs focus:outline-none focus:border-primary font-medium text-on-surface"
+              required
             />
             <textarea
               rows={3}
               value={newQuestionText}
               onChange={(e) => setNewQuestionText(e.target.value)}
-              placeholder="Elaborate on what you're trying to achieve..."
-              className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 text-xs focus:outline-none focus:border-primary"
+              placeholder="Describe your query in detail. What have you tried, or what concept would you like clarified?"
+              className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-3 text-xs focus:outline-none focus:border-primary font-normal text-on-surface leading-relaxed"
+              required
             />
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-[11px] text-on-surface-variant font-medium">
+                Your question will appear in the Instructor's Studio and course community.
+              </span>
               <button
                 type="submit"
-                className="bg-primary text-on-primary text-xs font-bold px-4 py-2 rounded-xl hover:bg-primary-container transition-colors cursor-pointer"
+                disabled={isPostingQuestion || !newQuestionText.trim()}
+                className="bg-primary hover:bg-primary-container text-on-primary text-xs font-extrabold px-5 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                Post Question
+                <Icon name={isPostingQuestion ? 'sync' : 'send'} size={14} className={isPostingQuestion ? 'animate-spin' : ''} />
+                <span>{isPostingQuestion ? 'Posting...' : 'Ask Instructor'}</span>
               </button>
             </div>
           </form>
 
-          {/* Discussion Threads */}
+          {/* Discussion Threads List */}
           <div className="space-y-4">
-            {discussions.map((d) => (
-              <div key={d.id} className="p-5 bg-surface-container-lowest border border-outline-variant rounded-2xl space-y-4">
-                <div className="flex items-start gap-3">
-                  <UserAvatar avatar={d.userAvatar} name={d.userName} size="md" className="w-10 h-10 shrink-0" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs sm:text-sm text-on-surface">{d.userName}</span>
-                      {d.userRole === 'INSTRUCTOR' && (
-                        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">Faculty</span>
-                      )}
-                    </div>
-                    <h5 className="font-bold text-xs sm:text-sm text-on-surface mt-1">{d.title}</h5>
-                    <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">{d.text}</p>
-                  </div>
+            {discussions.length === 0 ? (
+              <div className="text-center py-12 px-4 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl space-y-3">
+                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                  <Icon name="question_answer" size={24} />
                 </div>
+                <h5 className="font-bold text-sm text-on-surface">No questions asked yet</h5>
+                <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
+                  Be the first to start a conversation! Ask any query about this lecture and your instructor will respond.
+                </p>
+              </div>
+            ) : (
+              discussions.map((d) => {
+                const hasInstructorAnswer = d.replies?.some(
+                  (r: any) => r.userRole === 'INSTRUCTOR' || r.isInstructor || r.isBestAnswer
+                );
 
-                {/* Replies */}
-                {d.replies && d.replies.length > 0 && (
-                  <div className="pl-6 border-l-2 border-outline-variant/60 space-y-3 pt-2">
-                    {d.replies.map((r: any) => (
-                      <div key={r.id} className="flex items-start gap-2.5 text-xs">
-                        <UserAvatar avatar={r.userAvatar} name={r.userName} size="sm" className="w-7 h-7 shrink-0" />
+                return (
+                  <div key={d.id} className="p-5 bg-surface-container-lowest border border-outline-variant rounded-2xl space-y-4 shadow-2xs hover:border-outline transition-colors">
+                    {/* Thread Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <UserAvatar avatar={d.userAvatar} name={d.userName} size="md" className="w-10 h-10 shrink-0" />
                         <div>
-                          <span className="font-bold text-on-surface">{r.userName}</span>
-                          {r.userRole === 'INSTRUCTOR' && (
-                            <span className="ml-2 px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[10px]">Instructor</span>
-                          )}
-                          <p className="text-on-surface-variant mt-0.5">{r.text}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-extrabold text-xs sm:text-sm text-on-surface">{d.userName}</span>
+                            {d.userRole === 'INSTRUCTOR' && (
+                              <span className="px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold flex items-center gap-1">
+                                <Icon name="school" size={11} />
+                                Instructor
+                              </span>
+                            )}
+                            <span className="text-[11px] text-on-surface-variant">
+                              {d.createdAt ? new Date(d.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recently'}
+                            </span>
+                          </div>
+                          <h5 className="font-bold text-sm sm:text-base text-on-surface mt-1">{d.title}</h5>
+                          <p className="text-xs text-on-surface-variant mt-1 leading-relaxed whitespace-pre-wrap">{d.text}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
 
-                {/* Reply Form */}
-                <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/40">
-                  <input
-                    type="text"
-                    value={replyTextMap[d.id] || ''}
-                    onChange={(e) => setReplyTextMap({ ...replyTextMap, [d.id]: e.target.value })}
-                    placeholder="Reply to this thread..."
-                    className="flex-1 px-3 py-1.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs"
-                  />
-                  <button
-                    onClick={() => handlePostReply(d.id)}
-                    className="px-3 py-1.5 bg-primary text-on-primary text-xs font-bold rounded-lg cursor-pointer"
-                  >
-                    Reply
-                  </button>
-                </div>
-              </div>
-            ))}
+                      {/* Status Badges */}
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+                        {d.isResolved && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 text-[10px] font-extrabold border border-emerald-500/30 flex items-center gap-1">
+                            <Icon name="check_circle" size={12} />
+                            Resolved
+                          </span>
+                        )}
+                        {hasInstructorAnswer && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-800 text-[10px] font-extrabold border border-indigo-500/30 flex items-center gap-1">
+                            <Icon name="verified" size={12} />
+                            Instructor Answered
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Replies List */}
+                    {d.replies && d.replies.length > 0 && (
+                      <div className="pl-4 sm:pl-6 border-l-2 border-indigo-200 dark:border-indigo-900/60 space-y-3 pt-2">
+                        {d.replies.map((r: any) => {
+                          const isInst = r.userRole === 'INSTRUCTOR' || r.isInstructor;
+                          const isOfficial = r.isBestAnswer;
+
+                          return (
+                            <div
+                              key={r.id}
+                              className={`p-3.5 rounded-xl text-xs space-y-1.5 transition-all ${
+                                isInst || isOfficial
+                                  ? 'bg-purple-500/10 border border-purple-500/30 shadow-2xs'
+                                  : 'bg-surface-container-low border border-outline-variant/60'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <UserAvatar avatar={r.userAvatar} name={r.userName} size="sm" className="w-6 h-6 shrink-0" />
+                                  <span className="font-extrabold text-on-surface">{r.userName}</span>
+                                  {isInst && (
+                                    <span className="px-2 py-0.5 rounded-full bg-purple-600 text-white text-[9px] font-extrabold flex items-center gap-1 shadow-2xs">
+                                      <Icon name="school" size={10} />
+                                      Instructor Response
+                                    </span>
+                                  )}
+                                  {isOfficial && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-extrabold flex items-center gap-1 shadow-2xs">
+                                      <Icon name="verified" size={10} />
+                                      Verified Solution
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-on-surface-variant font-mono">
+                                  {r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                              </div>
+                              <p className="text-xs text-on-surface-variant pl-8 leading-relaxed whitespace-pre-wrap">{r.text}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Quick Reply Form */}
+                    <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/40">
+                      <input
+                        type="text"
+                        value={replyTextMap[d.id] || ''}
+                        onChange={(e) => setReplyTextMap({ ...replyTextMap, [d.id]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handlePostReply(d.id);
+                          }
+                        }}
+                        placeholder="Reply to instructor or add clarification..."
+                        className="flex-1 px-3.5 py-2 bg-surface-container-low border border-outline-variant rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        disabled={isPostingReply[d.id] || !replyTextMap[d.id]?.trim()}
+                        onClick={() => handlePostReply(d.id)}
+                        className="px-4 py-2 bg-primary hover:bg-primary-container text-on-primary text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5 shrink-0"
+                      >
+                        <Icon name={isPostingReply[d.id] ? 'sync' : 'reply'} size={13} className={isPostingReply[d.id] ? 'animate-spin' : ''} />
+                        <span>{isPostingReply[d.id] ? 'Replying...' : 'Reply'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

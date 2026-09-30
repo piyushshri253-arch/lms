@@ -200,32 +200,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           e.preventDefault();
         }
       }}
-      className={`w-full h-full bg-black relative overflow-hidden flex items-center justify-center group select-none transition-all ${
+      className={`w-full h-full aspect-video max-h-[78vh] bg-black relative flex items-center justify-center group select-none transition-all ${
         isFullscreen ? 'fixed inset-0 z-50 max-w-none rounded-none aspect-auto h-screen' : ''
       }`}
     >
       {/* 1. YouTube Stream Embed */}
       {isYouTube ? (
-        <iframe
-          src={
-            resolvedVideoUrl?.includes('embed')
-              ? resolvedVideoUrl
-              : `https://www.youtube.com/embed/${resolvedVideoUrl?.match(/(?:v=|youtu\.be\/)([\w-]{11})/)?.[1]}?rel=0&modestbranding=1`
-          }
-          title={title}
-          className="w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+        <div className="w-full h-full aspect-video relative flex items-center justify-center bg-black overflow-hidden">
+          <iframe
+            src={
+              resolvedVideoUrl?.includes('embed')
+                ? resolvedVideoUrl
+                : `https://www.youtube.com/embed/${resolvedVideoUrl?.match(/(?:v=|youtu\.be\/)([\w-]{11})/)?.[1]}?rel=0&modestbranding=1`
+            }
+            title={title}
+            className="w-full h-full aspect-video border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
       ) : isVimeo ? (
         /* 2. Vimeo Stream Embed */
-        <iframe
-          src={`https://player.vimeo.com/video/${resolvedVideoUrl?.match(/vimeo\.com\/(\d+)/)?.[1]}`}
-          title={title}
-          className="w-full h-full border-0"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-        />
+        <div className="w-full h-full aspect-video relative flex items-center justify-center bg-black overflow-hidden">
+          <iframe
+            src={`https://player.vimeo.com/video/${resolvedVideoUrl?.match(/vimeo\.com\/(\d+)/)?.[1]}`}
+            title={title}
+            className="w-full h-full aspect-video border-0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
       ) : resolvedVideoUrl ? (
         /* 3. Direct HTML5 MP4 / WebM / Local File Stream */
         <video
@@ -239,7 +243,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             setIsPlaying(false);
             onLessonComplete?.();
           }}
-          className="w-full h-full object-contain cursor-pointer"
+          className="w-full h-full aspect-video max-h-[78vh] object-contain cursor-pointer"
           onClick={togglePlay}
           playsInline
         />
@@ -266,8 +270,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Signed Private Stream Security Badge */}
-      {securityPolicy.signedUrlEnabled && (
+      {/* Signed Private Stream Security Badge (for native authenticated DRM streams) */}
+      {!isYouTube && !isVimeo && securityPolicy.signedUrlEnabled && (
         <div className="absolute top-4 right-4 z-20 bg-emerald-950/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 pointer-events-none">
           <Icon name="verified_user" size={12} />
           <span>Signed DRM Stream</span>

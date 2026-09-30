@@ -11,11 +11,10 @@ export async function GET(request: Request) {
     const lessonId = searchParams.get('lessonId');
 
     const whereClause: any = {};
-    if (user.organizationId) {
-      whereClause.organizationId = user.organizationId;
-    }
     if (courseId) {
       whereClause.courseId = courseId;
+    } else if (user.organizationId) {
+      whereClause.organizationId = user.organizationId;
     }
     if (lessonId) {
       whereClause.lessonId = lessonId;
@@ -110,13 +109,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
     }
 
-    // Verify enrollment for students
-    const enrollment = await prisma.enrollment.findFirst({
-      where: { userId: user.id, courseId, status: 'ACTIVE' }
-    });
+    // Verify enrollment for students (allow ACTIVE, COMPLETED, or ENROLLED)
+    const isOwnerOrAdmin =
+      course.instructorId === user.id ||
+      ['INSTRUCTOR', 'SUPER_ADMIN', 'LMS_ADMIN'].includes(user.role);
 
-    if (!enrollment && user.role === 'STUDENT') {
-      return NextResponse.json({ error: 'Active enrollment required to post in course discussions.' }, { status: 403 });
+    if (!isOwnerOrAdmin) {
+      const enrollment = await prisma.enrollment.findFirst({
+        where: {
+          userId: user.id,
+          courseId,
+          status: { in: ['ACTIVE', 'COMPLETED', 'ENROLLED'] }
+        }
+      });
+
+      if (!enrollment && user.role === 'STUDENT') {
+        return NextResponse.json({ error: 'Active enrollment required to post in course discussions.' }, { status: 403 });
+      }
     }
 
     const discussion = await prisma.discussion.create({

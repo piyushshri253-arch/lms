@@ -84,10 +84,15 @@ export async function GET(request: Request) {
     const categoryFilter = (searchParams.get('category') || 'ALL').toUpperCase(); // ALL, QUESTION, FORUM_DISCUSSION, FAQ
     const sortBy = searchParams.get('sortBy') || 'newest'; // newest, oldest_unanswered, most_replies
 
-    // 1. Load courses owned by this Instructor
+    // 1. Load courses owned by this Instructor / Admin
     const courseWhere: any = {};
     if (user.role === 'INSTRUCTOR') {
-      courseWhere.instructorId = user.id;
+      courseWhere.OR = [
+        { instructorId: user.id },
+        ...(user.organizationId ? [{ organizationId: user.organizationId }] : [])
+      ];
+    } else if (user.role === 'SUPER_ADMIN') {
+      // Super Admin has universal visibility across all courses
     } else if (user.organizationId) {
       courseWhere.organizationId = user.organizationId;
     }

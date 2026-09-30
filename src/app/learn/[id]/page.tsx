@@ -411,8 +411,14 @@ export default function LearnPlayerPage() {
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-56px)] bg-[#f7f9fa]">
         {/* Left Column: Video Theater Stage + Navigation + Bottom Tabs */}
         <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white">
-          {/* 2A. CINEMA THEATER STAGE (16:9 Black Container) */}
-          <div className="w-full bg-black flex items-center justify-center relative min-h-[260px] sm:min-h-[420px] lg:min-h-[500px] max-h-[75vh] shrink-0 overflow-hidden">
+          {/* 2A. CINEMA THEATER STAGE (Responsive 16:9 Black Container) */}
+          <div
+            className={`w-full bg-black flex items-center justify-center relative shrink-0 ${
+              activeLesson?.type === 'QUIZ' || activeLesson?.type === 'TEXT' || activeLesson?.type === 'PDF' || activeLesson?.type === 'DOWNLOAD'
+                ? 'min-h-[480px] py-6 sm:py-10 px-4 bg-slate-950'
+                : 'min-h-[260px] sm:min-h-[380px] md:min-h-[460px] lg:min-h-[520px] max-h-[78vh]'
+            }`}
+          >
             {/* If lesson is LOCKED (unenrolled & !isFree) */}
             {isCurrentLocked ? (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
@@ -452,7 +458,7 @@ export default function LearnPlayerPage() {
                 </div>
               </div>
             ) : activeLesson?.type === 'QUIZ' ? (
-              <div className="w-full max-w-3xl p-6 sm:p-8 bg-white my-6 rounded-xl shadow-lg text-slate-900">
+              <div className="w-full max-w-4xl p-2 sm:p-4 my-2">
                 <QuizPlayer
                   title={activeLesson.title}
                   lessonId={activeLesson.id}
@@ -476,7 +482,7 @@ export default function LearnPlayerPage() {
                 />
               </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center relative">
+              <div className="w-full max-w-[1280px] aspect-video max-h-[78vh] mx-auto flex items-center justify-center relative">
                 {activeLesson?.isFree && !isEnrolled && (
                   <div className="absolute top-4 left-4 z-30 bg-purple-600/90 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold text-white shadow-md flex items-center gap-1.5 pointer-events-none">
                     <Icon name="visibility" size={13} />
