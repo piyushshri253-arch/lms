@@ -107,17 +107,7 @@ function CourseBuilderContent() {
             type: 'VIDEO',
             duration: '10:00',
             durationSeconds: 600,
-            subLessons: [
-              {
-                id: `sub-${Date.now()}-1`,
-                code: '1.1.1',
-                title: '1.1.1 Key Learning Objectives & Syllabus Walkthrough',
-                description: 'Detailed breakdown of modules and practical exercises.',
-                type: 'VIDEO',
-                duration: '05:00',
-                order: 1
-              }
-            ],
+            subLessons: [],
             isFree: true,
             isPublished: true,
             order: 1
@@ -926,7 +916,7 @@ function CourseBuilderContent() {
                   </div>
                 </section>
 
-                {/* Main Content & Hierarchical Syllabus (Module -> 1.1 -> 1.1.1) */}
+                {/* Course Curriculum & Syllabus (Sections & Lectures) */}
                 <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 space-y-8">
                   {/* What You Will Learn */}
                   {courseState.whatYouWillLearn?.length > 0 && (
@@ -1020,46 +1010,7 @@ function CourseBuilderContent() {
                                     </div>
                                   </div>
 
-                                  {/* Sub-Categories (1.1.1, 1.1.2, 2.1.1) */}
-                                  {subs.length > 0 && (
-                                    <div className="pl-6 sm:pl-10 space-y-1.5 border-l-2 border-indigo-200 ml-3">
-                                      {subs.map((sub, subIdx) => {
-                                        const sCode = `${lCode}.${subIdx + 1}`;
-                                        return (
-                                          <div
-                                            key={sub.id}
-                                            onClick={() => {
-                                              setActivePreviewItem({
-                                                ...sub,
-                                                code: sCode,
-                                                moduleTitle: sec.title,
-                                                parentLessonTitle: les.title
-                                              });
-                                              setPreviewTab('PLAYER');
-                                            }}
-                                            className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 hover:bg-violet-50 border border-slate-200/70 cursor-pointer transition-colors"
-                                          >
-                                            <div className="flex items-start gap-2">
-                                              <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-mono font-bold text-[11px] shrink-0">
-                                                {sCode}
-                                              </span>
-                                              <div>
-                                                <p className="text-xs font-semibold text-slate-800">
-                                                  {sub.title}
-                                                </p>
-                                                {sub.description && (
-                                                  <p className="text-[11px] text-slate-500">{sub.description}</p>
-                                                )}
-                                              </div>
-                                            </div>
-                                            <span className="text-[11px] font-mono text-slate-500 shrink-0">
-                                              {sub.duration || '05:00'}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
+
                                 </div>
                               );
                             })}

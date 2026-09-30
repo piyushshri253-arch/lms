@@ -116,7 +116,7 @@ export default function InstructorCourseBuilderWrapperPage() {
   return (
     <InstructorPortalShell
       title="Create & Edit Course Curriculum"
-      subtitle="Configure course info, thumbnail/video media, syllabus modules (1.1 → 1.1.1), quizzes, assignments, pricing, and submit for approval"
+      subtitle="Configure course info, thumbnail/video media, curriculum sections and lectures, quizzes, assignments, pricing, and submit for approval"
       profile={{
         name: currentUser?.name || 'Instructor',
         email: currentUser?.email || '',
