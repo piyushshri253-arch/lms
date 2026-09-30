@@ -1089,63 +1089,117 @@ function CourseBuilderContent() {
                         <p className="text-xs text-slate-300">{currentPlayerItem.description}</p>
                       )}
 
-                      <div className="rounded-2xl overflow-hidden border border-white/10 bg-black min-h-[360px] flex items-center justify-center">
-                        {currentPlayerItem.type === 'VIDEO' ? (
-                          currentPlayerItem.videoUrl ? (
-                            <VideoPlayer
-                              videoUrl={currentPlayerItem.videoUrl}
-                              title={currentPlayerItem.title}
-                            />
-                          ) : (
-                            <div className="p-12 text-center space-y-2 text-slate-400">
-                              <Icon name="movie" size={40} className="mx-auto text-indigo-400" />
-                              <p className="text-sm font-bold text-white">Video Lecture Slot Ready</p>
-                              <p className="text-xs">
-                                Add a Video URL or Upload an MP4 in Step 3 for {currentPlayerItem.code} to play it here.
-                              </p>
-                            </div>
-                          )
-                        ) : currentPlayerItem.type === 'TEXT' ? (
-                          <div className="w-full p-6 bg-white text-slate-900 min-h-[360px]">
-                            <ArticlePlayer
-                              title={currentPlayerItem.title}
-                              type="TEXT"
-                              content={currentPlayerItem.content || 'No article text entered yet.'}
-                              onComplete={() => {}}
-                            />
-                          </div>
-                        ) : currentPlayerItem.type === 'QUIZ' ? (
-                          <div className="w-full p-6 bg-white text-slate-900 min-h-[360px]">
-                            <QuizPlayer
-                              lessonId={currentPlayerItem.id}
-                              title={currentPlayerItem.title}
-                              quizData={
-                                typeof currentPlayerItem.quizData === 'string'
-                                  ? currentPlayerItem.quizData
-                                  : JSON.stringify(currentPlayerItem.quizData || { questions: [] })
-                              }
-                              onPass={() => {}}
-                            />
-                          </div>
-                        ) : (
-                          <div className="p-12 text-center space-y-3 text-slate-300">
-                            <Icon name="picture_as_pdf" size={40} className="mx-auto text-rose-400" />
-                            <p className="text-sm font-bold">{currentPlayerItem.title}</p>
-                            {currentPlayerItem.pdfUrl ? (
-                              <a
-                                href={currentPlayerItem.pdfUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-block px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold"
-                              >
-                                Open Attached PDF Resource →
-                              </a>
-                            ) : (
-                              <p className="text-xs text-slate-400">No PDF URL attached yet.</p>
+                      {(() => {
+                        const quizObj =
+                          typeof currentPlayerItem.quizData === 'string'
+                            ? (() => {
+                                try {
+                                  return JSON.parse(currentPlayerItem.quizData);
+                                } catch {
+                                  return { questions: [] };
+                                }
+                              })()
+                            : currentPlayerItem.quizData || { questions: [] };
+                        const hasQuestions =
+                          Array.isArray(quizObj?.questions) && quizObj.questions.length > 0;
+                        const hasVideo = !!currentPlayerItem.videoUrl;
+                        const hasPdf = !!currentPlayerItem.pdfUrl;
+                        const hasNotes = !!currentPlayerItem.content;
+
+                        return (
+                          <div className="space-y-4">
+                            {/* 1. VIDEO PLAYER */}
+                            {(hasVideo || (!hasPdf && !hasNotes && !hasQuestions)) && (
+                              <div className="rounded-2xl overflow-hidden border border-white/10 bg-black min-h-[340px] flex items-center justify-center">
+                                {hasVideo ? (
+                                  <VideoPlayer
+                                    videoUrl={currentPlayerItem.videoUrl}
+                                    title={currentPlayerItem.title}
+                                  />
+                                ) : (
+                                  <div className="p-12 text-center space-y-2 text-slate-400">
+                                    <Icon name="movie" size={40} className="mx-auto text-indigo-400" />
+                                    <p className="text-sm font-bold text-white">
+                                      Lesson {currentPlayerItem.code} Ready
+                                    </p>
+                                    <p className="text-xs">
+                                      Upload a Video, PDF, Text Notes, or Quick Questions in Step 3 for{' '}
+                                      {currentPlayerItem.code} to preview them here.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* 2. ATTACHED PDF RESOURCE */}
+                            {hasPdf && (
+                              <div className="p-4 rounded-2xl bg-slate-800/90 border border-rose-500/40 flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                                    <Icon name="picture_as_pdf" size={22} />
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-extrabold text-white">
+                                      📑 Attached PDF Study Material ({currentPlayerItem.code})
+                                    </p>
+                                    <p className="text-[11px] text-slate-400">
+                                      Downloadable / viewable PDF lecture handout
+                                    </p>
+                                  </div>
+                                </div>
+                                <a
+                                  href={currentPlayerItem.pdfUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5"
+                                >
+                                  <Icon name="open_in_new" size={14} />
+                                  <span>Open / Download PDF</span>
+                                </a>
+                              </div>
+                            )}
+
+                            {/* 3. TEXT / STUDY NOTES */}
+                            {hasNotes && (
+                              <div className="rounded-2xl overflow-hidden bg-white text-slate-900 p-6 border border-slate-200">
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 mb-2 flex items-center gap-1.5">
+                                  <Icon name="article" size={16} />
+                                  <span>📝 Lesson Study Notes &amp; Reading ({currentPlayerItem.code})</span>
+                                </div>
+                                <ArticlePlayer
+                                  title={currentPlayerItem.title}
+                                  type="TEXT"
+                                  content={currentPlayerItem.content}
+                                  onComplete={() => {}}
+                                />
+                              </div>
+                            )}
+
+                            {/* 4. QUICK QUESTIONS / PRACTICE QUIZ */}
+                            {hasQuestions && (
+                              <div className="rounded-2xl overflow-hidden bg-white text-slate-900 p-6 border border-amber-300">
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-amber-700 mb-2 flex items-center gap-1.5">
+                                  <Icon name="quiz" size={16} />
+                                  <span>
+                                    ❓ Quick Practice Questions for {currentPlayerItem.code} (
+                                    {quizObj.questions.length})
+                                  </span>
+                                </div>
+                                <QuizPlayer
+                                  lessonId={currentPlayerItem.id}
+                                  title={`${currentPlayerItem.code}: Quick Check`}
+                                  quizData={
+                                    typeof currentPlayerItem.quizData === 'string'
+                                      ? currentPlayerItem.quizData
+                                      : JSON.stringify(quizObj)
+                                  }
+                                  onPass={() => {}}
+                                />
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div className="p-12 text-center text-slate-400">No lessons added yet.</div>

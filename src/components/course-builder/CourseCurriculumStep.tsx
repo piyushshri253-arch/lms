@@ -31,6 +31,7 @@ export interface BuilderSubLesson {
   content?: string;
   videoUrl?: string;
   pdfUrl?: string;
+  quizData?: QuizConfig | string;
   duration?: string;
   isFree?: boolean;
   order: number;
@@ -93,6 +94,91 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     title: string;
   } | null>(null);
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+  const [uploadingPdfItemId, setUploadingPdfItemId] = useState<string | null>(null);
+  const [expandedQuickQuizIds, setExpandedQuickQuizIds] = useState<Record<string, boolean>>({});
+
+  const toggleQuickQuizPanel = (itemId: string) => {
+    setExpandedQuickQuizIds((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
+  };
+
+  const parseQuizConfig = (raw?: QuizConfig | string): QuizConfig => {
+    if (!raw) return { questions: [], passingScore: 70, attemptLimit: 0 };
+    if (typeof raw === 'object') {
+      return {
+        questions: Array.isArray(raw.questions) ? raw.questions : [],
+        passingScore: raw.passingScore || 70,
+        attemptLimit: raw.attemptLimit || 0
+      };
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        questions: Array.isArray(parsed.questions) ? parsed.questions : [],
+        passingScore: parsed.passingScore || 70,
+        attemptLimit: parsed.attemptLimit || 0
+      };
+    } catch {
+      return { questions: [], passingScore: 70, attemptLimit: 0 };
+    }
+  };
+
+  // Direct 1-Click PDF File Upload from System (PC/Laptop) or Mobile Phone
+  const handleDirectPdfFileSelect = async (
+    file: File,
+    sectionId: string,
+    lessonId: string,
+    subLessonId?: string
+  ) => {
+    if (!file) return;
+    const targetKey = subLessonId || lessonId;
+    setUploadingPdfItemId(targetKey);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('lessonId', targetKey);
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+
+      let finalPdfUrl = '';
+      try {
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          finalPdfUrl = data.videoUrl || data.media?.url || URL.createObjectURL(file);
+        } else {
+          finalPdfUrl = URL.createObjectURL(file);
+        }
+      } catch {
+        finalPdfUrl = URL.createObjectURL(file);
+      }
+
+      if (subLessonId) {
+        handleUpdateSubLesson(sectionId, lessonId, subLessonId, {
+          pdfUrl: finalPdfUrl
+        });
+      } else {
+        handleUpdateLessonInline(sectionId, lessonId, {
+          pdfUrl: finalPdfUrl
+        });
+      }
+
+      showToast({
+        title: 'PDF Attached 🎉',
+        description: `"${file.name}" uploaded successfully.`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'PDF Upload Error',
+        description: err.message || 'Could not attach PDF file.',
+        type: 'error'
+      });
+    } finally {
+      setUploadingPdfItemId(null);
+    }
+  };
 
   // Direct 1-Click System / Mobile Phone Video & PDF Upload Handler
   const handleDirectDeviceFileSelect = async (
@@ -812,74 +898,139 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <span>+ Add {nextSubCode}</span>
                                 </button>
 
-                                {isVideo && (
-                                  <>
-                                    <label
-                                      className={`px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                                        uploadingItemId === les.id
-                                          ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                          : les.videoUrl
-                                          ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
-                                          : 'bg-primary text-on-primary hover:bg-primary/90'
-                                      }`}
-                                      title="Directly select a video file from your Computer, Laptop, or Mobile Phone Gallery/Camera"
-                                    >
-                                      <Icon
-                                        name={
-                                          uploadingItemId === les.id
-                                            ? 'sync'
-                                            : les.videoUrl
-                                            ? 'check_circle'
-                                            : 'upload_file'
-                                        }
-                                        size={14}
-                                      />
-                                      <span>
-                                        {uploadingItemId === les.id
-                                          ? 'Uploading Video...'
-                                          : les.videoUrl
-                                          ? 'Change Video (PC / Phone)'
-                                          : 'Upload Video (PC / Phone)'}
-                                      </span>
-                                      <input
-                                        type="file"
-                                        accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const f = e.target.files?.[0];
-                                          if (f) {
-                                            handleDirectDeviceFileSelect(f, section.id, les.id);
-                                            e.target.value = '';
-                                          }
-                                        }}
-                                      />
-                                    </label>
+                                {/* Direct 1-Click Video Upload (PC / Phone) */}
+                                <label
+                                  className={`px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                                    uploadingItemId === les.id
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                      : les.videoUrl
+                                      ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
+                                      : 'bg-primary text-on-primary hover:bg-primary/90'
+                                  }`}
+                                  title="Directly select a video file from your Computer, Laptop, or Mobile Phone Gallery/Camera"
+                                >
+                                  <Icon
+                                    name={
+                                      uploadingItemId === les.id
+                                        ? 'sync'
+                                        : les.videoUrl
+                                        ? 'check_circle'
+                                        : 'upload_file'
+                                    }
+                                    size={14}
+                                  />
+                                  <span>
+                                    {uploadingItemId === les.id
+                                      ? 'Uploading Video...'
+                                      : les.videoUrl
+                                      ? '✓ Video (Change)'
+                                      : 'Upload Video (PC/Phone)'}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) {
+                                        handleDirectDeviceFileSelect(f, section.id, les.id);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                </label>
 
+                                {/* Direct 1-Click PDF Upload (PC / Phone) */}
+                                <label
+                                  className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-2xs ${
+                                    uploadingPdfItemId === les.id
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                      : les.pdfUrl
+                                      ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
+                                      : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
+                                  }`}
+                                  title="Directly upload a PDF document from your System or Mobile Phone"
+                                >
+                                  <Icon
+                                    name={
+                                      uploadingPdfItemId === les.id
+                                        ? 'sync'
+                                        : les.pdfUrl
+                                        ? 'check_circle'
+                                        : 'picture_as_pdf'
+                                    }
+                                    size={14}
+                                  />
+                                  <span>
+                                    {uploadingPdfItemId === les.id
+                                      ? 'Uploading PDF...'
+                                      : les.pdfUrl
+                                      ? '✓ PDF'
+                                      : '+ Upload PDF'}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,application/pdf"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) {
+                                        handleDirectPdfFileSelect(f, section.id, les.id);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                </label>
+
+                                {/* Quick Questions Toggle Button */}
+                                {(() => {
+                                  const qConf = parseQuizConfig(les.quizData);
+                                  const qCount = qConf.questions.length;
+                                  return (
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        setVideoModalTarget({
-                                          sectionId: section.id,
-                                          lessonId: les.id,
-                                          title: les.title
-                                        })
-                                      }
-                                      className="px-2.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-on-primary rounded-xl font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
-                                      title="Open Drag & Drop Video Studio with Player Preview"
+                                      onClick={() => {
+                                        if (qCount === 0 && !expandedQuickQuizIds[les.id]) {
+                                          const newQuiz: QuizConfig = {
+                                            ...qConf,
+                                            questions: [
+                                              {
+                                                id: `q-${Date.now()}`,
+                                                question: '',
+                                                options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                correctIndex: 0,
+                                                explanation: '',
+                                                points: 10
+                                              }
+                                            ]
+                                          };
+                                          handleUpdateLessonInline(section.id, les.id, { quizData: newQuiz });
+                                        }
+                                        toggleQuickQuizPanel(les.id);
+                                      }}
+                                      className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer ${
+                                        qCount > 0
+                                          ? 'bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border border-amber-300'
+                                          : 'bg-slate-100 hover:bg-amber-600 text-slate-700 hover:text-white'
+                                      }`}
+                                      title="Add or edit Quick Questions / Practice Quiz for this lesson"
                                     >
-                                      <Icon name="smart_display" size={14} />
-                                      <span>Studio</span>
+                                      <Icon name="quiz" size={14} />
+                                      <span>
+                                        {qCount > 0 ? `❓ Quick Questions (${qCount})` : '+ Quick Question'}
+                                      </span>
                                     </button>
-                                  </>
-                                )}
+                                  );
+                                })()}
 
                                 <button
                                   type="button"
                                   onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
                                   className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                                  title="Open Full Multi-Content Editor"
                                 >
                                   <Icon name="tune" size={14} />
-                                  <span>Details / Content</span>
+                                  <span>Full Editor</span>
                                 </button>
 
                                 <button
@@ -893,22 +1044,58 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                               </div>
                             </div>
 
-                            {/* Inline Lesson Description + Media URL Row */}
-                            <div className="pl-0 sm:pl-16 grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                              <input
-                                type="text"
-                                value={les.description || ''}
-                                onChange={(e) =>
-                                  handleUpdateLessonInline(section.id, les.id, {
-                                    description: e.target.value
-                                  })
-                                }
-                                placeholder={`Description / summary for ${lessonCode} (optional)...`}
-                                className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none"
-                              />
+                            {/* ALL-IN-ONE MULTI-CONTENT HUB FOR LESSON 1.1 (Video + PDF + Text Notes + Quick Questions) */}
+                            <div className="pl-0 sm:pl-14 space-y-2.5 pt-1">
+                              {/* Status Pills showing attached resources inside 1.1 */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
+                                <span className="text-slate-400 uppercase tracking-wider mr-1">
+                                  Included in {lessonCode}:
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-md border ${
+                                    les.videoUrl
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-slate-50 text-slate-400 border-slate-200'
+                                  }`}
+                                >
+                                  🎬 Video {les.videoUrl ? '✓' : '(Optional)'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-md border ${
+                                    les.pdfUrl
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-slate-50 text-slate-400 border-slate-200'
+                                  }`}
+                                >
+                                  📑 PDF {les.pdfUrl ? '✓' : '(Optional)'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-md border ${
+                                    les.content
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-slate-50 text-slate-400 border-slate-200'
+                                  }`}
+                                >
+                                  📝 Text Notes {les.content ? '✓' : '(Optional)'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-md border ${
+                                    parseQuizConfig(les.quizData).questions.length > 0
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-slate-50 text-slate-400 border-slate-200'
+                                  }`}
+                                >
+                                  ❓ Quick Questions ({parseQuizConfig(les.quizData).questions.length})
+                                </span>
+                              </div>
 
-                              {isVideo && (
+                              {/* Row 1: Video URL/Upload + PDF URL/Upload */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                {/* 1. VIDEO INPUT */}
                                 <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] font-bold text-indigo-700 shrink-0 w-14">
+                                    🎬 Video:
+                                  </span>
                                   <input
                                     type="text"
                                     value={les.videoUrl || ''}
@@ -917,15 +1104,15 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         videoUrl: e.target.value
                                       })
                                     }
-                                    placeholder={`Paste Video URL for ${lessonCode} OR upload from System / Phone →`}
+                                    placeholder={`Video URL for ${lessonCode} or Upload →`}
                                     className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
                                   />
                                   <label
                                     className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                                    title="Browse file from System (PC/Mac) or Mobile Phone (Gallery/Files)"
+                                    title="Upload Video from System (PC/Laptop) or Mobile Phone"
                                   >
-                                    <Icon name="devices" size={13} />
-                                    <span>Browse File</span>
+                                    <Icon name="upload_file" size={13} />
+                                    <span>Browse</span>
                                     <input
                                       type="file"
                                       accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
@@ -940,35 +1127,243 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     />
                                   </label>
                                 </div>
-                              )}
 
-                              {isPdf && (
-                                <input
-                                  type="text"
-                                  value={les.pdfUrl || ''}
-                                  onChange={(e) =>
-                                    handleUpdateLessonInline(section.id, les.id, {
-                                      pdfUrl: e.target.value
-                                    })
-                                  }
-                                  placeholder={`PDF Document URL for ${lessonCode}...`}
-                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                />
-                              )}
+                                {/* 2. PDF INPUT */}
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] font-bold text-rose-700 shrink-0 w-14">
+                                    📑 PDF:
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={les.pdfUrl || ''}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, {
+                                        pdfUrl: e.target.value
+                                      })
+                                    }
+                                    placeholder={`PDF URL for ${lessonCode} or Upload PDF →`}
+                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-rose-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                  />
+                                  <label
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                                    title="Upload PDF from System (PC/Laptop) or Mobile Phone"
+                                  >
+                                    <Icon name="picture_as_pdf" size={13} />
+                                    <span>Browse</span>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,application/pdf"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) {
+                                          handleDirectPdfFileSelect(f, section.id, les.id);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              </div>
 
-                              {isText && (
-                                <input
-                                  type="text"
-                                  value={les.content || ''}
-                                  onChange={(e) =>
-                                    handleUpdateLessonInline(section.id, les.id, {
-                                      content: e.target.value
-                                    })
-                                  }
-                                  placeholder={`Article / reading text for ${lessonCode} (or click Details / Content for full editor)...`}
-                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none"
-                                />
-                              )}
+                              {/* Row 2: Text / Study Notes + Lesson Description */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                {/* 3. TEXT / STUDY NOTES */}
+                                <div className="flex items-start gap-1.5">
+                                  <span className="text-[11px] font-bold text-emerald-700 shrink-0 w-14 pt-1.5">
+                                    📝 Notes:
+                                  </span>
+                                  <textarea
+                                    rows={2}
+                                    value={les.content || ''}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, {
+                                        content: e.target.value
+                                      })
+                                    }
+                                    placeholder={`Write Text / Study Notes / Article for ${lessonCode} here...`}
+                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none resize-y"
+                                  />
+                                </div>
+
+                                {/* 4. LESSON OVERVIEW / DESCRIPTION */}
+                                <div className="flex items-start gap-1.5">
+                                  <span className="text-[11px] font-bold text-slate-600 shrink-0 w-14 pt-1.5">
+                                    📌 Info:
+                                  </span>
+                                  <textarea
+                                    rows={2}
+                                    value={les.description || ''}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, {
+                                        description: e.target.value
+                                      })
+                                    }
+                                    placeholder={`Short overview / summary for ${lessonCode} (optional)...`}
+                                    className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none resize-y"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Row 3: Inline Quick Questions / Mini Quiz Builder for Lesson 1.1 */}
+                              {(() => {
+                                const qConf = parseQuizConfig(les.quizData);
+                                const isExpanded =
+                                  expandedQuickQuizIds[les.id] || qConf.questions.length > 0;
+                                if (!isExpanded) return null;
+
+                                return (
+                                  <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span className="text-xs font-extrabold text-amber-900 flex items-center gap-1.5">
+                                        <Icon name="quiz" size={15} className="text-amber-600" />
+                                        <span>
+                                          Quick Questions / Practice Quiz for {lessonCode} (
+                                          {qConf.questions.length})
+                                        </span>
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updated: QuizConfig = {
+                                              ...qConf,
+                                              questions: [
+                                                ...qConf.questions,
+                                                {
+                                                  id: `q-${Date.now()}-${qConf.questions.length}`,
+                                                  question: '',
+                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                  correctIndex: 0,
+                                                  explanation: '',
+                                                  points: 10
+                                                }
+                                              ]
+                                            };
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              quizData: updated
+                                            });
+                                          }}
+                                          className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                        >
+                                          <Icon name="add" size={13} />
+                                          <span>+ Add Question</span>
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2.5">
+                                      {qConf.questions.map((q, qIdx) => (
+                                        <div
+                                          key={q.id || qIdx}
+                                          className="p-3 rounded-xl bg-white border border-amber-200 space-y-2 shadow-2xs"
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] font-black text-amber-800 font-mono">
+                                              Q{qIdx + 1} ({lessonCode})
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const updated: QuizConfig = {
+                                                  ...qConf,
+                                                  questions: qConf.questions.filter((_, idx) => idx !== qIdx)
+                                                };
+                                                handleUpdateLessonInline(section.id, les.id, {
+                                                  quizData: updated
+                                                });
+                                              }}
+                                              className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                                              title="Delete Question"
+                                            >
+                                              <Icon name="delete" size={15} />
+                                            </button>
+                                          </div>
+
+                                          <input
+                                            type="text"
+                                            value={q.question}
+                                            onChange={(e) => {
+                                              const nextQuestions = [...qConf.questions];
+                                              nextQuestions[qIdx] = { ...q, question: e.target.value };
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                quizData: { ...qConf, questions: nextQuestions }
+                                              });
+                                            }}
+                                            placeholder={`Type Question ${qIdx + 1} here...`}
+                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-amber-500 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none"
+                                          />
+
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {q.options.map((opt, oIdx) => {
+                                              const isCorrect = q.correctIndex === oIdx;
+                                              return (
+                                                <div
+                                                  key={oIdx}
+                                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${
+                                                    isCorrect
+                                                      ? 'bg-emerald-50 border-emerald-500'
+                                                      : 'bg-slate-50 border-slate-200'
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="radio"
+                                                    name={`inline-q-${les.id}-${qIdx}`}
+                                                    checked={isCorrect}
+                                                    onChange={() => {
+                                                      const nextQuestions = [...qConf.questions];
+                                                      nextQuestions[qIdx] = { ...q, correctIndex: oIdx };
+                                                      handleUpdateLessonInline(section.id, les.id, {
+                                                        quizData: { ...qConf, questions: nextQuestions }
+                                                      });
+                                                    }}
+                                                    className="text-emerald-600 cursor-pointer"
+                                                    title="Mark as correct option"
+                                                  />
+                                                  <input
+                                                    type="text"
+                                                    value={opt}
+                                                    onChange={(e) => {
+                                                      const nextOpts = [...q.options];
+                                                      nextOpts[oIdx] = e.target.value;
+                                                      const nextQuestions = [...qConf.questions];
+                                                      nextQuestions[qIdx] = { ...q, options: nextOpts };
+                                                      handleUpdateLessonInline(section.id, les.id, {
+                                                        quizData: { ...qConf, questions: nextQuestions }
+                                                      });
+                                                    }}
+                                                    placeholder={`Option ${oIdx + 1}`}
+                                                    className="flex-1 bg-transparent border-0 text-xs text-slate-800 focus:outline-none"
+                                                  />
+                                                  {isCorrect && (
+                                                    <span className="text-[10px] font-extrabold text-emerald-700">
+                                                      ✓ Correct
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+
+                                          <input
+                                            type="text"
+                                            value={q.explanation || ''}
+                                            onChange={(e) => {
+                                              const nextQuestions = [...qConf.questions];
+                                              nextQuestions[qIdx] = { ...q, explanation: e.target.value };
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                quizData: { ...qConf, questions: nextQuestions }
+                                              });
+                                            }}
+                                            placeholder="Explanation / answer hint (optional)..."
+                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-600 focus:outline-none"
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
 
@@ -992,14 +1387,15 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </button>
                               </div>
 
-                              <div className="space-y-2 pl-3 sm:pl-5 border-l-2 border-indigo-300">
+                              <div className="space-y-2.5 pl-3 sm:pl-5 border-l-2 border-indigo-300">
                                 {subLessons.map((sub, subIdx) => {
                                   const subCode = `${lessonCode}.${subIdx + 1}`;
+                                  const subQuiz = parseQuizConfig(sub.quizData);
 
                                   return (
                                     <div
                                       key={sub.id}
-                                      className="p-3 rounded-xl bg-white border border-indigo-200/80 shadow-2xs space-y-2"
+                                      className="p-3 rounded-xl bg-white border border-indigo-200/80 shadow-2xs space-y-2.5"
                                     >
                                       <div className="flex flex-wrap items-center gap-2">
                                         <div className="flex items-center gap-0.5">
@@ -1042,21 +1438,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           className="flex-1 min-w-[180px] bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-600 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none"
                                         />
 
-                                        {/* Sub-Topic Content Type */}
-                                        <select
-                                          value={sub.type || 'VIDEO'}
-                                          onChange={(e) =>
-                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                              type: e.target.value as any
-                                            })
-                                          }
-                                          className="bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer"
-                                        >
-                                          <option value="VIDEO">🎬 Video</option>
-                                          <option value="TEXT">📄 Text / Notes</option>
-                                          <option value="PDF">📑 PDF</option>
-                                        </select>
-
                                         {/* Sub-Topic Duration */}
                                         <input
                                           type="text"
@@ -1070,67 +1451,111 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           className="w-14 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono text-center text-slate-700 focus:outline-none"
                                         />
 
-                                        {sub.type === 'VIDEO' && (
-                                          <>
-                                            <label
-                                              className={`px-2.5 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
-                                                uploadingItemId === sub.id
-                                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                                  : sub.videoUrl
-                                                  ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
-                                                  : 'bg-violet-600 hover:bg-violet-700 text-white'
-                                              }`}
-                                              title="Upload Video from System (PC/Laptop) or Mobile Phone"
-                                            >
-                                              <Icon
-                                                name={
-                                                  uploadingItemId === sub.id
-                                                    ? 'sync'
-                                                    : sub.videoUrl
-                                                    ? 'check_circle'
-                                                    : 'upload_file'
-                                                }
-                                                size={13}
-                                              />
-                                              <span>
-                                                {uploadingItemId === sub.id
-                                                  ? 'Uploading...'
-                                                  : sub.videoUrl
-                                                  ? 'Change Video (PC/Phone)'
-                                                  : 'Upload Video (PC/Phone)'}
-                                              </span>
-                                              <input
-                                                type="file"
-                                                accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                  const f = e.target.files?.[0];
-                                                  if (f) {
-                                                    handleDirectDeviceFileSelect(f, section.id, les.id, sub.id);
-                                                    e.target.value = '';
-                                                  }
-                                                }}
-                                              />
-                                            </label>
-
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setVideoModalTarget({
-                                                  sectionId: section.id,
-                                                  lessonId: les.id,
-                                                  subLessonId: sub.id,
-                                                  title: sub.title
-                                                })
+                                        {/* Upload Video (PC/Phone) for Sub-Topic */}
+                                        <label
+                                          className={`px-2.5 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
+                                            uploadingItemId === sub.id
+                                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                              : sub.videoUrl
+                                              ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
+                                              : 'bg-violet-600 hover:bg-violet-700 text-white'
+                                          }`}
+                                          title="Upload Video from System (PC/Laptop) or Mobile Phone"
+                                        >
+                                          <Icon
+                                            name={
+                                              uploadingItemId === sub.id
+                                                ? 'sync'
+                                                : sub.videoUrl
+                                                ? 'check_circle'
+                                                : 'upload_file'
+                                            }
+                                            size={13}
+                                          />
+                                          <span>
+                                            {uploadingItemId === sub.id
+                                              ? 'Uploading...'
+                                              : sub.videoUrl
+                                              ? '✓ Video'
+                                              : '+ Video (PC/Phone)'}
+                                          </span>
+                                          <input
+                                            type="file"
+                                            accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f) {
+                                                handleDirectDeviceFileSelect(f, section.id, les.id, sub.id);
+                                                e.target.value = '';
                                               }
-                                              className="px-2 py-1 bg-violet-50 hover:bg-violet-600 text-violet-700 hover:text-white border border-violet-200 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
-                                              title="Open Video Studio"
-                                            >
-                                              <Icon name="smart_display" size={13} />
-                                              <span>Studio</span>
-                                            </button>
-                                          </>
-                                        )}
+                                            }}
+                                          />
+                                        </label>
+
+                                        {/* Upload PDF (PC/Phone) for Sub-Topic */}
+                                        <label
+                                          className={`px-2 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
+                                            uploadingPdfItemId === sub.id
+                                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                              : sub.pdfUrl
+                                              ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200'
+                                              : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200'
+                                          }`}
+                                          title="Upload PDF from PC or Mobile Phone"
+                                        >
+                                          <Icon name="picture_as_pdf" size={12} />
+                                          <span>{sub.pdfUrl ? '✓ PDF' : '+ PDF'}</span>
+                                          <input
+                                            type="file"
+                                            accept=".pdf,application/pdf"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f) {
+                                                handleDirectPdfFileSelect(f, section.id, les.id, sub.id);
+                                                e.target.value = '';
+                                              }
+                                            }}
+                                          />
+                                        </label>
+
+                                        {/* Quick Question Button for Sub-Topic */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (subQuiz.questions.length === 0 && !expandedQuickQuizIds[sub.id]) {
+                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                quizData: {
+                                                  ...subQuiz,
+                                                  questions: [
+                                                    {
+                                                      id: `sq-${Date.now()}`,
+                                                      question: '',
+                                                      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                      correctIndex: 0,
+                                                      explanation: '',
+                                                      points: 10
+                                                    }
+                                                  ]
+                                                }
+                                              });
+                                            }
+                                            toggleQuickQuizPanel(sub.id);
+                                          }}
+                                          className={`px-2 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
+                                            subQuiz.questions.length > 0
+                                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                              : 'bg-slate-100 hover:bg-amber-600 text-slate-700 hover:text-white'
+                                          }`}
+                                        >
+                                          <Icon name="quiz" size={12} />
+                                          <span>
+                                            {subQuiz.questions.length > 0
+                                              ? `❓ Questions (${subQuiz.questions.length})`
+                                              : '+ Quick Question'}
+                                          </span>
+                                        </button>
 
                                         <button
                                           type="button"
@@ -1142,70 +1567,31 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         </button>
                                       </div>
 
-                                      {/* Sub-Topic Description & Media URL */}
+                                      {/* All-in-One Multi-Format Grid for Sub-Topic 1.1.1 */}
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-6">
-                                        <input
-                                          type="text"
-                                          value={sub.description || ''}
-                                          onChange={(e) =>
-                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                              description: e.target.value
-                                            })
-                                          }
-                                          placeholder={`Sub-topic ${subCode} description or key notes...`}
-                                          className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
-                                        />
-
-                                        {sub.type === 'VIDEO' && (
-                                          <div className="flex items-center gap-1.5">
-                                            <input
-                                              type="text"
-                                              value={sub.videoUrl || ''}
-                                              onChange={(e) =>
-                                                handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                  videoUrl: e.target.value
-                                                })
-                                              }
-                                              placeholder={`Paste Video URL for ${subCode} OR upload from PC / Phone →`}
-                                              className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
-                                            />
-                                            <label
-                                              className="px-2 py-1 bg-violet-50 hover:bg-violet-600 text-violet-700 hover:text-white border border-violet-200 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                                              title="Browse video from PC or Mobile Phone"
-                                            >
-                                              <Icon name="devices" size={12} />
-                                              <span>Browse</span>
-                                              <input
-                                                type="file"
-                                                accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                  const f = e.target.files?.[0];
-                                                  if (f) {
-                                                    handleDirectDeviceFileSelect(f, section.id, les.id, sub.id);
-                                                    e.target.value = '';
-                                                  }
-                                                }}
-                                              />
-                                            </label>
-                                          </div>
-                                        )}
-
-                                        {sub.type === 'TEXT' && (
+                                        {/* Sub-Topic Video URL */}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[10px] font-bold text-violet-700 shrink-0 w-12">
+                                            🎬 Video:
+                                          </span>
                                           <input
                                             type="text"
-                                            value={sub.content || ''}
+                                            value={sub.videoUrl || ''}
                                             onChange={(e) =>
                                               handleUpdateSubLesson(section.id, les.id, sub.id, {
-                                                content: e.target.value
+                                                videoUrl: e.target.value
                                               })
                                             }
-                                            placeholder={`Reading content / notes for ${subCode}...`}
-                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
+                                            placeholder={`Video URL for ${subCode} or click + Video...`}
+                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
                                           />
-                                        )}
+                                        </div>
 
-                                        {sub.type === 'PDF' && (
+                                        {/* Sub-Topic PDF URL */}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[10px] font-bold text-rose-700 shrink-0 w-12">
+                                            📑 PDF:
+                                          </span>
                                           <input
                                             type="text"
                                             value={sub.pdfUrl || ''}
@@ -1214,11 +1600,158 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                 pdfUrl: e.target.value
                                               })
                                             }
-                                            placeholder={`PDF URL for ${subCode}...`}
-                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                            placeholder={`PDF URL for ${subCode} or click + PDF...`}
+                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-rose-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
                                           />
-                                        )}
+                                        </div>
+
+                                        {/* Sub-Topic Text Notes */}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[10px] font-bold text-emerald-700 shrink-0 w-12">
+                                            📝 Notes:
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={sub.content || ''}
+                                            onChange={(e) =>
+                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                content: e.target.value
+                                              })
+                                            }
+                                            placeholder={`Text / study notes for ${subCode}...`}
+                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        </div>
+
+                                        {/* Sub-Topic Description */}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[10px] font-bold text-slate-600 shrink-0 w-12">
+                                            📌 Info:
+                                          </span>
+                                          <input
+                                            type="text"
+                                            value={sub.description || ''}
+                                            onChange={(e) =>
+                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                description: e.target.value
+                                              })
+                                            }
+                                            placeholder={`Sub-topic ${subCode} summary...`}
+                                            className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        </div>
                                       </div>
+
+                                      {/* Sub-Topic Quick Questions Panel */}
+                                      {(expandedQuickQuizIds[sub.id] || subQuiz.questions.length > 0) && (
+                                        <div className="ml-6 p-3 rounded-xl bg-amber-50/60 border border-amber-200 space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-extrabold text-amber-900">
+                                              ❓ Quick Questions for {subCode} ({subQuiz.questions.length})
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                  quizData: {
+                                                    ...subQuiz,
+                                                    questions: [
+                                                      ...subQuiz.questions,
+                                                      {
+                                                        id: `sq-${Date.now()}`,
+                                                        question: '',
+                                                        options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                        correctIndex: 0,
+                                                        explanation: '',
+                                                        points: 10
+                                                      }
+                                                    ]
+                                                  }
+                                                });
+                                              }}
+                                              className="px-2.5 py-0.5 bg-amber-600 text-white rounded-md text-[10px] font-bold cursor-pointer"
+                                            >
+                                              + Add Question
+                                            </button>
+                                          </div>
+                                          {subQuiz.questions.map((sq, sqIdx) => (
+                                            <div
+                                              key={sq.id || sqIdx}
+                                              className="p-2.5 bg-white rounded-lg border border-amber-200 space-y-1.5"
+                                            >
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-bold text-amber-800">
+                                                  Q{sqIdx + 1}
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                      quizData: {
+                                                        ...subQuiz,
+                                                        questions: subQuiz.questions.filter(
+                                                          (_, idx) => idx !== sqIdx
+                                                        )
+                                                      }
+                                                    });
+                                                  }}
+                                                  className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                                >
+                                                  <Icon name="delete" size={13} />
+                                                </button>
+                                              </div>
+                                              <input
+                                                type="text"
+                                                value={sq.question}
+                                                onChange={(e) => {
+                                                  const nextQ = [...subQuiz.questions];
+                                                  nextQ[sqIdx] = { ...sq, question: e.target.value };
+                                                  handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                    quizData: { ...subQuiz, questions: nextQ }
+                                                  });
+                                                }}
+                                                placeholder="Enter quick question..."
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[11px] font-bold"
+                                              />
+                                              <div className="grid grid-cols-2 gap-1.5">
+                                                {sq.options.map((opt, oIdx) => (
+                                                  <div
+                                                    key={oIdx}
+                                                    className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                                                  >
+                                                    <input
+                                                      type="radio"
+                                                      name={`sub-q-${sub.id}-${sqIdx}`}
+                                                      checked={sq.correctIndex === oIdx}
+                                                      onChange={() => {
+                                                        const nextQ = [...subQuiz.questions];
+                                                        nextQ[sqIdx] = { ...sq, correctIndex: oIdx };
+                                                        handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                          quizData: { ...subQuiz, questions: nextQ }
+                                                        });
+                                                      }}
+                                                    />
+                                                    <input
+                                                      type="text"
+                                                      value={opt}
+                                                      onChange={(e) => {
+                                                        const nextOpts = [...sq.options];
+                                                        nextOpts[oIdx] = e.target.value;
+                                                        const nextQ = [...subQuiz.questions];
+                                                        nextQ[sqIdx] = { ...sq, options: nextOpts };
+                                                        handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                          quizData: { ...subQuiz, questions: nextQ }
+                                                        });
+                                                      }}
+                                                      className="w-full bg-transparent text-[10px] focus:outline-none"
+                                                    />
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 })}
@@ -1504,224 +2037,238 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
           />
         </div>
 
-        {/* TYPE 1: VIDEO LESSON */}
-        {formData.type === 'VIDEO' && (
-          <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-                Lesson Video (Upload from System / Phone OR Paste URL)
-              </label>
-              <label className="px-3.5 py-2 bg-primary text-on-primary hover:bg-primary/90 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
-                <Icon name="upload_file" size={16} />
-                <span>Upload from System / Mobile Phone</span>
-                <input
-                  type="file"
-                  accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    e.target.value = '';
-                    const localPreview = URL.createObjectURL(f);
-                    // Detect duration automatically
-                    const tempVideo = document.createElement('video');
-                    tempVideo.preload = 'metadata';
-                    tempVideo.src = localPreview;
-                    tempVideo.onloadedmetadata = () => {
-                      if (tempVideo.duration && isFinite(tempVideo.duration)) {
-                        const mins = Math.floor(tempVideo.duration / 60);
-                        const secs = Math.floor(tempVideo.duration % 60);
-                        const dur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                        setFormData((prev) => ({ ...prev, duration: dur }));
-                      }
-                    };
-                    setFormData((prev) => ({ ...prev, videoUrl: localPreview }));
-                    try {
-                      const fd = new FormData();
-                      fd.append('file', f);
-                      const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
-                      const data = await res.json();
-                      if (res.ok && data?.media?.url) {
-                        setFormData((prev) => ({ ...prev, videoUrl: data.media.url }));
-                      }
-                    } catch {
-                      // Keep localPreview so it still works seamlessly
+        {/* 1. VIDEO LECTURE SECTION (Always Available) */}
+        <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              🎬 1. Lesson Video (Upload from System / Phone OR Paste URL)
+            </label>
+            <label className="px-3.5 py-2 bg-primary text-on-primary hover:bg-primary/90 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
+              <Icon name="upload_file" size={16} />
+              <span>Upload Video (PC / Mobile Phone)</span>
+              <input
+                type="file"
+                accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  e.target.value = '';
+                  const localPreview = URL.createObjectURL(f);
+                  const tempVideo = document.createElement('video');
+                  tempVideo.preload = 'metadata';
+                  tempVideo.src = localPreview;
+                  tempVideo.onloadedmetadata = () => {
+                    if (tempVideo.duration && isFinite(tempVideo.duration)) {
+                      const mins = Math.floor(tempVideo.duration / 60);
+                      const secs = Math.floor(tempVideo.duration % 60);
+                      const dur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                      setFormData((prev) => ({ ...prev, duration: dur }));
                     }
-                  }}
+                  };
+                  setFormData((prev) => ({ ...prev, videoUrl: localPreview }));
+                  try {
+                    const fd = new FormData();
+                    fd.append('file', f);
+                    const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if (res.ok && (data?.videoUrl || data?.media?.url)) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        videoUrl: data.videoUrl || data.media.url
+                      }));
+                    }
+                  } catch {
+                    // Keep localPreview
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          <input
+            type="text"
+            value={formData.videoUrl || ''}
+            onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+            placeholder="Paste YouTube / Vimeo / MP4 URL or click 'Upload Video (PC / Mobile Phone)' above..."
+            className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
+          />
+
+          {formData.videoUrl && (
+            <div className="pt-1">
+              <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mb-1.5">
+                <Icon name="check_circle" size={14} />
+                <span>Video Ready for Playback</span>
+              </div>
+              {(formData.videoUrl.startsWith('blob:') ||
+                formData.videoUrl.startsWith('data:') ||
+                formData.videoUrl.startsWith('/uploads/') ||
+                formData.videoUrl.endsWith('.mp4') ||
+                formData.videoUrl.endsWith('.webm') ||
+                formData.videoUrl.endsWith('.mov')) && (
+                <video
+                  src={formData.videoUrl}
+                  controls
+                  className="w-full max-h-48 rounded-xl bg-black border border-outline-variant"
                 />
-              </label>
+              )}
             </div>
+          )}
+        </div>
 
-            <input
-              type="text"
-              value={formData.videoUrl || ''}
-              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-              placeholder="Paste YouTube / Vimeo / MP4 URL or click 'Upload from System / Mobile Phone' above..."
-              className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
-            />
-
-            {formData.videoUrl && (
-              <div className="pt-1">
-                <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mb-1.5">
-                  <Icon name="check_circle" size={14} />
-                  <span>Video Ready for Playback</span>
-                </div>
-                {(formData.videoUrl.startsWith('blob:') ||
-                  formData.videoUrl.startsWith('data:') ||
-                  formData.videoUrl.startsWith('/uploads/') ||
-                  formData.videoUrl.endsWith('.mp4') ||
-                  formData.videoUrl.endsWith('.webm') ||
-                  formData.videoUrl.endsWith('.mov')) && (
-                  <video
-                    src={formData.videoUrl}
-                    controls
-                    className="w-full max-h-48 rounded-xl bg-black border border-outline-variant"
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TYPE 2: TEXT ARTICLE LESSON */}
-        {formData.type === 'TEXT' && (
-          <div className="space-y-2">
+        {/* 2. PDF / RESOURCE DOCUMENT SECTION (Always Available) */}
+        <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Article Content (Markdown / Rich Text)
+              📑 2. PDF Document / Study Material (Upload OR Paste URL)
             </label>
-            <textarea
-              rows={8}
-              value={formData.content || ''}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="# Lesson Overview&#10;&#10;Explain core concepts here..."
-              className="w-full bg-surface border border-outline-variant rounded-2xl p-4 text-xs font-mono leading-relaxed text-on-surface focus:outline-none focus:border-primary"
-            />
-          </div>
-        )}
-
-        {/* TYPE 3: PDF / RESOURCE LESSON */}
-        {formData.type === 'PDF' && (
-          <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              PDF Document File URL
-            </label>
-            <input
-              type="text"
-              value={formData.pdfUrl || ''}
-              onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
-              placeholder="https://cdn.morenateach.com/cheatsheet.pdf or /uploads/..."
-              className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
-            />
-          </div>
-        )}
-
-        {/* TYPE 4: QUIZ BUILDER */}
-        {formData.type === 'QUIZ' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center bg-surface-container-low p-4 rounded-2xl border border-outline-variant/60">
-              <div className="flex items-center gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-on-surface">
-                    Passing Grade (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="10"
-                    max="100"
-                    value={parsedQuiz.passingScore || 70}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        quizData: { ...parsedQuiz, passingScore: Number(e.target.value) }
-                      })
+            <label className="px-3.5 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
+              <Icon name="picture_as_pdf" size={16} />
+              <span>Upload PDF (PC / Mobile Phone)</span>
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  e.target.value = '';
+                  const localPdf = URL.createObjectURL(f);
+                  setFormData((prev) => ({ ...prev, pdfUrl: localPdf }));
+                  try {
+                    const fd = new FormData();
+                    fd.append('file', f);
+                    const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if (res.ok && (data?.videoUrl || data?.media?.url)) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        pdfUrl: data.videoUrl || data.media.url
+                      }));
                     }
-                    className="w-20 bg-surface border border-outline-variant rounded-lg p-1 text-xs font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAddQuizQuestion}
-                className="px-3.5 py-2 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
-              >
-                <Icon name="add" size={14} />
-                <span>Add Question</span>
-              </button>
-            </div>
-
-            {/* Questions List */}
-            <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-              {parsedQuiz.questions.map((q, qIdx) => (
-                <div
-                  key={q.id || qIdx}
-                  className="p-4 bg-surface rounded-2xl border border-outline-variant space-y-3"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-primary font-mono">
-                      Question {qIdx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveQuizQuestion(qIdx)}
-                      className="text-outline hover:text-rose-600 p-1 cursor-pointer"
-                    >
-                      <Icon name="delete" size={16} />
-                    </button>
-                  </div>
-
-                  <input
-                    type="text"
-                    value={q.question}
-                    onChange={(e) => handleUpdateQuizQuestion(qIdx, 'question', e.target.value)}
-                    placeholder="Enter question prompt..."
-                    className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-2.5 text-xs text-on-surface font-semibold focus:outline-none focus:border-primary"
-                  />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {q.options.map((opt, oIdx) => {
-                      const isCorrect = q.correctIndex === oIdx;
-                      return (
-                        <div
-                          key={oIdx}
-                          className={`flex items-center gap-2 p-2 rounded-xl border ${
-                            isCorrect ? 'border-emerald-500 bg-emerald-50/50' : 'border-outline-variant bg-surface'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={`correct-${q.id || qIdx}`}
-                            checked={isCorrect}
-                            onChange={() => handleUpdateQuizQuestion(qIdx, 'correctIndex', oIdx)}
-                            className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            value={opt}
-                            onChange={(e) => {
-                              const newOpts = [...q.options];
-                              newOpts[oIdx] = e.target.value;
-                              handleUpdateQuizQuestion(qIdx, 'options', newOpts);
-                            }}
-                            className="flex-1 bg-transparent border-0 text-xs text-on-surface focus:outline-none"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <input
-                    type="text"
-                    value={q.explanation || ''}
-                    onChange={(e) => handleUpdateQuizQuestion(qIdx, 'explanation', e.target.value)}
-                    placeholder="Rationale / explanation shown after answer submission..."
-                    className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl p-2 text-[11px] text-on-surface-variant focus:outline-none"
-                  />
-                </div>
-              ))}
-            </div>
+                  } catch {
+                    // Keep localPdf
+                  }
+                }}
+              />
+            </label>
           </div>
-        )}
+          <input
+            type="text"
+            value={formData.pdfUrl || ''}
+            onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
+            placeholder="https://cdn.morenateach.com/notes.pdf or click 'Upload PDF' above..."
+            className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        {/* 3. TEXT / STUDY NOTES SECTION (Always Available) */}
+        <div className="space-y-2 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
+          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+            📝 3. Text / Study Notes / Article Content
+          </label>
+          <textarea
+            rows={6}
+            value={formData.content || ''}
+            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            placeholder="# Lesson Study Notes&#10;&#10;Write detailed study notes, key takeaways, formulas, or article content here..."
+            className="w-full bg-surface border border-outline-variant rounded-2xl p-3.5 text-xs font-mono leading-relaxed text-on-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        {/* 4. QUICK QUESTIONS / QUIZ BUILDER SECTION (Always Available) */}
+        <div className="space-y-4 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
+          <div className="flex flex-wrap justify-between items-center gap-2">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                ❓ 4. Quick Questions / Practice Quiz ({parsedQuiz.questions.length})
+              </label>
+              <p className="text-[11px] text-on-surface-variant">
+                Add quick multiple-choice check questions for this lesson.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddQuizQuestion}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Icon name="add" size={14} />
+              <span>+ Add Quick Question</span>
+            </button>
+          </div>
+
+          {/* Questions List */}
+          <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+            {parsedQuiz.questions.map((q, qIdx) => (
+              <div
+                key={q.id || qIdx}
+                className="p-4 bg-surface rounded-2xl border border-outline-variant space-y-3"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-primary font-mono">
+                    Question {qIdx + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveQuizQuestion(qIdx)}
+                    className="text-outline hover:text-rose-600 p-1 cursor-pointer"
+                  >
+                    <Icon name="delete" size={16} />
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={q.question}
+                  onChange={(e) => handleUpdateQuizQuestion(qIdx, 'question', e.target.value)}
+                  placeholder="Enter question prompt..."
+                  className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-2.5 text-xs text-on-surface font-semibold focus:outline-none focus:border-primary"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {q.options.map((opt, oIdx) => {
+                    const isCorrect = q.correctIndex === oIdx;
+                    return (
+                      <div
+                        key={oIdx}
+                        className={`flex items-center gap-2 p-2 rounded-xl border ${
+                          isCorrect ? 'border-emerald-500 bg-emerald-50/50' : 'border-outline-variant bg-surface'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={`correct-${q.id || qIdx}`}
+                          checked={isCorrect}
+                          onChange={() => handleUpdateQuizQuestion(qIdx, 'correctIndex', oIdx)}
+                          className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const newOpts = [...q.options];
+                            newOpts[oIdx] = e.target.value;
+                            handleUpdateQuizQuestion(qIdx, 'options', newOpts);
+                          }}
+                          className="flex-1 bg-transparent border-0 text-xs text-on-surface focus:outline-none"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <input
+                  type="text"
+                  value={q.explanation || ''}
+                  onChange={(e) => handleUpdateQuizQuestion(qIdx, 'explanation', e.target.value)}
+                  placeholder="Rationale / explanation shown after answer submission..."
+                  className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl p-2 text-[11px] text-on-surface-variant focus:outline-none"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Free Preview Toggle */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container-low rounded-2xl border border-outline-variant/60">
