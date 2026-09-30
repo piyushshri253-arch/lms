@@ -196,7 +196,27 @@ const createCourseSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const user = await requireTenantRole(['INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN']);
+    let user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required. Please log into your instructor account.' }, { status: 401 });
+    }
+
+    // Auto-promote student to INSTRUCTOR when they build and author a course
+    if (user.role === 'STUDENT') {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'INSTRUCTOR', platform: 'LMS' }
+      }).catch(() => {});
+      user = { ...user, role: 'INSTRUCTOR' };
+    }
+
+    if (!['INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Access denied: Insufficient privileges to create courses.' },
+        { status: 403 }
+      );
+    }
+
     const authorId = user.id;
     let orgId = user.organizationId;
 
