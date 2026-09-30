@@ -200,7 +200,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           e.preventDefault();
         }
       }}
-      className={`w-full max-w-[1000px] mx-auto bg-black rounded-2xl aspect-video relative overflow-hidden shadow-2xl flex items-center justify-center group select-none transition-all ${
+      className={`w-full h-full bg-black relative overflow-hidden flex items-center justify-center group select-none transition-all ${
         isFullscreen ? 'fixed inset-0 z-50 max-w-none rounded-none aspect-auto h-screen' : ''
       }`}
     >

@@ -5,34 +5,94 @@ import { Icon } from '../ui/Icon';
 import { UserAvatar } from '../ui/UserAvatar';
 import { useApp } from '@/context/AppContext';
 
+export type PlayerTab = 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews' | 'announcements';
+
 interface LessonTabsProps {
   courseId?: string;
+  courseTitle?: string;
+  courseSubtitle?: string;
+  courseDescription?: string;
+  whatYouWillLearn?: string[] | string;
+  requirements?: string[] | string;
+  targetAudience?: string[] | string;
+  level?: string;
+  totalLectures?: number;
+  totalDuration?: string;
   lessonId?: string;
   lessonTitle: string;
+  lessonDescription?: string;
   instructorName?: string;
   instructorRole?: string;
   instructorAvatar?: string | null;
+  instructorBio?: string | null;
   resources?: Array<{ name: string; url: string; size?: string }>;
   onSeekTimestamp?: (seconds: number) => void;
-  activeTab?: 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews';
-  onTabChange?: (tab: 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews') => void;
+  activeTab?: PlayerTab;
+  onTabChange?: (tab: PlayerTab) => void;
 }
 
 export const LessonTabs: React.FC<LessonTabsProps> = ({
   courseId,
+  courseTitle,
+  courseSubtitle,
+  courseDescription,
+  whatYouWillLearn = [],
+  requirements = [],
+  targetAudience = [],
+  level = 'All Levels',
+  totalLectures = 1,
+  totalDuration = '1.5 hours',
   lessonId,
   lessonTitle,
+  lessonDescription,
   instructorName = 'Faculty Lead',
-  instructorRole = 'Systems Architect & Instructor',
+  instructorRole = 'Expert Educator & Consultant',
   instructorAvatar = null,
+  instructorBio = null,
   resources = [],
   onSeekTimestamp,
   activeTab: externalTab,
   onTabChange
 }) => {
-  const [internalTab, setInternalTab] = useState<'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews'>('overview');
+  // Parse arrays safely if passed as stringified JSON
+  const parsedWhatYouWillLearn: string[] = React.useMemo(() => {
+    if (Array.isArray(whatYouWillLearn)) return whatYouWillLearn;
+    if (typeof whatYouWillLearn === 'string') {
+      try {
+        const parsed = JSON.parse(whatYouWillLearn);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+      return [whatYouWillLearn];
+    }
+    return [];
+  }, [whatYouWillLearn]);
+
+  const parsedRequirements: string[] = React.useMemo(() => {
+    if (Array.isArray(requirements)) return requirements;
+    if (typeof requirements === 'string') {
+      try {
+        const parsed = JSON.parse(requirements);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+      return [requirements];
+    }
+    return [];
+  }, [requirements]);
+
+  const parsedTargetAudience: string[] = React.useMemo(() => {
+    if (Array.isArray(targetAudience)) return targetAudience;
+    if (typeof targetAudience === 'string') {
+      try {
+        const parsed = JSON.parse(targetAudience);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+      return [targetAudience];
+    }
+    return [];
+  }, [targetAudience]);
+  const [internalTab, setInternalTab] = useState<PlayerTab>('overview');
   const activeTab = externalTab !== undefined ? externalTab : internalTab;
-  const setActiveTab = (tab: 'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews') => {
+  const setActiveTab = (tab: PlayerTab) => {
     setInternalTab(tab);
     if (onTabChange) onTabChange(tab);
   };
@@ -303,118 +363,206 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
   return (
     <div className="w-full max-w-[1000px] mx-auto mt-8">
       {/* Tab Navigation Header */}
-      <div className="flex border-b border-outline-variant mb-6 overflow-x-auto gap-1">
+      <div className="flex border-b border-[#d1d7dc] mb-8 overflow-x-auto gap-4 sm:gap-8 scrollbar-none select-none">
         <button
+          type="button"
           onClick={() => setActiveTab('overview')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer ${
+          className={`pb-3 text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'overview'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
+              ? 'text-[#2d2f31] border-b-2 border-[#2d2f31] font-extrabold'
+              : 'text-[#6a6f73] hover:text-[#2d2f31] font-bold'
           }`}
         >
           Overview
         </button>
         <button
-          onClick={() => setActiveTab('notes')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'notes'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
-          }`}
-        >
-          My Notes ({notes.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('bookmarks')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'bookmarks'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
-          }`}
-        >
-          Bookmarks ({bookmarks.length})
-        </button>
-        <button
+          type="button"
           onClick={() => setActiveTab('discussion')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer ${
+          className={`pb-3 text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'discussion'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
+              ? 'text-[#2d2f31] border-b-2 border-[#2d2f31] font-extrabold'
+              : 'text-[#6a6f73] hover:text-[#2d2f31] font-bold'
           }`}
         >
-          Q&amp;A Discussion ({discussions.length})
+          Q&A ({discussions.length})
         </button>
         <button
-          onClick={() => setActiveTab('assignments')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'assignments'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
+          type="button"
+          onClick={() => setActiveTab('notes')}
+          className={`pb-3 text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'notes'
+              ? 'text-[#2d2f31] border-b-2 border-[#2d2f31] font-extrabold'
+              : 'text-[#6a6f73] hover:text-[#2d2f31] font-bold'
           }`}
         >
-          Assignments ({assignments.length})
+          Notes ({notes.length})
         </button>
         <button
-          onClick={() => setActiveTab('resources')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'resources'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
+          type="button"
+          onClick={() => setActiveTab('announcements')}
+          className={`pb-3 text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'announcements'
+              ? 'text-[#2d2f31] border-b-2 border-[#2d2f31] font-extrabold'
+              : 'text-[#6a6f73] hover:text-[#2d2f31] font-bold'
           }`}
         >
-          Downloads &amp; Assets
+          Announcements
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('reviews')}
-          className={`px-5 py-3 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+          className={`pb-3 text-sm transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'reviews'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-on-surface-variant hover:text-primary'
+              ? 'text-[#2d2f31] border-b-2 border-[#2d2f31] font-extrabold'
+              : 'text-[#6a6f73] hover:text-[#2d2f31] font-bold'
           }`}
         >
-          <Icon name="star" fill size={15} className="text-amber-500" />
+          <Icon name="star" fill size={14} className="text-amber-500" />
           <span>Reviews ({reviews.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('resources')}
+          className={`pb-3 text-sm transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'resources'
+              ? 'text-[#2d2f31] border-b-2 border-[#2d2f31] font-extrabold'
+              : 'text-[#6a6f73] hover:text-[#2d2f31] font-bold'
+          }`}
+        >
+          Learning tools ({resources.length})
         </button>
       </div>
 
       {/* Tab Content Panels */}
-      {/* 1. Overview */}
+      {/* 1. Overview Tab - Authentic Udemy Course Overview */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in duration-200">
-          <div className="md:col-span-2 space-y-4 text-on-surface-variant text-sm leading-relaxed">
-            <h3 className="text-lg font-bold text-on-surface">About this Lesson</h3>
-            <p>
-              In this module, you will master the fundamental concepts, real-world patterns, and production architectural standards.
-            </p>
-            <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant space-y-2 mt-4">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-primary">Learning Objectives</h4>
-              <ul className="space-y-1.5 text-xs">
-                <li className="flex items-center gap-2">
-                  <Icon name="check_circle" size={16} className="text-emerald-700" />
-                  <span>Master modular architectural patterns</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Icon name="check_circle" size={16} className="text-emerald-700" />
-                  <span>Write maintainable, battle-tested code</span>
-                </li>
-              </ul>
+        <div className="space-y-10 animate-in fade-in duration-200 text-[#2d2f31]">
+          {/* A. About this course header */}
+          <div className="space-y-3">
+            <h2 className="text-2xl font-extrabold text-[#2d2f31] tracking-tight">
+              About this course
+            </h2>
+            {courseSubtitle && (
+              <p className="text-base text-slate-700 font-medium leading-relaxed">
+                {courseSubtitle}
+              </p>
+            )}
+            {courseDescription && (
+              <p className="text-sm text-slate-600 leading-relaxed max-w-4xl whitespace-pre-line">
+                {courseDescription}
+              </p>
+            )}
+          </div>
+
+          {/* B. By the numbers (Udemy key metrics card) */}
+          <div className="border-t border-b border-[#d1d7dc] py-6 grid grid-cols-2 sm:grid-cols-4 gap-6 text-xs text-slate-600">
+            <div>
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Skill level</span>
+              <span className="font-bold text-slate-900 text-sm">{level}</span>
+            </div>
+            <div>
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Lectures</span>
+              <span className="font-bold text-slate-900 text-sm">{totalLectures} lectures</span>
+            </div>
+            <div>
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Video</span>
+              <span className="font-bold text-slate-900 text-sm">{totalDuration}</span>
+            </div>
+            <div>
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Certificate</span>
+              <span className="font-bold text-emerald-700 text-sm flex items-center gap-1">
+                <Icon name="workspace_premium" size={16} fill />
+                Included
+              </span>
             </div>
           </div>
 
-          <div className="md:col-span-1">
-            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm">
-              <h4 className="text-xs font-bold text-on-surface mb-4 uppercase tracking-wider">Instructor</h4>
-              <div className="flex items-center gap-3">
-                <UserAvatar
-                  avatar={instructorAvatar}
-                  name={instructorName}
-                  size="lg"
-                  className="w-12 h-12 shrink-0"
-                />
-                <div>
-                  <p className="font-bold text-sm text-on-surface">{instructorName}</p>
-                  <p className="text-xs text-secondary">{instructorRole}</p>
+          {/* C. What you'll learn (Udemy 2-column checklist) */}
+          {parsedWhatYouWillLearn.length > 0 && (
+            <div className="border border-[#d1d7dc] rounded-xl p-6 bg-[#f7f9fa]/60 space-y-4">
+              <h3 className="font-extrabold text-base text-[#2d2f31]">
+                What you'll learn
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {parsedWhatYouWillLearn.map((item, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700 leading-relaxed">
+                    <Icon name="check" size={16} className="text-[#2d2f31] shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* D. Requirements */}
+          {parsedRequirements.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-extrabold text-base text-[#2d2f31]">
+                Requirements
+              </h3>
+              <ul className="space-y-2 text-xs text-slate-700">
+                {parsedRequirements.map((req, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-slate-400 font-bold">•</span>
+                    <span>{req}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* E. Target Audience */}
+          {parsedTargetAudience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-extrabold text-base text-[#2d2f31]">
+                Who this course is for:
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {parsedTargetAudience.map((aud, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium"
+                  >
+                    {aud}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* F. Instructor Card */}
+          <div className="space-y-4 border-t border-[#d1d7dc] pt-8">
+            <h3 className="font-extrabold text-base text-[#2d2f31]">
+              Instructor
+            </h3>
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-bold flex items-center justify-center text-lg shrink-0 shadow-sm">
+                {instructorAvatar ? (
+                  <img src={instructorAvatar} alt={instructorName} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <span>{instructorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</span>
+                )}
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-base text-[#5022c3] hover:underline cursor-pointer">
+                  {instructorName}
+                </h4>
+                <p className="text-xs text-slate-600 font-semibold">{instructorRole}</p>
+                <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
+                  <span className="flex items-center gap-1 font-bold text-slate-800">
+                    <Icon name="star" size={13} fill className="text-amber-500" />
+                    4.9 Instructor Rating
+                  </span>
+                  <span>•</span>
+                  <span>120+ Students</span>
+                  <span>•</span>
+                  <span>Certified Faculty</span>
                 </div>
+                {instructorBio && (
+                  <p className="text-xs text-slate-600 leading-relaxed pt-2 max-w-3xl">
+                    {instructorBio}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -904,6 +1052,31 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 8. Announcements */}
+      {activeTab === 'announcements' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="p-6 bg-white border border-[#d1d7dc] rounded-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                {instructorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-[#2d2f31]">{instructorName}</h4>
+                <p className="text-xs text-slate-500">Instructor Announcement • Course Welcome</p>
+              </div>
+            </div>
+            <div className="border-t border-slate-100 pt-3 text-xs text-slate-700 leading-relaxed space-y-2">
+              <p>
+                Welcome to <strong>{courseTitle || 'this course'}</strong>! We are thrilled to guide you through this learning journey.
+              </p>
+              <p>
+                Make sure to take notes at key timestamps, participate actively in the Q&amp;A tab, and complete each module sequentially for optimal retention.
+              </p>
+            </div>
           </div>
         </div>
       )}

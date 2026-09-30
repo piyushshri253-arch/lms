@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
-import { LessonTabs } from '@/components/player/LessonTabs';
+import { LessonTabs, PlayerTab } from '@/components/player/LessonTabs';
 import { Icon } from '@/components/ui/Icon';
 import { AiLessonTutorDrawer } from '@/components/player/AiLessonTutorDrawer';
 import { CertificateModal } from '@/components/student/CertificateModal';
@@ -24,39 +24,29 @@ export default function LearnPlayerPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [course, setCourse] = useState<any>(null);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [activeLessonId, setActiveLessonId] = useState<string>(initialLessonId);
   const [expandedSectionIds, setExpandedSectionIds] = useState<string[]>([]);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [isCertificateOpen, setIsCertificateOpen] = useState(false);
   const [certificateData, setCertificateData] = useState<any>(null);
-  const [playerTab, setPlayerTab] = useState<'overview' | 'notes' | 'bookmarks' | 'discussion' | 'assignments' | 'resources' | 'reviews'>('overview');
+  const [playerTab, setPlayerTab] = useState<PlayerTab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileCurriculumOpen, setIsMobileCurriculumOpen] = useState(false);
   const [isProgressDropdownOpen, setIsProgressDropdownOpen] = useState(false);
   const [openResourceMenuId, setOpenResourceMenuId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Sync tab with URL hash if present (#overview, #notes, etc.)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.replace('#', '').toLowerCase();
-      if (['overview', 'notes', 'bookmarks', 'discussion', 'assignments', 'resources', 'reviews'].includes(hash)) {
-        setPlayerTab(hash as any);
+      if (['overview', 'notes', 'bookmarks', 'discussion', 'assignments', 'resources', 'reviews', 'announcements'].includes(hash)) {
+        setPlayerTab(hash as PlayerTab);
       }
     }
   }, []);
-
-  // Check authentication once user state is resolved
-  useEffect(() => {
-    if (!isLoadingUser && !currentUser) {
-      showToast({
-        title: 'Sign In Required',
-        description: 'Please sign in or create an account to access this course.',
-        type: 'info'
-      });
-      router.replace(`/login?callbackUrl=${encodeURIComponent(`/courses/${courseSlug}?autoEnroll=true`)}`);
-    }
-  }, [isLoadingUser, currentUser, courseSlug, router]);
 
   // Fetch live course from database
   const fetchLiveCourse = async () => {
@@ -66,36 +56,29 @@ export default function LearnPlayerPage() {
       if (res.ok) {
         const data = await res.json();
         const c = data.course;
-
-        // Security / Access Protection:
-        // Must be logged in and enrolled to access course lectures!
-        if (!data.isEnrolled && currentUser?.role !== 'SUPER_ADMIN') {
-          if (!currentUser) {
-            showToast({
-              title: 'Sign In Required',
-              description: 'Please sign in or create an account to access this course.',
-              type: 'info'
-            });
-            router.replace(`/login?callbackUrl=${encodeURIComponent(`/courses/${courseSlug}?autoEnroll=true`)}`);
-          } else {
-            showToast({
-              title: 'Enrollment Required',
-              description: c.price === 0
-                ? 'Please enroll in this free course to access the lectures.'
-                : 'Please enroll in this course to access the lectures.',
-              type: 'info'
-            });
-            router.replace(`/courses/${courseSlug}`);
-          }
-          return;
-        }
-
         setCourse(c);
 
+        // Check enrollment / privileged status
+        const userIsEnrolled = Boolean(
+          data.isEnrolled ||
+          currentUser?.role === 'SUPER_ADMIN' ||
+          (currentUser && c.instructorId === currentUser.id)
+        );
+        setIsEnrolled(userIsEnrolled);
+
         const allLessonsList = c.sections?.flatMap((s: any) => s.lessons) || [];
+
+        // Select initial lesson:
+        // If not enrolled, prefer the first free preview lesson if initialLessonId is not specified
         if (!activeLessonId && allLessonsList.length > 0) {
-          setActiveLessonId(allLessonsList[0].id);
+          if (!userIsEnrolled) {
+            const firstFree = allLessonsList.find((l: any) => l.isFree);
+            setActiveLessonId(firstFree ? firstFree.id : allLessonsList[0].id);
+          } else {
+            setActiveLessonId(allLessonsList[0].id);
+          }
         }
+
         if (c.sections && c.sections.length > 0) {
           setExpandedSectionIds([c.sections[0].id]);
         }
@@ -119,9 +102,7 @@ export default function LearnPlayerPage() {
 
   useEffect(() => {
     if (courseSlug && !isLoadingUser) {
-      if (currentUser) {
-        fetchLiveCourse();
-      }
+      fetchLiveCourse();
     }
   }, [courseSlug, isLoadingUser, currentUser]);
 
@@ -132,6 +113,48 @@ export default function LearnPlayerPage() {
 
   const currentIndex = allLessons.findIndex((l: any) => l.id === activeLesson?.id);
   const isCurrentCompleted = activeLesson?.id ? completedLessonIds.includes(activeLesson.id) : false;
+
+  // Is current lesson locked for this student?
+  const isCurrentLocked = Boolean(!isEnrolled && !activeLesson?.isFree);
+
+  // Calculate total course duration string
+  const totalCourseDurationFormatted = useMemo(() => {
+    let totalMinutes = 0;
+    allLessons.forEach((les: any) => {
+      if (les.duration) {
+        const parts = String(les.duration).split(':');
+        if (parts.length === 2) {
+          totalMinutes += parseInt(parts[0], 10) || 0;
+        } else if (parts.length === 3) {
+          totalMinutes += (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+        } else {
+          totalMinutes += parseInt(String(les.duration), 10) || 10;
+        }
+      } else {
+        totalMinutes += 15;
+      }
+    });
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours > 0) {
+      return `${hours} hr ${mins > 0 ? `${mins} min` : ''} total`;
+    }
+    return `${mins} min total`;
+  }, [allLessons]);
+
+  // Filtered sections and lessons when student searches
+  const filteredSections = useMemo(() => {
+    if (!searchQuery.trim()) return allSections;
+    const q = searchQuery.toLowerCase().trim();
+    return allSections
+      .map((sec: any) => {
+        const matchedLessons = (sec.lessons || []).filter((l: any) =>
+          l.title.toLowerCase().includes(q) || sec.title.toLowerCase().includes(q)
+        );
+        return { ...sec, lessons: matchedLessons };
+      })
+      .filter((sec: any) => sec.lessons && sec.lessons.length > 0);
+  }, [allSections, searchQuery]);
 
   const toggleSection = (id: string) => {
     setExpandedSectionIds((prev) =>
@@ -161,6 +184,15 @@ export default function LearnPlayerPage() {
   const handleToggleLessonComplete = async (targetLessonId?: string) => {
     const lId = targetLessonId || activeLesson?.id;
     if (!lId) return;
+
+    if (!isEnrolled) {
+      showToast({
+        title: 'Enrollment Required',
+        description: 'Please enroll in the course to save lecture completion progress.',
+        type: 'info'
+      });
+      return;
+    }
 
     const isCompleted = completedLessonIds.includes(lId);
 
@@ -224,90 +256,112 @@ export default function LearnPlayerPage() {
     <div className="bg-[#1c1d1f] text-white min-h-screen flex flex-col h-screen overflow-hidden antialiased font-sans">
       {/* 1. UDEMY TOP NAVBAR (Dark Theme) */}
       <header className="h-14 bg-[#1c1d1f] text-white px-3 sm:px-5 flex items-center justify-between border-b border-[#2d2f31] shrink-0 z-30 select-none">
-        {/* Left: Back to Learning + Divider + Course Title */}
+        {/* Left: Brand Icon + Back to Course / My learning + Course Title */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
           <Link
-            href="/student/learning"
+            href={isEnrolled ? "/student/learning" : `/courses/${courseSlug}`}
             className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white transition-colors py-1.5 px-2 rounded hover:bg-white/10 shrink-0 cursor-pointer"
-            title="Back to My learning"
+            title={isEnrolled ? "Back to My learning" : "Back to Course Page"}
           >
             <Icon name="arrow_back" size={16} />
-            <span className="hidden sm:inline">My learning</span>
+            <span className="hidden sm:inline">{isEnrolled ? "My learning" : "Course overview"}</span>
           </Link>
 
           <div className="h-4 w-[1px] bg-slate-700 shrink-0" />
 
-          <h1
-            className="text-xs sm:text-sm font-bold text-white truncate max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-lg cursor-default"
-            title={course?.title}
-          >
-            {course?.title || 'Course Player'}
-          </h1>
-        </div>
-
-        {/* Right: Actions (Rating, Progress, Share, Sidebar Toggle) */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Leave a Rating Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setPlayerTab('reviews');
-              document.getElementById('lesson-tabs-section')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold text-slate-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="Leave or edit your rating"
-          >
-            <Icon name="star" size={14} fill className="text-amber-400" />
-            <span className="hidden md:inline">Leave a rating</span>
-          </button>
-
-          {/* Your Progress Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsProgressDropdownOpen(!isProgressDropdownOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold text-slate-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title="View your completion progress"
+          <div className="flex items-center gap-2 min-w-0">
+            <h1
+              className="text-xs sm:text-sm font-bold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md lg:max-w-lg cursor-default"
+              title={course?.title}
             >
-              <div className="w-5 h-5 rounded-full border-2 border-indigo-400 flex items-center justify-center text-[9px] font-mono text-indigo-300 font-bold shrink-0">
-                {progressPercent}%
-              </div>
-              <span className="hidden lg:inline">Your progress</span>
-              <Icon name="expand_more" size={14} />
-            </button>
-
-            {isProgressDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white text-slate-900 rounded-lg shadow-2xl border border-[#d1d7dc] p-4 space-y-3 z-50 animate-in fade-in duration-150">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-800">
-                  <span>{completedLessonIds.length} of {allLessons.length} completed</span>
-                  <span className="font-mono text-indigo-700">{progressPercent}%</span>
-                </div>
-                <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-600 rounded-full transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-                {progressPercent >= 100 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCertificateOpen(true);
-                      setIsProgressDropdownOpen(false);
-                    }}
-                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                  >
-                    <Icon name="workspace_premium" size={16} fill />
-                    <span>Claim Certificate</span>
-                  </button>
-                ) : (
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Complete all lectures to claim your verified certificate of completion.
-                  </p>
-                )}
-              </div>
+              {course?.title || 'Course Player'}
+            </h1>
+            {!isEnrolled && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold tracking-wide uppercase shrink-0 border border-amber-500/30">
+                <Icon name="visibility" size={12} />
+                Preview Mode
+              </span>
             )}
           </div>
+        </div>
+
+        {/* Right: Actions (Enroll CTA or Progress, Rating, Share, Sidebar Toggle) */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* If NOT Enrolled: Show High-Converting Enroll Button */}
+          {!isEnrolled ? (
+            <Link
+              href={`/courses/${courseSlug}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#a435f0] hover:bg-[#8710d8] text-white rounded font-extrabold text-xs transition-colors shadow-sm cursor-pointer"
+              title="Enroll to get full lifetime access and certificate"
+            >
+              <Icon name="shopping_cart" size={14} />
+              <span>Enroll Now • ₹{course?.price ? Number(course.price).toLocaleString('en-IN') : 'Free'}</span>
+            </Link>
+          ) : (
+            <>
+              {/* Leave a Rating Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPlayerTab('reviews');
+                  document.getElementById('lesson-tabs-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold text-slate-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Leave or edit your rating"
+              >
+                <Icon name="star" size={14} fill className="text-amber-400" />
+                <span className="hidden md:inline">Leave a rating</span>
+              </button>
+
+              {/* Your Progress Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsProgressDropdownOpen(!isProgressDropdownOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold text-slate-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="View your completion progress"
+                >
+                  <div className="w-5 h-5 rounded-full border-2 border-indigo-400 flex items-center justify-center text-[9px] font-mono text-indigo-300 font-bold shrink-0">
+                    {progressPercent}%
+                  </div>
+                  <span className="hidden lg:inline">Your progress</span>
+                  <Icon name="expand_more" size={14} />
+                </button>
+
+                {isProgressDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white text-slate-900 rounded-lg shadow-2xl border border-[#d1d7dc] p-4 space-y-3 z-50 animate-in fade-in duration-150">
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-800">
+                      <span>{completedLessonIds.length} of {allLessons.length} completed</span>
+                      <span className="font-mono text-indigo-700">{progressPercent}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                    {progressPercent >= 100 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCertificateOpen(true);
+                          setIsProgressDropdownOpen(false);
+                        }}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Icon name="workspace_premium" size={16} fill />
+                        <span>Claim Certificate</span>
+                      </button>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Complete all lectures to claim your verified certificate of completion.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Share Button */}
           <button
@@ -353,13 +407,51 @@ export default function LearnPlayerPage() {
         </div>
       </header>
 
-      {/* 2. MAIN BODY (Theater Left + Course Content Sidebar on the RIGHT) */}
+      {/* 2. MAIN BODY (Theater Stage + Navigation + Tabs + Course Content Sidebar on the RIGHT) */}
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-56px)] bg-[#f7f9fa]">
-        {/* Left Column: Video Theater + Navigation + Bottom Tabs */}
+        {/* Left Column: Video Theater Stage + Navigation + Bottom Tabs */}
         <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white">
           {/* 2A. CINEMA THEATER STAGE (16:9 Black Container) */}
-          <div className="w-full bg-black flex items-center justify-center relative min-h-[260px] sm:min-h-[400px] lg:min-h-[480px] max-h-[72vh] shrink-0">
-            {activeLesson?.type === 'QUIZ' ? (
+          <div className="w-full bg-black flex items-center justify-center relative min-h-[260px] sm:min-h-[420px] lg:min-h-[500px] max-h-[75vh] shrink-0 overflow-hidden">
+            {/* If lesson is LOCKED (unenrolled & !isFree) */}
+            {isCurrentLocked ? (
+              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
+                <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-lg">
+                  <Icon name="lock" size={32} />
+                </div>
+                <div className="space-y-2 max-w-lg">
+                  <h3 className="text-xl font-extrabold text-white tracking-tight">
+                    This lecture is part of the full curriculum
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    Enroll in <strong>{course?.title}</strong> to unlock all {allSections.length} modules, {allLessons.length} lectures, downloadable resources, and your verified certificate of completion.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <Link
+                    href={`/courses/${courseSlug}`}
+                    className="px-6 py-2.5 bg-[#a435f0] hover:bg-[#8710d8] text-white rounded font-extrabold text-sm transition-colors shadow-md flex items-center gap-2 cursor-pointer"
+                  >
+                    <Icon name="shopping_cart" size={16} />
+                    <span>Enroll Now — ₹{course?.price ? Number(course.price).toLocaleString('en-IN') : 'Free'}</span>
+                  </Link>
+
+                  {allLessons.some((l: any) => l.isFree) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const freeLes = allLessons.find((l: any) => l.isFree);
+                        if (freeLes) handleSelectLesson(freeLes.id);
+                      }}
+                      className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded font-bold text-xs transition-colors border border-white/20 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Icon name="play_arrow" size={16} />
+                      <span>Watch Free Preview (Lecture 1.1)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : activeLesson?.type === 'QUIZ' ? (
               <div className="w-full max-w-3xl p-6 sm:p-8 bg-white my-6 rounded-xl shadow-lg text-slate-900">
                 <QuizPlayer
                   title={activeLesson.title}
@@ -384,7 +476,13 @@ export default function LearnPlayerPage() {
                 />
               </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center relative">
+                {activeLesson?.isFree && !isEnrolled && (
+                  <div className="absolute top-4 left-4 z-30 bg-purple-600/90 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold text-white shadow-md flex items-center gap-1.5 pointer-events-none">
+                    <Icon name="visibility" size={13} />
+                    <span>Free Preview Lecture</span>
+                  </div>
+                )}
                 <VideoPlayer
                   title={activeLesson?.title || course?.title || 'Lecture Video'}
                   videoUrl={activeLesson?.videoUrl || null}
@@ -411,35 +509,37 @@ export default function LearnPlayerPage() {
               <span>Previous</span>
             </button>
 
-            {/* Current Lecture Title */}
+            {/* Current Lecture Title & Section */}
             <div className="text-center min-w-0 flex-1 px-2">
-              <span className="text-xs sm:text-sm font-bold text-[#2d2f31] truncate block">
+              <span className="text-xs sm:text-sm font-extrabold text-[#2d2f31] truncate block">
                 {activeLesson?.title || 'Lecture'}
               </span>
-              <span className="text-[11px] text-slate-500 font-mono">
+              <span className="text-[11px] text-slate-500 font-medium">
                 {activeLesson?.duration || '10:00'} • {activeSection?.title || 'Section'}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               {/* Mark Complete Checkbox / Button */}
-              <button
-                type="button"
-                onClick={() => handleToggleLessonComplete(activeLesson?.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-bold transition-colors cursor-pointer ${
-                  isCurrentCompleted
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                    : 'bg-white text-slate-700 border-[#d1d7dc] hover:bg-slate-100'
-                }`}
-              >
-                <Icon
-                  name={isCurrentCompleted ? 'check_circle' : 'radio_button_unchecked'}
-                  size={15}
-                  fill={isCurrentCompleted}
-                  className={isCurrentCompleted ? 'text-emerald-600' : 'text-slate-400'}
-                />
-                <span>{isCurrentCompleted ? 'Completed' : 'Mark complete'}</span>
-              </button>
+              {isEnrolled && (
+                <button
+                  type="button"
+                  onClick={() => handleToggleLessonComplete(activeLesson?.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-bold transition-colors cursor-pointer ${
+                    isCurrentCompleted
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : 'bg-white text-slate-700 border-[#d1d7dc] hover:bg-slate-100'
+                  }`}
+                >
+                  <Icon
+                    name={isCurrentCompleted ? 'check_circle' : 'radio_button_unchecked'}
+                    size={15}
+                    fill={isCurrentCompleted}
+                    className={isCurrentCompleted ? 'text-emerald-600' : 'text-slate-400'}
+                  />
+                  <span>{isCurrentCompleted ? 'Completed' : 'Mark complete'}</span>
+                </button>
+              )}
 
               {/* Next Lecture */}
               <button
@@ -458,11 +558,21 @@ export default function LearnPlayerPage() {
           <div id="lesson-tabs-section" className="flex-1 p-4 sm:p-8 max-w-5xl">
             <LessonTabs
               courseId={course?.id}
+              courseTitle={course?.title}
+              courseSubtitle={course?.subtitle || "Learn how educators can use children's interests, questions and observations to develop responsive and meaningful learning experiences."}
+              courseDescription={course?.description}
+              whatYouWillLearn={course?.whatYouWillLearn}
+              requirements={course?.requirements}
+              targetAudience={course?.targetAudience}
+              level={course?.level || 'Intermediate'}
+              totalLectures={allLessons.length}
+              totalDuration={totalCourseDurationFormatted}
               lessonId={activeLesson?.id}
               lessonTitle={activeLesson?.title || course?.title || 'Lecture Details'}
-              instructorName={course?.instructor?.name || 'Faculty Lead'}
-              instructorRole={course?.instructor?.bio || 'Distinguished Instructor'}
+              instructorName={course?.instructor?.name || 'Dr. Neha Kapoor'}
+              instructorRole={course?.instructor?.bio || 'Inclusive Education Consultant & Diverse Learner Specialist'}
               instructorAvatar={course?.instructor?.avatar || ''}
+              instructorBio={course?.instructor?.bio}
               resources={activeResources}
               activeTab={playerTab}
               onTabChange={(tab) => {
@@ -491,15 +601,38 @@ export default function LearnPlayerPage() {
               </button>
             </div>
 
+            {/* Sidebar Search Bar */}
+            <div className="px-4 py-2.5 bg-white border-b border-[#d1d7dc]">
+              <div className="relative">
+                <Icon name="search" size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search course content..."
+                  className="w-full pl-8 pr-7 py-1.5 bg-[#f7f9fa] border border-[#d1d7dc] rounded text-xs text-slate-900 focus:outline-none focus:border-[#2d2f31]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Sidebar Sub-Header / Stats */}
-            <div className="px-4 py-2 bg-[#f7f9fa] border-b border-[#d1d7dc] text-[11px] text-slate-500 font-medium flex items-center justify-between">
+            <div className="px-4 py-2 bg-[#f7f9fa] border-b border-[#d1d7dc] text-[11px] text-slate-500 font-semibold flex items-center justify-between">
               <span>{allSections.length} sections • {allLessons.length} lectures</span>
-              <span>{completedLessonIds.length} completed</span>
+              <span>{totalCourseDurationFormatted}</span>
             </div>
 
             {/* Accordion of Sections */}
             <div className="overflow-y-auto flex-1 divide-y divide-[#d1d7dc]">
-              {allSections.map((sec: any, sIdx: number) => {
+              {filteredSections.map((sec: any, sIdx: number) => {
                 const isExpanded = expandedSectionIds.includes(sec.id);
                 const secLessons = sec.lessons || [];
                 const secCompletedCount = secLessons.filter((l: any) => completedLessonIds.includes(l.id)).length;
@@ -513,13 +646,13 @@ export default function LearnPlayerPage() {
                       className="w-full px-4 py-3.5 flex justify-between items-start bg-[#f7f9fa] hover:bg-[#e4e8eb] text-left transition-colors cursor-pointer"
                     >
                       <div className="flex-1 pr-2">
-                        <span className="text-[11px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">
+                        <span className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider mb-0.5">
                           Section {sIdx + 1}
                         </span>
                         <span className="text-xs font-bold text-[#2d2f31] block leading-snug">
                           {sec.title}
                         </span>
-                        <span className="text-[11px] text-slate-500 mt-1 block">
+                        <span className="text-[11px] text-slate-500 mt-1 block font-medium">
                           {secCompletedCount} / {secLessons.length} completed
                         </span>
                       </div>
@@ -537,6 +670,7 @@ export default function LearnPlayerPage() {
                           const isCompleted = completedLessonIds.includes(les.id);
                           const isActive = activeLessonId === les.id;
                           const hasResources = !!(les.pdfUrl || les.fileUrl);
+                          const isLessonLocked = !isEnrolled && !les.isFree;
 
                           return (
                             <div
@@ -547,17 +681,23 @@ export default function LearnPlayerPage() {
                                   : 'hover:bg-[#f7f9fa]'
                               }`}
                             >
-                              {/* Left: Square Checkbox */}
-                              <input
-                                type="checkbox"
-                                checked={isCompleted}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleLessonComplete(les.id);
-                                }}
-                                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#2d2f31] focus:ring-0 cursor-pointer shrink-0"
-                                title={isCompleted ? 'Mark uncompleted' : 'Mark completed'}
-                              />
+                              {/* Left: Square Checkbox or Lock Icon */}
+                              {isLessonLocked ? (
+                                <div className="mt-0.5 w-4 h-4 flex items-center justify-center text-slate-400 shrink-0">
+                                  <Icon name="lock" size={13} />
+                                </div>
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={isCompleted}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleLessonComplete(les.id);
+                                  }}
+                                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#2d2f31] focus:ring-0 cursor-pointer shrink-0"
+                                  title={isCompleted ? 'Mark uncompleted' : 'Mark completed'}
+                                />
+                              )}
 
                               {/* Center: Title & Type Icon + Duration */}
                               <div
@@ -567,8 +707,8 @@ export default function LearnPlayerPage() {
                                 <span
                                   className={`text-xs block leading-snug truncate ${
                                     isActive
-                                      ? 'font-bold text-[#2d2f31]'
-                                      : 'text-slate-800 hover:text-black font-medium'
+                                      ? 'font-extrabold text-[#2d2f31]'
+                                      : 'text-slate-800 hover:text-black font-semibold'
                                   }`}
                                 >
                                   {lIdx + 1}. {les.title}
@@ -591,6 +731,12 @@ export default function LearnPlayerPage() {
                                     />
                                     <span>{les.duration || '10:00'}</span>
                                   </span>
+
+                                  {les.isFree && !isEnrolled && (
+                                    <span className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 font-extrabold text-[9px] uppercase tracking-wide">
+                                      Preview
+                                    </span>
+                                  )}
 
                                   {hasResources && (
                                     <span className="text-indigo-600 font-bold text-[10px]">
