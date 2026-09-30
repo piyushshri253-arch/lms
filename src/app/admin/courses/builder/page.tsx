@@ -1109,13 +1109,16 @@ function CourseBuilderContent() {
                           <div className="w-full p-6 bg-white text-slate-900 min-h-[360px]">
                             <ArticlePlayer
                               title={currentPlayerItem.title}
+                              type="TEXT"
                               content={currentPlayerItem.content || 'No article text entered yet.'}
+                              onComplete={() => {}}
                             />
                           </div>
                         ) : currentPlayerItem.type === 'QUIZ' ? (
                           <div className="w-full p-6 bg-white text-slate-900 min-h-[360px]">
                             <QuizPlayer
                               lessonId={currentPlayerItem.id}
+                              title={currentPlayerItem.title}
                               quizData={
                                 typeof currentPlayerItem.quizData === 'string'
                                   ? currentPlayerItem.quizData
