@@ -9,7 +9,8 @@ import { useApp } from '@/context/AppContext';
 
 function CourseAssessmentsBanner() {
   const searchParams = useSearchParams();
-  const courseId = searchParams.get('id') || searchParams.get('courseId') || '';
+  const courseId =
+    searchParams.get('id') || searchParams.get('courseId') || searchParams.get('slug') || '';
   const querySuffix = courseId ? `?courseId=${encodeURIComponent(courseId)}` : '';
 
   return (
@@ -19,13 +20,26 @@ function CourseAssessmentsBanner() {
           <span className="material-symbols-outlined text-[20px]">quiz</span>
         </div>
         <div>
-          <h3 className="text-sm font-black text-slate-900">Course Quizzes & Assignments Integration</h3>
+          <h3 className="text-sm font-black text-slate-900">Course Quizzes &amp; Assignments Integration</h3>
           <p className="text-xs text-slate-500">
             Attach timed MCQ/Multiple-Answer quizzes, randomized question banks, or graded file/text assignments to this course, module, or lesson.
           </p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('open-course-builder-preview'));
+            }
+          }}
+          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[16px]">visibility</span>
+          Preview Course (Live Student View)
+        </button>
+
         <Link
           href={`/instructor/quizzes/create${querySuffix}`}
           className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
@@ -66,7 +80,7 @@ function CourseAssessmentsBanner() {
           className="px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-[15px]">forum</span>
-          Student Q&A
+          Student Q&amp;A
         </Link>
         <Link
           href={`/instructor/course-seo${querySuffix}`}
@@ -80,26 +94,16 @@ function CourseAssessmentsBanner() {
           className="px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
         >
           <span className="material-symbols-outlined text-[16px]">verified_user</span>
-          Version Protection & Review
+          Version Protection &amp; Review
         </Link>
         {courseId && (
-          <>
-            <Link
-              href={`/instructor/course/${encodeURIComponent(courseId)}/review`}
-              className="px-3.5 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[16px]">fact_check</span>
-              Auditor Feedback
-            </Link>
-            <Link
-              href={`/instructor/courses/preview/${encodeURIComponent(courseId)}`}
-              target="_blank"
-              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md transition-all"
-            >
-              <span className="material-symbols-outlined text-[16px]">visibility</span>
-              Preview Course (Student View)
-            </Link>
-          </>
+          <Link
+            href={`/instructor/course/${encodeURIComponent(courseId)}/review`}
+            className="px-3.5 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-black flex items-center gap-1.5 shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[16px]">fact_check</span>
+            Auditor Feedback
+          </Link>
         )}
       </div>
     </div>
@@ -112,7 +116,7 @@ export default function InstructorCourseBuilderWrapperPage() {
   return (
     <InstructorPortalShell
       title="Create & Edit Course Curriculum"
-      subtitle="Configure course info, thumbnail/video media, syllabus modules, quizzes, assignments, pricing, and submit for approval"
+      subtitle="Configure course info, thumbnail/video media, syllabus modules (1.1 → 1.1.1), quizzes, assignments, pricing, and submit for approval"
       profile={{
         name: currentUser?.name || 'Instructor',
         email: currentUser?.email || '',
@@ -127,4 +131,3 @@ export default function InstructorCourseBuilderWrapperPage() {
     </InstructorPortalShell>
   );
 }
-

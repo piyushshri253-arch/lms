@@ -179,11 +179,17 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
-            onClick={() => setIsPreviewOpen(true)}
-            className="px-4 py-2.5 bg-surface border border-outline-variant text-on-surface font-bold text-xs rounded-xl hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('open-course-builder-preview'));
+              } else {
+                setIsPreviewOpen(true);
+              }
+            }}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <Icon name="visibility" size={16} />
-            <span>Preview Syllabus</span>
+            <span>Preview Course &amp; Syllabus</span>
           </button>
 
           {onUnpublish && courseData.status && courseData.status !== 'DRAFT' && (

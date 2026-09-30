@@ -22,6 +22,20 @@ export interface QuizConfig {
   attemptLimit: number; // 0 = unlimited
 }
 
+export interface BuilderSubLesson {
+  id: string;
+  code?: string; // e.g. "1.1.1", "2.1.1"
+  title: string;
+  description?: string;
+  type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD';
+  content?: string;
+  videoUrl?: string;
+  pdfUrl?: string;
+  duration?: string;
+  isFree?: boolean;
+  order: number;
+}
+
 export interface BuilderLesson {
   id: string;
   title: string;
@@ -32,6 +46,7 @@ export interface BuilderLesson {
   pdfUrl?: string;
   fileUrl?: string;
   quizData?: QuizConfig | string;
+  subLessons?: BuilderSubLesson[];
   duration?: string;
   durationSeconds?: number;
   isFree?: boolean;
@@ -64,86 +79,124 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [newSectionDescription, setNewSectionDescription] = useState('');
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+
+  // Lesson modal state
+  const [editingLesson, setEditingLesson] = useState<{ sectionId: string; lesson: BuilderLesson } | null>(null);
+
+  // Video Upload Modal State (supports both main lesson and subLesson)
+  const [videoModalTarget, setVideoModalTarget] = useState<{
+    sectionId: string;
+    lessonId: string;
+    subLessonId?: string;
+    title: string;
+  } | null>(null);
 
   const handleImportAiCurriculum = (curriculum: any) => {
     if (!curriculum.sections) return;
-    const newSections: BuilderSection[] = curriculum.sections.map((s: any, sIdx: number) => ({
-      id: `sec-${Date.now()}-${sIdx}`,
-      title: s.title || `Module ${sIdx + 1}`,
-      order: sections.length + sIdx,
-      lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
-        id: `les-${Date.now()}-${sIdx}-${lIdx}`,
-        title: l.title || `Lesson ${lIdx + 1}`,
-        type: l.type || 'VIDEO',
-        description: l.description || '',
-        duration: l.duration || '10 mins',
-        order: lIdx,
-        isFree: lIdx === 0
-      }))
-    }));
+    const newSections: BuilderSection[] = curriculum.sections.map((s: any, sIdx: number) => {
+      const mNum = sections.length + sIdx + 1;
+      return {
+        id: `sec-${Date.now()}-${sIdx}`,
+        title: s.title || `Module ${mNum}`,
+        description: s.description || '',
+        order: mNum,
+        lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
+          id: `les-${Date.now()}-${sIdx}-${lIdx}`,
+          title: l.title || `${mNum}.${lIdx + 1} Lesson Topic`,
+          type: l.type || 'VIDEO',
+          description: l.description || '',
+          duration: l.duration || '10:00',
+          subLessons: [],
+          order: lIdx + 1,
+          isFree: lIdx === 0
+        }))
+      };
+    });
     onChange([...sections, ...newSections]);
   };
 
-  // Lesson modal state
-  const [targetSectionId, setTargetSectionId] = useState<string | null>(null);
-  const [editingLesson, setEditingLesson] = useState<{ sectionId: string; lesson: BuilderLesson } | null>(null);
-
-  // Video Upload Modal State
-  const [videoModalLesson, setVideoModalLesson] = useState<{ sectionId: string; lessonId: string; title: string } | null>(null);
-
-  // Quiz Editor State inside Editing Lesson
-  const [activeLessonTab, setActiveLessonTab] = useState<'content' | 'settings'>('content');
-
-  // Add Section Handler
+  // Add / Edit Section Handler
   const handleAddSection = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSectionTitle.trim()) return;
 
     if (editingSectionId) {
       const updated = sections.map((s) =>
-        s.id === editingSectionId ? { ...s, title: newSectionTitle.trim() } : s
+        s.id === editingSectionId
+          ? { ...s, title: newSectionTitle.trim(), description: newSectionDescription.trim() }
+          : s
       );
       onChange(updated);
       setEditingSectionId(null);
-      showToast({ title: 'Section Renamed', type: 'info' });
+      showToast({ title: 'Module Updated', type: 'info' });
     } else {
       const newSec: BuilderSection = {
         id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         title: newSectionTitle.trim(),
+        description: newSectionDescription.trim(),
         order: sections.length + 1,
-        lessons: []
+        lessons: [
+          {
+            id: `les-${Date.now()}-1`,
+            title: `${sections.length + 1}.1 Introduction & Overview`,
+            description: '',
+            type: 'VIDEO',
+            duration: '10:00',
+            durationSeconds: 600,
+            subLessons: [],
+            isFree: false,
+            isPublished: true,
+            order: 1
+          }
+        ]
       };
       onChange([...sections, newSec]);
-      showToast({ title: 'Section Added', type: 'success' });
+      showToast({ title: 'Module Added', description: `Created ${newSec.title}`, type: 'success' });
     }
 
     setNewSectionTitle('');
+    setNewSectionDescription('');
     setIsAddSectionOpen(false);
   };
 
-  const handleDeleteSection = (sectionId: string) => {
-    if (!confirm('Are you sure you want to delete this section and all its lessons?')) return;
-    onChange(sections.filter((s) => s.id !== sectionId));
-    showToast({ title: 'Section Removed', type: 'info' });
+  // Update Module field inline (Title or Description)
+  const handleUpdateSectionField = (sectionId: string, field: 'title' | 'description', value: string) => {
+    onChange(
+      sections.map((s) => (s.id === sectionId ? { ...s, [field]: value } : s))
+    );
   };
 
-  // Add / Create Lesson
-  const handleCreateLesson = (sectionId: string, type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD') => {
-    const targetSec = sections.find((s) => s.id === sectionId);
-    if (!targetSec) return;
+  const handleDeleteSection = (sectionId: string) => {
+    if (!confirm('Are you sure you want to delete this module and all its lessons?')) return;
+    onChange(sections.filter((s) => s.id !== sectionId).map((s, idx) => ({ ...s, order: idx + 1 })));
+    showToast({ title: 'Module Removed', type: 'info' });
+  };
 
-    const order = targetSec.lessons.length + 1;
+  // Add / Create Lesson (e.g., 1.1, 1.2, 2.1)
+  const handleCreateLesson = (
+    sectionId: string,
+    type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD',
+    openModal = false
+  ) => {
+    const sIdx = sections.findIndex((s) => s.id === sectionId);
+    if (sIdx === -1) return;
+    const targetSec = sections[sIdx];
+    const moduleNum = sIdx + 1;
+    const lessonNum = targetSec.lessons.length + 1;
+    const lessonCode = `${moduleNum}.${lessonNum}`;
+
     const defaultTitle =
       type === 'VIDEO'
-        ? `Lesson ${order}: New Video Lecture`
+        ? `${lessonCode} Video Lecture`
         : type === 'TEXT'
-        ? `Article ${order}: Core Concepts Guide`
+        ? `${lessonCode} Reading & Concept Guide`
         : type === 'PDF'
-        ? `Resource ${order}: PDF Reference Guide`
+        ? `${lessonCode} PDF Study Resource`
         : type === 'QUIZ'
-        ? `Quiz ${order}: Module Knowledge Check`
-        : `Download ${order}: Source Code & Starter Kit`;
+        ? `${lessonCode} Module Knowledge Check`
+        : `${lessonCode} Downloadable Material`;
 
     let defaultQuiz: QuizConfig | undefined;
     if (type === 'QUIZ') {
@@ -153,15 +206,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         questions: [
           {
             id: `q-${Date.now()}`,
-            question: 'What is the primary architectural advantage of microservices?',
-            options: [
-              'Independent deployment and modular scalability',
-              'Single monolithic shared memory address space',
-              'Zero network latency across all transactions',
-              'Reduced code repository count'
-            ],
+            question: 'Enter your assessment question here...',
+            options: ['Option A', 'Option B', 'Option C', 'Option D'],
             correctIndex: 0,
-            explanation: 'Microservices allow teams to deploy, scale, and maintain discrete business capabilities independently.',
+            explanation: 'Explanation for the correct answer.',
             points: 1
           }
         ]
@@ -171,14 +219,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const newLesson: BuilderLesson = {
       id: `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       title: defaultTitle,
+      description: '',
       type,
-      duration: type === 'VIDEO' ? '12:00' : '05:00',
-      durationSeconds: type === 'VIDEO' ? 720 : 300,
-      content: type === 'TEXT' ? '# Lesson Overview\n\nExplain core architectural concepts here.' : undefined,
+      duration: type === 'VIDEO' ? '10:00' : '05:00',
+      durationSeconds: type === 'VIDEO' ? 600 : 300,
+      content: type === 'TEXT' ? '# Key Concepts\n\nWrite your lesson notes and explanation here.' : undefined,
       quizData: defaultQuiz,
-      isFree: order === 1,
+      subLessons: [],
+      isFree: lessonNum === 1 && moduleNum === 1,
       isPublished: true,
-      order
+      order: lessonNum
     };
 
     const updated = sections.map((s) =>
@@ -186,8 +236,132 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     );
 
     onChange(updated);
-    setEditingLesson({ sectionId, lesson: newLesson });
-    showToast({ title: `${type} Lesson Created`, description: `Configure ${defaultTitle}.`, type: 'success' });
+    if (openModal || type === 'QUIZ') {
+      setEditingLesson({ sectionId, lesson: newLesson });
+    }
+    showToast({ title: `Added ${lessonCode}`, description: `${defaultTitle} added to Module ${moduleNum}.`, type: 'success' });
+  };
+
+  // Update Lesson inline
+  const handleUpdateLessonInline = (sectionId: string, lessonId: string, patch: Partial<BuilderLesson>) => {
+    onChange(
+      sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              lessons: s.lessons.map((l) => (l.id === lessonId ? { ...l, ...patch } : l))
+            }
+          : s
+      )
+    );
+  };
+
+  // Add Sub-Lesson / Sub-Category (e.g., 1.1.1, 1.1.2, 2.1.1)
+  const handleAddSubLesson = (sectionId: string, lessonId: string) => {
+    const sIdx = sections.findIndex((s) => s.id === sectionId);
+    if (sIdx === -1) return;
+    const section = sections[sIdx];
+    const lIdx = section.lessons.findIndex((l) => l.id === lessonId);
+    if (lIdx === -1) return;
+
+    const lesson = section.lessons[lIdx];
+    const currentSubs = Array.isArray(lesson.subLessons) ? lesson.subLessons : [];
+    const nextSubNum = currentSubs.length + 1;
+    const subCode = `${sIdx + 1}.${lIdx + 1}.${nextSubNum}`;
+
+    const newSub: BuilderSubLesson = {
+      id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      code: subCode,
+      title: `${subCode} Sub-Topic Title`,
+      description: '',
+      type: 'VIDEO',
+      duration: '05:00',
+      videoUrl: '',
+      content: '',
+      pdfUrl: '',
+      isFree: !!lesson.isFree,
+      order: nextSubNum
+    };
+
+    handleUpdateLessonInline(sectionId, lessonId, {
+      subLessons: [...currentSubs, newSub]
+    });
+
+    showToast({
+      title: `Sub-Topic ${subCode} Added`,
+      description: `Added ${subCode} under ${sIdx + 1}.${lIdx + 1}`,
+      type: 'success'
+    });
+  };
+
+  // Update Sub-Lesson inline
+  const handleUpdateSubLesson = (
+    sectionId: string,
+    lessonId: string,
+    subLessonId: string,
+    patch: Partial<BuilderSubLesson>
+  ) => {
+    onChange(
+      sections.map((s) => {
+        if (s.id !== sectionId) return s;
+        return {
+          ...s,
+          lessons: s.lessons.map((l) => {
+            if (l.id !== lessonId) return l;
+            const subs = (l.subLessons || []).map((sub) =>
+              sub.id === subLessonId ? { ...sub, ...patch } : sub
+            );
+            return { ...l, subLessons: subs };
+          })
+        };
+      })
+    );
+  };
+
+  // Delete Sub-Lesson
+  const handleDeleteSubLesson = (sectionId: string, lessonId: string, subLessonId: string) => {
+    onChange(
+      sections.map((s, sIdx) => {
+        if (s.id !== sectionId) return s;
+        return {
+          ...s,
+          lessons: s.lessons.map((l, lIdx) => {
+            if (l.id !== lessonId) return l;
+            const filtered = (l.subLessons || [])
+              .filter((sub) => sub.id !== subLessonId)
+              .map((sub, subIdx) => ({
+                ...sub,
+                order: subIdx + 1,
+                code: `${sIdx + 1}.${lIdx + 1}.${subIdx + 1}`
+              }));
+            return { ...l, subLessons: filtered };
+          })
+        };
+      })
+    );
+    showToast({ title: 'Sub-Topic Removed', type: 'info' });
+  };
+
+  // Move Sub-Lesson up/down
+  const moveSubLesson = (sectionId: string, lessonId: string, subIdx: number, direction: 'up' | 'down') => {
+    const sIdx = sections.findIndex((s) => s.id === sectionId);
+    if (sIdx === -1) return;
+    const lIdx = sections[sIdx].lessons.findIndex((l) => l.id === lessonId);
+    if (lIdx === -1) return;
+    const subs = [...(sections[sIdx].lessons[lIdx].subLessons || [])];
+    const targetIdx = direction === 'up' ? subIdx - 1 : subIdx + 1;
+    if (targetIdx < 0 || targetIdx >= subs.length) return;
+
+    const [moved] = subs.splice(subIdx, 1);
+    subs.splice(targetIdx, 0, moved);
+
+    const renumbered = subs.map((sub, idx) => ({
+      ...sub,
+      order: idx + 1,
+      code: `${sIdx + 1}.${lIdx + 1}.${idx + 1}`
+    }));
+
+    handleUpdateLessonInline(sectionId, lessonId, { subLessons: renumbered });
   };
 
   const handleSaveLessonEdit = (updatedLesson: BuilderLesson) => {
@@ -209,13 +383,15 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   const handleDeleteLesson = (sectionId: string, lessonId: string) => {
-    if (!confirm('Are you sure you want to delete this lesson?')) return;
+    if (!confirm('Are you sure you want to delete this lesson and its sub-topics?')) return;
 
     const updated = sections.map((s) => {
       if (s.id === sectionId) {
         return {
           ...s,
-          lessons: s.lessons.filter((l) => l.id !== lessonId)
+          lessons: s.lessons
+            .filter((l) => l.id !== lessonId)
+            .map((l, idx) => ({ ...l, order: idx + 1 }))
         };
       }
       return s;
@@ -259,13 +435,15 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant shadow-xs">
         <div>
-          <h3 className="text-lg font-black text-on-surface">Curriculum &amp; Syllabus Builder</h3>
-          <p className="text-xs text-on-surface-variant">
-            Structure modules, add video lectures, rich text guides, PDF cheatsheets, and interactive quizzes.
+          <h3 className="text-lg font-black text-on-surface">
+            Curriculum &amp; Multi-Level Syllabus Builder (Module → 1.1 → 1.1.1)
+          </h3>
+          <p className="text-xs text-on-surface-variant mt-0.5">
+            Create Modules with Module Descriptions, Lessons (<span className="font-mono font-bold text-primary">1.1</span>, <span className="font-mono font-bold text-primary">2.1</span>), and Sub-Topics (<span className="font-mono font-bold text-indigo-600">1.1.1</span>, <span className="font-mono font-bold text-indigo-600">1.1.2</span>, <span className="font-mono font-bold text-indigo-600">2.1.1</span>) easily in one place.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => setIsAiModalOpen(true)}
@@ -280,12 +458,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             onClick={() => {
               setEditingSectionId(null);
               setNewSectionTitle(`Module ${sections.length + 1}: `);
+              setNewSectionDescription('');
               setIsAddSectionOpen(true);
             }}
             className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto"
           >
             <Icon name="add" size={16} />
-            <span>Add Section / Module</span>
+            <span>+ Add Module (Module {sections.length + 1})</span>
           </button>
         </div>
       </div>
@@ -298,285 +477,588 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           </div>
           <h4 className="font-bold text-sm text-on-surface">Curriculum is currently empty</h4>
           <p className="text-xs text-on-surface-variant max-w-sm mx-auto">
-            Start building your course by adding your first module section (e.g. &ldquo;Module 1: Getting Started&rdquo;).
+            Start building your course by adding your first module (e.g. &ldquo;Module 1: Getting Started&rdquo;).
           </p>
           <button
             type="button"
             onClick={() => {
-              setNewSectionTitle('Module 1: Architecture Overview & Setup');
+              setNewSectionTitle('Module 1: Foundations & Core Concepts');
+              setNewSectionDescription('');
               setIsAddSectionOpen(true);
             }}
             className="px-4 py-2 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer"
           >
-            Create First Section
+            + Create Module 1
           </button>
         </div>
       ) : (
-        <div className="space-y-5">
-          {sections.map((section, sIdx) => (
-            <div
-              key={section.id}
-              className="bg-surface-container-lowest border border-outline-variant rounded-3xl overflow-hidden shadow-xs"
-            >
-              {/* Section Header */}
-              <div className="p-4 sm:p-5 bg-surface-container-low/60 border-b border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={sIdx === 0}
-                      onClick={() => moveSection(sIdx, 'up')}
-                      className="p-1 text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
-                      title="Move up"
-                    >
-                      <Icon name="arrow_upward" size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={sIdx === sections.length - 1}
-                      onClick={() => moveSection(sIdx, 'down')}
-                      className="p-1 text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
-                      title="Move down"
-                    >
-                      <Icon name="arrow_downward" size={16} />
-                    </button>
-                  </div>
+        <div className="space-y-6">
+          {sections.map((section, sIdx) => {
+            const moduleNum = sIdx + 1;
 
-                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px] uppercase">
-                    Section {sIdx + 1}
-                  </span>
+            return (
+              <div
+                key={section.id}
+                className="bg-surface-container-lowest border-2 border-outline-variant/80 rounded-3xl overflow-hidden shadow-xs"
+              >
+                {/* Module Header + Inline Module Title & Module Description */}
+                <div className="p-4 sm:p-5 bg-slate-50/90 border-b border-outline-variant space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          disabled={sIdx === 0}
+                          onClick={() => moveSection(sIdx, 'up')}
+                          className="p-1 text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
+                          title="Move Module Up"
+                        >
+                          <Icon name="arrow_upward" size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={sIdx === sections.length - 1}
+                          onClick={() => moveSection(sIdx, 'down')}
+                          className="p-1 text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
+                          title="Move Module Down"
+                        >
+                          <Icon name="arrow_downward" size={16} />
+                        </button>
+                      </div>
 
-                  <h4 className="font-extrabold text-sm text-on-surface truncate">
-                    {section.title}
-                  </h4>
-                </div>
+                      <span className="px-3 py-1 rounded-xl bg-primary text-on-primary font-mono font-black text-xs uppercase shrink-0 shadow-2xs">
+                        Module {moduleNum}
+                      </span>
 
-                <div className="flex items-center gap-2 self-end sm:self-center">
-                  {/* Add Lesson Dropdown Button */}
-                  <div className="flex items-center gap-1 bg-surface border border-outline-variant rounded-xl p-1">
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(section.id, 'VIDEO')}
-                      className="px-2.5 py-1 text-[11px] font-bold text-on-surface hover:bg-surface-container rounded-lg flex items-center gap-1 cursor-pointer"
-                      title="Add Video Lecture"
-                    >
-                      <Icon name="movie" size={14} className="text-primary" />
-                      <span>+ Video</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(section.id, 'TEXT')}
-                      className="px-2.5 py-1 text-[11px] font-bold text-on-surface hover:bg-surface-container rounded-lg flex items-center gap-1 cursor-pointer"
-                      title="Add Text Guide"
-                    >
-                      <Icon name="article" size={14} className="text-secondary" />
-                      <span>+ Text</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(section.id, 'PDF')}
-                      className="px-2.5 py-1 text-[11px] font-bold text-on-surface hover:bg-surface-container rounded-lg flex items-center gap-1 cursor-pointer"
-                      title="Add PDF Resource"
-                    >
-                      <Icon name="picture_as_pdf" size={14} className="text-rose-600" />
-                      <span>+ PDF</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(section.id, 'QUIZ')}
-                      className="px-2.5 py-1 text-[11px] font-bold text-on-surface hover:bg-surface-container rounded-lg flex items-center gap-1 cursor-pointer"
-                      title="Add Quiz"
-                    >
-                      <Icon name="quiz" size={14} className="text-amber-600" />
-                      <span>+ Quiz</span>
-                    </button>
-                  </div>
+                      <input
+                        type="text"
+                        value={section.title}
+                        onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
+                        placeholder={`Module ${moduleNum} Title (e.g., Classroom Pedagogy & Foundations)`}
+                        className="flex-1 bg-white border border-slate-300 focus:border-primary rounded-xl px-3.5 py-2 text-sm font-extrabold text-slate-900 focus:outline-none transition-colors"
+                      />
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingSectionId(section.id);
-                      setNewSectionTitle(section.title);
-                      setIsAddSectionOpen(true);
-                    }}
-                    className="p-1.5 text-outline hover:text-primary rounded-lg hover:bg-surface-container cursor-pointer"
-                    title="Rename section"
-                  >
-                    <Icon name="edit" size={16} />
-                  </button>
+                    <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center">
+                      {/* Quick Add Lesson Buttons */}
+                      <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
+                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (Video)`}
+                        >
+                          <Icon name="movie" size={14} className="text-primary" />
+                          <span>+ {moduleNum}.{section.lessons.length + 1} Video</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCreateLesson(section.id, 'TEXT', false)}
+                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (Article)`}
+                        >
+                          <Icon name="article" size={14} className="text-secondary" />
+                          <span>+ Text</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCreateLesson(section.id, 'PDF', false)}
+                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-rose-50 hover:text-rose-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (PDF)`}
+                        >
+                          <Icon name="picture_as_pdf" size={14} className="text-rose-600" />
+                          <span>+ PDF</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCreateLesson(section.id, 'QUIZ', true)}
+                          className="px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-amber-50 hover:text-amber-700 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          title={`Add Lesson ${moduleNum}.${section.lessons.length + 1} (Quiz)`}
+                        >
+                          <Icon name="quiz" size={14} className="text-amber-600" />
+                          <span>+ Quiz</span>
+                        </button>
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSection(section.id)}
-                    className="p-1.5 text-outline hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                    title="Delete section"
-                  >
-                    <Icon name="delete" size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Lessons in Section */}
-              <div className="divide-y divide-outline-variant/30 p-3 space-y-2">
-                {section.lessons.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-on-surface-variant">
-                    No lessons in this section. Click &ldquo;+ Video&rdquo;, &ldquo;+ Text&rdquo;, &ldquo;+ PDF&rdquo;, or &ldquo;+ Quiz&rdquo; above to add.
-                  </div>
-                ) : (
-                  section.lessons.map((les, lIdx) => {
-                    const isVideo = les.type === 'VIDEO';
-                    const isText = les.type === 'TEXT';
-                    const isPdf = les.type === 'PDF';
-                    const isQuiz = les.type === 'QUIZ';
-
-                    return (
-                      <div
-                        key={les.id}
-                        className="p-3.5 bg-surface rounded-2xl border border-outline-variant/40 hover:border-primary/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSection(section.id)}
+                        className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 cursor-pointer transition-colors"
+                        title="Delete Module"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="flex items-center gap-0.5">
-                            <button
-                              type="button"
-                              disabled={lIdx === 0}
-                              onClick={() => moveLesson(section.id, lIdx, 'up')}
-                              className="text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
-                              title="Move up"
-                            >
-                              <Icon name="arrow_upward" size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={lIdx === section.lessons.length - 1}
-                              onClick={() => moveLesson(section.id, lIdx, 'down')}
-                              className="text-outline hover:text-primary disabled:opacity-30 cursor-pointer"
-                              title="Move down"
-                            >
-                              <Icon name="arrow_downward" size={14} />
-                            </button>
-                          </div>
+                        <Icon name="delete" size={16} />
+                      </button>
+                    </div>
+                  </div>
 
-                          <div
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                              isVideo
-                                ? 'bg-primary/10 text-primary'
-                                : isText
-                                ? 'bg-secondary/10 text-secondary'
-                                : isPdf
-                                ? 'bg-rose-50 text-rose-600'
-                                : 'bg-amber-50 text-amber-600'
-                            }`}
-                          >
-                            <Icon
-                              name={isVideo ? 'movie' : isText ? 'article' : isPdf ? 'picture_as_pdf' : 'quiz'}
-                              size={18}
-                            />
-                          </div>
+                  {/* Module Description Field */}
+                  <div className="pl-0 sm:pl-14">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                      Module {moduleNum} Description &amp; Learning Summary
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={section.description || ''}
+                      onChange={(e) => handleUpdateSectionField(section.id, 'description', e.target.value)}
+                      placeholder={`Write a brief description for Module ${moduleNum} (what key topics, skills, or goals students will cover in this module)...`}
+                      className="w-full bg-white border border-slate-200 focus:border-primary rounded-xl px-3.5 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none transition-colors resize-y"
+                    />
+                  </div>
+                </div>
 
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-on-surface truncate">{les.title}</p>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono">
-                              <span className="uppercase px-1.5 py-0.2 rounded bg-surface-container font-bold text-on-surface-variant">
-                                {les.type}
-                              </span>
-                              <span className="text-on-surface-variant">{les.duration || '10:00'}</span>
-                              {les.isFree && (
-                                <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-bold border border-emerald-200">
-                                  Free Preview
+                {/* Lessons (1.1, 1.2 / 2.1, 2.2) & Sub-Topics (1.1.1, 1.1.2 / 2.1.1) */}
+                <div className="p-4 sm:p-5 space-y-4 bg-white">
+                  {section.lessons.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-on-surface-variant border-2 border-dashed border-slate-200 rounded-2xl">
+                      No lessons in Module {moduleNum} yet. Click{' '}
+                      <button
+                        type="button"
+                        onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
+                        className="font-bold text-primary underline cursor-pointer"
+                      >
+                        + {moduleNum}.1 Video
+                      </button>{' '}
+                      above to add your first lesson.
+                    </div>
+                  ) : (
+                    section.lessons.map((les, lIdx) => {
+                      const lessonCode = `${moduleNum}.${lIdx + 1}`;
+                      const subLessons = Array.isArray(les.subLessons) ? les.subLessons : [];
+                      const nextSubCode = `${lessonCode}.${subLessons.length + 1}`;
+                      const isVideo = les.type === 'VIDEO';
+                      const isText = les.type === 'TEXT';
+                      const isPdf = les.type === 'PDF';
+                      const isQuiz = les.type === 'QUIZ';
+
+                      return (
+                        <div
+                          key={les.id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition-all overflow-hidden shadow-2xs"
+                        >
+                          {/* Main Lesson Row (e.g. 1.1 or 2.1) */}
+                          <div className="p-3.5 sm:p-4 bg-white flex flex-col gap-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <div className="flex items-center gap-0.5">
+                                  <button
+                                    type="button"
+                                    disabled={lIdx === 0}
+                                    onClick={() => moveLesson(section.id, lIdx, 'up')}
+                                    className="text-slate-400 hover:text-primary disabled:opacity-30 cursor-pointer"
+                                    title="Move up"
+                                  >
+                                    <Icon name="arrow_upward" size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={lIdx === section.lessons.length - 1}
+                                    onClick={() => moveLesson(section.id, lIdx, 'down')}
+                                    className="text-slate-400 hover:text-primary disabled:opacity-30 cursor-pointer"
+                                    title="Move down"
+                                  >
+                                    <Icon name="arrow_downward" size={14} />
+                                  </button>
+                                </div>
+
+                                {/* Number Badge: 1.1, 1.2, 2.1 */}
+                                <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-mono font-black text-xs shrink-0 shadow-2xs">
+                                  {lessonCode}
                                 </span>
-                              )}
+
+                                {/* Inline Lesson Title Input */}
+                                <input
+                                  type="text"
+                                  value={les.title}
+                                  onChange={(e) =>
+                                    handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                  }
+                                  placeholder={`${lessonCode} Lesson Title`}
+                                  className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-600 rounded-xl px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
+                                />
+
+                                {/* Lesson Type Selector */}
+                                <select
+                                  value={les.type}
+                                  onChange={(e) =>
+                                    handleUpdateLessonInline(section.id, les.id, {
+                                      type: e.target.value as any
+                                    })
+                                  }
+                                  className="bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                                >
+                                  <option value="VIDEO">🎬 Video</option>
+                                  <option value="TEXT">📄 Article</option>
+                                  <option value="PDF">📑 PDF</option>
+                                  <option value="QUIZ">❓ Quiz</option>
+                                </select>
+
+                                {/* Duration Input */}
+                                <input
+                                  type="text"
+                                  value={les.duration || '10:00'}
+                                  onChange={(e) =>
+                                    handleUpdateLessonInline(section.id, les.id, { duration: e.target.value })
+                                  }
+                                  placeholder="10:00"
+                                  title="Duration (mm:ss)"
+                                  className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-mono text-center text-slate-700 focus:outline-none focus:border-indigo-600"
+                                />
+                              </div>
+
+                              {/* Action Buttons on Lesson 1.1 */}
+                              <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                                {/* + Add Sub-Category (1.1.1 / 2.1.1) Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddSubLesson(section.id, les.id)}
+                                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                                  title={`Add Sub-Topic ${nextSubCode} inside ${lessonCode}`}
+                                >
+                                  <Icon name="subdirectory_arrow_right" size={14} />
+                                  <span>+ Add {nextSubCode}</span>
+                                </button>
+
+                                {isVideo && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setVideoModalTarget({
+                                        sectionId: section.id,
+                                        lessonId: les.id,
+                                        title: les.title
+                                      })
+                                    }
+                                    className="px-2.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-on-primary rounded-xl font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                                  >
+                                    <Icon name="cloud_upload" size={14} />
+                                    <span>{les.videoUrl ? 'Replace Video' : 'Upload Video'}</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Icon name="tune" size={14} />
+                                  <span>Details / Content</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLesson(section.id, les.id)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                                  title="Delete Lesson"
+                                >
+                                  <Icon name="delete" size={16} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Inline Lesson Description + Media URL Row */}
+                            <div className="pl-0 sm:pl-16 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                              <input
+                                type="text"
+                                value={les.description || ''}
+                                onChange={(e) =>
+                                  handleUpdateLessonInline(section.id, les.id, {
+                                    description: e.target.value
+                                  })
+                                }
+                                placeholder={`Description / summary for ${lessonCode} (optional)...`}
+                                className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none"
+                              />
+
                               {isVideo && (
-                                <span className={les.videoUrl ? 'text-emerald-700 font-bold' : 'text-amber-700'}>
-                                  {les.videoUrl ? '● Video Ready' : '○ Video Pending'}
-                                </span>
+                                <input
+                                  type="text"
+                                  value={les.videoUrl || ''}
+                                  onChange={(e) =>
+                                    handleUpdateLessonInline(section.id, les.id, {
+                                      videoUrl: e.target.value
+                                    })
+                                  }
+                                  placeholder={`Video URL for ${lessonCode} (YouTube, Vimeo, MP4 link, or click Upload Video)`}
+                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                />
                               )}
-                              {isText && (
-                                <span className={les.content ? 'text-emerald-700 font-bold' : 'text-amber-700'}>
-                                  {les.content ? '● Article Ready' : '○ Empty Content'}
-                                </span>
-                              )}
+
                               {isPdf && (
-                                <span className={les.pdfUrl ? 'text-emerald-700 font-bold' : 'text-amber-700'}>
-                                  {les.pdfUrl ? '● PDF Attached' : '○ PDF Pending'}
-                                </span>
+                                <input
+                                  type="text"
+                                  value={les.pdfUrl || ''}
+                                  onChange={(e) =>
+                                    handleUpdateLessonInline(section.id, les.id, {
+                                      pdfUrl: e.target.value
+                                    })
+                                  }
+                                  placeholder={`PDF Document URL for ${lessonCode}...`}
+                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                />
                               )}
-                              {isQuiz && (
-                                <span className="text-amber-700 font-bold">
-                                  {typeof les.quizData === 'object'
-                                    ? `● ${les.quizData.questions?.length || 0} Questions`
-                                    : '● Quiz Configured'}
-                                </span>
+
+                              {isText && (
+                                <input
+                                  type="text"
+                                  value={les.content || ''}
+                                  onChange={(e) =>
+                                    handleUpdateLessonInline(section.id, les.id, {
+                                      content: e.target.value
+                                    })
+                                  }
+                                  placeholder={`Article / reading text for ${lessonCode} (or click Details / Content for full editor)...`}
+                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none"
+                                />
                               )}
                             </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                          {isVideo && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setVideoModalLesson({
-                                  sectionId: section.id,
-                                  lessonId: les.id,
-                                  title: les.title
-                                })
-                              }
-                              className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-on-primary rounded-xl font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
-                            >
-                              <Icon name="cloud_upload" size={14} />
-                              <span>{les.videoUrl ? 'Replace Video' : 'Upload Video'}</span>
-                            </button>
+                          {/* Sub-Topics / Sub-Categories List (e.g. 1.1.1, 1.1.2, 2.1.1) */}
+                          {subLessons.length > 0 && (
+                            <div className="bg-indigo-50/40 border-t border-indigo-100 px-4 sm:px-6 py-3.5 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
+                                  <Icon name="account_tree" size={14} className="text-indigo-600" />
+                                  <span>
+                                    Sub-Categories / Sub-Topics under {lessonCode} ({subLessons.length})
+                                  </span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddSubLesson(section.id, les.id)}
+                                  className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Icon name="add_circle" size={14} />
+                                  <span>+ Add {nextSubCode}</span>
+                                </button>
+                              </div>
+
+                              <div className="space-y-2 pl-3 sm:pl-5 border-l-2 border-indigo-300">
+                                {subLessons.map((sub, subIdx) => {
+                                  const subCode = `${lessonCode}.${subIdx + 1}`;
+
+                                  return (
+                                    <div
+                                      key={sub.id}
+                                      className="p-3 rounded-xl bg-white border border-indigo-200/80 shadow-2xs space-y-2"
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <div className="flex items-center gap-0.5">
+                                          <button
+                                            type="button"
+                                            disabled={subIdx === 0}
+                                            onClick={() => moveSubLesson(section.id, les.id, subIdx, 'up')}
+                                            className="text-slate-400 hover:text-indigo-600 disabled:opacity-30 cursor-pointer"
+                                            title="Move sub-topic up"
+                                          >
+                                            <Icon name="arrow_upward" size={13} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={subIdx === subLessons.length - 1}
+                                            onClick={() => moveSubLesson(section.id, les.id, subIdx, 'down')}
+                                            className="text-slate-400 hover:text-indigo-600 disabled:opacity-30 cursor-pointer"
+                                            title="Move sub-topic down"
+                                          >
+                                            <Icon name="arrow_downward" size={13} />
+                                          </button>
+                                        </div>
+
+                                        {/* Sub-Topic Code Badge: 1.1.1, 1.1.2, 2.1.1 */}
+                                        <span className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 border border-violet-300 font-mono font-black text-[11px] shrink-0">
+                                          {subCode}
+                                        </span>
+
+                                        {/* Sub-Topic Title */}
+                                        <input
+                                          type="text"
+                                          value={sub.title}
+                                          onChange={(e) =>
+                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                              title: e.target.value,
+                                              code: subCode
+                                            })
+                                          }
+                                          placeholder={`${subCode} Sub-Topic Title...`}
+                                          className="flex-1 min-w-[180px] bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-600 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none"
+                                        />
+
+                                        {/* Sub-Topic Content Type */}
+                                        <select
+                                          value={sub.type || 'VIDEO'}
+                                          onChange={(e) =>
+                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                              type: e.target.value as any
+                                            })
+                                          }
+                                          className="bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+                                        >
+                                          <option value="VIDEO">🎬 Video</option>
+                                          <option value="TEXT">📄 Text / Notes</option>
+                                          <option value="PDF">📑 PDF</option>
+                                        </select>
+
+                                        {/* Sub-Topic Duration */}
+                                        <input
+                                          type="text"
+                                          value={sub.duration || '05:00'}
+                                          onChange={(e) =>
+                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                              duration: e.target.value
+                                            })
+                                          }
+                                          placeholder="05:00"
+                                          className="w-14 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono text-center text-slate-700 focus:outline-none"
+                                        />
+
+                                        {sub.type === 'VIDEO' && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setVideoModalTarget({
+                                                sectionId: section.id,
+                                                lessonId: les.id,
+                                                subLessonId: sub.id,
+                                                title: sub.title
+                                              })
+                                            }
+                                            className="px-2.5 py-1 bg-violet-50 hover:bg-violet-600 text-violet-700 hover:text-white border border-violet-200 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                                          >
+                                            <Icon name="cloud_upload" size={13} />
+                                            <span>{sub.videoUrl ? 'Replace Video' : 'Upload Video'}</span>
+                                          </button>
+                                        )}
+
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteSubLesson(section.id, les.id, sub.id)}
+                                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                                          title={`Remove ${subCode}`}
+                                        >
+                                          <Icon name="close" size={15} />
+                                        </button>
+                                      </div>
+
+                                      {/* Sub-Topic Description & Media URL */}
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-6">
+                                        <input
+                                          type="text"
+                                          value={sub.description || ''}
+                                          onChange={(e) =>
+                                            handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                              description: e.target.value
+                                            })
+                                          }
+                                          placeholder={`Sub-topic ${subCode} description or key notes...`}
+                                          className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
+                                        />
+
+                                        {sub.type === 'VIDEO' && (
+                                          <input
+                                            type="text"
+                                            value={sub.videoUrl || ''}
+                                            onChange={(e) =>
+                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                videoUrl: e.target.value
+                                              })
+                                            }
+                                            placeholder={`Video URL for ${subCode} (or click Upload Video)...`}
+                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        )}
+
+                                        {sub.type === 'TEXT' && (
+                                          <input
+                                            type="text"
+                                            value={sub.content || ''}
+                                            onChange={(e) =>
+                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                content: e.target.value
+                                              })
+                                            }
+                                            placeholder={`Reading content / notes for ${subCode}...`}
+                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        )}
+
+                                        {sub.type === 'PDF' && (
+                                          <input
+                                            type="text"
+                                            value={sub.pdfUrl || ''}
+                                            onChange={(e) =>
+                                              handleUpdateSubLesson(section.id, les.id, sub.id, {
+                                                pdfUrl: e.target.value
+                                              })
+                                            }
+                                            placeholder={`PDF URL for ${subCode}...`}
+                                            className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-violet-500 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-700 placeholder-slate-400 focus:outline-none"
+                                          />
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           )}
-
-                          <button
-                            type="button"
-                            onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
-                            className="px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                          >
-                            <Icon name="tune" size={14} />
-                            <span>Edit Details</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteLesson(section.id, les.id)}
-                            className="p-1.5 text-outline hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                            title="Delete lesson"
-                          >
-                            <Icon name="delete" size={16} />
-                          </button>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+
+                  {/* Quick Footer Button to Add Next Lesson in Module */}
+                  <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
+                      className="px-4 py-2 rounded-xl border border-dashed border-indigo-300 hover:border-indigo-600 bg-indigo-50/40 hover:bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <Icon name="add_circle" size={16} />
+                      <span>
+                        + Add Lesson {moduleNum}.{section.lessons.length + 1} to Module {moduleNum}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Add / Rename Section Modal */}
+      {/* Add / Edit Section Modal */}
       <Modal
         isOpen={isAddSectionOpen}
         onClose={() => setIsAddSectionOpen(false)}
         maxWidth="md"
-        title={editingSectionId ? 'Rename Curriculum Section' : 'Add Curriculum Section'}
-        subtitle="Organize lectures into logical modules and syllabus topics"
+        title={editingSectionId ? 'Edit Module Details' : 'Add New Curriculum Module'}
+        subtitle="Set the module title and description"
       >
         <form onSubmit={handleAddSection} className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Section Title *
+              Module Title *
             </label>
             <input
               type="text"
               required
               value={newSectionTitle}
               onChange={(e) => setNewSectionTitle(e.target.value)}
-              placeholder="e.g. Module 2: Concurrency Patterns & Distributed Locks"
+              placeholder="e.g. Module 2: Digital Assessment & Student Engagement"
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Module Description
+            </label>
+            <textarea
+              rows={3}
+              value={newSectionDescription}
+              onChange={(e) => setNewSectionDescription(e.target.value)}
+              placeholder="Describe what students will learn in this module..."
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-xs text-on-surface focus:outline-none focus:border-primary font-medium resize-y"
             />
           </div>
 
@@ -592,7 +1074,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
               type="submit"
               className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer"
             >
-              {editingSectionId ? 'Save Section Name' : 'Create Section'}
+              {editingSectionId ? 'Save Module' : 'Create Module'}
             </button>
           </div>
         </form>
@@ -609,27 +1091,26 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       )}
 
       {/* Video Upload & Attachment Modal */}
-      {videoModalLesson && (
+      {videoModalTarget && (
         <VideoUploadModal
           isOpen={true}
-          onClose={() => setVideoModalLesson(null)}
-          lessonId={videoModalLesson.lessonId}
-          lessonTitle={videoModalLesson.title}
+          onClose={() => setVideoModalTarget(null)}
+          lessonId={videoModalTarget.subLessonId || videoModalTarget.lessonId}
+          lessonTitle={videoModalTarget.title}
           onSuccess={(videoUrl, duration) => {
-            const updatedSections = sections.map((s) => {
-              if (s.id === videoModalLesson.sectionId) {
-                return {
-                  ...s,
-                  lessons: s.lessons.map((l) =>
-                    l.id === videoModalLesson.lessonId
-                      ? { ...l, videoUrl, duration: duration || l.duration }
-                      : l
-                  )
-                };
-              }
-              return s;
-            });
-            onChange(updatedSections);
+            if (videoModalTarget.subLessonId) {
+              handleUpdateSubLesson(
+                videoModalTarget.sectionId,
+                videoModalTarget.lessonId,
+                videoModalTarget.subLessonId,
+                { videoUrl, duration: duration || '05:00' }
+              );
+            } else {
+              handleUpdateLessonInline(videoModalTarget.sectionId, videoModalTarget.lessonId, {
+                videoUrl,
+                duration: duration || '10:00'
+              });
+            }
           }}
         />
       )}
@@ -785,6 +1266,20 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
           </div>
         </div>
 
+        {/* Lesson Description */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+            Lesson Description / Overview
+          </label>
+          <textarea
+            rows={2}
+            value={formData.description || ''}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Summarize what this lesson covers..."
+            className="w-full bg-surface border border-outline-variant rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+
         {/* TYPE 1: VIDEO LESSON */}
         {formData.type === 'VIDEO' && (
           <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
@@ -798,9 +1293,6 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
               placeholder="e.g. /uploads/videos/... or YouTube or Vimeo or CDN stream"
               className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
             />
-            <p className="text-[11px] text-on-surface-variant">
-              You can also click &ldquo;Upload Video&rdquo; on the curriculum item to upload direct MP4 files from your computer.
-            </p>
           </div>
         )}
 
@@ -814,7 +1306,7 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
               rows={8}
               value={formData.content || ''}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="# Introduction to Distributed Transactions&#10;&#10;In this article we break down the two-phase commit protocol..."
+              placeholder="# Lesson Overview&#10;&#10;Explain core concepts here..."
               className="w-full bg-surface border border-outline-variant rounded-2xl p-4 text-xs font-mono leading-relaxed text-on-surface focus:outline-none focus:border-primary"
             />
           </div>
@@ -899,7 +1391,6 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
                     className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-2.5 text-xs text-on-surface font-semibold focus:outline-none focus:border-primary"
                   />
 
-                  {/* 4 Multiple Choice Options */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {q.options.map((opt, oIdx) => {
                       const isCorrect = q.correctIndex === oIdx;
@@ -932,7 +1423,6 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
                     })}
                   </div>
 
-                  {/* Explanation */}
                   <input
                     type="text"
                     value={q.explanation || ''}

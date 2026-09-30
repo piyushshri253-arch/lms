@@ -10,18 +10,30 @@ import { CourseMediaStep } from '@/components/course-builder/CourseMediaStep';
 import { CourseCurriculumStep, BuilderSection } from '@/components/course-builder/CourseCurriculumStep';
 import { CoursePricingStep } from '@/components/course-builder/CoursePricingStep';
 import { CoursePublishStep } from '@/components/course-builder/CoursePublishStep';
+import { VideoPlayer } from '@/components/player/VideoPlayer';
+import { ArticlePlayer } from '@/components/player/ArticlePlayer';
+import { QuizPlayer } from '@/components/player/QuizPlayer';
 
 function CourseBuilderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast, currentUser } = useApp();
 
-  const editSlugOrId = searchParams.get('slug') || searchParams.get('courseId') || '';
+  const editSlugOrId =
+    searchParams.get('slug') || searchParams.get('courseId') || searchParams.get('id') || '';
+
+  const draftStorageKey = `morena_course_builder_draft_${editSlugOrId || 'new'}`;
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(!!editSlugOrId);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [hasLoadedInitial, setHasLoadedInitial] = useState<boolean>(false);
+
+  // Live Preview Modal State (keeps 100% of form state intact when opened/closed!)
+  const [isLivePreviewOpen, setIsLivePreviewOpen] = useState<boolean>(false);
+  const [previewTab, setPreviewTab] = useState<'LANDING' | 'PLAYER'>('LANDING');
+  const [activePreviewItem, setActivePreviewItem] = useState<any>(null);
 
   // Full Course Form State
   const [courseState, setCourseState] = useState<{
@@ -70,22 +82,42 @@ function CourseBuilderContent() {
       'Foster inclusive learning environments for early years and primary students',
       'Implement formative assessment strategies to measure holistic student growth'
     ],
-    requirements: ['Passion for transformative education and classroom leadership', 'Basic familiarity with primary school curriculum principles'],
-    targetAudience: ['Early Childhood Educators', 'Primary & Secondary Teachers', 'School Principals & Academic Coordinators'],
+    requirements: [
+      'Passion for transformative education and classroom leadership',
+      'Basic familiarity with primary school curriculum principles'
+    ],
+    targetAudience: [
+      'Early Childhood Educators',
+      'Primary & Secondary Teachers',
+      'School Principals & Academic Coordinators'
+    ],
     seoTitle: '',
     seoDescription: '',
     sections: [
       {
         id: `sec-${Date.now()}-1`,
         title: 'Module 1: Foundations & Pedagogy Setup',
+        description: 'Core pedagogical frameworks, active classroom strategies, and foundational orientation.',
         order: 1,
         lessons: [
           {
             id: `les-${Date.now()}-1`,
             title: '1.1 Welcome & Course Orientation',
+            description: 'Introduction to the course structure and key learning outcomes.',
             type: 'VIDEO',
             duration: '10:00',
             durationSeconds: 600,
+            subLessons: [
+              {
+                id: `sub-${Date.now()}-1`,
+                code: '1.1.1',
+                title: '1.1.1 Key Learning Objectives & Syllabus Walkthrough',
+                description: 'Detailed breakdown of modules and practical exercises.',
+                type: 'VIDEO',
+                duration: '05:00',
+                order: 1
+              }
+            ],
             isFree: true,
             isPublished: true,
             order: 1
@@ -95,6 +127,15 @@ function CourseBuilderContent() {
     ]
   });
 
+  // Listen for custom preview event from CourseAssessmentsBanner or child components
+  useEffect(() => {
+    const handleOpenPreview = () => {
+      setIsLivePreviewOpen(true);
+    };
+    window.addEventListener('open-course-builder-preview', handleOpenPreview);
+    return () => window.removeEventListener('open-course-builder-preview', handleOpenPreview);
+  }, []);
+
   // Client-side role safeguard
   useEffect(() => {
     if (currentUser && currentUser.role === 'STUDENT') {
@@ -102,18 +143,47 @@ function CourseBuilderContent() {
     }
   }, [currentUser, router]);
 
-  // Load existing course if editing, or ensure clean state
+  // Load existing course if editing, or restore unsaved draft from localStorage so fields never disappear!
   useEffect(() => {
     if (editSlugOrId) {
       loadCourse(editSlugOrId);
     } else {
-      setCourseState((prev) => ({
-        ...prev,
-        id: undefined,
-        slug: ''
-      }));
+      try {
+        const savedDraftRaw = localStorage.getItem(draftStorageKey);
+        if (savedDraftRaw) {
+          const parsed = JSON.parse(savedDraftRaw);
+          if (parsed && typeof parsed === 'object' && parsed.courseState) {
+            setCourseState((prev) => ({
+              ...prev,
+              ...parsed.courseState
+            }));
+            if (typeof parsed.currentStep === 'number') {
+              setCurrentStep(parsed.currentStep);
+            }
+          }
+        }
+      } catch {
+        // Ignore storage parse error
+      }
+      setHasLoadedInitial(true);
     }
   }, [editSlugOrId]);
+
+  // Continuously save draft state to localStorage on every change so clicking Preview or refreshing NEVER loses work!
+  useEffect(() => {
+    if (!hasLoadedInitial) return;
+    try {
+      const payload = JSON.stringify({
+        courseState,
+        currentStep,
+        updatedAt: Date.now()
+      });
+      localStorage.setItem(draftStorageKey, payload);
+      localStorage.setItem('morena_course_builder_live_preview', payload);
+    } catch {
+      // Ignore quota exceeded errors
+    }
+  }, [courseState, currentStep, hasLoadedInitial, draftStorageKey]);
 
   const loadCourse = async (identifier: string) => {
     setIsLoading(true);
@@ -122,13 +192,13 @@ function CourseBuilderContent() {
       const data = await res.json();
       if (res.ok && data.course) {
         const c = data.course;
-        setCourseState({
+        const loadedState = {
           id: c.id,
           title: c.title,
           slug: c.slug,
           shortDescription: c.subtitle || c.shortDescription || '',
           description: c.description || '',
-          category: c.category || 'Engineering',
+          category: c.category || 'Teacher Development',
           level: c.level || 'ALL_LEVELS',
           language: c.language || 'English',
           durationHours: c.durationHours || 0,
@@ -145,34 +215,37 @@ function CourseBuilderContent() {
           targetAudience: c.targetAudience || [],
           seoTitle: c.seoTitle || '',
           seoDescription: c.seoDescription || '',
-          sections: (c.sections || []).map((s: any) => ({
+          sections: (c.sections || []).map((s: any, sIdx: number) => ({
             id: s.id,
             title: s.title,
-            description: s.description,
-            order: s.order,
-            lessons: (s.lessons || []).map((l: any) => ({
+            description: s.description || '',
+            order: s.order || sIdx + 1,
+            lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
               id: l.id,
               title: l.title,
-              description: l.description,
+              description: l.description || '',
               type: l.type || 'VIDEO',
               content: l.content,
               videoUrl: l.videoUrl,
               pdfUrl: l.pdfUrl,
               fileUrl: l.fileUrl,
               quizData: l.quizData,
+              subLessons: Array.isArray(l.subLessons) ? l.subLessons : [],
               duration: l.duration,
               durationSeconds: l.durationSeconds,
               isFree: l.isFree,
               isPublished: l.isPublished,
-              order: l.order
+              order: l.order || lIdx + 1
             }))
           }))
-        });
+        };
+        setCourseState(loadedState);
       }
     } catch {
       showToast({ title: 'Error', description: 'Failed to load course details.', type: 'error' });
     } finally {
       setIsLoading(false);
+      setHasLoadedInitial(true);
     }
   };
 
@@ -183,7 +256,11 @@ function CourseBuilderContent() {
   // Save as Draft
   const handleSaveDraft = async () => {
     if (!courseState.title.trim()) {
-      showToast({ title: 'Course Title Required', description: 'Please enter a course title before saving.', type: 'error' });
+      showToast({
+        title: 'Course Title Required',
+        description: 'Please enter a course title before saving.',
+        type: 'error'
+      });
       setCurrentStep(0);
       throw new Error('Course title is required');
     }
@@ -241,6 +318,13 @@ function CourseBuilderContent() {
         savedCourseId = data.course.id;
         savedSlug = data.course.slug;
         setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
+
+        // Keep courseId in URL without reloading or resetting state
+        if (typeof window !== 'undefined' && savedCourseId) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('courseId', savedCourseId);
+          window.history.replaceState({}, '', url.toString());
+        }
       } else {
         // Update existing course in DB
         const res = await fetch(`/api/courses/${courseState.slug || savedCourseId}`, {
@@ -283,7 +367,6 @@ function CourseBuilderContent() {
   const handlePublishCourse = async () => {
     setIsPublishing(true);
     try {
-      // First ensure latest updates are saved and retrieve verified course identifier
       const savedInfo = await handleSaveDraft();
       const targetIdentifier = savedInfo?.slug || savedInfo?.id || courseState.slug || courseState.id;
 
@@ -310,6 +393,10 @@ function CourseBuilderContent() {
 
       if (!res.ok) throw new Error(data.error || 'Failed to publish course');
 
+      try {
+        localStorage.removeItem('morena_course_builder_draft_new');
+      } catch {}
+
       const isInstructor = currentUser?.role === 'INSTRUCTOR';
       if (isInstructor) {
         if (courseState.status === 'APPROVED') {
@@ -323,7 +410,7 @@ function CourseBuilderContent() {
           setCourseState((prev) => ({ ...prev, status: 'IN_REVIEW' }));
           showToast({
             title: 'Course Submitted for Approval! 📋',
-            description: 'Your course has been submitted for Super Admin review. Once approved, you will be able to publish it live.',
+            description: 'Your course has been submitted for Review. Once approved, you will be able to publish it live.',
             type: 'success'
           });
         }
@@ -336,7 +423,6 @@ function CourseBuilderContent() {
         });
       }
 
-      // Redirect to courses catalog so user can see their newly published course
       setTimeout(() => {
         router.push(isInstructor ? '/instructor' : '/admin/courses');
       }, 1200);
@@ -388,6 +474,36 @@ function CourseBuilderContent() {
     { title: isInstructor ? '5. Review & Submit' : '5. Publish & Review', icon: 'verified' }
   ];
 
+  // Flatten all lessons & subLessons for the live preview player
+  const allPlayableItems = React.useMemo(() => {
+    const items: any[] = [];
+    (courseState.sections || []).forEach((sec, sIdx) => {
+      const mNum = sIdx + 1;
+      (sec.lessons || []).forEach((les, lIdx) => {
+        const lCode = `${mNum}.${lIdx + 1}`;
+        items.push({
+          ...les,
+          code: lCode,
+          moduleTitle: sec.title,
+          isSubTopic: false
+        });
+        (les.subLessons || []).forEach((sub, subIdx) => {
+          const sCode = `${lCode}.${subIdx + 1}`;
+          items.push({
+            ...sub,
+            code: sCode,
+            moduleTitle: sec.title,
+            parentLessonTitle: les.title,
+            isSubTopic: true
+          });
+        });
+      });
+    });
+    return items;
+  }, [courseState.sections]);
+
+  const currentPlayerItem = activePreviewItem || allPlayableItems[0] || null;
+
   if (isLoading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
@@ -432,7 +548,17 @@ function CourseBuilderContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          {/* Live Course Preview Button (Opens modal without losing any form fields!) */}
+          <button
+            type="button"
+            onClick={() => setIsLivePreviewOpen(true)}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+          >
+            <Icon name="visibility" size={16} />
+            <span>Preview Course</span>
+          </button>
+
           <button
             type="button"
             disabled={isSaving}
@@ -587,17 +713,14 @@ function CourseBuilderContent() {
         </button>
 
         <div className="flex items-center gap-3">
-          {(courseState.id || courseState.slug) && (
-            <a
-              href={`/instructor/courses/preview/${encodeURIComponent(courseState.id || courseState.slug)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
-            >
-              <Icon name="visibility" size={16} />
-              <span>Preview Course</span>
-            </a>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsLivePreviewOpen(true)}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
+          >
+            <Icon name="visibility" size={16} />
+            <span>Preview Course</span>
+          </button>
 
           <button
             type="button"
@@ -675,13 +798,450 @@ function CourseBuilderContent() {
           )}
         </div>
       </div>
+
+      {/* =====================================================================
+          FULL-SCREEN INTERACTIVE LIVE COURSE PREVIEW MODAL
+          Closing (Cross 'X') returns immediately to Builder with 0% data loss!
+         ===================================================================== */}
+      {isLivePreviewOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col animate-in fade-in duration-150">
+          {/* Top Sticky Preview Control Bar */}
+          <div className="bg-slate-900 text-white border-b border-indigo-500/30 px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-mono font-bold uppercase">
+                Live Student Course Preview
+              </span>
+              <h2 className="text-sm sm:text-base font-extrabold text-white truncate max-w-md">
+                {courseState.title || 'Untitled Course (Draft Preview)'}
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="bg-slate-950 p-1 rounded-xl border border-white/10 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('LANDING')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                    previewTab === 'LANDING'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Icon name="storefront" size={15} />
+                  <span>1. Course Landing Page &amp; Syllabus</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('PLAYER')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                    previewTab === 'PLAYER'
+                      ? 'bg-emerald-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Icon name="play_circle" size={15} />
+                  <span>2. Classroom Video &amp; Content Player</span>
+                </button>
+              </div>
+
+              {/* Close ('X') Button - Closes preview overlay while keeping 100% of typed builder fields! */}
+              <button
+                type="button"
+                onClick={() => setIsLivePreviewOpen(false)}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                title="Close Preview and return to Course Builder (all fields are preserved)"
+              >
+                <Icon name="close" size={18} />
+                <span>Close Preview</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Preview Body */}
+          <div className="flex-1 overflow-y-auto bg-slate-50 text-slate-900">
+            {previewTab === 'LANDING' ? (
+              <div>
+                {/* Hero Banner */}
+                <section className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white py-10 px-4 sm:px-8">
+                  <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div className="lg:col-span-8 space-y-4">
+                      <div className="flex items-center gap-2 text-xs font-bold text-indigo-300 uppercase">
+                        <span>{courseState.category || 'Course'}</span>
+                        <span>•</span>
+                        <span>{courseState.level}</span>
+                        <span>•</span>
+                        <span>{courseState.language}</span>
+                      </div>
+                      <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
+                        {courseState.title || 'Untitled Master Course'}
+                      </h1>
+                      <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                        {courseState.shortDescription || 'Add a short subtitle in Step 1 to display it here.'}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-2">
+                        <span>👨‍🏫 Instructor: <strong>{currentUser?.name || 'Course Instructor'}</strong></span>
+                        <span>⏱️ Duration: <strong>{courseState.durationHours || 12} Hours</strong></span>
+                        <span>📚 Modules: <strong>{courseState.sections.length}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Right Price & Thumbnail Card */}
+                    <div className="lg:col-span-4 bg-white text-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+                      {courseState.thumbnail ? (
+                        <img
+                          src={courseState.thumbnail}
+                          alt={courseState.title}
+                          className="w-full aspect-video object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-video bg-slate-900 text-slate-400 flex flex-col items-center justify-center gap-2 text-xs">
+                          <Icon name="image" size={32} />
+                          <span>Course Thumbnail Preview</span>
+                        </div>
+                      )}
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-black text-slate-900">
+                            {courseState.price === 0
+                              ? 'FREE'
+                              : `${courseState.currency === 'USD' ? '$' : '₹'}${courseState.price}`}
+                          </span>
+                          {courseState.discountPrice && courseState.discountPrice > courseState.price && (
+                            <span className="text-sm text-slate-400 line-through font-semibold">
+                              {courseState.currency === 'USD' ? '$' : '₹'}
+                              {courseState.discountPrice}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewTab('PLAYER')}
+                          className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Icon name="play_circle" size={18} />
+                          <span>Test Course in Classroom Player →</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Main Content & Hierarchical Syllabus (Module -> 1.1 -> 1.1.1) */}
+                <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 space-y-8">
+                  {/* What You Will Learn */}
+                  {courseState.whatYouWillLearn?.length > 0 && (
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+                      <h3 className="text-base font-black text-slate-900 mb-4">What You Will Learn</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {courseState.whatYouWillLearn.filter(Boolean).map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
+                            <Icon name="check_circle" size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Full Description */}
+                  {courseState.description && (
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                      <h3 className="text-base font-black text-slate-900">Course Description</h3>
+                      <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+                        {courseState.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Complete Multi-Level Curriculum Breakdown */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-black text-slate-900">
+                      Course Curriculum &amp; Syllabus ({courseState.sections.length} Modules)
+                    </h3>
+
+                    {courseState.sections.map((sec, sIdx) => {
+                      const mNum = sIdx + 1;
+                      return (
+                        <div
+                          key={sec.id}
+                          className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs"
+                        >
+                          <div className="p-4 sm:p-5 bg-slate-100/80 border-b border-slate-200 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                                <span className="px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white font-mono text-xs">
+                                  Module {mNum}
+                                </span>
+                                <span>{sec.title}</span>
+                              </h4>
+                              <span className="text-xs font-mono text-slate-500">
+                                {sec.lessons.length} Lesson(s)
+                              </span>
+                            </div>
+                            {sec.description && (
+                              <p className="text-xs text-slate-600 leading-relaxed pl-1">
+                                {sec.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="divide-y divide-slate-100 p-4 space-y-3">
+                            {sec.lessons.map((les, lIdx) => {
+                              const lCode = `${mNum}.${lIdx + 1}`;
+                              const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
+
+                              return (
+                                <div key={les.id} className="pt-2 first:pt-0 space-y-2">
+                                  <div
+                                    onClick={() => {
+                                      setActivePreviewItem({ ...les, code: lCode, moduleTitle: sec.title });
+                                      setPreviewTab('PLAYER');
+                                    }}
+                                    className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-indigo-50/60 cursor-pointer transition-colors"
+                                  >
+                                    <div className="flex items-start gap-2.5">
+                                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold text-xs shrink-0">
+                                        {lCode}
+                                      </span>
+                                      <div>
+                                        <p className="text-xs sm:text-sm font-bold text-slate-900">
+                                          {les.title}
+                                        </p>
+                                        {les.description && (
+                                          <p className="text-[11px] text-slate-500 mt-0.5">{les.description}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs font-mono text-slate-500 shrink-0">
+                                      <span className="uppercase text-[10px] px-2 py-0.5 rounded bg-slate-100">
+                                        {les.type}
+                                      </span>
+                                      <span>{les.duration || '10:00'}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Sub-Categories (1.1.1, 1.1.2, 2.1.1) */}
+                                  {subs.length > 0 && (
+                                    <div className="pl-6 sm:pl-10 space-y-1.5 border-l-2 border-indigo-200 ml-3">
+                                      {subs.map((sub, subIdx) => {
+                                        const sCode = `${lCode}.${subIdx + 1}`;
+                                        return (
+                                          <div
+                                            key={sub.id}
+                                            onClick={() => {
+                                              setActivePreviewItem({
+                                                ...sub,
+                                                code: sCode,
+                                                moduleTitle: sec.title,
+                                                parentLessonTitle: les.title
+                                              });
+                                              setPreviewTab('PLAYER');
+                                            }}
+                                            className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 hover:bg-violet-50 border border-slate-200/70 cursor-pointer transition-colors"
+                                          >
+                                            <div className="flex items-start gap-2">
+                                              <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-mono font-bold text-[11px] shrink-0">
+                                                {sCode}
+                                              </span>
+                                              <div>
+                                                <p className="text-xs font-semibold text-slate-800">
+                                                  {sub.title}
+                                                </p>
+                                                {sub.description && (
+                                                  <p className="text-[11px] text-slate-500">{sub.description}</p>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <span className="text-[11px] font-mono text-slate-500 shrink-0">
+                                              {sub.duration || '05:00'}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* MODE 2: INTERACTIVE CLASSROOM PLAYER */
+              <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[82vh]">
+                <div className="lg:col-span-8 bg-slate-950 text-white p-6 flex flex-col justify-between">
+                  {currentPlayerItem ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-xs text-indigo-300 font-mono">
+                        <span className="px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-400/30 font-bold">
+                          {currentPlayerItem.code || '1.1'}
+                        </span>
+                        <span>{currentPlayerItem.moduleTitle}</span>
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-black text-white">
+                        {currentPlayerItem.title}
+                      </h3>
+                      {currentPlayerItem.description && (
+                        <p className="text-xs text-slate-300">{currentPlayerItem.description}</p>
+                      )}
+
+                      <div className="rounded-2xl overflow-hidden border border-white/10 bg-black min-h-[360px] flex items-center justify-center">
+                        {currentPlayerItem.type === 'VIDEO' ? (
+                          currentPlayerItem.videoUrl ? (
+                            <VideoPlayer
+                              videoUrl={currentPlayerItem.videoUrl}
+                              title={currentPlayerItem.title}
+                            />
+                          ) : (
+                            <div className="p-12 text-center space-y-2 text-slate-400">
+                              <Icon name="movie" size={40} className="mx-auto text-indigo-400" />
+                              <p className="text-sm font-bold text-white">Video Lecture Slot Ready</p>
+                              <p className="text-xs">
+                                Add a Video URL or Upload an MP4 in Step 3 for {currentPlayerItem.code} to play it here.
+                              </p>
+                            </div>
+                          )
+                        ) : currentPlayerItem.type === 'TEXT' ? (
+                          <div className="w-full p-6 bg-white text-slate-900 min-h-[360px]">
+                            <ArticlePlayer
+                              title={currentPlayerItem.title}
+                              content={currentPlayerItem.content || 'No article text entered yet.'}
+                            />
+                          </div>
+                        ) : currentPlayerItem.type === 'QUIZ' ? (
+                          <div className="w-full p-6 bg-white text-slate-900 min-h-[360px]">
+                            <QuizPlayer
+                              lessonId={currentPlayerItem.id}
+                              quizData={
+                                typeof currentPlayerItem.quizData === 'string'
+                                  ? currentPlayerItem.quizData
+                                  : JSON.stringify(currentPlayerItem.quizData || { questions: [] })
+                              }
+                              onPass={() => {}}
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-12 text-center space-y-3 text-slate-300">
+                            <Icon name="picture_as_pdf" size={40} className="mx-auto text-rose-400" />
+                            <p className="text-sm font-bold">{currentPlayerItem.title}</p>
+                            {currentPlayerItem.pdfUrl ? (
+                              <a
+                                href={currentPlayerItem.pdfUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-block px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold"
+                              >
+                                Open Attached PDF Resource →
+                              </a>
+                            ) : (
+                              <p className="text-xs text-slate-400">No PDF URL attached yet.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center text-slate-400">No lessons added yet.</div>
+                  )}
+                </div>
+
+                {/* Right Curriculum Sidebar inside Player */}
+                <div className="lg:col-span-4 bg-white border-l border-slate-200 p-4 overflow-y-auto space-y-4">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-700">
+                    Course Syllabus Navigation
+                  </h4>
+                  {courseState.sections.map((sec, sIdx) => {
+                    const mNum = sIdx + 1;
+                    return (
+                      <div key={sec.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="p-3 bg-slate-100 font-bold text-xs text-slate-900">
+                          Module {mNum}: {sec.title}
+                          {sec.description && (
+                            <p className="text-[11px] font-normal text-slate-500 mt-0.5">{sec.description}</p>
+                          )}
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {sec.lessons.map((les, lIdx) => {
+                            const lCode = `${mNum}.${lIdx + 1}`;
+                            const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
+                            return (
+                              <div key={les.id}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActivePreviewItem({ ...les, code: lCode, moduleTitle: sec.title })
+                                  }
+                                  className={`w-full text-left p-2.5 text-xs flex items-center justify-between gap-2 cursor-pointer ${
+                                    currentPlayerItem?.id === les.id
+                                      ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                      : 'hover:bg-slate-50 text-slate-800'
+                                  }`}
+                                >
+                                  <span>
+                                    <strong className="font-mono mr-1.5">{lCode}</strong>
+                                    {les.title}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-slate-400">{les.duration}</span>
+                                </button>
+                                {subs.map((sub, subIdx) => {
+                                  const sCode = `${lCode}.${subIdx + 1}`;
+                                  return (
+                                    <button
+                                      key={sub.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setActivePreviewItem({
+                                          ...sub,
+                                          code: sCode,
+                                          moduleTitle: sec.title
+                                        })
+                                      }
+                                      className={`w-full text-left pl-7 pr-2.5 py-2 text-[11px] flex items-center justify-between gap-2 border-t border-slate-100 cursor-pointer ${
+                                        currentPlayerItem?.id === sub.id
+                                          ? 'bg-violet-50 text-violet-700 font-bold'
+                                          : 'bg-slate-50/50 hover:bg-slate-100 text-slate-600'
+                                      }`}
+                                    >
+                                      <span>
+                                        <strong className="font-mono text-violet-700 mr-1.5">{sCode}</strong>
+                                        {sub.title}
+                                      </span>
+                                      <span className="text-[10px] font-mono text-slate-400">
+                                        {sub.duration || '05:00'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function CourseBuilderPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-on-surface-variant">Loading Course Builder...</div>}>
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-on-surface-variant">
+          Loading Course Builder...
+        </div>
+      }
+    >
       <CourseBuilderContent />
     </Suspense>
   );

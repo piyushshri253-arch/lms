@@ -519,6 +519,7 @@ function CourseStudentPreviewInner() {
                   <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
                     {(course.sections || []).map((sec: any, sIdx: number) => {
                       const isOpen = expandedSections.includes(sec.id);
+                      const mNum = sIdx + 1;
                       return (
                         <div key={sec.id}>
                           <button
@@ -527,9 +528,12 @@ function CourseStudentPreviewInner() {
                           >
                             <div>
                               <span className="text-[10px] font-mono font-bold uppercase text-indigo-600 block">
-                                Module {sIdx + 1}
+                                Module {mNum}
                               </span>
                               <span className="text-sm font-bold text-slate-900">{sec.title}</span>
+                              {sec.description && (
+                                <p className="text-xs text-slate-500 mt-0.5">{sec.description}</p>
+                              )}
                             </div>
                             <div className="flex items-center gap-3 text-xs text-slate-500">
                               <span>{(sec.lessons || []).length} lectures</span>
@@ -539,55 +543,82 @@ function CourseStudentPreviewInner() {
 
                           {isOpen && (
                             <div className="divide-y divide-slate-100 bg-white">
-                              {(sec.lessons || []).map((les: any) => (
-                                <div
-                                  key={les.id}
-                                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-indigo-50/40"
-                                >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <Icon
-                                      name={
-                                        les.type === 'QUIZ'
-                                          ? 'quiz'
-                                          : les.type === 'PDF'
-                                          ? 'picture_as_pdf'
-                                          : 'play_circle'
-                                      }
-                                      size={18}
-                                      className="text-indigo-600 shrink-0"
-                                    />
-                                    <div className="min-w-0">
-                                      <div className="text-xs font-bold text-slate-800 truncate">
-                                        {les.title}
+                              {(sec.lessons || []).map((les: any, lIdx: number) => {
+                                const lCode = `${mNum}.${lIdx + 1}`;
+                                const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
+                                return (
+                                  <div key={les.id} className="px-4 py-3 space-y-2 hover:bg-indigo-50/30">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold text-xs shrink-0">
+                                          {lCode}
+                                        </span>
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-bold text-slate-800 truncate">
+                                            {les.title}
+                                          </div>
+                                          {les.description && (
+                                            <p className="text-[11px] text-slate-500">{les.description}</p>
+                                          )}
+                                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+                                            <span>{les.type || 'VIDEO'}</span>
+                                            <span>•</span>
+                                            <span>{les.duration || '10:00'}</span>
+                                            {les.isFree ? (
+                                              <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">
+                                                Free Preview
+                                              </span>
+                                            ) : (
+                                              <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
+                                                🔒 Enrolled Student Only
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
-                                        <span>{les.type || 'VIDEO'}</span>
-                                        <span>•</span>
-                                        <span>{les.duration || '10:00'}</span>
-                                        {les.isFree ? (
-                                          <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">
-                                            Free Preview
-                                          </span>
-                                        ) : (
-                                          <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
-                                            🔒 Paid Enrolled Student Only
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
 
-                                  <button
-                                    onClick={() => {
-                                      setActiveLessonId(les.id);
-                                      setViewMode('CLASSROOM_PLAYER');
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 cursor-pointer"
-                                  >
-                                    Test in Player →
-                                  </button>
-                                </div>
-                              ))}
+                                      <button
+                                        onClick={() => {
+                                          setActiveLessonId(les.id);
+                                          setViewMode('CLASSROOM_PLAYER');
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 cursor-pointer"
+                                      >
+                                        Test in Player →
+                                      </button>
+                                    </div>
+
+                                    {subs.length > 0 && (
+                                      <div className="pl-6 sm:pl-9 space-y-1.5 border-l-2 border-indigo-200 ml-3 pt-1">
+                                        {subs.map((sub: any, subIdx: number) => {
+                                          const sCode = `${lCode}.${subIdx + 1}`;
+                                          return (
+                                            <div
+                                              key={sub.id || subIdx}
+                                              className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200/70 text-xs"
+                                            >
+                                              <div className="flex items-start gap-2">
+                                                <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-mono font-bold text-[10px] shrink-0">
+                                                  {sCode}
+                                                </span>
+                                                <div>
+                                                  <p className="font-semibold text-slate-800">{sub.title}</p>
+                                                  {sub.description && (
+                                                    <p className="text-[11px] text-slate-500">{sub.description}</p>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <span className="text-[11px] font-mono text-slate-500 shrink-0">
+                                                {sub.duration || '05:00'}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>

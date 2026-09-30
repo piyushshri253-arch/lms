@@ -235,6 +235,14 @@ export async function GET(
               : null,
             allowDownload: Boolean((les as any).allowDownload && securityPolicy.allowResourceDownload),
             quizData: canSeeMediaUrls ? (les as any).quizData || null : null,
+            subLessons: (() => {
+              try {
+                const parsed = JSON.parse((les as any).resources || '[]');
+                return Array.isArray(parsed) ? parsed : parsed?.subLessons || [];
+              } catch {
+                return [];
+              }
+            })(),
             completed: completedLessonIds.includes(les.id),
             locked: isLocked,
             isFree: les.isFree,
@@ -552,6 +560,7 @@ export async function PUT(
             where: { id: section.id },
             data: {
               title: secData.title || `Module ${sIdx + 1}`,
+              description: secData.description !== undefined ? secData.description : undefined,
               order: secData.order || sIdx + 1
             },
             include: { lessons: true }
@@ -561,6 +570,7 @@ export async function PUT(
             data: {
               courseId: course.id,
               title: secData.title || `Module ${sIdx + 1}`,
+              description: secData.description || null,
               order: secData.order || sIdx + 1
             },
             include: { lessons: true }
@@ -579,6 +589,9 @@ export async function PUT(
                 : typeof lesData.quizData === 'string'
                 ? lesData.quizData
                 : null;
+            const subLessonsStr = Array.isArray(lesData.subLessons)
+              ? JSON.stringify(lesData.subLessons)
+              : undefined;
 
             const existingLesson = (section.lessons || []).find((l) => l.id === lesData.id);
 
@@ -587,12 +600,14 @@ export async function PUT(
                 where: { id: existingLesson.id },
                 data: {
                   title: lesData.title,
+                  description: lesData.description !== undefined ? lesData.description : undefined,
                   type: lesData.type || 'VIDEO',
                   content: lesData.content !== undefined ? lesData.content : undefined,
                   videoUrl: lesData.videoUrl !== undefined ? lesData.videoUrl : undefined,
                   pdfUrl: lesData.pdfUrl !== undefined ? lesData.pdfUrl : undefined,
                   fileUrl: lesData.fileUrl !== undefined ? lesData.fileUrl : undefined,
                   quizData: quizDataStr,
+                  resources: subLessonsStr,
                   duration: lesData.duration || '10:00',
                   durationSeconds: lesData.durationSeconds || 600,
                   isFree: lesData.isFree !== undefined ? !!lesData.isFree : undefined,
@@ -606,12 +621,14 @@ export async function PUT(
                 data: {
                   sectionId: section.id,
                   title: lesData.title || `Lesson ${lIdx + 1}`,
+                  description: lesData.description || null,
                   type: lesData.type || 'VIDEO',
                   content: lesData.content || null,
                   videoUrl: lesData.videoUrl || null,
                   pdfUrl: lesData.pdfUrl || null,
                   fileUrl: lesData.fileUrl || null,
                   quizData: quizDataStr,
+                  resources: subLessonsStr || '[]',
                   duration: lesData.duration || '10:00',
                   durationSeconds: lesData.durationSeconds || 600,
                   isFree: !!lesData.isFree,

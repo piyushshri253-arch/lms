@@ -145,6 +145,14 @@ export async function GET(request: Request) {
             pdfUrl: (les as any).pdfUrl || null,
             fileUrl: (les as any).fileUrl || null,
             quizData: (les as any).quizData || null,
+            subLessons: (() => {
+              try {
+                const parsed = JSON.parse((les as any).resources || '[]');
+                return Array.isArray(parsed) ? parsed : parsed?.subLessons || [];
+              } catch {
+                return [];
+              }
+            })(),
             completed: false,
             locked: !les.isFree,
             isFree: les.isFree,
@@ -281,6 +289,7 @@ export async function POST(request: Request) {
           data: {
             courseId: newCourse.id,
             title: sec.title || `Module ${sIdx + 1}`,
+            description: sec.description || null,
             order: sec.order || sIdx + 1
           }
         });
@@ -294,17 +303,22 @@ export async function POST(request: Request) {
                 : typeof les.quizData === 'string'
                 ? les.quizData
                 : null;
+            const subLessonsStr = Array.isArray(les.subLessons)
+              ? JSON.stringify(les.subLessons)
+              : '[]';
 
             await prisma.lesson.create({
               data: {
                 sectionId: createdSec.id,
                 title: les.title || `Lesson ${lIdx + 1}`,
+                description: les.description || null,
                 type: les.type || 'VIDEO',
                 content: les.content || null,
                 videoUrl: les.videoUrl || null,
                 pdfUrl: les.pdfUrl || null,
                 fileUrl: les.fileUrl || null,
                 quizData: quizDataStr,
+                resources: subLessonsStr,
                 duration: les.duration || '10:00',
                 durationSeconds: les.durationSeconds || 600,
                 isFree: !!les.isFree,
