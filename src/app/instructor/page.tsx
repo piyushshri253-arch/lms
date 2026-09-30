@@ -353,8 +353,6 @@ function InstructorCoursesStudioInner() {
       ? 'Enrolled Students & Learners'
       : sidebarTab === 'notifications'
       ? 'Instructor Notifications & Review Updates'
-      : sidebarTab === 'manage'
-      ? 'Course Management & Curriculum Builder'
       : 'My Courses & Curriculum Studio';
 
   const shellSubtitle =

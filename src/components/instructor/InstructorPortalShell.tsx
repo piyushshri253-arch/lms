@@ -109,7 +109,6 @@ function InstructorPortalShellInner({
       isActive:
         pathname === '/instructor' &&
         !isCreate &&
-        currentTab !== 'manage' &&
         currentTab !== 'students' &&
         currentTab !== 'notifications'
     },
@@ -118,12 +117,6 @@ function InstructorPortalShellInner({
       href: '/instructor/courses/builder',
       icon: PlusCircle,
       isActive: pathname === '/instructor/courses/builder'
-    },
-    {
-      label: 'Course Management',
-      href: '/instructor?tab=manage',
-      icon: FolderKanban,
-      isActive: pathname === '/instructor' && currentTab === 'manage'
     },
     {
       label: 'Course Versions',
