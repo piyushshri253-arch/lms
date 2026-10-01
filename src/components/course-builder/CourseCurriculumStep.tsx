@@ -298,7 +298,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         order: mNum,
         lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
           id: `les-${Date.now()}-${sIdx}-${lIdx}`,
-          title: l.title || `${mNum}.${lIdx + 1} Lesson Topic`,
+          title: l.title || `Lecture ${lIdx + 1}: Lesson Topic`,
           type: l.type || 'VIDEO',
           description: l.description || '',
           duration: l.duration || '10:00',
@@ -334,7 +334,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         lessons: [
           {
             id: `les-${Date.now()}-1`,
-            title: `${sections.length + 1}.1 Introduction & Overview`,
+            title: 'Introduction & Overview',
             description: '',
             type: 'VIDEO',
             duration: '10:00',
@@ -368,7 +368,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     showToast({ title: 'Module Removed', type: 'info' });
   };
 
-  // Add / Create Lesson (e.g., 1.1, 1.2, 2.1)
+  // Add / Create Lesson (e.g., Lecture 1, 2 sequentially per module)
   const handleCreateLesson = (
     sectionId: string,
     type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD',
@@ -379,18 +379,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
     const lessonNum = targetSec.lessons.length + 1;
-    const lessonCode = `${moduleNum}.${lessonNum}`;
+    const lessonCode = `${lessonNum}`;
 
     const defaultTitle =
       type === 'VIDEO'
-        ? `${lessonCode} Video Lecture`
+        ? `Video Lecture ${lessonCode}`
         : type === 'TEXT'
-        ? `${lessonCode} Reading & Concept Guide`
+        ? `Reading Guide ${lessonCode}`
         : type === 'PDF'
-        ? `${lessonCode} PDF Study Resource`
+        ? `Study Resource ${lessonCode}`
         : type === 'QUIZ'
-        ? `${lessonCode} Module Knowledge Check`
-        : `${lessonCode} Downloadable Material`;
+        ? `Knowledge Check ${lessonCode}`
+        : `Resource Material ${lessonCode}`;
 
     let defaultQuiz: QuizConfig | undefined;
     if (type === 'QUIZ') {
@@ -433,7 +433,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (openModal || type === 'QUIZ') {
       setEditingLesson({ sectionId, lesson: newLesson });
     }
-    showToast({ title: `Added ${lessonCode}`, description: `${defaultTitle} added to Module ${moduleNum}.`, type: 'success' });
+    showToast({ title: `Added Lecture ${lessonCode}`, description: `${defaultTitle} added to Module ${moduleNum}.`, type: 'success' });
   };
 
   // Update Lesson inline
@@ -630,10 +630,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant shadow-xs">
         <div>
           <h3 className="text-lg font-black text-on-surface">
-            Curriculum Builder (Sections &amp; Lectures)
+            Curriculum Builder (Modules &amp; Lectures)
           </h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Organize your course into Sections and Lectures like Udemy. Add Video, PDF resources, Reading Notes, and Practice Quizzes to each lecture.
+            Organize your course into Modules and Lectures. Add Video, PDF resources, Reading Notes, and Practice Quizzes to each lecture.
           </p>
         </div>
 
@@ -705,7 +705,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           disabled={sIdx === 0}
                           onClick={() => moveSection(sIdx, 'up')}
                           className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                          title="Move Section Up"
+                          title="Move Module Up"
                         >
                           <Icon name="arrow_upward" size={15} />
                         </button>
@@ -714,22 +714,22 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           disabled={sIdx === sections.length - 1}
                           onClick={() => moveSection(sIdx, 'down')}
                           className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                          title="Move Section Down"
+                          title="Move Module Down"
                         >
                           <Icon name="arrow_downward" size={15} />
                         </button>
                       </div>
 
-                      {/* Section Title Label & Inline Input */}
+                      {/* Module Title Label & Inline Input */}
                       <span className="font-extrabold text-sm text-slate-900 shrink-0 font-sans">
-                        Section {moduleNum}:
+                        Module {moduleNum}:
                       </span>
 
                       <input
                         type="text"
                         value={section.title}
                         onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
-                        placeholder={`Section ${moduleNum} Title (e.g. Introduction & Foundations)`}
+                        placeholder={`Module ${moduleNum} Title (e.g. Introduction & Foundations)`}
                         className="flex-1 bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
                       />
                     </div>
@@ -739,44 +739,30 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         type="button"
                         onClick={() => handleDeleteSection(section.id)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
-                        title="Delete Section"
+                        title="Delete Module"
                       >
                         <Icon name="delete" size={16} />
                       </button>
                     </div>
                   </div>
-
-                  {/* Section Objective (Udemy exact prompt: "What will students be able to do at the end of this section?") */}
-                  <div className="pl-0 sm:pl-9">
-                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                      What will students be able to do at the end of this section?
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={section.description || ''}
-                      onChange={(e) => handleUpdateSectionField(section.id, 'description', e.target.value)}
-                      placeholder="Enter a learning objective or key takeaway for this section..."
-                      className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none transition-colors resize-y"
-                    />
-                  </div>
                 </div>
 
-                {/* Section Curriculum Items (Lectures & Sub-Topics) */}
+                {/* Module Curriculum Items (Lectures & Sub-Topics) */}
                 <div className="space-y-3 pt-1">
                   {section.lessons.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] bg-white rounded-md">
-                      No curriculum items in Section {moduleNum} yet.{' '}
+                      No curriculum items in Module {moduleNum} yet.{' '}
                       <button
                         type="button"
                         onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
                         className="font-bold text-[#2d2f31] underline cursor-pointer hover:text-primary"
                       >
-                        + Add Lecture {moduleNum}.1
+                        + Add Lecture 1
                       </button>
                     </div>
                   ) : (
                     section.lessons.map((les, lIdx) => {
-                      const lessonCode = `${moduleNum}.${lIdx + 1}`;
+                      const lessonCode = `${lIdx + 1}`;
                       const qConf = parseQuizConfig(les.quizData);
                       const qCount = qConf.questions.length;
                       const hasContent = !!(les.videoUrl || les.content || les.pdfUrl || qCount > 0);
@@ -847,7 +833,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   onChange={(e) =>
                                     handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                   }
-                                  placeholder={`${lessonCode} Lecture Title`}
+                                  placeholder={`Lecture ${lessonCode} Title`}
                                   className="flex-1 min-w-[140px] bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                 />
 
@@ -1452,10 +1438,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     })
                   )}
 
-                  {/* UDEMY + CURRICULUM ITEM FOOTER BAR INSIDE SECTION */}
+                  {/* CURRICULUM ITEM FOOTER BAR INSIDE MODULE */}
                   <div className="pt-3 border-t border-[#d1d7dc]/60 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">
-                      + Add to Section {moduleNum}:
+                      + Add to Module {moduleNum}:
                     </span>
                     <button
                       type="button"
@@ -1479,20 +1465,20 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             );
           })}
 
-          {/* BOTTOM DASHED BUTTON: + ADD SECTION */}
+          {/* BOTTOM DASHED BUTTON: + ADD MODULE */}
           <div className="pt-2">
             <button
               type="button"
               onClick={() => {
                 setEditingSectionId(null);
-                setNewSectionTitle(`Section ${sections.length + 1}: `);
+                setNewSectionTitle(`Module ${sections.length + 1}: `);
                 setNewSectionDescription('');
                 setIsAddSectionOpen(true);
               }}
               className="w-full py-4 border-2 border-dashed border-[#2d2f31]/40 hover:border-[#2d2f31] bg-white hover:bg-slate-50 text-[#2d2f31] font-bold text-sm rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
             >
               <Icon name="add_circle" size={18} />
-              <span>+ Add Section (Section ${sections.length + 1})</span>
+              <span>+ Add Module (Module ${sections.length + 1})</span>
             </button>
           </div>
         </div>

@@ -102,7 +102,7 @@ function CourseBuilderContent() {
         lessons: [
           {
             id: `les-${Date.now()}-1`,
-            title: '1.1 Welcome & Course Orientation',
+            title: 'Welcome & Course Orientation',
             description: 'Introduction to the course structure and key learning outcomes.',
             type: 'VIDEO',
             duration: '10:00',
@@ -993,7 +993,7 @@ function CourseBuilderContent() {
 
                           <div className="divide-y divide-slate-100 p-4 space-y-3">
                             {sec.lessons.map((les, lIdx) => {
-                              const lCode = `${mNum}.${lIdx + 1}`;
+                              const lCode = `${lIdx + 1}`;
                               const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
 
                               return (
@@ -1007,7 +1007,7 @@ function CourseBuilderContent() {
                                   >
                                     <div className="flex items-start gap-2.5">
                                       <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold text-xs shrink-0">
-                                        {lCode}
+                                        Lecture {lCode}
                                       </span>
                                       <div>
                                         <p className="text-xs sm:text-sm font-bold text-slate-900">
@@ -1190,7 +1190,7 @@ function CourseBuilderContent() {
                         </div>
                         <div className="divide-y divide-slate-100">
                           {sec.lessons.map((les, lIdx) => {
-                            const lCode = `${mNum}.${lIdx + 1}`;
+                            const lCode = `${lIdx + 1}`;
                             const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
                             return (
                               <div key={les.id}>
@@ -1206,7 +1206,7 @@ function CourseBuilderContent() {
                                   }`}
                                 >
                                   <span>
-                                    <strong className="font-mono mr-1.5">{lCode}</strong>
+                                    <strong className="font-mono mr-1.5">Lecture {lCode}:</strong>
                                     {les.title}
                                   </span>
                                   <span className="text-[10px] font-mono text-slate-400">{les.duration}</span>
