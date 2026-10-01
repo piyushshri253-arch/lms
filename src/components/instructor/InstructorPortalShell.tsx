@@ -143,12 +143,6 @@ function InstructorPortalShellInner({
       isActive: pathname?.startsWith('/instructor/quizzes') || false
     },
     {
-      label: 'Question Bank',
-      href: '/instructor/question-bank',
-      icon: Database,
-      isActive: pathname?.startsWith('/instructor/question-bank') || false
-    },
-    {
       label: 'Assignments',
       href: '/instructor/assignments',
       icon: ClipboardList,

@@ -80,13 +80,6 @@ function CourseAssessmentsBannerInner({ courseId: propCourseId }: CourseAssessme
           <span>Manage Assignments</span>
         </Link>
         <Link
-          href={`/instructor/question-bank`}
-          className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1 shadow-2xs"
-        >
-          <Icon name="library_books" size={15} />
-          <span>Question Bank</span>
-        </Link>
-        <Link
           href={`/instructor/questions${querySuffix}`}
           className="px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1"
         >

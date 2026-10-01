@@ -191,14 +191,6 @@ export default function InstructorQuizzesPage() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
-              href="/instructor/question-bank"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-800 text-xs font-bold transition"
-            >
-              <Database className="w-4 h-4" />
-              Question Bank
-            </Link>
-
-            <Link
               href="/instructor/quizzes/create"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition"
             >
