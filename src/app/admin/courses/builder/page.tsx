@@ -1007,7 +1007,7 @@ function CourseBuilderContent() {
                                   >
                                     <div className="flex items-start gap-2.5">
                                       <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold text-xs shrink-0">
-                                        Lecture {lCode}
+                                        {lCode}
                                       </span>
                                       <div>
                                         <p className="text-xs sm:text-sm font-bold text-slate-900">
@@ -1206,7 +1206,7 @@ function CourseBuilderContent() {
                                   }`}
                                 >
                                   <span>
-                                    <strong className="font-mono mr-1.5">Lecture {lCode}:</strong>
+                                    <strong className="font-mono mr-1.5">{lCode}.</strong>
                                     {les.title}
                                   </span>
                                   <span className="text-[10px] font-mono text-slate-400">{les.duration}</span>

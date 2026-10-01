@@ -821,9 +821,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   />
                                 )}
 
-                                {/* Lecture Code Label */}
-                                <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans">
-                                  Lecture {lessonCode}:
+                                {/* Item Number Label */}
+                                <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
+                                  {lessonCode}.
                                 </span>
 
                                 {/* Inline Title Input */}
@@ -833,7 +833,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   onChange={(e) =>
                                     handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                   }
-                                  placeholder={`Lecture ${lessonCode} Title`}
+                                  placeholder={`Lesson ${lessonCode} Title`}
                                   className="flex-1 min-w-[140px] bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                 />
 
