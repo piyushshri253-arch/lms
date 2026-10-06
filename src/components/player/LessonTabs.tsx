@@ -99,6 +99,79 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
     if (onTabChange) onTabChange(tab);
   };
 
+  // Helper to download lecture notes as .doc Word document
+  const downloadArticleAsDoc = (title: string, content: string) => {
+    if (!content || !content.trim()) return;
+    const cleanTitle = (title || 'Lecture Notes').trim();
+
+    const docHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+  <meta charset='utf-8'>
+  <title>${cleanTitle}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    @page { margin: 1in; size: A4; }
+    body {
+      font-family: 'Calibri', 'Segoe UI', 'Arial', sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1f2937;
+      margin: 0;
+      padding: 32px;
+    }
+    h1 {
+      color: #0f172a;
+      font-size: 20pt;
+      font-weight: bold;
+      border-bottom: 2px solid #3b82f6;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    .meta {
+      color: #64748b;
+      font-size: 10pt;
+      margin-bottom: 24px;
+    }
+    .content {
+      font-size: 11.5pt;
+      line-height: 1.75;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+  <h1>${cleanTitle}</h1>
+  <div class="meta">Lecture Study Notes &amp; Handout • ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin-bottom: 20px;" />
+  <div class="content">${content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>')}</div>
+</body>
+</html>`;
+
+    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeFilename = cleanTitle.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+    a.download = `${safeFilename || 'Lecture'}_Notes.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const [notes, setNotes] = useState<any[]>([]);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteTimestamp, setNewNoteTimestamp] = useState<number>(0);
@@ -468,10 +541,22 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
         <div className="space-y-10 animate-in fade-in duration-200 text-[#2d2f31]">
           {/* Lecture Article / Reading Material (if attached by Instructor) */}
           {lessonContent && (
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-              <div className="flex items-center gap-2 text-[#2d2f31] font-extrabold text-sm uppercase tracking-wider">
-                <Icon name="article" size={18} className="text-primary" />
-                <span>Lecture Notes &amp; Study Guide: {lessonTitle}</span>
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 text-[#2d2f31] font-extrabold text-sm uppercase tracking-wider">
+                  <Icon name="article" size={18} className="text-primary" />
+                  <span>Lecture Notes &amp; Study Guide: {lessonTitle}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadArticleAsDoc(lessonTitle, lessonContent)}
+                  className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
+                  title="Download notes as an editable Microsoft Word document"
+                >
+                  <span className="text-sm">📝</span>
+                  <span>Download Notes (.doc)</span>
+                  <Icon name="download" size={14} className="text-slate-500" />
+                </button>
               </div>
               <div className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-sans">
                 {lessonContent}
@@ -1008,23 +1093,60 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
       {/* 6. Resources & Downloads */}
       {activeTab === 'resources' && (
         <div className="space-y-3 animate-in fade-in duration-200">
-          <div className="p-4 bg-surface-container-lowest border border-outline-variant rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                <Icon name="description" size={24} />
+          {lessonContent && (
+            <div className="p-4 bg-white border border-[#d1d7dc] rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 text-xl">
+                  📝
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-[#2d2f31] truncate">{lessonTitle} - Study Notes</p>
+                  <p className="text-xs text-slate-500">Editable Microsoft Word Document (.doc)</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-sm text-on-surface">Curriculum Source Code &amp; Cheatsheets</p>
-                <p className="text-xs text-on-surface-variant">Complete Project Assets (.zip)</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => downloadArticleAsDoc(lessonTitle, lessonContent)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-colors shadow-2xs shrink-0 flex items-center gap-1.5"
+              >
+                <Icon name="download" size={14} />
+                <span>Download (.doc)</span>
+              </button>
             </div>
-            <button
-              onClick={() => showToast({ title: 'Download Started', description: 'Curriculum assets downloading...', type: 'info' })}
-              className="px-4 py-2 bg-surface text-primary border border-outline-variant font-bold text-xs rounded-lg hover:bg-surface-container cursor-pointer"
-            >
-              Download (.zip)
-            </button>
-          </div>
+          )}
+
+          {Array.isArray(resources) && resources.length > 0 ? (
+            resources.map((res: any, idx: number) => {
+              if (res.isDocArticle) return null;
+              return (
+                <div key={idx} className="p-4 bg-white border border-[#d1d7dc] rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl shrink-0 text-xl">
+                      {res.name?.toLowerCase().includes('pdf') ? '📑' : '📦'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-[#2d2f31] truncate">{res.name}</p>
+                      <p className="text-xs text-slate-500">{res.size || 'Downloadable attachment'}</p>
+                    </div>
+                  </div>
+                  <a
+                    href={res.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="px-4 py-2 bg-white text-[#2d2f31] hover:bg-slate-50 border border-[#d1d7dc] font-bold text-xs rounded-lg cursor-pointer transition-colors shadow-2xs shrink-0 flex items-center gap-1.5"
+                  >
+                    <Icon name="download" size={14} />
+                    <span>Download</span>
+                  </a>
+                </div>
+              );
+            })
+          ) : !lessonContent ? (
+            <div className="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl">
+              No attached download resources for this lecture.
+            </div>
+          ) : null}
         </div>
       )}
 

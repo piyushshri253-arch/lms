@@ -38,6 +38,94 @@ export default function LearnPlayerPage() {
   const [openResourceMenuId, setOpenResourceMenuId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Close resource dropdowns on click outside
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.resource-dropdown-container')) {
+        setOpenResourceMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  }, []);
+
+  // Helper to download lecture article notes as an editable Microsoft Word .doc file
+  const downloadArticleAsDoc = (title: string, content: string) => {
+    if (!content || !content.trim()) return;
+    const cleanTitle = (title || 'Lecture Notes').trim();
+
+    const docHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+  <meta charset='utf-8'>
+  <title>${cleanTitle}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    @page {
+      margin: 1in;
+      size: A4;
+    }
+    body {
+      font-family: 'Calibri', 'Segoe UI', 'Arial', sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1f2937;
+      margin: 0;
+      padding: 32px;
+    }
+    h1 {
+      color: #0f172a;
+      font-size: 20pt;
+      font-weight: bold;
+      border-bottom: 2px solid #3b82f6;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    .meta {
+      color: #64748b;
+      font-size: 10pt;
+      margin-bottom: 24px;
+    }
+    .content {
+      font-size: 11.5pt;
+      line-height: 1.75;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+  <h1>${cleanTitle}</h1>
+  <div class="meta">Lecture Study Notes &amp; Handout • ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin-bottom: 20px;" />
+  <div class="content">${content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>')}</div>
+</body>
+</html>`;
+
+    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeFilename = cleanTitle.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+    a.download = `${safeFilename || 'Lecture'}_Notes.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   // Sync tab with URL hash if present (#overview, #notes, etc.)
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -153,16 +241,16 @@ export default function LearnPlayerPage() {
 
   // Determine primary/effective lesson content mode
   const effectiveLessonType = useMemo<'VIDEO' | 'TEXT' | 'QUIZ' | 'PDF'>(() => {
+    // If the lecture has a video, the main theater player stage is ALWAYS the video.
+    // Supplementary materials (Article .doc, PDF) are accessed via the 📁 Resources folder dropdown.
+    if (hasValidVideo) {
+      if (activeMediaMode === 'QUIZ' && hasQuizQuestions) return 'QUIZ';
+      return 'VIDEO';
+    }
     if (activeMediaMode) return activeMediaMode;
-    if (activeLesson?.type === 'QUIZ') return 'QUIZ';
-    if (hasQuizQuestions && !hasValidVideo) return 'QUIZ';
-    if (activeLesson?.type === 'TEXT') return 'TEXT';
-    if (hasArticleContent && !hasValidVideo) return 'TEXT';
-    if (activeLesson?.type === 'PDF' || (hasPdfContent && !hasValidVideo)) return 'PDF';
-    if (hasValidVideo) return 'VIDEO';
-    if (hasQuizQuestions) return 'QUIZ';
-    if (hasArticleContent) return 'TEXT';
-    if (hasPdfContent) return 'PDF';
+    if (activeLesson?.type === 'QUIZ' || hasQuizQuestions) return 'QUIZ';
+    if (activeLesson?.type === 'TEXT' || hasArticleContent) return 'TEXT';
+    if (activeLesson?.type === 'PDF' || hasPdfContent) return 'PDF';
     return (activeLesson?.type as any) || 'VIDEO';
   }, [activeMediaMode, activeLesson, hasValidVideo, hasQuizQuestions, hasArticleContent, hasPdfContent]);
 
@@ -302,9 +390,15 @@ export default function LearnPlayerPage() {
   };
 
   // Build active resources list for current lecture & course
+  const activeLessonHasPdf = Boolean(activeLesson?.pdfUrl && activeLesson.pdfUrl.trim().length > 0);
+  const activeLessonHasFile = Boolean(activeLesson?.fileUrl && activeLesson.fileUrl.trim().length > 0);
+  const activeLessonHasArticleDoc = Boolean(activeLesson?.content && activeLesson.content.trim().length > 0);
+  const activeLessonHasResources = activeLessonHasPdf || activeLessonHasFile || activeLessonHasArticleDoc;
+
   const activeResources = [
-    ...(activeLesson?.pdfUrl ? [{ name: `${activeLesson.title} (PDF Document)`, url: activeLesson.pdfUrl }] : []),
-    ...(activeLesson?.fileUrl ? [{ name: `${activeLesson.title} (Downloadable Resource)`, url: activeLesson.fileUrl }] : []),
+    ...(activeLessonHasArticleDoc ? [{ name: `${activeLesson.title} (Study Notes .doc)`, url: '#doc', isDocArticle: true }] : []),
+    ...(activeLessonHasPdf ? [{ name: `${activeLesson.title} (PDF Handout)`, url: activeLesson.pdfUrl }] : []),
+    ...(activeLessonHasFile ? [{ name: `${activeLesson.title} (Downloadable Resource)`, url: activeLesson.fileUrl }] : []),
     ...(Array.isArray(course?.resources) ? course.resources : [])
   ];
 
@@ -484,27 +578,6 @@ export default function LearnPlayerPage() {
                 : 'min-h-[260px] sm:min-h-[380px] md:min-h-[460px] lg:min-h-[520px] max-h-[78vh]'
             }`}
           >
-            {/* Multi-Content Switcher Bar if lesson has multiple contents attached */}
-            {availableContentTypes.length > 1 && !isCurrentLocked && (
-              <div className="absolute top-3 right-4 z-30 flex items-center gap-1.5 bg-black/85 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-xl">
-                {availableContentTypes.map((ct) => (
-                  <button
-                    key={ct.id}
-                    type="button"
-                    onClick={() => setActiveMediaMode(ct.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      effectiveLessonType === ct.id
-                        ? 'bg-white text-black shadow-xs'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Icon name={ct.icon} size={14} />
-                    <span>{ct.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* If lesson is LOCKED (unenrolled & !isFree) */}
             {isCurrentLocked ? (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
@@ -612,6 +685,110 @@ export default function LearnPlayerPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Active Lecture 📁 Resources Dropdown (Doc notes, PDF, etc.) */}
+              {activeLessonHasResources && (
+                <div className="relative resource-dropdown-container">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenResourceMenuId(openResourceMenuId === 'active_under_player' ? null : 'active_under_player');
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                      openResourceMenuId === 'active_under_player'
+                        ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-xs'
+                        : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900'
+                    }`}
+                    title="Download lecture resources (.doc notes, PDF, downloads)"
+                  >
+                    <span className="text-sm">📁</span>
+                    <span>Resources</span>
+                    <Icon name={openResourceMenuId === 'active_under_player' ? 'expand_less' : 'expand_more'} size={14} />
+                  </button>
+
+                  {openResourceMenuId === 'active_under_player' && (
+                    <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-2xl border border-[#d1d7dc] p-2 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150 text-left">
+                      <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
+                        <span>Lecture Resources</span>
+                        <span>📁</span>
+                      </div>
+
+                      {activeLessonHasArticleDoc && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadArticleAsDoc(activeLesson.title, activeLesson.content);
+                            showToast({ title: 'Downloading Notes', description: `${activeLesson.title} notes downloading as .doc...`, type: 'success' });
+                          }}
+                          className="w-full text-left p-2 text-xs text-slate-800 hover:text-blue-700 hover:bg-blue-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <span className="text-base leading-none">📝</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-bold text-slate-900">Download Article (.doc)</div>
+                            <div className="text-[10px] text-slate-500 font-normal">Editable Word document</div>
+                          </div>
+                          <Icon name="download" size={14} className="text-slate-400 shrink-0" />
+                        </button>
+                      )}
+
+                      {activeLessonHasPdf && (
+                        <a
+                          href={activeLesson.pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-left p-2 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <span className="text-base leading-none">📑</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
+                            <div className="text-[10px] text-slate-500 font-normal">Slides &amp; reference guide</div>
+                          </div>
+                          <Icon name="open_in_new" size={14} className="text-slate-400 shrink-0" />
+                        </a>
+                      )}
+
+                      {activeLessonHasFile && (
+                        <a
+                          href={activeLesson.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-left p-2 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <span className="text-base leading-none">📦</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-bold text-slate-900">Download Attached File</div>
+                            <div className="text-[10px] text-slate-500 font-normal">Project assets &amp; code</div>
+                          </div>
+                          <Icon name="download" size={14} className="text-slate-400 shrink-0" />
+                        </a>
+                      )}
+
+                      {activeLessonHasArticleDoc && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPlayerTab('overview');
+                            setOpenResourceMenuId(null);
+                            const el = document.getElementById('lesson-tabs-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded font-medium flex items-center gap-2 cursor-pointer transition-colors border-t border-slate-100 mt-1"
+                        >
+                          <Icon name="visibility" size={13} className="text-slate-500 shrink-0" />
+                          <span>Read Notes in Overview tab</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Mark Complete Checkbox / Button */}
               {isEnrolled && (
                 <button
@@ -786,7 +963,10 @@ export default function LearnPlayerPage() {
                         {secLessons.map((les: any, lIdx: number) => {
                           const isCompleted = completedLessonIds.includes(les.id);
                           const isActive = activeLessonId === les.id;
-                          const hasResources = !!(les.pdfUrl || les.fileUrl);
+                          const hasPdf = Boolean(les.pdfUrl && les.pdfUrl.trim().length > 0);
+                          const hasFile = Boolean(les.fileUrl && les.fileUrl.trim().length > 0);
+                          const hasArticleDoc = Boolean(les.content && les.content.trim().length > 0);
+                          const hasResources = hasPdf || hasFile || hasArticleDoc;
                           const isLessonLocked = !isEnrolled && !les.isFree;
 
                           const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
@@ -860,8 +1040,8 @@ export default function LearnPlayerPage() {
                                   )}
 
                                   {hasResources && (
-                                    <span className="text-indigo-600 font-bold text-[10px]">
-                                      • 📁 Resource
+                                    <span className="text-amber-700 font-bold text-[10px] flex items-center gap-0.5">
+                                      • 📁 Resources
                                     </span>
                                   )}
                                 </div>
@@ -882,45 +1062,105 @@ export default function LearnPlayerPage() {
                                 )}
                               </div>
 
-                              {/* Right: Resources Dropdown Pill */}
+                              {/* Right: Resources Dropdown Pill with Folder Icon */}
                               {hasResources && (
-                                <div className="relative shrink-0">
+                                <div className="relative shrink-0 resource-dropdown-container">
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setOpenResourceMenuId(openResourceMenuId === les.id ? null : les.id);
                                     }}
-                                    className="px-2 py-1 border border-slate-200 hover:border-slate-400 bg-white rounded text-[10px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                    title="Download lecture resources"
+                                    className={`px-2 py-1 border rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs ${
+                                      openResourceMenuId === les.id
+                                        ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-xs'
+                                        : 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200/90 text-amber-900'
+                                    }`}
+                                    title="Download lecture resources (.doc, PDF, files)"
                                   >
+                                    <span className="text-xs">📁</span>
                                     <span>Resources</span>
-                                    <Icon name="expand_more" size={12} />
+                                    <Icon name={openResourceMenuId === les.id ? 'expand_less' : 'expand_more'} size={12} />
                                   </button>
 
                                   {openResourceMenuId === les.id && (
-                                    <div className="absolute right-0 mt-1 w-52 bg-white rounded-md shadow-xl border border-[#d1d7dc] p-2 space-y-1.5 z-40 animate-in fade-in duration-100">
-                                      {les.pdfUrl && (
+                                    <div className="absolute right-0 mt-1.5 w-60 bg-white rounded-xl shadow-2xl border border-[#d1d7dc] p-2 space-y-1 z-50 animate-in fade-in duration-100 text-left">
+                                      <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
+                                        <span>Resources</span>
+                                        <span>📁</span>
+                                      </div>
+
+                                      {hasArticleDoc && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            downloadArticleAsDoc(les.title, les.content);
+                                            showToast({ title: 'Downloading Notes', description: `${les.title} notes downloading as .doc...`, type: 'success' });
+                                          }}
+                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-blue-700 hover:bg-blue-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                        >
+                                          <span className="text-sm">📝</span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="truncate font-bold text-slate-900">Download Article (.doc)</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Editable Word document</div>
+                                          </div>
+                                          <Icon name="download" size={13} className="text-slate-400 shrink-0" />
+                                        </button>
+                                      )}
+
+                                      {hasPdf && (
                                         <a
                                           href={les.pdfUrl}
                                           target="_blank"
-                                          rel="noreferrer"
+                                          rel="noopener noreferrer"
                                           download
-                                          className="block p-1.5 text-xs text-slate-700 hover:text-indigo-700 hover:bg-slate-50 rounded font-semibold truncate"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                                         >
-                                          📑 Download PDF Handout
+                                          <span className="text-sm">📑</span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Lecture slides &amp; guide</div>
+                                          </div>
+                                          <Icon name="open_in_new" size={13} className="text-slate-400 shrink-0" />
                                         </a>
                                       )}
-                                      {les.fileUrl && (
+
+                                      {hasFile && (
                                         <a
                                           href={les.fileUrl}
                                           target="_blank"
-                                          rel="noreferrer"
+                                          rel="noopener noreferrer"
                                           download
-                                          className="block p-1.5 text-xs text-slate-700 hover:text-indigo-700 hover:bg-slate-50 rounded font-semibold truncate"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                                         >
-                                          📄 Download Attached File
+                                          <span className="text-sm">📦</span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="truncate font-bold text-slate-900">Download Attached File</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Project resources</div>
+                                          </div>
+                                          <Icon name="download" size={13} className="text-slate-400 shrink-0" />
                                         </a>
+                                      )}
+
+                                      {hasArticleDoc && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSelectLesson(les.id);
+                                            setPlayerTab('overview');
+                                            setOpenResourceMenuId(null);
+                                            const el = document.getElementById('lesson-tabs-section');
+                                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                          }}
+                                          className="w-full text-left px-2 py-1 text-[10px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded font-medium flex items-center gap-1.5 cursor-pointer transition-colors border-t border-slate-100 mt-1"
+                                        >
+                                          <Icon name="visibility" size={12} className="text-slate-500 shrink-0" />
+                                          <span>Read Notes in Overview</span>
+                                        </button>
                                       )}
                                     </div>
                                   )}
@@ -1000,6 +1240,10 @@ export default function LearnPlayerPage() {
                         {secLessons.map((les: any, lIdx: number) => {
                           const isCompleted = completedLessonIds.includes(les.id);
                           const isActive = activeLessonId === les.id;
+                          const hasPdf = Boolean(les.pdfUrl && les.pdfUrl.trim().length > 0);
+                          const hasFile = Boolean(les.fileUrl && les.fileUrl.trim().length > 0);
+                          const hasArticleDoc = Boolean(les.content && les.content.trim().length > 0);
+                          const hasResources = hasPdf || hasFile || hasArticleDoc;
 
                           const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
                           const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
@@ -1008,10 +1252,6 @@ export default function LearnPlayerPage() {
                           return (
                             <div
                               key={les.id}
-                              onClick={() => {
-                                handleSelectLesson(les.id);
-                                setIsMobileCurriculumOpen(false);
-                              }}
                               className={`p-3 flex items-start gap-3 transition-colors cursor-pointer ${
                                 isActive
                                   ? 'bg-[#f7f9fa] border-l-4 border-l-[#2d2f31]'
@@ -1027,7 +1267,13 @@ export default function LearnPlayerPage() {
                                 }}
                                 className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#2d2f31] focus:ring-0 cursor-pointer shrink-0"
                               />
-                              <div className="flex-1 min-w-0">
+                              <div
+                                className="flex-1 min-w-0"
+                                onClick={() => {
+                                  handleSelectLesson(les.id);
+                                  setIsMobileCurriculumOpen(false);
+                                }}
+                              >
                                 <span
                                   className={`text-xs block leading-snug truncate ${
                                     isActive ? 'font-bold text-[#2d2f31]' : 'text-slate-800'
@@ -1035,22 +1281,105 @@ export default function LearnPlayerPage() {
                                 >
                                   {lIdx + 1}. {les.title}
                                 </span>
-                                <span className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                                  <Icon
-                                    name={
-                                      isQuizItem
-                                        ? 'quiz'
-                                        : isPdfItem
-                                        ? 'picture_as_pdf'
-                                        : isArticleItem
-                                        ? 'article'
-                                        : 'movie'
-                                    }
-                                    size={12}
-                                  />
-                                  <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
-                                </span>
+                                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                  <span className="flex items-center gap-1">
+                                    <Icon
+                                      name={
+                                        isQuizItem
+                                          ? 'quiz'
+                                          : isPdfItem
+                                          ? 'picture_as_pdf'
+                                          : isArticleItem
+                                          ? 'article'
+                                          : 'movie'
+                                      }
+                                      size={12}
+                                    />
+                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
+                                  </span>
+                                  {hasResources && (
+                                    <span className="text-amber-700 font-bold text-[10px]">
+                                      • 📁 Resources
+                                    </span>
+                                  )}
+                                </div>
                               </div>
+
+                              {/* Mobile 📁 Resources Button & Dropdown */}
+                              {hasResources && (
+                                <div className="relative shrink-0 resource-dropdown-container">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenResourceMenuId(openResourceMenuId === `mobile_${les.id}` ? null : `mobile_${les.id}`);
+                                    }}
+                                    className={`px-2 py-1 border rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs ${
+                                      openResourceMenuId === `mobile_${les.id}`
+                                        ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-xs'
+                                        : 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200 text-amber-900'
+                                    }`}
+                                  >
+                                    <span>📁</span>
+                                    <span>Resources</span>
+                                  </button>
+
+                                  {openResourceMenuId === `mobile_${les.id}` && (
+                                    <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-[#d1d7dc] p-2 space-y-1 z-50 animate-in fade-in duration-100 text-left">
+                                      {hasArticleDoc && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            downloadArticleAsDoc(les.title, les.content);
+                                            showToast({ title: 'Downloading Notes', description: `${les.title} notes downloading as .doc...`, type: 'success' });
+                                          }}
+                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-blue-700 hover:bg-blue-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                        >
+                                          <span>📝</span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="truncate font-bold text-slate-900">Download Article (.doc)</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Editable Word file</div>
+                                          </div>
+                                        </button>
+                                      )}
+
+                                      {hasPdf && (
+                                        <a
+                                          href={les.pdfUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          download
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                        >
+                                          <span>📑</span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">PDF document</div>
+                                          </div>
+                                        </a>
+                                      )}
+
+                                      {hasFile && (
+                                        <a
+                                          href={les.fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          download
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                        >
+                                          <span>📦</span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="truncate font-bold text-slate-900">Download Attached File</div>
+                                          </div>
+                                        </a>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
