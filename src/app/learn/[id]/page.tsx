@@ -62,7 +62,11 @@ export default function LearnPlayerPage() {
         const userIsEnrolled = Boolean(
           data.isEnrolled ||
           currentUser?.role === 'SUPER_ADMIN' ||
-          (currentUser && c.instructorId === currentUser.id)
+          currentUser?.role === 'ADMIN' ||
+          currentUser?.role === 'REVIEWER' ||
+          (currentUser && c.instructorId === currentUser.id) ||
+          c.price === 0 ||
+          !c.price
         );
         setIsEnrolled(userIsEnrolled);
 
@@ -674,6 +678,29 @@ export default function LearnPlayerPage() {
             />
           </div>
         </div>
+
+        {/* Floating Quick-Open Tab on Desktop when sidebar is closed */}
+        {!isSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="hidden lg:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-[#2d2f31] hover:bg-black text-white px-2.5 py-4 rounded-l-xl text-xs font-bold items-center gap-1.5 shadow-2xl border-l border-t border-b border-white/20 transition-all cursor-pointer"
+            title="Open Course Content Sidebar"
+          >
+            <Icon name="chevron_left" size={16} />
+            <span className="[writing-mode:vertical-rl] tracking-wider uppercase text-[10px]">Course content</span>
+          </button>
+        )}
+
+        {/* Mobile floating button to view course curriculum drawer */}
+        <button
+          type="button"
+          onClick={() => setIsMobileCurriculumOpen(true)}
+          className="lg:hidden fixed bottom-6 right-5 z-40 bg-[#2d2f31] hover:bg-black text-white px-4 py-3 rounded-full text-xs font-bold flex items-center gap-2 shadow-2xl border border-white/20 cursor-pointer animate-in fade-in"
+        >
+          <Icon name="menu_book" size={16} />
+          <span>Curriculum ({allLessons.length})</span>
+        </button>
 
         {/* 2D. UDEMY RIGHT SIDEBAR: "Course content" (Desktop) */}
         {isSidebarOpen && (

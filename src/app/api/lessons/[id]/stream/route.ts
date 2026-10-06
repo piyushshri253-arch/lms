@@ -143,17 +143,30 @@ export async function GET(
       (user.role === 'INSTRUCTOR' && course.instructorId === user.id);
 
     if (!isPrivileged) {
-      // Check Student Active Enrollment
-      const enrollment = await prisma.enrollment.findUnique({
-        where: {
-          userId_courseId: {
-            userId: user.id,
-            courseId: course.id
+      // Check Student Active Enrollment or Entitlement
+      const [enrollment, entitlement] = await Promise.all([
+        prisma.enrollment.findUnique({
+          where: {
+            userId_courseId: {
+              userId: user.id,
+              courseId: course.id
+            }
           }
-        }
-      });
+        }),
+        prisma.entitlement.findFirst({
+          where: {
+            userId: user.id,
+            courseId: course.id,
+            status: 'ACTIVE'
+          }
+        })
+      ]);
 
-      if (!enrollment || enrollment.status !== 'ACTIVE') {
+      const hasActiveAccess =
+        (!!enrollment && enrollment.status === 'ACTIVE') ||
+        (!!entitlement && (!entitlement.expiresAt || new Date() < new Date(entitlement.expiresAt)));
+
+      if (!hasActiveAccess) {
         return NextResponse.json(
           {
             allowed: false,
@@ -166,7 +179,7 @@ export async function GET(
       }
 
       // Check LIMITED_DAYS course access expiration
-      if (course.accessType === 'LIMITED_DAYS' && course.accessDays) {
+      if (course.accessType === 'LIMITED_DAYS' && course.accessDays && enrollment) {
         const expiryDate = new Date(enrollment.enrolledAt);
         expiryDate.setDate(expiryDate.getDate() + Number(course.accessDays));
         if (new Date() > expiryDate) {

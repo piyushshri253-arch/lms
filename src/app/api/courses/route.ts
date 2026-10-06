@@ -327,14 +327,30 @@ export async function POST(request: Request) {
               ? JSON.stringify(les.subLessons)
               : '[]';
 
+            const cleanVideoUrl = les.videoUrl && !les.videoUrl.startsWith('blob:') ? les.videoUrl : null;
+            let lesType = les.type || 'VIDEO';
+            if (lesType === 'VIDEO' && !cleanVideoUrl) {
+              if (quizDataStr) {
+                try {
+                  const q = JSON.parse(quizDataStr);
+                  if (Array.isArray(q?.questions) && q.questions.length > 0) lesType = 'QUIZ';
+                } catch {}
+              }
+              if (lesType === 'VIDEO' && les.content && les.content.trim().length > 0) {
+                lesType = 'TEXT';
+              } else if (lesType === 'VIDEO' && les.pdfUrl) {
+                lesType = 'PDF';
+              }
+            }
+
             await prisma.lesson.create({
               data: {
                 sectionId: createdSec.id,
                 title: les.title || `Lesson ${lIdx + 1}`,
                 description: les.description || null,
-                type: les.type || 'VIDEO',
+                type: lesType,
                 content: les.content || null,
-                videoUrl: les.videoUrl || null,
+                videoUrl: cleanVideoUrl,
                 pdfUrl: les.pdfUrl || null,
                 fileUrl: les.fileUrl || null,
                 quizData: quizDataStr,
@@ -383,8 +399,20 @@ export async function POST(request: Request) {
       }
     });
 
+    const courseWithSections = await prisma.course.findUnique({
+      where: { id: newCourse.id },
+      include: {
+        category: true,
+        instructor: true,
+        sections: {
+          include: { lessons: { orderBy: { order: 'asc' } } },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
+
     return NextResponse.json(
-      { course: newCourse, message: 'Course created successfully.' },
+      { course: courseWithSections || newCourse, message: 'Course created successfully.' },
       { status: 201 }
     );
   } catch (err: any) {

@@ -432,8 +432,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     );
 
     onChange(updated);
-    if (openModal || type === 'QUIZ') {
+    if (openModal) {
       setEditingLesson({ sectionId, lesson: newLesson });
+    } else if (type === 'QUIZ') {
+      setOpenContentDrawerId(newLesson.id);
+      setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
     }
     showToast({ title: `Added Lecture ${lessonCode}`, description: `${defaultTitle} added to Module ${moduleNum}.`, type: 'success' });
   };
@@ -857,7 +860,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </select>
 
                                 {/* Attached Content Badges */}
-                                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                                   {les.videoUrl && (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
                                       🎬 Video {les.duration ? `(${les.duration})` : ''}
@@ -1096,11 +1099,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           <input
                                             type="text"
                                             value={les.videoUrl || ''}
-                                            onChange={(e) =>
+                                            onChange={(e) => {
+                                              const val = e.target.value;
                                               handleUpdateLessonInline(section.id, les.id, {
-                                                videoUrl: e.target.value
-                                              })
-                                            }
+                                                videoUrl: val,
+                                                type: 'VIDEO'
+                                              });
+                                            }}
                                             placeholder="https://www.youtube.com/watch?v=... or direct MP4 link"
                                             className="w-full bg-slate-50 focus:bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none"
                                           />
@@ -1139,26 +1144,56 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       </div>
                                     </div>
 
-                                    {/* Video Attached Status Banner */}
+                                    {/* Video Attached Status Banner & Live Embedded Player */}
                                     {les.videoUrl && (
-                                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-emerald-700 font-bold text-xs">
-                                            ✓ Video Attached:
-                                          </span>
-                                          <span className="text-xs font-mono text-slate-700 truncate max-w-sm">
-                                            {les.videoUrl}
-                                          </span>
+                                      <div className="space-y-3 pt-1 border-t border-[#d1d7dc]/60">
+                                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded flex flex-wrap items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-emerald-700 font-bold text-xs">
+                                              ✓ Video Attached:
+                                            </span>
+                                            <span className="text-xs font-mono text-slate-700 truncate max-w-sm">
+                                              {les.videoUrl}
+                                            </span>
+                                          </div>
+                                          <a
+                                            href={les.videoUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-xs font-bold text-[#2d2f31] hover:underline flex items-center gap-1"
+                                          >
+                                            <Icon name="open_in_new" size={13} />
+                                            <span>Open In Tab</span>
+                                          </a>
                                         </div>
-                                        <a
-                                          href={les.videoUrl}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-xs font-bold text-[#2d2f31] hover:underline flex items-center gap-1"
-                                        >
-                                          <Icon name="open_in_new" size={13} />
-                                          <span>Preview Video</span>
-                                        </a>
+
+                                        <div className="rounded-lg overflow-hidden border border-slate-300 bg-black aspect-video max-w-lg mx-auto shadow-xs relative flex items-center justify-center">
+                                          {les.videoUrl.includes('youtube.com') || les.videoUrl.includes('youtu.be') ? (
+                                            <iframe
+                                              src={
+                                                les.videoUrl.includes('embed')
+                                                  ? les.videoUrl
+                                                  : `https://www.youtube.com/embed/${les.videoUrl.match(/(?:v=|youtu\.be\/)([\w-]{11})/)?.[1]}?rel=0`
+                                              }
+                                              title="Video Preview"
+                                              className="w-full h-full aspect-video border-0"
+                                              allowFullScreen
+                                            />
+                                          ) : les.videoUrl.includes('vimeo.com') ? (
+                                            <iframe
+                                              src={`https://player.vimeo.com/video/${les.videoUrl.match(/vimeo\.com\/(\d+)/)?.[1]}`}
+                                              title="Video Preview"
+                                              className="w-full h-full aspect-video border-0"
+                                              allowFullScreen
+                                            />
+                                          ) : (
+                                            <video
+                                              src={les.videoUrl}
+                                              controls
+                                              className="w-full h-full aspect-video object-contain"
+                                            />
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -1180,14 +1215,28 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       value={les.content || ''}
                                       onChange={(e) =>
                                         handleUpdateLessonInline(section.id, les.id, {
-                                          content: e.target.value
+                                          content: e.target.value,
+                                          type: 'TEXT'
                                         })
                                       }
                                       placeholder="Write or paste your lecture article, markdown notes, code snippets, or key concepts for students to read..."
                                       className="w-full bg-slate-50 focus:bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none transition-colors resize-y font-sans leading-relaxed"
                                     />
+                                    {les.content && les.content.trim().length > 0 && (
+                                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-emerald-700 font-bold text-xs">✓ Reading Notes Attached:</span>
+                                          <span className="text-xs text-slate-700 font-medium">
+                                            {les.content.length} characters • ~{Math.max(1, Math.ceil(les.content.length / 500))} min read
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                                          Active In Player
+                                        </span>
+                                      </div>
+                                    )}
                                     <p className="text-[11px] text-slate-500">
-                                      💡 Students will be able to read this text directly in the course player while watching videos or reviewing lessons.
+                                      💡 Students will be able to read this text directly in the course player while reviewing this lecture.
                                     </p>
                                   </div>
                                 )}
@@ -1248,7 +1297,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             value={les.pdfUrl || ''}
                                             onChange={(e) =>
                                               handleUpdateLessonInline(section.id, les.id, {
-                                                pdfUrl: e.target.value
+                                                pdfUrl: e.target.value,
+                                                type: 'PDF'
                                               })
                                             }
                                             placeholder="https://.../handout.pdf"
@@ -1325,7 +1375,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             ]
                                           };
                                           handleUpdateLessonInline(section.id, les.id, {
-                                            quizData: nextQ
+                                            quizData: nextQ,
+                                            type: 'QUIZ'
                                           });
                                         }}
                                         className="px-3 py-1.5 bg-[#2d2f31] hover:bg-black text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
@@ -1501,7 +1552,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
               className="w-full py-4 border-2 border-dashed border-[#2d2f31]/40 hover:border-[#2d2f31] bg-white hover:bg-slate-50 text-[#2d2f31] font-bold text-sm rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
             >
               <Icon name="add_circle" size={18} />
-              <span>+ Add Module (Module ${sections.length + 1})</span>
+              <span>+ Add Module (Module {sections.length + 1})</span>
             </button>
           </div>
         </div>

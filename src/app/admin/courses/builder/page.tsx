@@ -343,6 +343,10 @@ function CourseBuilderContent() {
         if (data.course?.slug) savedSlug = data.course.slug;
       }
 
+      if (savedCourseId && savedSlug) {
+        setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
+      }
+
       showToast({
         title: 'Draft Saved Successfully 💾',
         description: `"${courseState.title}" saved to database.`,

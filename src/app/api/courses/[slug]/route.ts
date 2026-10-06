@@ -101,14 +101,25 @@ export async function GET(
     let completedLessonIds: string[] = [];
 
     if (currentUser) {
-      const enrollment = await prisma.enrollment.findFirst({
-        where: {
-          userId: currentUser.id,
-          courseId: course.id
-        }
-      });
+      const [enrollment, entitlement] = await Promise.all([
+        prisma.enrollment.findFirst({
+          where: {
+            userId: currentUser.id,
+            courseId: course.id
+          }
+        }),
+        prisma.entitlement.findFirst({
+          where: {
+            userId: currentUser.id,
+            courseId: course.id,
+            status: 'ACTIVE'
+          }
+        })
+      ]);
 
-      let isEnrollmentValid = !!enrollment && enrollment.status === 'ACTIVE';
+      let isEnrollmentValid =
+        (!!enrollment && enrollment.status === 'ACTIVE') ||
+        (!!entitlement && (!entitlement.expiresAt || new Date() < new Date(entitlement.expiresAt)));
       if (
         isEnrollmentValid &&
         enrollment &&
@@ -591,7 +602,7 @@ export async function PUT(
                 }))
           };
 
-          const savedVersionState = await saveCourseVersionState(course.id, {
+          await saveCourseVersionState(course.id, {
             pendingVersionNumber: nextVerNum,
             pendingVersionLabel: nextVerLabel,
             status: 'DRAFT_VERSION',
@@ -600,22 +611,7 @@ export async function PUT(
             submittedAt: currentVer.submittedAt,
             submittedBy: user.name
           });
-
-          return NextResponse.json({
-            course: updatedMinorLive,
-            versionProtected: true,
-            versionState: savedVersionState,
-            detectedMajorChanges: classification.majorChanges,
-            message: `Published Course Protection: Major changes (${classification.majorChanges.map((m) => m.category).join(', ')}) saved as Draft Version ${nextVerLabel}. Submit for Auditor Review when ready!`
-          });
         }
-
-        // Only minor changes were made -> already applied to updatedMinorLive
-        return NextResponse.json({
-          course: updatedMinorLive,
-          versionProtected: false,
-          message: 'Minor updates (description/metadata) applied directly to live course!'
-        });
       }
     }
 
@@ -779,7 +775,22 @@ export async function PUT(
       }
     });
 
-    return NextResponse.json({ course: updated, message: 'Course updated successfully.' });
+    const fullyUpdatedCourse = await prisma.course.findUnique({
+      where: { id: course.id },
+      include: {
+        category: true,
+        instructor: true,
+        sections: {
+          include: { lessons: { orderBy: { order: 'asc' } } },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
+
+    return NextResponse.json({
+      course: fullyUpdatedCourse || updated,
+      message: 'Course updated successfully.'
+    });
   } catch (err: any) {
     return handleAuthError(err);
   }

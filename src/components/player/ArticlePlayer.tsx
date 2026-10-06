@@ -41,6 +41,10 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
   useEffect(() => {
     let isMounted = true;
     const verifyDocumentAccess = async () => {
+      if (type === 'TEXT') {
+        // Plain text articles/notes do not require PDF stream verification
+        return;
+      }
       if (!lessonId || lessonId === 'placeholder' || lessonId.startsWith('placeholder') || lessonId.length < 5) {
         setResolvedPdfUrl(pdfUrl || null);
         setResolvedFileUrl(fileUrl || null);
