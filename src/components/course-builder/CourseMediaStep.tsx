@@ -15,10 +15,14 @@ async function compressImageFile(
   file: File,
   maxWidth: number,
   maxHeight: number,
-  quality: number = 0.82
+  quality: number = 0.75
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     if (file.type === 'image/svg+xml') {
+      if (file.size > 800 * 1024) {
+        reject(new Error('SVG file is too large. Please select a vector under 800KB.'));
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
@@ -45,32 +49,29 @@ async function compressImageFile(
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        reject(new Error('Canvas processing not supported in your browser.'));
         return;
       }
 
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
 
       try {
-        const compressed = canvas.toDataURL('image/jpeg', quality);
+        let compressed = canvas.toDataURL('image/jpeg', quality);
+        // If image is still larger than 400KB, downscale quality to keep it featherlight
+        if (compressed.length > 500 * 1024) {
+          compressed = canvas.toDataURL('image/jpeg', 0.6);
+        }
         resolve(compressed);
-      } catch {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+      } catch (err: any) {
+        reject(new Error('Failed to encode image: ' + (err.message || 'Unknown error')));
       }
     };
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      reject(new Error('Failed to load image. Please select a valid JPG, PNG, or WebP file.'));
     };
 
     img.src = objectUrl;
@@ -87,19 +88,19 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      showToast({ title: 'File Too Large', description: 'Please select an image under 10MB.', type: 'error' });
+    if (file.size > 20 * 1024 * 1024) {
+      showToast({ title: 'File Too Large', description: 'Please select an image under 20MB.', type: 'error' });
       return;
     }
 
     setIsCompressing(field);
     try {
-      // Scale thumbnail to max 1280x720, banner to max 1920x1080
+      // Scale thumbnail to 960x540 (crisp 16:9 ~50KB), banner to 1280x720 (~100KB)
       const compressedBase64 = await compressImageFile(
         file,
-        field === 'thumbnail' ? 1280 : 1920,
-        field === 'thumbnail' ? 720 : 1080,
-        0.82
+        field === 'thumbnail' ? 960 : 1280,
+        field === 'thumbnail' ? 540 : 720,
+        field === 'thumbnail' ? 0.75 : 0.72
       );
 
       onChange(field, compressedBase64);

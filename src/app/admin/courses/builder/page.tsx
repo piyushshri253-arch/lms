@@ -243,6 +243,42 @@ function CourseBuilderContent() {
     setCourseState((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Helper to ensure any base64 image payload stays under 200KB before transmission
+  const ensureOptimizedDataUrl = async (dataUrl?: string, maxWidth = 960, maxHeight = 540, quality = 0.75): Promise<string | undefined> => {
+    if (!dataUrl || !dataUrl.startsWith('data:image/') || dataUrl.length < 250 * 1024) {
+      return dataUrl;
+    }
+    return new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(dataUrl);
+            return;
+          }
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      } catch {
+        resolve(dataUrl);
+      }
+    });
+  };
+
   // Save as Draft
   const handleSaveDraft = async (options?: { submitForApproval?: boolean }) => {
     if (!courseState.title.trim()) {
@@ -263,6 +299,20 @@ function CourseBuilderContent() {
       const isSubmitting = Boolean(options?.submitForApproval);
       const isInstructorUser = currentUser?.role === 'INSTRUCTOR';
 
+      // Auto-compress any bulky base64 data URLs to prevent Vercel 413 payload limit
+      const [optimizedThumbnail, optimizedBanner] = await Promise.all([
+        ensureOptimizedDataUrl(courseState.thumbnail, 960, 540, 0.75),
+        ensureOptimizedDataUrl(courseState.banner, 1280, 720, 0.72)
+      ]);
+
+      if (optimizedThumbnail !== courseState.thumbnail || optimizedBanner !== courseState.banner) {
+        setCourseState((prev) => ({
+          ...prev,
+          thumbnail: optimizedThumbnail || prev.thumbnail,
+          banner: optimizedBanner || prev.banner
+        }));
+      }
+
       const payload = {
         title: courseState.title,
         description: courseState.description || 'Draft course curriculum overview.',
@@ -273,8 +323,8 @@ function CourseBuilderContent() {
         price: courseState.price,
         discountPrice: courseState.discountPrice,
         currency: courseState.currency || 'INR',
-        thumbnail: courseState.thumbnail,
-        banner: courseState.banner,
+        thumbnail: optimizedThumbnail || courseState.thumbnail,
+        banner: optimizedBanner || courseState.banner,
         durationHours: courseState.durationHours,
         status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : courseState.status,
         submitForApproval: isSubmitting,
