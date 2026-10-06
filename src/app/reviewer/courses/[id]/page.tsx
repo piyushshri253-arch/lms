@@ -23,6 +23,7 @@ export default function AuditorCourseReviewPage() {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ title: string; desc: string; status?: number } | null>(null);
   const [activeTab, setActiveTab] = useState<
     'OVERVIEW' | 'CURRICULUM_MEDIA' | 'QUIZZES' | 'OUTCOMES' | 'VERSION_DIFF' | 'ISSUES_HISTORY'
   >('CURRICULUM_MEDIA');
@@ -85,8 +86,9 @@ export default function AuditorCourseReviewPage() {
     if (!courseId) return;
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`);
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (res.ok && json.success) {
         setData(json);
         if (json.auditMeta?.sectionStatuses) {
@@ -102,9 +104,39 @@ export default function AuditorCourseReviewPage() {
             moduleTitle: json.course.sections[0].title
           });
         }
+      } else {
+        if (res.status === 401) {
+          setError({
+            title: 'Auditor Login Required (401)',
+            desc: 'Your auditor session has expired or you are not signed in. Please sign in to the Course Auditor Studio.',
+            status: 401
+          });
+        } else if (res.status === 403) {
+          setError({
+            title: 'Auditor Privileges Required (403)',
+            desc: json.error || 'Your active account does not have Course Auditor / Reviewer permissions. Please sign in with an Auditor account.',
+            status: 403
+          });
+        } else if (res.status === 404) {
+          setError({
+            title: 'Course Not Found (404)',
+            desc: json.error || 'The requested course could not be found or has been removed.',
+            status: 404
+          });
+        } else {
+          setError({
+            title: 'Unable to Load Course Audit',
+            desc: json.error || 'An unexpected error occurred while fetching course audit data.',
+            status: res.status
+          });
+        }
       }
-    } catch {
-      showToast({ title: 'Error', desc: 'Failed to load course audit details.', type: 'error' });
+    } catch (err: any) {
+      setError({
+        title: 'Connection / Network Error',
+        desc: err.message || 'Unable to connect to the server. Please check your internet connection and try again.',
+        status: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -240,11 +272,53 @@ export default function AuditorCourseReviewPage() {
     }
   };
 
+  if (error) {
+    return (
+      <AuditorPortalShell title="Course Audit Studio">
+        <div className="p-8 max-w-lg mx-auto bg-white rounded-2xl border border-rose-200 shadow-sm text-center space-y-4 my-8">
+          <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+            <Icon name="error" size={28} />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">{error.title}</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">{error.desc}</p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            {error.status === 401 || error.status === 403 ? (
+              <Link
+                href={`/reviewer/login?callbackUrl=${encodeURIComponent(`/reviewer/courses/${courseId}`)}`}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Log in as Course Auditor
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => loadCourseAudit()}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Try Again
+              </button>
+            )}
+            <Link
+              href="/reviewer"
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+            >
+              Back to Audit Queue
+            </Link>
+          </div>
+        </div>
+      </AuditorPortalShell>
+    );
+  }
+
   if (loading || !data?.course) {
     return (
       <AuditorPortalShell title="Loading Course Audit Studio...">
-        <div className="p-12 text-center text-xs text-slate-500 font-bold">
-          Loading curriculum tree, signed video stream, PDF reader, quizzes, and version diff...
+        <div className="p-12 text-center space-y-3">
+          <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="text-xs text-slate-700 font-bold">
+            Loading curriculum tree, signed video streams, quizzes, and version diff...
+          </div>
+          <p className="text-[11px] text-slate-400">Please wait while the course audit data is compiled.</p>
         </div>
       </AuditorPortalShell>
     );

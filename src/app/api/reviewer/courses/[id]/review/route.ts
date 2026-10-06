@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser, requireReviewerAuth, validateTenantOwnership } from '@/lib/auth';
+import { getCurrentUser, getReviewerCurrentUser, requireReviewerAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { createNotification } from '@/lib/notification';
 import {
@@ -119,7 +119,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
+    const user = (await getReviewerCurrentUser()) || (await getCurrentUser());
     if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -173,21 +173,20 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Also fetch all quizzes belonging to this course via lesson.section.courseId
-    const courseQuizzes = await prisma.quiz.findMany({
-      where: {
-        lesson: {
-          section: {
-            courseId: course.id
+    // Concurrently fetch all quizzes and metadata belonging to this course
+    const [courseQuizzes, versionState, securityPolicy, auditMeta] = await Promise.all([
+      prisma.quiz.findMany({
+        where: {
+          lesson: {
+            section: {
+              courseId: course.id
+            }
           }
+        },
+        include: {
+          questions: true
         }
-      },
-      include: {
-        questions: true
-      }
-    });
-
-    const [versionState, securityPolicy, auditMeta] = await Promise.all([
+      }),
       getCourseVersionState(course.id),
       getCourseSecurityPolicy(course.id),
       getCourseAuditMetadata(course.id)
@@ -289,7 +288,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
+    const user = (await getReviewerCurrentUser()) || (await getCurrentUser());
     if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
