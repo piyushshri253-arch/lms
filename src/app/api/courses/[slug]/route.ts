@@ -207,21 +207,39 @@ export async function GET(
         lessons: sec.lessons.map((les) => {
           const isLocked = !isEnrolled && !les.isFree;
           const canSeeMediaUrls = isPrivilegedViewer || !isLocked;
+          const rawVideo = les.videoUrl && !les.videoUrl.startsWith('blob:') ? les.videoUrl : null;
+          let effectiveType = (les as any).type || 'VIDEO';
+
+          // Intelligent type detection if default was VIDEO but other media was created
+          if (effectiveType === 'VIDEO' && !rawVideo) {
+            if ((les as any).quizData) {
+              try {
+                const q = typeof (les as any).quizData === 'string' ? JSON.parse((les as any).quizData) : (les as any).quizData;
+                if (Array.isArray(q?.questions) && q.questions.length > 0) effectiveType = 'QUIZ';
+              } catch {}
+            }
+            if (effectiveType === 'VIDEO' && (les as any).content && (les as any).content.trim().length > 0) {
+              effectiveType = 'TEXT';
+            } else if (effectiveType === 'VIDEO' && (les as any).pdfUrl) {
+              effectiveType = 'PDF';
+            }
+          }
+
           return {
             id: les.id,
             title: les.title,
             description: les.description || '',
             duration: les.duration,
             durationSeconds: les.durationSeconds,
-            type: (les as any).type || 'VIDEO',
+            type: effectiveType,
             content: canSeeMediaUrls ? (les as any).content || null : null,
             // If privileged (Instructor/Admin in Builder), return raw URLs so they can edit; for students, only return if unlocked
             videoUrl: isPrivilegedViewer
-              ? les.videoUrl
+              ? rawVideo
               : canSeeMediaUrls && !securityPolicy.signedUrlEnabled
-              ? les.videoUrl
+              ? rawVideo
               : canSeeMediaUrls
-              ? les.videoUrl
+              ? rawVideo
               : null,
             pdfUrl: isPrivilegedViewer
               ? (les as any).pdfUrl || null
@@ -675,6 +693,21 @@ export async function PUT(
               : undefined;
 
             const existingLesson = (section.lessons || []).find((l) => l.id === lesData.id);
+            const cleanVideoUrl = lesData.videoUrl && !lesData.videoUrl.startsWith('blob:') ? lesData.videoUrl : null;
+            let lesType = lesData.type || 'VIDEO';
+            if (lesType === 'VIDEO' && !cleanVideoUrl) {
+              if (quizDataStr) {
+                try {
+                  const q = JSON.parse(quizDataStr);
+                  if (Array.isArray(q?.questions) && q.questions.length > 0) lesType = 'QUIZ';
+                } catch {}
+              }
+              if (lesType === 'VIDEO' && lesData.content && lesData.content.trim().length > 0) {
+                lesType = 'TEXT';
+              } else if (lesType === 'VIDEO' && lesData.pdfUrl) {
+                lesType = 'PDF';
+              }
+            }
 
             if (existingLesson) {
               const updatedLesson = await prisma.lesson.update({
@@ -682,9 +715,9 @@ export async function PUT(
                 data: {
                   title: lesData.title,
                   description: lesData.description !== undefined ? lesData.description : undefined,
-                  type: lesData.type || 'VIDEO',
+                  type: lesType,
                   content: lesData.content !== undefined ? lesData.content : undefined,
-                  videoUrl: lesData.videoUrl !== undefined ? lesData.videoUrl : undefined,
+                  videoUrl: cleanVideoUrl !== undefined ? cleanVideoUrl : undefined,
                   pdfUrl: lesData.pdfUrl !== undefined ? lesData.pdfUrl : undefined,
                   fileUrl: lesData.fileUrl !== undefined ? lesData.fileUrl : undefined,
                   quizData: quizDataStr,
@@ -703,9 +736,9 @@ export async function PUT(
                   sectionId: section.id,
                   title: lesData.title || `Lesson ${lIdx + 1}`,
                   description: lesData.description || null,
-                  type: lesData.type || 'VIDEO',
+                  type: lesType,
                   content: lesData.content || null,
-                  videoUrl: lesData.videoUrl || null,
+                  videoUrl: cleanVideoUrl || null,
                   pdfUrl: lesData.pdfUrl || null,
                   fileUrl: lesData.fileUrl || null,
                   quizData: quizDataStr,

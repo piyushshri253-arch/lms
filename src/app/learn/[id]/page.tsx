@@ -80,7 +80,8 @@ export default function LearnPlayerPage() {
         }
 
         if (c.sections && c.sections.length > 0) {
-          setExpandedSectionIds([c.sections[0].id]);
+          // Expand all modules by default so full curriculum is immediately accessible
+          setExpandedSectionIds(c.sections.map((s: any) => s.id));
         }
 
         // Fetch user's completed lessons for this course
@@ -110,6 +111,66 @@ export default function LearnPlayerPage() {
   const allLessons = allSections.flatMap((s: any) => s.lessons) || [];
   const activeLesson = allLessons.find((l: any) => l.id === activeLessonId) || allLessons[0] || null;
   const activeSection = allSections.find((s: any) => s.lessons?.some((l: any) => l.id === activeLesson?.id)) || allSections[0] || null;
+
+  // Active media sub-tab if lesson has multiple contents (Video, Article, Quiz, PDF)
+  const [activeMediaMode, setActiveMediaMode] = useState<'VIDEO' | 'TEXT' | 'QUIZ' | 'PDF' | null>(null);
+
+  useEffect(() => {
+    setActiveMediaMode(null);
+    // Ensure section containing active lesson is expanded
+    if (activeSection?.id) {
+      setExpandedSectionIds((prev) => prev.includes(activeSection.id) ? prev : [...prev, activeSection.id]);
+    }
+  }, [activeLessonId, activeSection?.id]);
+
+  const hasValidVideo = Boolean(
+    activeLesson?.videoUrl &&
+    !activeLesson.videoUrl.startsWith('blob:') &&
+    activeLesson.videoUrl.trim().length > 0
+  );
+
+  const hasQuizQuestions = useMemo(() => {
+    if (!activeLesson?.quizData) return false;
+    try {
+      const q = typeof activeLesson.quizData === 'string' ? JSON.parse(activeLesson.quizData) : activeLesson.quizData;
+      return Array.isArray(q?.questions) && q.questions.length > 0;
+    } catch {
+      return false;
+    }
+  }, [activeLesson?.quizData]);
+
+  const hasArticleContent = Boolean(
+    activeLesson?.content && activeLesson.content.trim().length > 0
+  );
+
+  const hasPdfContent = Boolean(
+    activeLesson?.pdfUrl && activeLesson.pdfUrl.trim().length > 0
+  );
+
+  // Determine primary/effective lesson content mode
+  const effectiveLessonType = useMemo<'VIDEO' | 'TEXT' | 'QUIZ' | 'PDF'>(() => {
+    if (activeMediaMode) return activeMediaMode;
+    if (activeLesson?.type === 'QUIZ') return 'QUIZ';
+    if (hasQuizQuestions && !hasValidVideo) return 'QUIZ';
+    if (activeLesson?.type === 'TEXT') return 'TEXT';
+    if (hasArticleContent && !hasValidVideo) return 'TEXT';
+    if (activeLesson?.type === 'PDF' || (hasPdfContent && !hasValidVideo)) return 'PDF';
+    if (hasValidVideo) return 'VIDEO';
+    if (hasQuizQuestions) return 'QUIZ';
+    if (hasArticleContent) return 'TEXT';
+    if (hasPdfContent) return 'PDF';
+    return (activeLesson?.type as any) || 'VIDEO';
+  }, [activeMediaMode, activeLesson, hasValidVideo, hasQuizQuestions, hasArticleContent, hasPdfContent]);
+
+  // Multiple content types count for switcher tabs
+  const availableContentTypes = useMemo(() => {
+    const list: Array<{ id: 'VIDEO' | 'TEXT' | 'QUIZ' | 'PDF'; label: string; icon: string }> = [];
+    if (hasValidVideo) list.push({ id: 'VIDEO', label: 'Video Lecture', icon: 'movie' });
+    if (hasArticleContent) list.push({ id: 'TEXT', label: 'Article / Notes', icon: 'article' });
+    if (hasQuizQuestions) list.push({ id: 'QUIZ', label: 'Quiz Assessment', icon: 'quiz' });
+    if (hasPdfContent) list.push({ id: 'PDF', label: 'PDF Handout', icon: 'picture_as_pdf' });
+    return list;
+  }, [hasValidVideo, hasArticleContent, hasQuizQuestions, hasPdfContent]);
 
   const currentIndex = allLessons.findIndex((l: any) => l.id === activeLesson?.id);
   const isCurrentCompleted = activeLesson?.id ? completedLessonIds.includes(activeLesson.id) : false;
@@ -414,11 +475,32 @@ export default function LearnPlayerPage() {
           {/* 2A. CINEMA THEATER STAGE (Responsive 16:9 Black Container) */}
           <div
             className={`w-full bg-black flex items-center justify-center relative shrink-0 ${
-              activeLesson?.type === 'QUIZ' || activeLesson?.type === 'TEXT' || activeLesson?.type === 'PDF' || activeLesson?.type === 'DOWNLOAD'
+              effectiveLessonType === 'QUIZ' || effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF'
                 ? 'min-h-[480px] py-6 sm:py-10 px-4 bg-slate-950'
                 : 'min-h-[260px] sm:min-h-[380px] md:min-h-[460px] lg:min-h-[520px] max-h-[78vh]'
             }`}
           >
+            {/* Multi-Content Switcher Bar if lesson has multiple contents attached */}
+            {availableContentTypes.length > 1 && !isCurrentLocked && (
+              <div className="absolute top-3 right-4 z-30 flex items-center gap-1.5 bg-black/85 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-xl">
+                {availableContentTypes.map((ct) => (
+                  <button
+                    key={ct.id}
+                    type="button"
+                    onClick={() => setActiveMediaMode(ct.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      effectiveLessonType === ct.id
+                        ? 'bg-white text-black shadow-xs'
+                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon name={ct.icon} size={14} />
+                    <span>{ct.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* If lesson is LOCKED (unenrolled & !isFree) */}
             {isCurrentLocked ? (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
@@ -457,28 +539,28 @@ export default function LearnPlayerPage() {
                   )}
                 </div>
               </div>
-            ) : activeLesson?.type === 'QUIZ' ? (
+            ) : effectiveLessonType === 'QUIZ' ? (
               <div className="w-full max-w-4xl p-2 sm:p-4 my-2">
                 <QuizPlayer
-                  title={activeLesson.title}
-                  lessonId={activeLesson.id}
-                  quizData={activeLesson.quizData}
-                  onPass={() => handleToggleLessonComplete(activeLesson.id)}
+                  title={activeLesson?.title || 'Lecture Quiz'}
+                  lessonId={activeLesson?.id}
+                  quizData={activeLesson?.quizData}
+                  onPass={() => handleToggleLessonComplete(activeLesson?.id)}
                 />
               </div>
-            ) : activeLesson?.type === 'TEXT' || activeLesson?.type === 'PDF' || activeLesson?.type === 'DOWNLOAD' ? (
+            ) : effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF' ? (
               <div className="w-full max-w-4xl p-4 sm:p-6 my-4">
                 <ArticlePlayer
-                  title={activeLesson.title}
-                  lessonId={activeLesson.id}
-                  type={activeLesson.type}
-                  content={activeLesson.content}
-                  pdfUrl={activeLesson.pdfUrl}
-                  fileUrl={activeLesson.fileUrl}
-                  allowDownload={Boolean(activeLesson.allowDownload)}
-                  duration={activeLesson.duration}
+                  title={activeLesson?.title || 'Lecture Guide'}
+                  lessonId={activeLesson?.id}
+                  type={effectiveLessonType === 'PDF' ? 'PDF' : 'TEXT'}
+                  content={activeLesson?.content}
+                  pdfUrl={activeLesson?.pdfUrl}
+                  fileUrl={activeLesson?.fileUrl}
+                  allowDownload={Boolean(activeLesson?.allowDownload)}
+                  duration={activeLesson?.duration}
                   isCompleted={isCurrentCompleted}
-                  onComplete={() => handleToggleLessonComplete(activeLesson.id)}
+                  onComplete={() => handleToggleLessonComplete(activeLesson?.id)}
                 />
               </div>
             ) : (
@@ -491,7 +573,7 @@ export default function LearnPlayerPage() {
                 )}
                 <VideoPlayer
                   title={activeLesson?.title || course?.title || 'Lecture Video'}
-                  videoUrl={activeLesson?.videoUrl || null}
+                  videoUrl={hasValidVideo ? activeLesson?.videoUrl : null}
                   lessonId={activeLesson?.id || undefined}
                   thumbnail={course?.thumbnail || ''}
                   duration={activeLesson?.duration || '10:00'}
@@ -515,13 +597,13 @@ export default function LearnPlayerPage() {
               <span>Previous</span>
             </button>
 
-            {/* Current Lecture Title & Section */}
+            {/* Current Lecture Title & Module */}
             <div className="text-center min-w-0 flex-1 px-2">
               <span className="text-xs sm:text-sm font-extrabold text-[#2d2f31] truncate block">
                 {activeLesson?.title || 'Lecture'}
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
-                {activeLesson?.duration || '10:00'} • {activeSection?.title || 'Section'}
+                {activeLesson?.duration || '10:00'} • {activeSection ? `Module ${(allSections.indexOf(activeSection) + 1)}: ${activeSection.title}` : 'Curriculum'}
               </span>
             </div>
 
@@ -575,6 +657,8 @@ export default function LearnPlayerPage() {
               totalDuration={totalCourseDurationFormatted}
               lessonId={activeLesson?.id}
               lessonTitle={activeLesson?.title || course?.title || 'Lecture Details'}
+              lessonDescription={activeLesson?.description}
+              lessonContent={activeLesson?.content}
               instructorName={course?.instructor?.name || 'Dr. Neha Kapoor'}
               instructorRole={course?.instructor?.bio || 'Inclusive Education Consultant & Diverse Learner Specialist'}
               instructorAvatar={course?.instructor?.avatar || ''}
@@ -632,11 +716,11 @@ export default function LearnPlayerPage() {
 
             {/* Sidebar Sub-Header / Stats */}
             <div className="px-4 py-2 bg-[#f7f9fa] border-b border-[#d1d7dc] text-[11px] text-slate-500 font-semibold flex items-center justify-between">
-              <span>{allSections.length} sections • {allLessons.length} lectures</span>
+              <span>{allSections.length} modules • {allLessons.length} lectures</span>
               <span>{totalCourseDurationFormatted}</span>
             </div>
 
-            {/* Accordion of Sections */}
+            {/* Accordion of Modules */}
             <div className="overflow-y-auto flex-1 divide-y divide-[#d1d7dc]">
               {filteredSections.map((sec: any, sIdx: number) => {
                 const isExpanded = expandedSectionIds.includes(sec.id);
@@ -645,7 +729,7 @@ export default function LearnPlayerPage() {
 
                 return (
                   <div key={sec.id} className="border-b border-[#d1d7dc]">
-                    {/* Section Header Accordion Button */}
+                    {/* Module Header Accordion Button */}
                     <button
                       type="button"
                       onClick={() => toggleSection(sec.id)}
@@ -653,7 +737,7 @@ export default function LearnPlayerPage() {
                     >
                       <div className="flex-1 pr-2">
                         <span className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider mb-0.5">
-                          Section {sIdx + 1}
+                          Module {sIdx + 1}
                         </span>
                         <span className="text-xs font-bold text-[#2d2f31] block leading-snug">
                           {sec.title}
@@ -669,7 +753,7 @@ export default function LearnPlayerPage() {
                       />
                     </button>
 
-                    {/* Section Lectures List */}
+                    {/* Module Lectures List */}
                     {isExpanded && (
                       <div className="divide-y divide-[#d1d7dc]/40 bg-white">
                         {secLessons.map((les: any, lIdx: number) => {
@@ -677,6 +761,10 @@ export default function LearnPlayerPage() {
                           const isActive = activeLessonId === les.id;
                           const hasResources = !!(les.pdfUrl || les.fileUrl);
                           const isLessonLocked = !isEnrolled && !les.isFree;
+
+                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isPdfItem = les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
 
                           return (
                             <div
@@ -724,18 +812,18 @@ export default function LearnPlayerPage() {
                                   <span className="flex items-center gap-1">
                                     <Icon
                                       name={
-                                        les.type === 'QUIZ'
+                                        isQuizItem
                                           ? 'quiz'
-                                          : les.type === 'PDF'
+                                          : isPdfItem
                                           ? 'picture_as_pdf'
-                                          : les.type === 'TEXT'
+                                          : isArticleItem
                                           ? 'article'
                                           : 'movie'
                                       }
                                       size={12}
                                       className="text-slate-500"
                                     />
-                                    <span>{les.duration || '10:00'}</span>
+                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
                                   </span>
 
                                   {les.isFree && !isEnrolled && (
@@ -750,6 +838,21 @@ export default function LearnPlayerPage() {
                                     </span>
                                   )}
                                 </div>
+
+                                {/* Sub-lessons / Sub-topics list */}
+                                {Array.isArray(les.subLessons) && les.subLessons.length > 0 && (
+                                  <div className="pl-2 border-l-2 border-slate-200 mt-2 space-y-1">
+                                    {les.subLessons.map((sub: any, subIdx: number) => (
+                                      <div
+                                        key={sub.id || subIdx}
+                                        className="text-[11px] text-slate-600 hover:text-black py-0.5 flex items-center gap-1.5"
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                                        <span className="truncate">{sub.title}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               {/* Right: Resources Dropdown Pill */}
@@ -854,7 +957,7 @@ export default function LearnPlayerPage() {
                     >
                       <div>
                         <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">
-                          Section {sIdx + 1}
+                          Module {sIdx + 1}
                         </span>
                         <span className="text-xs font-bold text-[#2d2f31]">{sec.title}</span>
                       </div>
@@ -870,6 +973,10 @@ export default function LearnPlayerPage() {
                         {secLessons.map((les: any, lIdx: number) => {
                           const isCompleted = completedLessonIds.includes(les.id);
                           const isActive = activeLessonId === les.id;
+
+                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isPdfItem = les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
 
                           return (
                             <div
@@ -902,8 +1009,19 @@ export default function LearnPlayerPage() {
                                   {lIdx + 1}. {les.title}
                                 </span>
                                 <span className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                                  <Icon name="movie" size={12} />
-                                  <span>{les.duration || '10:00'}</span>
+                                  <Icon
+                                    name={
+                                      isQuizItem
+                                        ? 'quiz'
+                                        : isPdfItem
+                                        ? 'picture_as_pdf'
+                                        : isArticleItem
+                                        ? 'article'
+                                        : 'movie'
+                                    }
+                                    size={12}
+                                  />
+                                  <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
                                 </span>
                               </div>
                             </div>

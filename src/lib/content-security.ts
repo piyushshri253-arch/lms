@@ -226,6 +226,7 @@ export function buildStudentSignedMediaUrl(
 ): string | null {
   if (!rawUrl || !rawUrl.trim()) return null;
   const trimmed = rawUrl.trim();
+  if (trimmed.startsWith('blob:')) return null;
 
   // Do not alter YouTube/Vimeo embed origins other than fragment/query if safe
   if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be') || trimmed.includes('vimeo.com')) {

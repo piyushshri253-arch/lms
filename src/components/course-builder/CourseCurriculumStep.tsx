@@ -153,19 +153,20 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
 
       let finalPdfUrl = '';
-      try {
-        const res = await fetch('/api/media/upload', {
-          method: 'POST',
-          body: formData
-        });
-        if (res.ok) {
-          const data = await res.json();
-          finalPdfUrl = data.videoUrl || data.media?.url || URL.createObjectURL(file);
-        } else {
-          finalPdfUrl = URL.createObjectURL(file);
-        }
-      } catch {
-        finalPdfUrl = URL.createObjectURL(file);
+      const res = await fetch('/api/media/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        finalPdfUrl = data.videoUrl || data.media?.url || '';
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Direct PDF upload failed on server.');
+      }
+
+      if (!finalPdfUrl || finalPdfUrl.startsWith('blob:')) {
+        throw new Error('Server could not save PDF permanently. Please provide a direct link to the document.');
       }
 
       if (subLessonId) {
@@ -243,19 +244,20 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       formData.append('durationText', durationText);
 
       let finalUrl = '';
-      try {
-        const res = await fetch('/api/media/upload', {
-          method: 'POST',
-          body: formData
-        });
-        if (res.ok) {
-          const data = await res.json();
-          finalUrl = data.videoUrl;
-        } else {
-          finalUrl = URL.createObjectURL(file);
-        }
-      } catch {
-        finalUrl = URL.createObjectURL(file);
+      const res = await fetch('/api/media/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        finalUrl = data.videoUrl;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Direct video file upload failed on server.');
+      }
+
+      if (!finalUrl || finalUrl.startsWith('blob:')) {
+        throw new Error('Server could not save video permanently. Please paste a direct YouTube, Vimeo, or MP4 cloud link.');
       }
 
       if (subLessonId) {
@@ -837,6 +839,23 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   className="flex-1 min-w-[140px] bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                 />
 
+                                {/* Format Selector Dropdown */}
+                                <select
+                                  value={les.type || 'VIDEO'}
+                                  onChange={(e) => {
+                                    const newType = e.target.value as 'TEXT' | 'QUIZ' | 'VIDEO' | 'PDF';
+                                    handleUpdateLessonInline(section.id, les.id, { type: newType });
+                                    setActiveContentTab((prev) => ({ ...prev, [les.id]: newType }));
+                                  }}
+                                  className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded px-2 py-1 border border-slate-300 focus:outline-none cursor-pointer shrink-0"
+                                  title="Lesson Primary Format"
+                                >
+                                  <option value="VIDEO">🎬 Video Lecture</option>
+                                  <option value="TEXT">📝 Article / Notes</option>
+                                  <option value="QUIZ">❓ Quiz Assessment</option>
+                                  <option value="PDF">📑 PDF Resource</option>
+                                </select>
+
                                 {/* Attached Content Badges */}
                                 <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                                   {les.videoUrl && (
@@ -950,9 +969,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   {/* Tab 1: Video */}
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'VIDEO' }))
-                                    }
+                                    onClick={() => {
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'VIDEO' }));
+                                      handleUpdateLessonInline(section.id, les.id, { type: 'VIDEO' });
+                                    }}
                                     className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                                       currentTab === 'VIDEO'
                                         ? 'bg-[#2d2f31] text-white shadow-2xs'
@@ -969,9 +989,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   {/* Tab 2: Notes / Article */}
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'TEXT' }))
-                                    }
+                                    onClick={() => {
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'TEXT' }));
+                                      handleUpdateLessonInline(section.id, les.id, { type: 'TEXT' });
+                                    }}
                                     className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                                       currentTab === 'TEXT'
                                         ? 'bg-[#2d2f31] text-white shadow-2xs'
@@ -988,9 +1009,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   {/* Tab 3: PDF Resource */}
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'PDF' }))
-                                    }
+                                    onClick={() => {
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'PDF' }));
+                                      handleUpdateLessonInline(section.id, les.id, { type: 'PDF' });
+                                    }}
                                     className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                                       currentTab === 'PDF'
                                         ? 'bg-[#2d2f31] text-white shadow-2xs'
@@ -1007,9 +1029,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   {/* Tab 4: Quick Quiz */}
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'QUIZ' }))
-                                    }
+                                    onClick={() => {
+                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'QUIZ' }));
+                                      handleUpdateLessonInline(section.id, les.id, { type: 'QUIZ' });
+                                    }}
                                     className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                                       currentTab === 'QUIZ'
                                         ? 'bg-[#2d2f31] text-white shadow-2xs'

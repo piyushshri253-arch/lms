@@ -21,6 +21,7 @@ interface LessonTabsProps {
   lessonId?: string;
   lessonTitle: string;
   lessonDescription?: string;
+  lessonContent?: string | null;
   instructorName?: string;
   instructorRole?: string;
   instructorAvatar?: string | null;
@@ -45,6 +46,7 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
   lessonId,
   lessonTitle,
   lessonDescription,
+  lessonContent,
   instructorName = 'Faculty Lead',
   instructorRole = 'Expert Educator & Consultant',
   instructorAvatar = null,
@@ -464,6 +466,19 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
       {/* 1. Overview Tab - Authentic Udemy Course Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-10 animate-in fade-in duration-200 text-[#2d2f31]">
+          {/* Lecture Article / Reading Material (if attached by Instructor) */}
+          {lessonContent && (
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center gap-2 text-[#2d2f31] font-extrabold text-sm uppercase tracking-wider">
+                <Icon name="article" size={18} className="text-primary" />
+                <span>Lecture Notes &amp; Study Guide: {lessonTitle}</span>
+              </div>
+              <div className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-sans">
+                {lessonContent}
+              </div>
+            </div>
+          )}
+
           {/* A. About this course header */}
           <div className="space-y-3">
             <h2 className="text-2xl font-extrabold text-[#2d2f31] tracking-tight">

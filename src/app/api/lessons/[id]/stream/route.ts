@@ -82,18 +82,19 @@ export async function GET(
         ttlMinutes: policy.signedUrlExpiryMinutes
       });
 
+      const cleanVideoUrl = lesson.videoUrl && !lesson.videoUrl.startsWith('blob:') ? lesson.videoUrl : null;
       return NextResponse.json({
         allowed: true,
         isFree: true,
         videoUrl: policy.signedUrlEnabled
           ? buildStudentSignedMediaUrl(
-              lesson.videoUrl,
+              cleanVideoUrl,
               signedVideoToken.token,
               signedVideoToken.expiresAt,
               policy.allowVideoDownload,
               'VIDEO'
             )
-          : lesson.videoUrl,
+          : cleanVideoUrl,
         pdfUrl: policy.signedUrlEnabled
           ? buildStudentSignedMediaUrl(
               (lesson as any).pdfUrl,
@@ -210,18 +211,20 @@ export async function GET(
       ttlMinutes: policy.signedUrlExpiryMinutes
     });
 
+    const cleanVideoUrl = lesson.videoUrl && !lesson.videoUrl.startsWith('blob:') ? lesson.videoUrl : null;
+
     return NextResponse.json({
       allowed: true,
       isFree: false,
       videoUrl: policy.signedUrlEnabled
         ? buildStudentSignedMediaUrl(
-            lesson.videoUrl,
+            cleanVideoUrl,
             signedVideo.token,
             signedVideo.expiresAt,
             allowVideoDl,
             'VIDEO'
           )
-        : lesson.videoUrl,
+        : cleanVideoUrl,
       pdfUrl: policy.signedUrlEnabled
         ? buildStudentSignedMediaUrl(
             (lesson as any).pdfUrl,
