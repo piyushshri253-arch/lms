@@ -13,6 +13,7 @@ import { CoursePublishStep } from '@/components/course-builder/CoursePublishStep
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
+import { downloadCourseExcelTemplate, parseCourseExcelFile } from '@/lib/course-excel';
 
 const getDefaultCourseState = () => ({
   title: '',
@@ -713,6 +714,78 @@ function CourseBuilderContent() {
     );
   }
 
+  const [isImportingExcel, setIsImportingExcel] = useState<boolean>(false);
+
+  const handleDownloadExcelTemplate = () => {
+    try {
+      downloadCourseExcelTemplate();
+      showToast({
+        title: 'Excel Template Downloaded 📥',
+        description: 'Template saved! Fill details in Excel and upload here to auto-populate the course.',
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Download Failed',
+        description: err.message || 'Could not generate template.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImportingExcel(true);
+    try {
+      const parsed = await parseCourseExcelFile(file);
+
+      if (!parsed.title && (!parsed.sections || parsed.sections.length === 0)) {
+        throw new Error('No valid course title or curriculum found. Please use the official MORENA Course Upload Template.');
+      }
+
+      setCourseState((prev) => ({
+        ...prev,
+        title: parsed.title || prev.title,
+        slug: parsed.slug || prev.slug,
+        category: parsed.category || prev.category,
+        level: parsed.level || prev.level,
+        language: parsed.language || prev.language,
+        shortDescription: parsed.shortDescription || prev.shortDescription,
+        description: parsed.description || prev.description,
+        whatYouWillLearn: parsed.whatYouWillLearn && parsed.whatYouWillLearn.length > 0 ? parsed.whatYouWillLearn : prev.whatYouWillLearn,
+        requirements: parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : prev.requirements,
+        targetAudience: parsed.targetAudience && parsed.targetAudience.length > 0 ? parsed.targetAudience : prev.targetAudience,
+        price: parsed.price !== undefined ? parsed.price : prev.price,
+        discountPrice: parsed.discountPrice !== undefined ? parsed.discountPrice : prev.discountPrice,
+        currency: parsed.currency || prev.currency,
+        accessType: parsed.accessType || prev.accessType,
+        accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
+        sections: parsed.sections && parsed.sections.length > 0 ? parsed.sections : prev.sections,
+        // Thumbnail is intentionally kept manual as requested: "thumnail vo maunally he kraega"
+      }));
+
+      const modulesCount = parsed.sections?.length || 0;
+      const lessonsCount = (parsed.sections || []).reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
+
+      showToast({
+        title: 'Course Auto-Filled from Excel! 🚀',
+        description: `"${parsed.title || 'Course'}" imported! Basic info, ${modulesCount} modules (${lessonsCount} lessons), and pricing auto-filled successfully.`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Excel Import Error',
+        description: err.message || 'Failed to read spreadsheet file.',
+        type: 'error'
+      });
+    } finally {
+      setIsImportingExcel(false);
+      e.target.value = '';
+    }
+  };
+
   const renderStepNavigationBar = (isTop: boolean = false) => (
     <div
       className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
@@ -834,6 +907,59 @@ function CourseBuilderContent() {
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       {/* Top Step Navigation Bar (Replaces old breadcrumb/title banner) */}
       {renderStepNavigationBar(true)}
+
+      {/* Excel Course Bulk Template & Auto-Fill Strip */}
+      <div className="bg-gradient-to-r from-emerald-50/70 via-teal-50/40 to-indigo-50/50 dark:from-emerald-950/20 dark:via-teal-950/10 dark:to-indigo-950/20 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Icon name="table_view" size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                Excel Course Auto-Fill &amp; Template
+              </h3>
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                .XLSX Template
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+              Download the official template, fill in course details, curriculum syllabus modules &amp; pricing in Excel, and upload to auto-fill all steps instantly! (Thumbnail &amp; video lectures are uploaded manually).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
+          <button
+            type="button"
+            onClick={handleDownloadExcelTemplate}
+            className="px-3.5 py-2.5 bg-white dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-emerald-300 dark:border-emerald-700 flex items-center gap-2 cursor-pointer shadow-xs transition-all"
+            title="Download official Excel course spreadsheet template"
+          >
+            <Icon name="download" size={16} className="text-emerald-600 dark:text-emerald-400" />
+            <span>Download Template (.xlsx)</span>
+          </button>
+
+          <label
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+            title="Upload completed Excel spreadsheet to auto-fill course"
+          >
+            <Icon
+              name={isImportingExcel ? 'sync' : 'upload_file'}
+              size={16}
+              className={isImportingExcel ? 'animate-spin' : ''}
+            />
+            <span>{isImportingExcel ? 'Importing Course...' : 'Upload & Auto-Fill'}</span>
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleUploadExcel}
+              disabled={isImportingExcel}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </div>
 
       {/* Step Navigation Tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant/70">
