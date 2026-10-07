@@ -822,9 +822,9 @@ export async function DELETE(
       );
     }
 
-    if (user.role === 'INSTRUCTOR' && course.instructorId !== user.id) {
+    if (user.role === 'INSTRUCTOR') {
       return NextResponse.json(
-        { error: 'Forbidden: You can only delete courses authored by your account.' },
+        { error: 'Action not allowed: Instructors cannot permanently delete courses. You can activate or deactivate your courses instead.' },
         { status: 403 }
       );
     }

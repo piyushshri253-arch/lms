@@ -29,7 +29,7 @@ interface CourseAuthored {
   };
 }
 
-type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'REJECTED' | 'CATALOG';
+type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'INACTIVE' | 'REJECTED' | 'CATALOG';
 
 function InstructorCoursesStudioInner() {
   const router = useRouter();
@@ -49,10 +49,10 @@ function InstructorCoursesStudioInner() {
   // Course Actions State
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
 
-  // Delete Modal State
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [courseToDelete, setCourseToDelete] = useState<CourseAuthored | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Deactivate Modal State (Instructors cannot delete courses, only activate/deactivate)
+  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+  const [courseToDeactivate, setCourseToDeactivate] = useState<CourseAuthored | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   // Create Course Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -74,7 +74,7 @@ function InstructorCoursesStudioInner() {
     const tabParam = searchParams?.get('tab');
     if (tabParam) {
       const upper = tabParam.toUpperCase();
-      if (['ALL', 'PUBLISHED', 'IN_REVIEW', 'DRAFT', 'REJECTED', 'CATALOG'].includes(upper)) {
+      if (['ALL', 'PUBLISHED', 'IN_REVIEW', 'DRAFT', 'INACTIVE', 'REJECTED', 'CATALOG'].includes(upper)) {
         setActiveTab(upper as TabType);
       }
     }
@@ -233,45 +233,82 @@ function InstructorCoursesStudioInner() {
     }
   };
 
-  // Trigger Delete Modal
-  const handleOpenDeleteModal = (course: CourseAuthored) => {
-    setCourseToDelete(course);
-    setIsDeleteModalOpen(true);
-  };
 
-  // Confirm Permanent Course Deletion
-  const handleConfirmDelete = async () => {
-    if (!courseToDelete) return;
-    setIsDeleting(true);
+  // Deactivate Course (Instructors cannot delete courses, but can activate/deactivate)
+  const handleConfirmDeactivate = async () => {
+    if (!courseToDeactivate) return;
+    setIsDeactivating(true);
+    setActionInProgressId(courseToDeactivate.id);
     try {
-      const identifier = courseToDelete.slug || courseToDelete.id;
-      const res = await fetch(`/api/courses/${identifier}`, {
-        method: 'DELETE'
+      const identifier = courseToDeactivate.slug || courseToDeactivate.id;
+      const res = await fetch(`/api/courses/${identifier}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DEACTIVATE' })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete course');
+        throw new Error(data.error || 'Failed to deactivate course');
       }
 
-      setCourses((prev) => prev.filter((c) => c.id !== courseToDelete.id));
+      setCourses((prev) =>
+        prev.map((c) => (c.id === courseToDeactivate.id ? { ...c, status: 'ARCHIVED' } : c))
+      );
 
       showToast({
-        title: 'Course Deleted 🗑️',
-        description: `"${courseToDelete.title}" has been permanently removed.`,
+        title: 'Course Deactivated ⏸️',
+        description: `"${courseToDeactivate.title}" is now inactive and unlisted. Enrolled learners still retain their access.`,
         type: 'success'
       });
 
-      setIsDeleteModalOpen(false);
-      setCourseToDelete(null);
+      setIsDeactivateModalOpen(false);
+      setCourseToDeactivate(null);
     } catch (err: any) {
       showToast({
-        title: 'Deletion Failed',
-        description: err.message || 'Failed to delete course.',
+        title: 'Deactivation Failed',
+        description: err.message || 'Failed to deactivate course.',
         type: 'error'
       });
     } finally {
-      setIsDeleting(false);
+      setIsDeactivating(false);
+      setActionInProgressId(null);
+    }
+  };
+
+  // Reactivate Inactive Course
+  const handleActivateCourse = async (course: CourseAuthored) => {
+    setActionInProgressId(course.id);
+    try {
+      const identifier = course.slug || course.id;
+      const res = await fetch(`/api/courses/${identifier}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ACTIVATE' })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to activate course');
+      }
+
+      setCourses((prev) =>
+        prev.map((c) => (c.id === course.id ? { ...c, status: 'PUBLISHED' } : c))
+      );
+
+      showToast({
+        title: 'Course Activated Live! 🚀',
+        description: `"${course.title}" is now active and published live on the platform!`,
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Activation Failed',
+        description: err.message || 'Failed to activate course.',
+        type: 'error'
+      });
+    } finally {
+      setActionInProgressId(null);
     }
   };
 
@@ -327,7 +364,8 @@ function InstructorCoursesStudioInner() {
   const publishedCount = courses.filter((c) => c.status === 'PUBLISHED' || c.status === 'APPROVED').length;
   const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW' || c.status === 'PENDING').length;
   const draftCount = courses.filter((c) => c.status === 'DRAFT').length;
-  const rejectedCount = courses.filter((c) => c.status === 'REJECTED' || c.status === 'ARCHIVED').length;
+  const inactiveCount = courses.filter((c) => c.status === 'ARCHIVED' || c.status === 'INACTIVE').length;
+  const rejectedCount = courses.filter((c) => c.status === 'REJECTED').length;
 
   // Filtered Courses
   const filteredAuthoredCourses = courses
@@ -335,7 +373,8 @@ function InstructorCoursesStudioInner() {
       if (activeTab === 'PUBLISHED') return c.status === 'PUBLISHED' || c.status === 'APPROVED';
       if (activeTab === 'IN_REVIEW') return c.status === 'IN_REVIEW' || c.status === 'PENDING';
       if (activeTab === 'DRAFT') return c.status === 'DRAFT';
-      if (activeTab === 'REJECTED') return c.status === 'REJECTED' || c.status === 'ARCHIVED';
+      if (activeTab === 'INACTIVE') return c.status === 'ARCHIVED' || c.status === 'INACTIVE';
+      if (activeTab === 'REJECTED') return c.status === 'REJECTED';
       return true;
     })
     .filter((c) => {
@@ -690,6 +729,19 @@ function InstructorCoursesStudioInner() {
               <span>Drafts ({draftCount})</span>
             </button>
 
+            <button
+              type="button"
+              onClick={() => setActiveTab('INACTIVE')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'INACTIVE'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              <Icon name="pause_circle" size={15} />
+              <span>Inactive / Deactivated ({inactiveCount})</span>
+            </button>
+
             {rejectedCount > 0 && (
               <button
                 type="button"
@@ -849,6 +901,7 @@ function InstructorCoursesStudioInner() {
                 const isUnderReview = course.status === 'IN_REVIEW';
                 const isRejected = course.status === 'REJECTED';
                 const isDraft = course.status === 'DRAFT';
+                const isArchived = course.status === 'ARCHIVED' || course.status === 'INACTIVE';
                 const isBusy = actionInProgressId === course.id;
 
                 return (
@@ -869,6 +922,8 @@ function InstructorCoursesStudioInner() {
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : isRejected
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : isArchived
+                              ? 'bg-slate-200/80 text-slate-700 border border-slate-300'
                               : 'bg-slate-200/70 text-slate-700 border border-slate-300'
                           }`}
                         >
@@ -883,6 +938,8 @@ function InstructorCoursesStudioInner() {
                             ? 'Under Review'
                             : isRejected
                             ? 'Changes Requested'
+                            : isArchived
+                            ? 'Deactivated (Inactive)'
                             : 'Draft'}
                         </span>
 
@@ -924,6 +981,12 @@ function InstructorCoursesStudioInner() {
                             Click &quot;Edit&quot; below to address this feedback and resubmit.
                           </p>
                         </div>
+                      )}
+
+                      {isArchived && (
+                        <p className="text-[11px] text-slate-700 bg-slate-100 p-2.5 rounded-xl border border-slate-200 font-medium">
+                          ⏸️ This course is deactivated and hidden from the public academy catalog. Click &quot;Activate Live&quot; below to restore it.
+                        </p>
                       )}
                     </div>
 
@@ -1003,6 +1066,41 @@ function InstructorCoursesStudioInner() {
                             </button>
                           )}
 
+                          {/* Deactivate Option (for Live Published Courses) */}
+                          {isPublished && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => {
+                                setCourseToDeactivate(course);
+                                setIsDeactivateModalOpen(true);
+                              }}
+                              className="text-xs font-bold text-slate-700 hover:text-amber-800 bg-white hover:bg-amber-50 border border-slate-300 hover:border-amber-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Deactivate course (unlist from live catalog)"
+                            >
+                              <Icon name="pause_circle" size={13} className="text-amber-600" />
+                              <span>Deactivate</span>
+                            </button>
+                          )}
+
+                          {/* Activate Live Option (for Inactive / Deactivated Courses) */}
+                          {isArchived && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleActivateCourse(course)}
+                              className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Activate course (publish live)"
+                            >
+                              {isBusy ? (
+                                <Icon name="sync" size={13} className="animate-spin" />
+                              ) : (
+                                <Icon name="play_circle" size={13} />
+                              )}
+                              <span>Activate Live</span>
+                            </button>
+                          )}
+
                           {/* View Course Link (for Published) */}
                           {isPublished && (
                             <Link
@@ -1015,17 +1113,6 @@ function InstructorCoursesStudioInner() {
                             </Link>
                           )}
                         </div>
-
-                        {/* Delete Course Button */}
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleOpenDeleteModal(course)}
-                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                          title="Delete Course Permanently"
-                        >
-                          <Icon name="delete" size={16} />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1036,46 +1123,46 @@ function InstructorCoursesStudioInner() {
         </div>
       </div>
 
-      {/* Delete Course Confirmation Modal */}
+      {/* Deactivate Course Confirmation Modal */}
       <Modal
-        isOpen={isDeleteModalOpen}
+        isOpen={isDeactivateModalOpen}
         onClose={() => {
-          if (!isDeleting) {
-            setIsDeleteModalOpen(false);
-            setCourseToDelete(null);
+          if (!isDeactivating) {
+            setIsDeactivateModalOpen(false);
+            setCourseToDeactivate(null);
           }
         }}
         maxWidth="md"
-        title="Delete Course Permanently"
-        subtitle="This action cannot be undone"
+        title="Deactivate Course"
+        subtitle="Unlist this course from public enrollment"
       >
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
-              <Icon name="warning" size={22} />
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0">
+              <Icon name="pause_circle" size={22} />
             </div>
             <div className="space-y-1">
-              <h4 className="text-sm font-bold text-rose-900">
-                Are you sure you want to delete this course?
+              <h4 className="text-sm font-bold text-amber-950">
+                Are you sure you want to deactivate this course?
               </h4>
-              <p className="text-xs text-rose-700 leading-relaxed">
-                You are about to delete <strong className="font-semibold text-rose-950">&quot;{courseToDelete?.title}&quot;</strong>.
-                All curriculum sections, video lessons, and resources associated with this course will be permanently removed.
+              <p className="text-xs text-amber-800 leading-relaxed">
+                You are about to deactivate <strong className="font-semibold text-amber-950">&quot;{courseToDeactivate?.title}&quot;</strong>.
+                This course will be hidden from the public catalog. Existing students who already enrolled will continue to have access to their lectures. You can reactivate this course at any time.
               </p>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-            💡 <strong>Helpful Tip:</strong> If you only want to take this course down to make revisions or updates, click <strong>Cancel</strong> and use <strong>&quot;Move to Draft&quot;</strong> instead!
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+            🔒 <strong>Permanent Deletion Restricted:</strong> Courses cannot be deleted once created to protect student enrollment records and certificates. Deactivating keeps your content safe while making it unlisted.
           </div>
 
           <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
             <button
               type="button"
-              disabled={isDeleting}
+              disabled={isDeactivating}
               onClick={() => {
-                setIsDeleteModalOpen(false);
-                setCourseToDelete(null);
+                setIsDeactivateModalOpen(false);
+                setCourseToDeactivate(null);
               }}
               className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer disabled:opacity-50"
             >
@@ -1083,19 +1170,19 @@ function InstructorCoursesStudioInner() {
             </button>
             <button
               type="button"
-              disabled={isDeleting}
-              onClick={handleConfirmDelete}
-              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              disabled={isDeactivating}
+              onClick={handleConfirmDeactivate}
+              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
-              {isDeleting ? (
+              {isDeactivating ? (
                 <>
                   <Icon name="sync" size={14} className="animate-spin" />
-                  <span>Deleting Course...</span>
+                  <span>Deactivating...</span>
                 </>
               ) : (
                 <>
-                  <Icon name="delete_forever" size={14} />
-                  <span>Yes, Delete Course</span>
+                  <Icon name="pause_circle" size={14} />
+                  <span>Confirm Deactivation</span>
                 </>
               )}
             </button>

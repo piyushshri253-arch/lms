@@ -18,12 +18,7 @@ import {
   ArrowUpRight,
   Loader2,
   ShieldCheck,
-  Plus,
-  ExternalLink,
-  ChevronRight,
-  Building2,
-  CreditCard,
-  Sparkles
+  ChevronRight
 } from 'lucide-react';
 
 export default function InstructorDashboardPage() {
@@ -71,7 +66,7 @@ export default function InstructorDashboardPage() {
     );
   }
 
-  const { profile, bankAccount, metrics, recentCourses, recentTransactions } = data;
+  const { profile, bankAccount, metrics, recentTransactions } = data;
 
   // Bank status badge renderer
   const renderBankBadge = (status: string) => {
@@ -114,32 +109,11 @@ export default function InstructorDashboardPage() {
     }
   };
 
-  // Header quick actions
-  const headerActions = (
-    <div className="flex items-center gap-2.5">
-      <Link
-        href="/instructor/courses/builder"
-        className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-sm transition-all"
-      >
-        <Plus className="w-4 h-4" />
-        <span>Create Course</span>
-      </Link>
-      <Link
-        href="/instructor"
-        className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs inline-flex items-center gap-1.5 transition-all"
-      >
-        <span>Course Studio</span>
-        <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
-      </Link>
-    </div>
-  );
-
   return (
     <InstructorPortalShell
       title={`Welcome back, ${profile.name || 'Instructor'}`}
       subtitle="Real-time metrics for your course lifecycle, enrolled students, earnings & bank payouts"
       profile={profile}
-      actions={headerActions}
     >
       <div className="space-y-8">
         {/* Bank Account Status Banner (When Not Verified) */}
@@ -315,7 +289,7 @@ export default function InstructorDashboardPage() {
                 {metrics.inactiveCourses}
               </div>
               <div className="mt-2 text-[11px] text-rose-600/80 flex items-center justify-between">
-                <span>Archived or needs revision</span>
+                <span>Archived or deactivated</span>
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
                   Inactive
                 </span>
@@ -519,98 +493,67 @@ export default function InstructorDashboardPage() {
           </div>
         </section>
 
-        {/* ======================================================== */}
-        {/* SECTION 4: REAL COURSES OVERVIEW & RECENT TRANSACTIONS   */}
-        {/* ======================================================== */}
+        {/* ========================================================================= */}
+        {/* SECTION 4: RECENT EARNINGS & TRANSACTIONS LEDGER + INSTRUCTOR ACCOUNT     */}
+        {/* ========================================================================= */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Courses Table (2 Columns) */}
+          {/* Recent Earnings & Ledger Transactions (2 Columns) */}
           <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
-                  Your Authored Courses ({metrics.totalCourses})
+                  Recent Earnings &amp; Ledger Transactions
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Recent courses created and managed under your instructor account
+                  Course sales credited to your balance with automatic 85% instructor revenue share
                 </p>
               </div>
               <Link
-                href="/instructor"
+                href="/instructor/transactions"
                 className="text-xs font-bold text-violet-600 hover:text-violet-700"
               >
-                View Studio →
+                View Full Ledger →
               </Link>
             </div>
 
-            {!recentCourses || recentCourses.length === 0 ? (
+            {!recentTransactions || recentTransactions.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-500">
-                No courses created yet.{' '}
-                <Link
-                  href="/instructor/courses/builder"
-                  className="font-bold text-violet-600 hover:underline"
-                >
-                  Create your first masterclass now
-                </Link>
-                .
+                No transactions recorded yet. Real-time earnings will appear here as students enroll in your courses.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="pb-3 font-semibold">Course Title</th>
+                      <th className="pb-3 font-semibold">Ref ID</th>
+                      <th className="pb-3 font-semibold">Course</th>
+                      <th className="pb-3 font-semibold">Student</th>
+                      <th className="pb-3 font-semibold">Gross Fee</th>
+                      <th className="pb-3 font-semibold">Your Net Share</th>
                       <th className="pb-3 font-semibold">Status</th>
-                      <th className="pb-3 font-semibold">Price</th>
-                      <th className="pb-3 font-semibold text-center">Students</th>
-                      <th className="pb-3 font-semibold text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {recentCourses.slice(0, 6).map((c: any) => {
-                      const st = (c.status || 'DRAFT').toUpperCase();
-                      const statusColor =
-                        st === 'PUBLISHED' || st === 'APPROVED'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : st === 'IN_REVIEW' || st === 'PENDING'
-                          ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : st === 'REJECTED'
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : 'bg-slate-100 text-slate-700 border-slate-200';
-
-                      return (
-                        <tr key={c.id} className="hover:bg-slate-50">
-                          <td className="py-3 pr-2">
-                            <div className="font-bold text-slate-900 truncate max-w-[220px]">
-                              {c.title}
-                            </div>
-                            <div className="text-[11px] text-slate-500">
-                              {c.category?.name || c.category || 'Tech & Engineering'}
-                            </div>
-                          </td>
-                          <td className="py-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusColor}`}
-                            >
-                              {st}
-                            </span>
-                          </td>
-                          <td className="py-3 font-mono text-slate-700">
-                            ₹{Number(c.discountPrice ?? c.price ?? 0).toLocaleString('en-IN')}
-                          </td>
-                          <td className="py-3 text-center font-bold text-slate-900">
-                            {c._count?.enrollments ?? 0}
-                          </td>
-                          <td className="py-3 text-right">
-                            <Link
-                              href={`/instructor/courses/builder?courseId=${c.id}`}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-violet-50 hover:text-violet-600 font-bold text-[11px] text-slate-700 transition-colors"
-                            >
-                              Builder
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {recentTransactions.slice(0, 7).map((t: any) => (
+                      <tr key={t.id} className="hover:bg-slate-50">
+                        <td className="py-3 font-mono text-slate-600">{t.transactionRef}</td>
+                        <td className="py-3 font-semibold text-slate-900 truncate max-w-[200px]">
+                          {t.courseTitle || 'Course'}
+                        </td>
+                        <td className="py-3 text-slate-600">{t.studentName || 'Student'}</td>
+                        <td className="py-3 text-slate-700 font-mono">
+                          ₹{Number(t.grossAmount).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 font-bold text-emerald-600 font-mono">
+                          ₹{Number(t.netAmount).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -672,69 +615,6 @@ export default function InstructorDashboardPage() {
               </Link>
             </div>
           </div>
-        </div>
-
-        {/* Transactions Ledger Preview */}
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-800">
-                Recent Earnings &amp; Ledger Transactions
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Course sales credited to your balance with automatic 85% instructor revenue share
-              </p>
-            </div>
-            <Link
-              href="/instructor/transactions"
-              className="text-xs font-bold text-violet-600 hover:text-violet-700"
-            >
-              View Full Ledger →
-            </Link>
-          </div>
-
-          {!recentTransactions || recentTransactions.length === 0 ? (
-            <div className="py-10 text-center text-xs text-slate-500">
-              No transactions recorded yet. Real-time earnings will appear here as students purchase your courses.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-2.5 font-semibold">Ref ID</th>
-                    <th className="pb-2.5 font-semibold">Course</th>
-                    <th className="pb-2.5 font-semibold">Student</th>
-                    <th className="pb-2.5 font-semibold">Gross Fee</th>
-                    <th className="pb-2.5 font-semibold">Your Net Share</th>
-                    <th className="pb-2.5 font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentTransactions.slice(0, 6).map((t: any) => (
-                    <tr key={t.id} className="hover:bg-slate-50">
-                      <td className="py-3 font-mono text-slate-600">{t.transactionRef}</td>
-                      <td className="py-3 font-semibold text-slate-900 truncate max-w-[200px]">
-                        {t.courseTitle || 'Course'}
-                      </td>
-                      <td className="py-3 text-slate-600">{t.studentName || 'Student'}</td>
-                      <td className="py-3 text-slate-700">
-                        ₹{Number(t.grossAmount).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 font-bold text-emerald-600">
-                        ₹{Number(t.netAmount).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {t.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
     </InstructorPortalShell>

@@ -145,8 +145,14 @@ export async function POST(
     let targetStatus = 'PUBLISHED';
     let responseMessage = 'Course approved and published live to landing page!';
 
-    // Moving back to DRAFT / UNPUBLISH is permitted for both instructors and admins
-    if (body.status === 'DRAFT' || body.action === 'UNPUBLISH') {
+    // Deactivate / Activate / Unpublish actions
+    if (body.action === 'DEACTIVATE' || body.status === 'ARCHIVED' || body.status === 'INACTIVE') {
+      targetStatus = 'ARCHIVED';
+      responseMessage = 'Course successfully deactivated. It is now unlisted from the platform.';
+    } else if (body.action === 'ACTIVATE') {
+      targetStatus = 'PUBLISHED';
+      responseMessage = 'Course successfully activated and published live! 🚀';
+    } else if (body.status === 'DRAFT' || body.action === 'UNPUBLISH') {
       targetStatus = 'DRAFT';
       responseMessage = 'Course successfully moved back to draft state.';
     } else if (user.role === 'INSTRUCTOR') {
