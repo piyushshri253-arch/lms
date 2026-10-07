@@ -350,7 +350,11 @@ function CourseBuilderContent() {
   };
 
   // Save as Draft
-  const handleSaveDraft = async (options?: { submitForApproval?: boolean; silent?: boolean }) => {
+  const handleSaveDraft = async (options?: {
+    submitForApproval?: boolean;
+    silent?: boolean;
+    resetAfterSave?: boolean;
+  }) => {
     if (!courseState.title.trim()) {
       if (!options?.silent) {
         showToast({
@@ -439,25 +443,6 @@ function CourseBuilderContent() {
 
         savedCourseId = data.course.id;
         savedSlug = data.course.slug;
-        setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
-
-        // Keep courseId in URL without reloading or resetting state
-        if (typeof window !== 'undefined' && savedCourseId) {
-          const url = new URL(window.location.href);
-          url.searchParams.set('courseId', savedCourseId);
-          window.history.replaceState({}, '', url.toString());
-          try {
-            localStorage.removeItem('morena_course_builder_draft_new');
-            localStorage.setItem(
-              `morena_course_builder_draft_${savedCourseId}`,
-              JSON.stringify({
-                courseState: { ...courseState, id: savedCourseId, slug: savedSlug },
-                currentStep,
-                updatedAt: Date.now()
-              })
-            );
-          } catch {}
-        }
       } else {
         // Update existing course in DB
         const res = await fetch(`/api/courses/${courseState.slug || savedCourseId}`, {
@@ -481,16 +466,67 @@ function CourseBuilderContent() {
         if (data.course?.slug) savedSlug = data.course.slug;
       }
 
-      if (savedCourseId && savedSlug) {
-        setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
-      }
+      if (options?.resetAfterSave) {
+        // Clear all stored builder drafts so it resets completely for a new course
+        try {
+          localStorage.removeItem('morena_course_builder_draft_new');
+          localStorage.removeItem('morena_course_builder_live_preview');
+          if (savedCourseId) localStorage.removeItem(`morena_course_builder_draft_${savedCourseId}`);
+          if (courseState.id) localStorage.removeItem(`morena_course_builder_draft_${courseState.id}`);
+          if (courseState.slug) localStorage.removeItem(`morena_course_builder_draft_${courseState.slug}`);
+          Object.keys(localStorage).forEach((k) => {
+            if (k.startsWith('morena_course_builder_draft_')) {
+              localStorage.removeItem(k);
+            }
+          });
+        } catch {}
 
-      if (!options?.silent) {
+        // Reset course state back to clean initial blank form
+        setCourseState(getDefaultCourseState());
+        setCurrentStep(0);
+        lastSavedPayloadRef.current = '';
+
+        // Reset browser URL to clean builder without courseId
+        if (typeof window !== 'undefined') {
+          const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
+          window.history.replaceState({}, '', cleanUrl);
+        }
+
         showToast({
-          title: 'Draft Saved Successfully 💾',
-          description: `"${courseState.title}" saved to database.`,
+          title: 'Draft Saved to Studio 💾',
+          description: `"${courseState.title}" saved to Drafts. Form is reset and ready to create a new course!`,
           type: 'success'
         });
+      } else {
+        if (savedCourseId && savedSlug) {
+          setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
+        }
+
+        // Silent background sync updates URL and local cache
+        if (typeof window !== 'undefined' && savedCourseId && !options?.submitForApproval) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('courseId', savedCourseId);
+          window.history.replaceState({}, '', url.toString());
+          try {
+            localStorage.removeItem('morena_course_builder_draft_new');
+            localStorage.setItem(
+              `morena_course_builder_draft_${savedCourseId}`,
+              JSON.stringify({
+                courseState: { ...courseState, id: savedCourseId, slug: savedSlug },
+                currentStep,
+                updatedAt: Date.now()
+              })
+            );
+          } catch {}
+        }
+
+        if (!options?.silent) {
+          showToast({
+            title: 'Draft Saved Successfully 💾',
+            description: `"${courseState.title}" saved to database.`,
+            type: 'success'
+          });
+        }
       }
 
       return { id: savedCourseId, slug: savedSlug };
@@ -555,24 +591,31 @@ function CourseBuilderContent() {
         });
       } catch {}
 
+      // Reset internal builder form completely so it doesn't stay on the submitted course
+      setCourseState(getDefaultCourseState());
+      setCurrentStep(0);
+      lastSavedPayloadRef.current = '';
+
+      if (typeof window !== 'undefined') {
+        const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
+        window.history.replaceState({}, '', cleanUrl);
+      }
+
       if (isInstructor) {
         if (courseState.status === 'APPROVED') {
-          setCourseState((prev) => ({ ...prev, status: 'PUBLISHED' }));
           showToast({
             title: 'Course Published Live! 🚀',
             description: 'Your approved masterclass is now live on the landing page for student enrollment.',
             type: 'success'
           });
         } else {
-          setCourseState((prev) => ({ ...prev, status: 'IN_REVIEW' }));
           showToast({
             title: 'Course Submitted for Approval! 📋',
-            description: 'Your course has been moved to Pending Approval. The QA Auditor will review it shortly.',
+            description: 'Your course has been moved to Pending Approval. Form is reset and ready for a new course!',
             type: 'success'
           });
         }
       } else {
-        setCourseState((prev) => ({ ...prev, status: 'PUBLISHED' }));
         showToast({
           title: 'Course Published Live! 🚀',
           description: 'Your masterclass is now live on the landing page and available for student enrollment.',
@@ -582,7 +625,7 @@ function CourseBuilderContent() {
 
       setTimeout(() => {
         router.push(isInstructor ? '/instructor?tab=IN_REVIEW' : '/admin/courses');
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       showToast({ title: 'Publishing Error', description: err.message, type: 'error' });
     } finally {
@@ -706,20 +749,6 @@ function CourseBuilderContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
-          {/* Background DB Auto-save Status Indicator */}
-          {autoSaveStatus === 'saving' && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 font-semibold px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800">
-              <Icon name="sync" size={14} className="animate-spin text-amber-600" />
-              <span>Autosaving to DB...</span>
-            </div>
-          )}
-          {autoSaveStatus === 'saved' && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              <Icon name="cloud_done" size={14} className="text-emerald-600 dark:text-emerald-400" />
-              <span>Saved in DB</span>
-            </div>
-          )}
-
           {/* Live Course Preview Button (Opens modal without losing any form fields!) */}
           <button
             type="button"
@@ -733,7 +762,7 @@ function CourseBuilderContent() {
           <button
             type="button"
             disabled={isSaving}
-            onClick={() => handleSaveDraft()}
+            onClick={() => handleSaveDraft({ resetAfterSave: true })}
             className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <Icon name="save" size={16} />
