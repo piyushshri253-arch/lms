@@ -29,7 +29,7 @@ interface CourseAuthored {
   };
 }
 
-type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'INACTIVE' | 'REJECTED' | 'CATALOG';
+type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'INACTIVE' | 'REJECTED';
 
 function InstructorCoursesStudioInner() {
   const router = useRouter();
@@ -38,9 +38,7 @@ function InstructorCoursesStudioInner() {
 
   // Courses State
   const [courses, setCourses] = useState<CourseAuthored[]>([]);
-  const [platformCourses, setPlatformCourses] = useState<CourseAuthored[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCatalogLoading, setIsCatalogLoading] = useState(false);
 
   // Tabs & Search State
   const [activeTab, setActiveTab] = useState<TabType>('ALL');
@@ -74,7 +72,7 @@ function InstructorCoursesStudioInner() {
     const tabParam = searchParams?.get('tab');
     if (tabParam) {
       const upper = tabParam.toUpperCase();
-      if (['ALL', 'PUBLISHED', 'IN_REVIEW', 'DRAFT', 'INACTIVE', 'REJECTED', 'CATALOG'].includes(upper)) {
+      if (['ALL', 'PUBLISHED', 'IN_REVIEW', 'DRAFT', 'INACTIVE', 'REJECTED'].includes(upper)) {
         setActiveTab(upper as TabType);
       }
     }
@@ -98,32 +96,9 @@ function InstructorCoursesStudioInner() {
     }
   };
 
-  // Fetch Entire Platform Catalog
-  const fetchPlatformCatalog = async () => {
-    if (platformCourses.length > 0) return;
-    try {
-      setIsCatalogLoading(true);
-      const res = await fetch('/api/courses');
-      const data = await res.json();
-      if (res.ok && data.courses) {
-        setPlatformCourses(data.courses);
-      }
-    } catch {
-      showToast({ title: 'Error', description: 'Failed to load academy catalog.', type: 'error' });
-    } finally {
-      setIsCatalogLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchInstructorCourses();
   }, [currentUser]);
-
-  useEffect(() => {
-    if (activeTab === 'CATALOG') {
-      fetchPlatformCatalog();
-    }
-  }, [activeTab]);
 
   // Submit Draft course for Reviewer/Admin approval
   const handleSubmitForApproval = async (courseId: string, courseSlug?: string) => {
@@ -387,16 +362,6 @@ function InstructorCoursesStudioInner() {
       );
     });
 
-  const filteredCatalogCourses = platformCourses.filter((c) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      c.title.toLowerCase().includes(q) ||
-      (c.category && c.category.toLowerCase().includes(q)) ||
-      (c.instructor?.name && c.instructor.name.toLowerCase().includes(q))
-    );
-  });
-
   const shellTitle =
     sidebarTab === 'students'
       ? 'Enrolled Students & Learners'
@@ -622,7 +587,7 @@ function InstructorCoursesStudioInner() {
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-500 font-bold">Catalog Value</p>
+              <p className="text-xs text-slate-500 font-bold">Gross Portfolio Value</p>
               <h3 className="text-2xl font-black text-emerald-600 font-mono mt-1">
                 ₹{totalRevenue.toLocaleString('en-IN')}
               </h3>
@@ -640,12 +605,10 @@ function InstructorCoursesStudioInner() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-900">
-                {activeTab === 'CATALOG' ? 'Academy Course Catalog' : 'Your Authored Masterclasses'}
+                Your Authored Masterclasses
               </h2>
               <p className="text-xs text-slate-500">
-                {activeTab === 'CATALOG'
-                  ? 'Browse all live published courses available across Morena Teach'
-                  : 'Manage syllabus, publish live, move to draft, or delete your courses'}
+                Manage syllabus, publish live, move to draft, or mark courses active/inactive
               </p>
             </div>
 
@@ -757,94 +720,9 @@ function InstructorCoursesStudioInner() {
               </button>
             )}
 
-            <div className="h-5 w-px bg-slate-200 mx-1" />
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('CATALOG')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'CATALOG'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-              }`}
-              title="Explore all courses on Morena Teach platform"
-            >
-              <Icon name="public" size={15} />
-              <span>Academy Catalog 🌐</span>
-            </button>
           </div>
 
-          {/* Tab Content: Platform Catalog View */}
-          {activeTab === 'CATALOG' ? (
-            isCatalogLoading ? (
-              <div className="py-12 text-center text-slate-500 text-sm flex items-center justify-center gap-2">
-                <Icon name="sync" size={20} className="animate-spin text-violet-600" />
-                <span>Loading academy course catalog...</span>
-              </div>
-            ) : filteredCatalogCourses.length === 0 ? (
-              <div className="py-12 text-center space-y-3">
-                <p className="text-sm font-bold text-slate-900">No courses found matching your search</p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="text-xs text-violet-600 font-bold hover:underline"
-                >
-                  Clear search filter
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCatalogCourses.map((c) => (
-                  <div
-                    key={c.id}
-                    className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:border-violet-400 hover:bg-white transition-all shadow-2xs"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                          Live on Platform
-                        </span>
-                        <span className="font-mono text-sm font-black text-emerald-600">
-                          {c.price === 0 ? 'Free' : `₹${c.price.toLocaleString('en-IN')}`}
-                        </span>
-                      </div>
-
-                      <h3 className="font-bold text-sm text-slate-900 line-clamp-2">{c.title}</h3>
-                      <p className="text-xs text-slate-500 line-clamp-2">
-                        {c.category || 'General'} &bull; {c.level}
-                      </p>
-
-                      {c.instructor && (
-                        <div className="flex items-center gap-2 pt-1 text-xs text-slate-600">
-                          <UserAvatar
-                            avatar={c.instructor.avatar}
-                            name={c.instructor.name || 'Instructor'}
-                            size="sm"
-                            className="w-5 h-5 text-[9px]"
-                          />
-                          <span className="truncate">{c.instructor.name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-4 mt-4 border-t border-slate-200 flex items-center justify-between">
-                      <span className="text-xs text-slate-600 font-mono">
-                        ⭐ {c.rating || 5.0}
-                      </span>
-                      <Link
-                        href={`/courses/${c.slug || c.id}`}
-                        target="_blank"
-                        className="text-xs font-bold text-violet-600 hover:underline inline-flex items-center gap-1"
-                      >
-                        <span>View Course Page</span>
-                        <Icon name="open_in_new" size={13} />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : isLoading ? (
+          {isLoading ? (
             <div className="py-12 text-center text-slate-500 text-sm flex items-center justify-center gap-2">
               <Icon name="sync" size={20} className="animate-spin text-violet-600" />
               <span>Loading authored courses...</span>
@@ -985,7 +863,7 @@ function InstructorCoursesStudioInner() {
 
                       {isArchived && (
                         <p className="text-[11px] text-slate-700 bg-slate-100 p-2.5 rounded-xl border border-slate-200 font-medium">
-                          ⏸️ This course is inactive and hidden from the public academy catalog. Click &quot;Make Active&quot; below to restore it.
+                          ⏸️ This course is inactive and unlisted. Click &quot;Make Active&quot; below to restore it.
                         </p>
                       )}
                     </div>
