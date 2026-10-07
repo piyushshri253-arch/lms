@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 
 interface CourseMediaProps {
   thumbnail: string;
-  banner: string;
+  banner?: string;
   onChange: (field: string, value: string) => void;
 }
 
@@ -78,13 +78,12 @@ async function compressImageFile(
   });
 }
 
-export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner, onChange }) => {
+export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, onChange }) => {
   const { showToast } = useApp();
   const thumbnailFileRef = useRef<HTMLInputElement>(null);
-  const bannerFileRef = useRef<HTMLInputElement>(null);
-  const [isCompressing, setIsCompressing] = useState<'thumbnail' | 'banner' | null>(null);
+  const [isCompressing, setIsCompressing] = useState<boolean>(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'thumbnail' | 'banner') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -93,20 +92,15 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
       return;
     }
 
-    setIsCompressing(field);
+    setIsCompressing(true);
     try {
-      // Scale thumbnail to 960x540 (crisp 16:9 ~50KB), banner to 1280x720 (~100KB)
-      const compressedBase64 = await compressImageFile(
-        file,
-        field === 'thumbnail' ? 960 : 1280,
-        field === 'thumbnail' ? 540 : 720,
-        field === 'thumbnail' ? 0.75 : 0.72
-      );
+      // Scale thumbnail to 960x540 (crisp 16:9 ~50KB)
+      const compressedBase64 = await compressImageFile(file, 960, 540, 0.75);
 
-      onChange(field, compressedBase64);
+      onChange('thumbnail', compressedBase64);
       showToast({
         title: 'Image Ready 🖼️',
-        description: `${field === 'thumbnail' ? 'Course thumbnail' : 'Cover banner'} optimized and attached.`,
+        description: 'Course thumbnail optimized and attached.',
         type: 'success'
       });
     } catch (err: any) {
@@ -116,12 +110,9 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
         type: 'error'
       });
     } finally {
-      setIsCompressing(null);
-      if (field === 'thumbnail' && thumbnailFileRef.current) {
+      setIsCompressing(false);
+      if (thumbnailFileRef.current) {
         thumbnailFileRef.current.value = '';
-      }
-      if (field === 'banner' && bannerFileRef.current) {
-        bannerFileRef.current.value = '';
       }
     }
   };
@@ -177,25 +168,25 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
               ref={thumbnailFileRef}
               type="file"
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              onChange={(e) => handleFileUpload(e, 'thumbnail')}
+              onChange={handleFileUpload}
               className="hidden"
             />
 
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={isCompressing !== null}
+                disabled={isCompressing}
                 onClick={() => thumbnailFileRef.current?.click()}
                 className="px-4 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Icon name={isCompressing === 'thumbnail' ? 'sync' : 'cloud_upload'} size={16} className={isCompressing === 'thumbnail' ? 'animate-spin' : ''} />
-                <span>{isCompressing === 'thumbnail' ? 'Optimizing & Attaching...' : 'Upload from Computer'}</span>
+                <Icon name={isCompressing ? 'sync' : 'cloud_upload'} size={16} className={isCompressing ? 'animate-spin' : ''} />
+                <span>{isCompressing ? 'Optimizing & Attaching...' : 'Upload from Computer'}</span>
               </button>
 
               {thumbnail && (
                 <button
                   type="button"
-                  disabled={isCompressing !== null}
+                  disabled={isCompressing}
                   onClick={() => onChange('thumbnail', '')}
                   className="px-4 py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50"
                 >
@@ -216,81 +207,6 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, banner,
                 className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-mono"
               />
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Course Header Banner (Cover) */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-        <div>
-          <h3 className="text-lg font-black text-on-surface">Course Header Cover Banner (Optional)</h3>
-          <p className="text-xs text-on-surface-variant">
-            Widescreen banner displayed behind the hero header on the student course landing page (21:9 or 1920x600px).
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="h-36 sm:h-48 w-full bg-surface-container-low rounded-2xl border-2 border-dashed border-outline-variant relative overflow-hidden flex flex-col items-center justify-center text-center p-4">
-            {banner ? (
-              <>
-                <img src={banner} alt="Course Cover Banner" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => bannerFileRef.current?.click()}
-                    className="px-3 py-1.5 bg-white text-black font-bold text-xs rounded-xl shadow-md cursor-pointer"
-                  >
-                    Change Banner
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onChange('banner', '')}
-                    className="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-2 select-none">
-                <div className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center mx-auto">
-                  <Icon name="landscape" size={24} />
-                </div>
-                <p className="text-xs font-bold text-on-surface">No hero banner uploaded</p>
-                <p className="text-[11px] text-on-surface-variant">Optional widescreen banner for the course landing hero</p>
-              </div>
-            )}
-          </div>
-
-          <input
-            ref={bannerFileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            onChange={(e) => handleFileUpload(e, 'banner')}
-            className="hidden"
-          />
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={isCompressing !== null}
-              onClick={() => bannerFileRef.current?.click()}
-              className="px-4 py-2 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Icon name={isCompressing === 'banner' ? 'sync' : 'cloud_upload'} size={16} className={isCompressing === 'banner' ? 'animate-spin' : ''} />
-              <span>{isCompressing === 'banner' ? 'Optimizing & Attaching...' : 'Upload Banner Image'}</span>
-            </button>
-
-            {banner && (
-              <button
-                type="button"
-                disabled={isCompressing !== null}
-                onClick={() => onChange('banner', '')}
-                className="px-4 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50"
-              >
-                Remove Banner
-              </button>
-            )}
           </div>
         </div>
       </div>
