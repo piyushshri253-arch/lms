@@ -70,6 +70,16 @@ function InstructorCoursesStudioInner() {
     }
   }, [createParam, router]);
 
+  useEffect(() => {
+    const tabParam = searchParams?.get('tab');
+    if (tabParam) {
+      const upper = tabParam.toUpperCase();
+      if (['ALL', 'PUBLISHED', 'IN_REVIEW', 'DRAFT', 'REJECTED', 'CATALOG'].includes(upper)) {
+        setActiveTab(upper as TabType);
+      }
+    }
+  }, [searchParams]);
+
   // Fetch Authored Courses
   const fetchInstructorCourses = async () => {
     try {
@@ -314,18 +324,18 @@ function InstructorCoursesStudioInner() {
   const totalRevenue = courses.reduce((acc, c) => acc + (c.price * (c.studentsCount || 0)), 0);
 
   // Status Tab Counts
-  const publishedCount = courses.filter((c) => c.status === 'PUBLISHED').length;
-  const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW').length;
+  const publishedCount = courses.filter((c) => c.status === 'PUBLISHED' || c.status === 'APPROVED').length;
+  const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW' || c.status === 'PENDING').length;
   const draftCount = courses.filter((c) => c.status === 'DRAFT').length;
-  const rejectedCount = courses.filter((c) => c.status === 'REJECTED').length;
+  const rejectedCount = courses.filter((c) => c.status === 'REJECTED' || c.status === 'ARCHIVED').length;
 
   // Filtered Courses
   const filteredAuthoredCourses = courses
     .filter((c) => {
-      if (activeTab === 'PUBLISHED') return c.status === 'PUBLISHED';
-      if (activeTab === 'IN_REVIEW') return c.status === 'IN_REVIEW';
+      if (activeTab === 'PUBLISHED') return c.status === 'PUBLISHED' || c.status === 'APPROVED';
+      if (activeTab === 'IN_REVIEW') return c.status === 'IN_REVIEW' || c.status === 'PENDING';
       if (activeTab === 'DRAFT') return c.status === 'DRAFT';
-      if (activeTab === 'REJECTED') return c.status === 'REJECTED';
+      if (activeTab === 'REJECTED') return c.status === 'REJECTED' || c.status === 'ARCHIVED';
       return true;
     })
     .filter((c) => {
