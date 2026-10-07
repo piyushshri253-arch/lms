@@ -145,13 +145,23 @@ export async function POST(
     let targetStatus = 'PUBLISHED';
     let responseMessage = 'Course approved and published live to landing page!';
 
-    // Deactivate / Activate / Unpublish actions
-    if (body.action === 'DEACTIVATE' || body.status === 'ARCHIVED' || body.status === 'INACTIVE') {
+    // Inactive / Active / Unpublish actions
+    if (
+      body.action === 'MAKE_INACTIVE' ||
+      body.action === 'INACTIVE' ||
+      body.action === 'DEACTIVATE' ||
+      body.status === 'ARCHIVED' ||
+      body.status === 'INACTIVE'
+    ) {
       targetStatus = 'ARCHIVED';
-      responseMessage = 'Course successfully deactivated. It is now unlisted from the platform.';
-    } else if (body.action === 'ACTIVATE') {
+      responseMessage = 'Course marked as Inactive. It is now unlisted from public enrollment.';
+    } else if (
+      body.action === 'MAKE_ACTIVE' ||
+      body.action === 'ACTIVE' ||
+      body.action === 'ACTIVATE'
+    ) {
       targetStatus = 'PUBLISHED';
-      responseMessage = 'Course successfully activated and published live! 🚀';
+      responseMessage = 'Course marked as Active and published live! 🚀';
     } else if (body.status === 'DRAFT' || body.action === 'UNPUBLISH') {
       targetStatus = 'DRAFT';
       responseMessage = 'Course successfully moved back to draft state.';

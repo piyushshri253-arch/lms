@@ -14,6 +14,63 @@ import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
 
+const getDefaultCourseState = () => ({
+  title: '',
+  slug: '',
+  shortDescription: '',
+  description: '',
+  category: 'Teacher Development',
+  level: 'ALL_LEVELS',
+  language: 'English',
+  durationHours: 12,
+  thumbnail: '',
+  banner: '',
+  price: 2499,
+  discountPrice: 1999,
+  currency: 'INR',
+  status: 'DRAFT' as const,
+  accessType: 'LIFETIME',
+  accessDays: null,
+  whatYouWillLearn: [
+    'Master dynamic classroom engagement techniques and pedagogical best practices',
+    'Foster inclusive learning environments for early years and primary students',
+    'Implement formative assessment strategies to measure holistic student growth'
+  ],
+  requirements: [
+    'Passion for transformative education and classroom leadership',
+    'Basic familiarity with primary school curriculum principles'
+  ],
+  targetAudience: [
+    'Early Childhood Educators',
+    'Primary & Secondary Teachers',
+    'School Principals & Academic Coordinators'
+  ],
+  seoTitle: '',
+  seoDescription: '',
+  sections: [
+    {
+      id: `sec-${Date.now()}-1`,
+      title: 'Module 1: Foundations & Pedagogy Setup',
+      description: 'Core pedagogical frameworks, active classroom strategies, and foundational orientation.',
+      order: 1,
+      lessons: [
+        {
+          id: `les-${Date.now()}-1`,
+          title: 'Welcome & Course Orientation',
+          description: 'Introduction to the course structure and key learning outcomes.',
+          type: 'VIDEO' as const,
+          duration: '10:00',
+          durationSeconds: 600,
+          subLessons: [],
+          isFree: true,
+          isPublished: true,
+          order: 1
+        }
+      ]
+    }
+  ] as BuilderSection[]
+});
+
 function CourseBuilderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,6 +86,12 @@ function CourseBuilderContent() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [hasLoadedInitial, setHasLoadedInitial] = useState<boolean>(false);
+
+  // Background auto-save to database status
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const autoSaveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isAutoSavingRef = React.useRef<boolean>(false);
+  const lastSavedPayloadRef = React.useRef<string>('');
 
   // Live Preview Modal State (keeps 100% of form state intact when opened/closed!)
   const [isLivePreviewOpen, setIsLivePreviewOpen] = useState<boolean>(false);
@@ -60,62 +123,7 @@ function CourseBuilderContent() {
     seoTitle: string;
     seoDescription: string;
     sections: BuilderSection[];
-  }>({
-    title: '',
-    slug: '',
-    shortDescription: '',
-    description: '',
-    category: 'Teacher Development',
-    level: 'ALL_LEVELS',
-    language: 'English',
-    durationHours: 12,
-    thumbnail: '',
-    banner: '',
-    price: 2499,
-    discountPrice: 1999,
-    currency: 'INR',
-    status: 'DRAFT',
-    accessType: 'LIFETIME',
-    accessDays: null,
-    whatYouWillLearn: [
-      'Master dynamic classroom engagement techniques and pedagogical best practices',
-      'Foster inclusive learning environments for early years and primary students',
-      'Implement formative assessment strategies to measure holistic student growth'
-    ],
-    requirements: [
-      'Passion for transformative education and classroom leadership',
-      'Basic familiarity with primary school curriculum principles'
-    ],
-    targetAudience: [
-      'Early Childhood Educators',
-      'Primary & Secondary Teachers',
-      'School Principals & Academic Coordinators'
-    ],
-    seoTitle: '',
-    seoDescription: '',
-    sections: [
-      {
-        id: `sec-${Date.now()}-1`,
-        title: 'Module 1: Foundations & Pedagogy Setup',
-        description: 'Core pedagogical frameworks, active classroom strategies, and foundational orientation.',
-        order: 1,
-        lessons: [
-          {
-            id: `les-${Date.now()}-1`,
-            title: 'Welcome & Course Orientation',
-            description: 'Introduction to the course structure and key learning outcomes.',
-            type: 'VIDEO',
-            duration: '10:00',
-            durationSeconds: 600,
-            subLessons: [],
-            isFree: true,
-            isPublished: true,
-            order: 1
-          }
-        ]
-      }
-    ]
-  });
+  }>(getDefaultCourseState());
 
   // Listen for custom preview event from CourseAssessmentsBanner or child components
   useEffect(() => {
@@ -143,12 +151,18 @@ function CourseBuilderContent() {
         if (savedDraftRaw) {
           const parsed = JSON.parse(savedDraftRaw);
           if (parsed && typeof parsed === 'object' && parsed.courseState) {
-            setCourseState((prev) => ({
-              ...prev,
-              ...parsed.courseState
-            }));
-            if (typeof parsed.currentStep === 'number') {
-              setCurrentStep(parsed.currentStep);
+            // Only restore if this is an unsaved new course that was NOT previously assigned a DB ID
+            // If it already had an ID or wasn't in DRAFT, start clean so "Create Course" is a fresh form
+            if (!parsed.courseState.id && parsed.courseState.title && parsed.courseState.status === 'DRAFT') {
+              setCourseState((prev) => ({
+                ...prev,
+                ...parsed.courseState
+              }));
+              if (typeof parsed.currentStep === 'number') {
+                setCurrentStep(parsed.currentStep);
+              }
+            } else {
+              localStorage.removeItem(draftStorageKey);
             }
           }
         }
@@ -174,6 +188,62 @@ function CourseBuilderContent() {
       // Ignore quota exceeded errors
     }
   }, [courseState, currentStep, hasLoadedInitial, draftStorageKey]);
+
+  // Automated background auto-save to PostgreSQL DB (debounced 2.5s)
+  // When an instructor creates or updates a course, it automatically saves to DB as DRAFT
+  // so if they close the browser or leave, it already appears under Drafts in Instructor Studio!
+  useEffect(() => {
+    if (!hasLoadedInitial || isPublishing) return;
+    if (courseState.status !== 'DRAFT') return;
+    if (!courseState.title || courseState.title.trim().length < 3) return;
+
+    // Hash summary of content to prevent duplicate calls
+    const currentPayloadSummary = JSON.stringify({
+      title: courseState.title.trim(),
+      description: courseState.description,
+      shortDescription: courseState.shortDescription,
+      price: courseState.price,
+      currency: courseState.currency,
+      category: courseState.category,
+      level: courseState.level,
+      sectionsCount: courseState.sections?.length,
+      sectionsSummary: courseState.sections?.map((s) => ({
+        id: s.id,
+        title: s.title,
+        lessons: s.lessons?.map((l) => ({ id: l.id, title: l.title, type: l.type, videoUrl: l.videoUrl }))
+      }))
+    });
+
+    if (currentPayloadSummary === lastSavedPayloadRef.current) {
+      return;
+    }
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (isAutoSavingRef.current || isPublishing) return;
+      try {
+        isAutoSavingRef.current = true;
+        setAutoSaveStatus('saving');
+        await handleSaveDraft({ silent: true });
+        lastSavedPayloadRef.current = currentPayloadSummary;
+        setAutoSaveStatus('saved');
+      } catch (err: any) {
+        console.warn('Background auto-save failed:', err?.message);
+        setAutoSaveStatus('idle');
+      } finally {
+        isAutoSavingRef.current = false;
+      }
+    }, 2500);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [courseState, hasLoadedInitial, isPublishing]);
 
   const loadCourse = async (identifier: string) => {
     setIsLoading(true);
@@ -280,18 +350,25 @@ function CourseBuilderContent() {
   };
 
   // Save as Draft
-  const handleSaveDraft = async (options?: { submitForApproval?: boolean }) => {
+  const handleSaveDraft = async (options?: { submitForApproval?: boolean; silent?: boolean }) => {
     if (!courseState.title.trim()) {
-      showToast({
-        title: 'Course Title Required',
-        description: 'Please enter a course title before saving.',
-        type: 'error'
-      });
-      setCurrentStep(0);
+      if (!options?.silent) {
+        showToast({
+          title: 'Course Title Required',
+          description: 'Please enter a course title before saving.',
+          type: 'error'
+        });
+        setCurrentStep(0);
+      }
+      if (options?.silent) {
+        return null;
+      }
       throw new Error('Course title is required');
     }
 
-    setIsSaving(true);
+    if (!options?.silent) {
+      setIsSaving(true);
+    }
     try {
       let savedCourseId = courseState.id;
       let savedSlug = courseState.slug;
@@ -369,6 +446,17 @@ function CourseBuilderContent() {
           const url = new URL(window.location.href);
           url.searchParams.set('courseId', savedCourseId);
           window.history.replaceState({}, '', url.toString());
+          try {
+            localStorage.removeItem('morena_course_builder_draft_new');
+            localStorage.setItem(
+              `morena_course_builder_draft_${savedCourseId}`,
+              JSON.stringify({
+                courseState: { ...courseState, id: savedCourseId, slug: savedSlug },
+                currentStep,
+                updatedAt: Date.now()
+              })
+            );
+          } catch {}
         }
       } else {
         // Update existing course in DB
@@ -397,18 +485,24 @@ function CourseBuilderContent() {
         setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
       }
 
-      showToast({
-        title: 'Draft Saved Successfully 💾',
-        description: `"${courseState.title}" saved to database.`,
-        type: 'success'
-      });
+      if (!options?.silent) {
+        showToast({
+          title: 'Draft Saved Successfully 💾',
+          description: `"${courseState.title}" saved to database.`,
+          type: 'success'
+        });
+      }
 
       return { id: savedCourseId, slug: savedSlug };
     } catch (err: any) {
-      showToast({ title: 'Save Failed', description: err.message, type: 'error' });
+      if (!options?.silent) {
+        showToast({ title: 'Save Failed', description: err.message, type: 'error' });
+      }
       throw err;
     } finally {
-      setIsSaving(false);
+      if (!options?.silent) {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -448,8 +542,17 @@ function CourseBuilderContent() {
 
       if (!res.ok) throw new Error(data.error || 'Failed to submit course');
 
+      // Clear all builder drafts and cache so returning to Create Course starts completely fresh
       try {
         localStorage.removeItem('morena_course_builder_draft_new');
+        localStorage.removeItem('morena_course_builder_live_preview');
+        if (courseState.id) localStorage.removeItem(`morena_course_builder_draft_${courseState.id}`);
+        if (courseState.slug) localStorage.removeItem(`morena_course_builder_draft_${courseState.slug}`);
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('morena_course_builder_draft_')) {
+            localStorage.removeItem(k);
+          }
+        });
       } catch {}
 
       if (isInstructor) {
@@ -464,7 +567,7 @@ function CourseBuilderContent() {
           setCourseState((prev) => ({ ...prev, status: 'IN_REVIEW' }));
           showToast({
             title: 'Course Submitted for Approval! 📋',
-            description: 'Your course has been submitted to the Course Auditor. Once approved, you will be able to publish it live.',
+            description: 'Your course has been moved to Pending Approval. The QA Auditor will review it shortly.',
             type: 'success'
           });
         }
@@ -478,7 +581,7 @@ function CourseBuilderContent() {
       }
 
       setTimeout(() => {
-        router.push(isInstructor ? '/instructor' : '/admin/courses');
+        router.push(isInstructor ? '/instructor?tab=IN_REVIEW' : '/admin/courses');
       }, 1200);
     } catch (err: any) {
       showToast({ title: 'Publishing Error', description: err.message, type: 'error' });
@@ -603,6 +706,20 @@ function CourseBuilderContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          {/* Background DB Auto-save Status Indicator */}
+          {autoSaveStatus === 'saving' && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 font-semibold px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800">
+              <Icon name="sync" size={14} className="animate-spin text-amber-600" />
+              <span>Autosaving to DB...</span>
+            </div>
+          )}
+          {autoSaveStatus === 'saved' && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <Icon name="cloud_done" size={14} className="text-emerald-600 dark:text-emerald-400" />
+              <span>Saved in DB</span>
+            </div>
+          )}
+
           {/* Live Course Preview Button (Opens modal without losing any form fields!) */}
           <button
             type="button"

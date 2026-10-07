@@ -49,10 +49,10 @@ function InstructorCoursesStudioInner() {
   // Course Actions State
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
 
-  // Deactivate Modal State (Instructors cannot delete courses, only activate/deactivate)
-  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
-  const [courseToDeactivate, setCourseToDeactivate] = useState<CourseAuthored | null>(null);
-  const [isDeactivating, setIsDeactivating] = useState(false);
+  // Inactive Modal State (Instructors cannot delete courses, only mark active/inactive)
+  const [isMakeInactiveModalOpen, setIsMakeInactiveModalOpen] = useState(false);
+  const [courseToMakeInactive, setCourseToMakeInactive] = useState<CourseAuthored | null>(null);
+  const [isMarkingInactive, setIsMarkingInactive] = useState(false);
 
   // Create Course Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -234,62 +234,62 @@ function InstructorCoursesStudioInner() {
   };
 
 
-  // Deactivate Course (Instructors cannot delete courses, but can activate/deactivate)
-  const handleConfirmDeactivate = async () => {
-    if (!courseToDeactivate) return;
-    setIsDeactivating(true);
-    setActionInProgressId(courseToDeactivate.id);
+  // Mark Course as Inactive (Instructors cannot delete courses, only mark active/inactive)
+  const handleConfirmMakeInactive = async () => {
+    if (!courseToMakeInactive) return;
+    setIsMarkingInactive(true);
+    setActionInProgressId(courseToMakeInactive.id);
     try {
-      const identifier = courseToDeactivate.slug || courseToDeactivate.id;
+      const identifier = courseToMakeInactive.slug || courseToMakeInactive.id;
       const res = await fetch(`/api/courses/${identifier}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'DEACTIVATE' })
+        body: JSON.stringify({ action: 'MAKE_INACTIVE' })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to deactivate course');
+        throw new Error(data.error || 'Failed to mark course inactive');
       }
 
       setCourses((prev) =>
-        prev.map((c) => (c.id === courseToDeactivate.id ? { ...c, status: 'ARCHIVED' } : c))
+        prev.map((c) => (c.id === courseToMakeInactive.id ? { ...c, status: 'ARCHIVED' } : c))
       );
 
       showToast({
-        title: 'Course Deactivated ⏸️',
-        description: `"${courseToDeactivate.title}" is now inactive and unlisted. Enrolled learners still retain their access.`,
+        title: 'Course Marked Inactive ⏸️',
+        description: `"${courseToMakeInactive.title}" is now Inactive and unlisted. Enrolled learners still retain their access.`,
         type: 'success'
       });
 
-      setIsDeactivateModalOpen(false);
-      setCourseToDeactivate(null);
+      setIsMakeInactiveModalOpen(false);
+      setCourseToMakeInactive(null);
     } catch (err: any) {
       showToast({
-        title: 'Deactivation Failed',
-        description: err.message || 'Failed to deactivate course.',
+        title: 'Action Failed',
+        description: err.message || 'Failed to mark course inactive.',
         type: 'error'
       });
     } finally {
-      setIsDeactivating(false);
+      setIsMarkingInactive(false);
       setActionInProgressId(null);
     }
   };
 
-  // Reactivate Inactive Course
-  const handleActivateCourse = async (course: CourseAuthored) => {
+  // Mark Inactive Course as Active
+  const handleMakeActive = async (course: CourseAuthored) => {
     setActionInProgressId(course.id);
     try {
       const identifier = course.slug || course.id;
       const res = await fetch(`/api/courses/${identifier}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ACTIVATE' })
+        body: JSON.stringify({ action: 'MAKE_ACTIVE' })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to activate course');
+        throw new Error(data.error || 'Failed to make course active');
       }
 
       setCourses((prev) =>
@@ -297,14 +297,14 @@ function InstructorCoursesStudioInner() {
       );
 
       showToast({
-        title: 'Course Activated Live! 🚀',
-        description: `"${course.title}" is now active and published live on the platform!`,
+        title: 'Course Marked Active! 🚀',
+        description: `"${course.title}" is now Active and published live on the platform!`,
         type: 'success'
       });
     } catch (err: any) {
       showToast({
-        title: 'Activation Failed',
-        description: err.message || 'Failed to activate course.',
+        title: 'Action Failed',
+        description: err.message || 'Failed to make course active.',
         type: 'error'
       });
     } finally {
@@ -713,7 +713,7 @@ function InstructorCoursesStudioInner() {
               }`}
             >
               <Icon name="hourglass_top" size={15} />
-              <span>In Review ({inReviewCount})</span>
+              <span>Pending Approval ({inReviewCount})</span>
             </button>
 
             <button
@@ -739,7 +739,7 @@ function InstructorCoursesStudioInner() {
               }`}
             >
               <Icon name="pause_circle" size={15} />
-              <span>Inactive / Deactivated ({inactiveCount})</span>
+              <span>Inactive ({inactiveCount})</span>
             </button>
 
             {rejectedCount > 0 && (
@@ -939,7 +939,7 @@ function InstructorCoursesStudioInner() {
                             : isRejected
                             ? 'Changes Requested'
                             : isArchived
-                            ? 'Deactivated (Inactive)'
+                            ? 'Inactive'
                             : 'Draft'}
                         </span>
 
@@ -985,7 +985,7 @@ function InstructorCoursesStudioInner() {
 
                       {isArchived && (
                         <p className="text-[11px] text-slate-700 bg-slate-100 p-2.5 rounded-xl border border-slate-200 font-medium">
-                          ⏸️ This course is deactivated and hidden from the public academy catalog. Click &quot;Activate Live&quot; below to restore it.
+                          ⏸️ This course is inactive and hidden from the public academy catalog. Click &quot;Make Active&quot; below to restore it.
                         </p>
                       )}
                     </div>
@@ -1066,38 +1066,38 @@ function InstructorCoursesStudioInner() {
                             </button>
                           )}
 
-                          {/* Deactivate Option (for Live Published Courses) */}
+                          {/* Make Inactive Option (for Live Published Courses) */}
                           {isPublished && (
                             <button
                               type="button"
                               disabled={isBusy}
                               onClick={() => {
-                                setCourseToDeactivate(course);
-                                setIsDeactivateModalOpen(true);
+                                setCourseToMakeInactive(course);
+                                setIsMakeInactiveModalOpen(true);
                               }}
                               className="text-xs font-bold text-slate-700 hover:text-amber-800 bg-white hover:bg-amber-50 border border-slate-300 hover:border-amber-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Deactivate course (unlist from live catalog)"
+                              title="Mark course as inactive (unlist from live catalog)"
                             >
                               <Icon name="pause_circle" size={13} className="text-amber-600" />
-                              <span>Deactivate</span>
+                              <span>Make Inactive</span>
                             </button>
                           )}
 
-                          {/* Activate Live Option (for Inactive / Deactivated Courses) */}
+                          {/* Make Active Option (for Inactive Courses) */}
                           {isArchived && (
                             <button
                               type="button"
                               disabled={isBusy}
-                              onClick={() => handleActivateCourse(course)}
+                              onClick={() => handleMakeActive(course)}
                               className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Activate course (publish live)"
+                              title="Mark course as active (publish live)"
                             >
                               {isBusy ? (
                                 <Icon name="sync" size={13} className="animate-spin" />
                               ) : (
                                 <Icon name="play_circle" size={13} />
                               )}
-                              <span>Activate Live</span>
+                              <span>Make Active</span>
                             </button>
                           )}
 
@@ -1123,17 +1123,17 @@ function InstructorCoursesStudioInner() {
         </div>
       </div>
 
-      {/* Deactivate Course Confirmation Modal */}
+      {/* Mark Course Inactive Confirmation Modal */}
       <Modal
-        isOpen={isDeactivateModalOpen}
+        isOpen={isMakeInactiveModalOpen}
         onClose={() => {
-          if (!isDeactivating) {
-            setIsDeactivateModalOpen(false);
-            setCourseToDeactivate(null);
+          if (!isMarkingInactive) {
+            setIsMakeInactiveModalOpen(false);
+            setCourseToMakeInactive(null);
           }
         }}
         maxWidth="md"
-        title="Deactivate Course"
+        title="Mark Course Inactive"
         subtitle="Unlist this course from public enrollment"
       >
         <div className="space-y-4">
@@ -1143,26 +1143,26 @@ function InstructorCoursesStudioInner() {
             </div>
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-amber-950">
-                Are you sure you want to deactivate this course?
+                Are you sure you want to mark this course as inactive?
               </h4>
               <p className="text-xs text-amber-800 leading-relaxed">
-                You are about to deactivate <strong className="font-semibold text-amber-950">&quot;{courseToDeactivate?.title}&quot;</strong>.
-                This course will be hidden from the public catalog. Existing students who already enrolled will continue to have access to their lectures. You can reactivate this course at any time.
+                You are about to mark <strong className="font-semibold text-amber-950">&quot;{courseToMakeInactive?.title}&quot;</strong> as inactive.
+                This course will be hidden from the public catalog. Existing students who already enrolled will continue to have access to their lectures. You can make this course active at any time.
               </p>
             </div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-            🔒 <strong>Permanent Deletion Restricted:</strong> Courses cannot be deleted once created to protect student enrollment records and certificates. Deactivating keeps your content safe while making it unlisted.
+            🔒 <strong>Permanent Deletion Restricted:</strong> Courses cannot be deleted once created to protect student enrollment records and certificates. Instructors can mark courses active or inactive.
           </div>
 
           <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
             <button
               type="button"
-              disabled={isDeactivating}
+              disabled={isMarkingInactive}
               onClick={() => {
-                setIsDeactivateModalOpen(false);
-                setCourseToDeactivate(null);
+                setIsMakeInactiveModalOpen(false);
+                setCourseToMakeInactive(null);
               }}
               className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer disabled:opacity-50"
             >
@@ -1170,19 +1170,19 @@ function InstructorCoursesStudioInner() {
             </button>
             <button
               type="button"
-              disabled={isDeactivating}
-              onClick={handleConfirmDeactivate}
+              disabled={isMarkingInactive}
+              onClick={handleConfirmMakeInactive}
               className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
-              {isDeactivating ? (
+              {isMarkingInactive ? (
                 <>
                   <Icon name="sync" size={14} className="animate-spin" />
-                  <span>Deactivating...</span>
+                  <span>Updating...</span>
                 </>
               ) : (
                 <>
                   <Icon name="pause_circle" size={14} />
-                  <span>Confirm Deactivation</span>
+                  <span>Make Inactive</span>
                 </>
               )}
             </button>

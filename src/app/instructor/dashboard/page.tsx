@@ -276,7 +276,7 @@ export default function InstructorDashboardPage() {
 
             {/* 5. Inactive Courses */}
             <Link
-              href="/instructor?tab=REJECTED"
+              href="/instructor?tab=INACTIVE"
               className="p-5 rounded-2xl bg-white border border-rose-100 hover:border-rose-300 hover:shadow-md transition-all group block shadow-xs"
             >
               <div className="flex items-center justify-between">
@@ -289,7 +289,7 @@ export default function InstructorDashboardPage() {
                 {metrics.inactiveCourses}
               </div>
               <div className="mt-2 text-[11px] text-rose-600/80 flex items-center justify-between">
-                <span>Archived or deactivated</span>
+                <span>Archived or inactive</span>
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
                   Inactive
                 </span>
