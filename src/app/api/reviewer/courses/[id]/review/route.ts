@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser, getReviewerCurrentUser, requireReviewerAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { createNotification } from '@/lib/notification';
+import { EmailService } from '@/lib/email';
 import {
   getCourseVersionState,
   saveCourseVersionState,
@@ -309,6 +310,7 @@ export async function POST(
       where: { id },
       include: {
         instructor: { select: { id: true, name: true, email: true } },
+        category: { select: { name: true } },
         sections: { include: { lessons: true } }
       }
     });
@@ -539,6 +541,17 @@ export async function POST(
           description: `Auditor "${auditor.name}" approved staged version ${applied.liveVersionLabel} for "${course.title}". Previous v1.0 archived.`
         });
 
+        if (course.instructor?.email) {
+          await EmailService.sendCourseReviewDecisionEmail({
+            decision: 'APPROVED',
+            course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
+            instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+            auditor: { name: auditor.name, role: auditor.role },
+            feedback: trimmedNote,
+            organizationId: course.organizationId
+          }).catch((err) => console.error('[Version Approved Email Error]:', err));
+        }
+
         return NextResponse.json({
           success: true,
           versionState: applied,
@@ -569,6 +582,17 @@ export async function POST(
             category: 'COURSES',
             link: `/instructor/course/${course.id}/review`
           });
+
+          if (course.instructor?.email) {
+            await EmailService.sendCourseReviewDecisionEmail({
+              decision: action === 'REQUEST_CHANGES' ? 'REQUEST_CHANGES' : 'REJECTED',
+              course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
+              instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+              auditor: { name: auditor.name, role: auditor.role },
+              feedback: trimmedNote,
+              organizationId: course.organizationId
+            }).catch((err) => console.error('[Version Changes Requested Email Error]:', err));
+          }
         }
 
         await createAuditLog({
@@ -609,7 +633,7 @@ export async function POST(
       reviewHistory: [newHistoryEntry, ...auditMeta.reviewHistory]
     });
 
-    // Requirement #18: Notify Instructor with link to /instructor/course/[id]/review
+    // Requirement #18: Notify Instructor with link to /instructor/course/[id]/review & Email
     if (course.instructorId) {
       if (action === 'APPROVE') {
         await createNotification({
@@ -621,6 +645,17 @@ export async function POST(
           category: 'COURSES',
           link: `/instructor/course/${course.id}/review`
         });
+
+        if (course.instructor?.email) {
+          await EmailService.sendCourseReviewDecisionEmail({
+            decision: 'APPROVED',
+            course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
+            instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+            auditor: { name: auditor.name, role: auditor.role },
+            feedback: trimmedNote,
+            organizationId: course.organizationId
+          }).catch((err) => console.error('[Standard Course Approved Email Error]:', err));
+        }
       } else {
         await createNotification({
           organizationId: course.organizationId,
@@ -634,6 +669,17 @@ export async function POST(
           category: 'COURSES',
           link: `/instructor/course/${course.id}/review`
         });
+
+        if (course.instructor?.email) {
+          await EmailService.sendCourseReviewDecisionEmail({
+            decision: action === 'REQUEST_CHANGES' ? 'REQUEST_CHANGES' : 'REJECTED',
+            course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
+            instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+            auditor: { name: auditor.name, role: auditor.role },
+            feedback: trimmedNote,
+            organizationId: course.organizationId
+          }).catch((err) => console.error('[Standard Course Rejected Email Error]:', err));
+        }
       }
     }
 

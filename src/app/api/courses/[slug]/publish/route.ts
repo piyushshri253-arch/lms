@@ -213,6 +213,23 @@ export async function POST(
       data: updatePayload
     });
 
+    // Notify Instructor by Email if course status was set to APPROVED or REJECTED
+    if ((targetStatus === 'APPROVED' || targetStatus === 'REJECTED') && course.instructor?.email) {
+      try {
+        const { EmailService } = await import('@/lib/email');
+        await EmailService.sendCourseReviewDecisionEmail({
+          decision: targetStatus,
+          course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
+          instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+          auditor: { name: user.name, role: user.role },
+          feedback: body.reviewFeedback || body.note || null,
+          organizationId: course.organizationId
+        });
+      } catch (emailErr) {
+        console.error('[Course Publish Email Error]:', emailErr);
+      }
+    }
+
     if (targetStatus === 'IN_REVIEW') {
       // Also update version state to PENDING_REVIEW if course versioning is active
       try {

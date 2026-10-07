@@ -34,6 +34,8 @@ export type EmailTemplateType =
   | 'PAYOUT_COMPLETED'
   | 'ACCOUNT_STATUS_CHANGED'
   | 'INSTRUCTOR_ONBOARDED'
+  | 'COURSE_APPROVED'
+  | 'COURSE_REJECTED'
   | 'NOTIFICATION';
 
 export interface SmtpConfigData {
@@ -698,6 +700,105 @@ export function renderEmailHtml(
         <p style="color: #94a3b8; font-size: 11px; text-align: center; word-break: break-all;">
           Or click/copy this link to log in: <a href="${loginUrl}" style="color: ${brandPrimary}; text-decoration: underline;">${loginUrl}</a>
         </p>
+      `;
+      break;
+    }
+
+    case 'COURSE_APPROVED': {
+      const actionUrl = data.actionUrl || `${baseUrl}/instructor?tab=APPROVED`;
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 22px;">
+          <div style="display: inline-block; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            🎉
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          Your Course Has Been Approved!
+        </h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.instructorName || 'Instructor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Congratulations! Our Course Quality Auditor (<strong>${data.auditorName || 'Course Auditor'}</strong>) has evaluated your course submission and approved it for live publishing on <strong>${platformName}</strong>.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 22px 0; font-size: 13px; color: #1e293b;">
+          <p style="margin: 0 0 10px 0; font-weight: 800; color: ${brandDark}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12px;">
+            Course Review Summary
+          </p>
+          <p style="margin: 5px 0;"><strong>Course Title:</strong> ${data.courseTitle || ''}</p>
+          ${data.category ? `<p style="margin: 5px 0;"><strong>Category:</strong> ${data.category}</p>` : ''}
+          <p style="margin: 5px 0;"><strong>Status:</strong> <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; background: #ecfdf5; color: #047857; font-weight: 800; font-size: 12px; border: 1px solid #a7f3d0;">APPROVED</span></p>
+          <p style="margin: 5px 0;"><strong>Reviewed By:</strong> ${data.auditorName || 'Auditor'} (${data.auditorRole || 'Quality Reviewer'})</p>
+          ${
+            data.feedback
+              ? `<div style="margin-top: 12px; padding: 12px 14px; background: #ffffff; border-left: 4px solid #10b981; border-radius: 6px;">
+                  <strong style="color: #065f46; font-size: 12px; text-transform: uppercase;">Auditor Feedback / Note:</strong>
+                  <p style="margin: 4px 0 0 0; color: #334155; font-style: italic;">"${data.feedback}"</p>
+                </div>`
+              : ''
+          }
+        </div>
+
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Your masterclass is now approved and unlocked. You can publish it live anytime from your Instructor Studio so students can start enrolling immediately.
+        </p>
+
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${actionUrl}" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 14px 34px; border-radius: 10px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);">
+            Open Studio &amp; Publish Course Live 🚀
+          </a>
+        </div>
+      `;
+      break;
+    }
+
+    case 'COURSE_REJECTED': {
+      const actionUrl = data.actionUrl || `${baseUrl}/instructor/course/${data.courseId}/review`;
+      const isChangesReq = data.isChangesRequested || data.decision === 'REQUEST_CHANGES';
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 22px;">
+          <div style="display: inline-block; background: ${isChangesReq ? '#fffbeb' : '#fef2f2'}; border: 1px solid ${isChangesReq ? '#fde68a' : '#fecaca'}; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 32px;">
+            ${isChangesReq ? '⚠️' : '❌'}
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          ${isChangesReq ? 'Action Required: Changes Requested on Your Course' : 'Course Review Decision: Revisions Required'}
+        </h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${data.instructorName || 'Instructor'}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Our Course Quality Auditor (<strong>${data.auditorName || 'Course Auditor'}</strong>) has evaluated your course submission for <strong>"${data.courseTitle}"</strong>.
+          Before this course can be approved for live publishing, some updates and fixes are required.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 22px 0; font-size: 13px; color: #1e293b;">
+          <p style="margin: 0 0 10px 0; font-weight: 800; color: ${brandDark}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12px;">
+            Review Details &amp; Findings
+          </p>
+          <p style="margin: 5px 0;"><strong>Course:</strong> ${data.courseTitle || ''}</p>
+          <p style="margin: 5px 0;"><strong>Status:</strong> <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; background: ${isChangesReq ? '#fffbeb' : '#fef2f2'}; color: ${isChangesReq ? '#b45309' : '#b91c1c'}; font-weight: 800; font-size: 12px; border: 1px solid ${isChangesReq ? '#fde68a' : '#fecaca'};">${isChangesReq ? 'CHANGES REQUESTED' : 'REJECTED — REVISIONS NEEDED'}</span></p>
+          <p style="margin: 5px 0;"><strong>Auditor:</strong> ${data.auditorName || 'Auditor'} (${data.auditorRole || 'Quality Reviewer'})</p>
+          ${
+            data.feedback
+              ? `<div style="margin-top: 12px; padding: 12px 14px; background: #ffffff; border-left: 4px solid ${isChangesReq ? '#f59e0b' : '#ef4444'}; border-radius: 6px;">
+                  <strong style="color: ${isChangesReq ? '#92400e' : '#991b1b'}; font-size: 12px; text-transform: uppercase;">Auditor Feedback / Note:</strong>
+                  <p style="margin: 4px 0 0 0; color: #334155; font-size: 13px; line-height: 1.5;">${data.feedback}</p>
+                </div>`
+              : ''
+          }
+        </div>
+
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Please review the auditor notes, update the affected lessons/curriculum modules, and resubmit your course. Once resubmitted, the auditor will review the changes and approve your masterclass.
+        </p>
+
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${actionUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 34px; border-radius: 10px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 14px rgba(86, 36, 208, 0.25);">
+            View Auditor Feedback &amp; Update Course →
+          </a>
+        </div>
       `;
       break;
     }
@@ -1453,6 +1554,49 @@ export class EmailService {
         message: params.message,
         actionUrl: params.actionUrl,
         actionText: params.actionText
+      }
+    });
+  }
+
+  static async sendCourseReviewDecisionEmail(params: {
+    decision: 'APPROVED' | 'REJECTED' | 'REQUEST_CHANGES';
+    course: { id: string; title: string; category?: string; slug?: string };
+    instructor: { id: string; name: string; email: string };
+    auditor: { name: string; role?: string };
+    feedback?: string | null;
+    organizationId?: string | null;
+  }) {
+    const isApproved = params.decision === 'APPROVED';
+    const isChangesRequested = params.decision === 'REQUEST_CHANGES';
+    const baseUrl = getBaseUrl();
+
+    const subject = isApproved
+      ? `🎉 Congratulations! Your Course "${params.course.title}" has been Approved — Morena Teach`
+      : isChangesRequested
+      ? `⚠️ Action Required: Changes Requested on "${params.course.title}" — Morena Teach`
+      : `❌ Course Review Decision: "${params.course.title}" — Morena Teach`;
+
+    const template: EmailTemplateType = isApproved ? 'COURSE_APPROVED' : 'COURSE_REJECTED';
+
+    return EmailService.sendEmail({
+      to: params.instructor.email,
+      userId: params.instructor.id,
+      organizationId: params.organizationId || null,
+      subject,
+      template,
+      data: {
+        instructorName: params.instructor.name,
+        courseId: params.course.id,
+        courseTitle: params.course.title,
+        category: params.course.category,
+        auditorName: params.auditor.name,
+        auditorRole: params.auditor.role || 'Course Auditor',
+        feedback: params.feedback || '',
+        decision: params.decision,
+        isChangesRequested,
+        actionUrl: isApproved
+          ? `${baseUrl}/instructor?tab=APPROVED`
+          : `${baseUrl}/instructor/course/${params.course.id}/review`
       }
     });
   }
