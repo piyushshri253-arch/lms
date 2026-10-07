@@ -713,98 +713,127 @@ function CourseBuilderContent() {
     );
   }
 
+  const renderStepNavigationBar = (isTop: boolean = false) => (
+    <div
+      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+        isTop
+          ? 'bg-surface-container-lowest p-4 sm:p-5 rounded-2xl border border-outline-variant shadow-xs'
+          : 'pt-6 border-t border-outline-variant'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <Link
+          href={isInstructor ? '/instructor' : '/admin/courses'}
+          className="px-3.5 py-2.5 rounded-xl bg-surface border border-outline-variant hover:bg-surface-container text-on-surface font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+          title="Exit to courses list"
+        >
+          <Icon name="arrow_back" size={16} />
+          <span>Exit</span>
+        </Link>
+
+        <button
+          type="button"
+          disabled={currentStep === 0}
+          onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
+          className="px-4 sm:px-5 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 disabled:opacity-30 cursor-pointer shadow-xs"
+        >
+          <Icon name="arrow_back" size={16} />
+          <span>Previous Step</span>
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        {/* Live Course Preview Button */}
+        <button
+          type="button"
+          onClick={() => setIsLivePreviewOpen(true)}
+          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+        >
+          <Icon name="visibility" size={16} />
+          <span>Preview Course</span>
+        </button>
+
+        {/* Save Draft Button */}
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={() => handleSaveDraft({ resetAfterSave: true })}
+          className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+        >
+          <Icon name="save" size={16} />
+          <span>{isSaving ? 'Saving...' : 'Save Draft'}</span>
+        </button>
+
+        {/* Next Step / Publish Action */}
+        {currentStep < steps.length - 1 ? (
+          <button
+            type="button"
+            onClick={() => setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))}
+            className="px-5 sm:px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Next: {steps[currentStep + 1]?.title.replace(/^\d+\.\s*/, '')}</span>
+            <Icon name="arrow_forward" size={16} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={isPublishing || (isInstructor && courseState.status === 'IN_REVIEW')}
+            onClick={handlePublishCourse}
+            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+              isInstructor && courseState.status === 'APPROVED'
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : 'bg-primary text-on-primary hover:bg-primary-container'
+            }`}
+          >
+            {isPublishing ? (
+              <>
+                <Icon name="sync" size={16} className="animate-spin" />
+                <span>
+                  {isInstructor
+                    ? courseState.status === 'APPROVED'
+                      ? 'Publishing Live...'
+                      : 'Submitting...'
+                    : 'Publishing...'}
+                </span>
+              </>
+            ) : isInstructor ? (
+              courseState.status === 'APPROVED' ? (
+                <>
+                  <Icon name="rocket_launch" size={16} />
+                  <span>Publish Masterclass Live 🚀</span>
+                </>
+              ) : courseState.status === 'IN_REVIEW' ? (
+                <>
+                  <Icon name="hourglass_top" size={16} />
+                  <span>Under Review ⏳</span>
+                </>
+              ) : courseState.status === 'PUBLISHED' ? (
+                <>
+                  <Icon name="send" size={16} />
+                  <span>Submit Changes for Approval 📋</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="send" size={16} />
+                  <span>Submit for Approval 📋</span>
+                </>
+              )
+            ) : (
+              <>
+                <Icon name="rocket_launch" size={16} />
+                <span>Publish Course Live</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
-      {/* Top Action Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant shadow-xs">
-        <div className="flex items-center gap-3">
-          <Link
-            href={isInstructor ? '/instructor' : '/admin/courses'}
-            className="p-2 rounded-xl bg-surface border border-outline-variant hover:bg-surface-container text-on-surface-variant cursor-pointer"
-            title="Back to courses list"
-          >
-            <Icon name="arrow_back" size={20} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
-              <span>{isInstructor ? 'Instructor Studio' : 'Course Builder'}</span>
-              <span>/</span>
-              <span className="text-primary font-bold">{courseState.category}</span>
-              <span
-                className={`text-[9px] font-bold uppercase font-mono px-2 py-0.2 rounded-full border ${
-                  courseState.status === 'PUBLISHED'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : courseState.status === 'IN_REVIEW'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-surface-container text-outline border-outline-variant'
-                }`}
-              >
-                {courseState.status === 'IN_REVIEW' ? 'Pending Approval' : courseState.status}
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-on-surface tracking-tight mt-0.5">
-              {courseState.title || 'Untitled Master Course'}
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
-          {/* Live Course Preview Button (Opens modal without losing any form fields!) */}
-          <button
-            type="button"
-            onClick={() => setIsLivePreviewOpen(true)}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
-          >
-            <Icon name="visibility" size={16} />
-            <span>Preview Course</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={isSaving}
-            onClick={() => handleSaveDraft({ resetAfterSave: true })}
-            className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <Icon name="save" size={16} />
-            <span>{isSaving ? 'Saving...' : 'Save Draft'}</span>
-          </button>
-
-          {currentStep < steps.length - 1 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))}
-              className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Continue</span>
-              <Icon name="arrow_forward" size={16} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={isPublishing || (isInstructor && courseState.status === 'IN_REVIEW')}
-              onClick={handlePublishCourse}
-              className="px-6 py-2.5 bg-primary text-on-primary font-black text-xs rounded-xl hover:bg-primary-container shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <Icon name={isInstructor ? (courseState.status === 'APPROVED' ? 'rocket_launch' : 'send') : 'rocket_launch'} size={16} />
-              <span>
-                {isPublishing
-                  ? isInstructor
-                    ? courseState.status === 'APPROVED' ? 'Publishing Live...' : 'Submitting...'
-                    : 'Publishing...'
-                  : isInstructor
-                  ? courseState.status === 'APPROVED'
-                    ? 'Publish Live 🚀'
-                    : courseState.status === 'PUBLISHED'
-                    ? 'Submit Changes for Approval 📋'
-                    : courseState.status === 'IN_REVIEW'
-                    ? 'Under Review ⏳'
-                    : 'Submit for Approval 📋'
-                  : 'Publish Course Live'}
-              </span>
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Top Step Navigation Bar (Replaces old breadcrumb/title banner) */}
+      {renderStepNavigationBar(true)}
 
       {/* Step Navigation Tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant/70">
@@ -907,103 +936,7 @@ function CourseBuilderContent() {
       )}
 
       {/* Bottom Step Navigation Bar */}
-      <div className="flex justify-between items-center pt-6 border-t border-outline-variant">
-        <button
-          type="button"
-          disabled={currentStep === 0}
-          onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
-          className="px-5 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 disabled:opacity-30 cursor-pointer"
-        >
-          <Icon name="arrow_back" size={16} />
-          <span>Previous Step</span>
-        </button>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsLivePreviewOpen(true)}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
-          >
-            <Icon name="visibility" size={16} />
-            <span>Preview Course</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={isSaving}
-            onClick={() => handleSaveDraft()}
-            className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 cursor-pointer"
-          >
-            <Icon name="save" size={16} />
-            <span>Save Draft</span>
-          </button>
-
-          {currentStep < steps.length - 1 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))}
-              className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Next: {steps[currentStep + 1]?.title.replace(/^\d+\.\s*/, '')}</span>
-              <Icon name="arrow_forward" size={16} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={
-                isPublishing ||
-                (isInstructor && courseState.status === 'IN_REVIEW')
-              }
-              onClick={handlePublishCourse}
-              className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                isInstructor && courseState.status === 'APPROVED'
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-primary text-on-primary hover:bg-primary-container'
-              }`}
-            >
-              {isPublishing ? (
-                <>
-                  <Icon name="sync" size={16} className="animate-spin" />
-                  <span>
-                    {isInstructor
-                      ? courseState.status === 'APPROVED'
-                        ? 'Publishing Live...'
-                        : 'Submitting...'
-                      : 'Publishing...'}
-                  </span>
-                </>
-              ) : isInstructor ? (
-                courseState.status === 'APPROVED' ? (
-                  <>
-                    <Icon name="rocket_launch" size={16} />
-                    <span>Publish Masterclass Live 🚀</span>
-                  </>
-                ) : courseState.status === 'IN_REVIEW' ? (
-                  <>
-                    <Icon name="hourglass_top" size={16} />
-                    <span>Under Review ⏳</span>
-                  </>
-                ) : courseState.status === 'PUBLISHED' ? (
-                  <>
-                    <Icon name="send" size={16} />
-                    <span>Submit Changes for Approval 📋</span>
-                  </>
-                ) : (
-                  <>
-                    <Icon name="send" size={16} />
-                    <span>Submit for Approval 📋</span>
-                  </>
-                )
-              ) : (
-                <>
-                  <Icon name="rocket_launch" size={16} />
-                  <span>Publish Masterclass</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
+      {renderStepNavigationBar(false)}
 
       {/* =====================================================================
           FULL-SCREEN INTERACTIVE LIVE COURSE PREVIEW MODAL

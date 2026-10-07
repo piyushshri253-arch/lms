@@ -537,26 +537,18 @@ function InstructorCoursesStudioInner() {
         )}
 
         {/* Workflow Guide Alert */}
-        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
-              <Icon name="verified" size={18} />
-            </div>
-            <div>
-              <span className="font-bold text-indigo-950">
-                Course Lifecycle &amp; Revisions:
-              </span>{' '}
-              <span className="text-indigo-800">
-                Draft Syllabus &rarr; Submit for Review &rarr; Auditor Evaluates &rarr; Approved &rarr; Publish Live. You can move any course back to <strong>Draft</strong> anytime to make private updates.
-              </span>
-            </div>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3 text-xs">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+            <Icon name="verified" size={18} />
           </div>
-          <Link
-            href="/instructor/courses/builder"
-            className="text-indigo-700 font-bold hover:underline shrink-0"
-          >
-            Launch Builder &rarr;
-          </Link>
+          <div>
+            <span className="font-bold text-indigo-950">
+              Course Lifecycle &amp; Revisions:
+            </span>{' '}
+            <span className="text-indigo-800">
+              Draft Syllabus &rarr; Submit for Review &rarr; Auditor Evaluates &rarr; Approved &rarr; Publish Live. You can move any course back to <strong>Draft</strong> anytime to make private updates.
+            </span>
+          </div>
         </div>
 
         {/* Metric Cards */}
