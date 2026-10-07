@@ -566,11 +566,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   const handleSaveLessonEdit = (updatedLesson: BuilderLesson) => {
     if (!editingLesson) return;
 
+    // Clean any temporary browser blob references
+    const sanitizedLesson: BuilderLesson = {
+      ...updatedLesson,
+      videoUrl: updatedLesson.videoUrl?.startsWith('blob:') ? '' : updatedLesson.videoUrl,
+      pdfUrl: updatedLesson.pdfUrl?.startsWith('blob:') ? '' : updatedLesson.pdfUrl
+    };
+
     const updatedSections = sections.map((s) => {
       if (s.id === editingLesson.sectionId) {
         return {
           ...s,
-          lessons: s.lessons.map((l) => (l.id === updatedLesson.id ? updatedLesson : l))
+          lessons: s.lessons.map((l) => (l.id === sanitizedLesson.id ? sanitizedLesson : l))
         };
       }
       return s;
@@ -578,7 +585,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
     onChange(updatedSections);
     setEditingLesson(null);
-    showToast({ title: 'Lesson Saved', description: `Updated "${updatedLesson.title}".`, type: 'success' });
+    showToast({ title: 'Lesson Saved', description: `Updated "${sanitizedLesson.title}".`, type: 'success' });
   };
 
   const handleDeleteLesson = (sectionId: string, lessonId: string) => {
@@ -1673,6 +1680,9 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
   onClose,
   onSave
 }) => {
+  const { showToast } = useApp();
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [formData, setFormData] = useState<BuilderLesson>({
     ...lesson,
     quizData:
@@ -1818,43 +1828,93 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
               🎬 1. Lesson Video (Upload from System / Phone OR Paste URL)
             </label>
-            <label className="px-3.5 py-2 bg-primary text-on-primary hover:bg-primary/90 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
-              <Icon name="upload_file" size={16} />
-              <span>Upload Video (PC / Mobile Phone)</span>
+            <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
+              isUploadingVideo ? 'bg-primary/70 text-on-primary cursor-not-allowed' : 'bg-primary text-on-primary hover:bg-primary/90'
+            }`}>
+              <Icon name={isUploadingVideo ? 'sync' : 'upload_file'} size={16} className={isUploadingVideo ? 'animate-spin' : ''} />
+              <span>{isUploadingVideo ? 'Uploading Video...' : 'Upload Video (PC / Mobile Phone)'}</span>
               <input
                 type="file"
+                disabled={isUploadingVideo}
                 accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
                 className="hidden"
                 onChange={async (e) => {
                   const f = e.target.files?.[0];
                   if (!f) return;
                   e.target.value = '';
-                  const localPreview = URL.createObjectURL(f);
-                  const tempVideo = document.createElement('video');
-                  tempVideo.preload = 'metadata';
-                  tempVideo.src = localPreview;
-                  tempVideo.onloadedmetadata = () => {
-                    if (tempVideo.duration && isFinite(tempVideo.duration)) {
-                      const mins = Math.floor(tempVideo.duration / 60);
-                      const secs = Math.floor(tempVideo.duration % 60);
-                      const dur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                      setFormData((prev) => ({ ...prev, duration: dur }));
-                    }
-                  };
-                  setFormData((prev) => ({ ...prev, videoUrl: localPreview }));
+
+                  if (f.size > 4.5 * 1024 * 1024) {
+                    showToast({
+                      title: 'Large Video Notice (> 4.5MB)',
+                      description: 'For longer HD lectures, please paste a YouTube, Vimeo, or Cloud MP4 link below, or upload a compressed video clip.',
+                      type: 'info'
+                    });
+                  }
+
+                  let detectedDur = '10:00';
+                  try {
+                    const tempPreview = URL.createObjectURL(f);
+                    const tempVideo = document.createElement('video');
+                    tempVideo.preload = 'metadata';
+                    tempVideo.src = tempPreview;
+                    await new Promise<void>((resolve) => {
+                      tempVideo.onloadedmetadata = () => {
+                        if (tempVideo.duration && isFinite(tempVideo.duration)) {
+                          const mins = Math.floor(tempVideo.duration / 60);
+                          const secs = Math.floor(tempVideo.duration % 60);
+                          detectedDur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                        }
+                        URL.revokeObjectURL(tempPreview);
+                        resolve();
+                      };
+                      tempVideo.onerror = () => {
+                        URL.revokeObjectURL(tempPreview);
+                        resolve();
+                      };
+                    });
+                  } catch {}
+
+                  setIsUploadingVideo(true);
                   try {
                     const fd = new FormData();
                     fd.append('file', f);
                     const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
                     const data = await res.json();
                     if (res.ok && (data?.videoUrl || data?.media?.url)) {
+                      const permanentUrl = data.videoUrl || data.media.url;
                       setFormData((prev) => ({
                         ...prev,
-                        videoUrl: data.videoUrl || data.media.url
+                        videoUrl: permanentUrl,
+                        duration: detectedDur
                       }));
+                      showToast({
+                        title: 'Video Uploaded Successfully 🎉',
+                        description: `"${f.name}" (${detectedDur}) is ready for student playback.`,
+                        type: 'success'
+                      });
+                    } else {
+                      setFormData((prev) => ({
+                        ...prev,
+                        videoUrl: prev.videoUrl?.startsWith('blob:') ? '' : prev.videoUrl
+                      }));
+                      showToast({
+                        title: 'Video Upload Failed',
+                        description: data?.error || 'Direct upload could not be saved to server. Please paste a direct YouTube / Vimeo / Cloud link.',
+                        type: 'error'
+                      });
                     }
-                  } catch {
-                    // Keep localPreview
+                  } catch (err: any) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      videoUrl: prev.videoUrl?.startsWith('blob:') ? '' : prev.videoUrl
+                    }));
+                    showToast({
+                      title: 'Upload Error',
+                      description: err?.message || 'Network error during video upload. Please paste a video link.',
+                      type: 'error'
+                    });
+                  } finally {
+                    setIsUploadingVideo(false);
                   }
                 }}
               />
@@ -1869,14 +1929,13 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
           />
 
-          {formData.videoUrl && (
+          {formData.videoUrl && !formData.videoUrl.startsWith('blob:') && (
             <div className="pt-1">
               <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mb-1.5">
                 <Icon name="check_circle" size={14} />
                 <span>Video Ready for Playback</span>
               </div>
-              {(formData.videoUrl.startsWith('blob:') ||
-                formData.videoUrl.startsWith('data:') ||
+              {(formData.videoUrl.startsWith('data:') ||
                 formData.videoUrl.startsWith('/uploads/') ||
                 formData.videoUrl.endsWith('.mp4') ||
                 formData.videoUrl.endsWith('.webm') ||
@@ -1897,32 +1956,61 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
               📑 2. PDF Document / Study Material (Upload OR Paste URL)
             </label>
-            <label className="px-3.5 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
-              <Icon name="picture_as_pdf" size={16} />
-              <span>Upload PDF (PC / Mobile Phone)</span>
+            <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
+              isUploadingPdf ? 'bg-rose-400 text-white cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'
+            }`}>
+              <Icon name={isUploadingPdf ? 'sync' : 'picture_as_pdf'} size={16} className={isUploadingPdf ? 'animate-spin' : ''} />
+              <span>{isUploadingPdf ? 'Uploading PDF...' : 'Upload PDF (PC / Mobile Phone)'}</span>
               <input
                 type="file"
+                disabled={isUploadingPdf}
                 accept=".pdf,application/pdf"
                 className="hidden"
                 onChange={async (e) => {
                   const f = e.target.files?.[0];
                   if (!f) return;
                   e.target.value = '';
-                  const localPdf = URL.createObjectURL(f);
-                  setFormData((prev) => ({ ...prev, pdfUrl: localPdf }));
+
+                  setIsUploadingPdf(true);
                   try {
                     const fd = new FormData();
                     fd.append('file', f);
                     const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
                     const data = await res.json();
                     if (res.ok && (data?.videoUrl || data?.media?.url)) {
+                      const permanentPdf = data.videoUrl || data.media.url;
                       setFormData((prev) => ({
                         ...prev,
-                        pdfUrl: data.videoUrl || data.media.url
+                        pdfUrl: permanentPdf
                       }));
+                      showToast({
+                        title: 'PDF Uploaded Successfully 🎉',
+                        description: `"${f.name}" attached as downloadable handout.`,
+                        type: 'success'
+                      });
+                    } else {
+                      setFormData((prev) => ({
+                        ...prev,
+                        pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
+                      }));
+                      showToast({
+                        title: 'PDF Upload Failed',
+                        description: data?.error || 'Could not upload PDF document. Please paste a direct document link.',
+                        type: 'error'
+                      });
                     }
-                  } catch {
-                    // Keep localPdf
+                  } catch (err: any) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
+                    }));
+                    showToast({
+                      title: 'PDF Upload Error',
+                      description: err?.message || 'Network error during PDF upload.',
+                      type: 'error'
+                    });
+                  } finally {
+                    setIsUploadingPdf(false);
                   }
                 }}
               />
@@ -2072,10 +2160,45 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onSave(formData)}
-            className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer"
+            disabled={isUploadingVideo || isUploadingPdf}
+            onClick={() => {
+              if (isUploadingVideo) {
+                showToast({
+                  title: 'Upload in Progress',
+                  description: 'Please wait for your video to finish uploading before saving.',
+                  type: 'info'
+                });
+                return;
+              }
+              if (isUploadingPdf) {
+                showToast({
+                  title: 'Upload in Progress',
+                  description: 'Please wait for your PDF to finish uploading before saving.',
+                  type: 'info'
+                });
+                return;
+              }
+              if (formData.videoUrl?.startsWith('blob:')) {
+                showToast({
+                  title: 'Unsaved Video Asset',
+                  description: 'Please re-upload your video or paste a YouTube / Vimeo / Cloud link before saving.',
+                  type: 'error'
+                });
+                return;
+              }
+              if (formData.pdfUrl?.startsWith('blob:')) {
+                showToast({
+                  title: 'Unsaved PDF Asset',
+                  description: 'Please re-upload your PDF or paste a direct document link before saving.',
+                  type: 'error'
+                });
+                return;
+              }
+              onSave(formData);
+            }}
+            className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer disabled:opacity-50"
           >
-            Save Lecture Content
+            {isUploadingVideo ? 'Uploading Video...' : isUploadingPdf ? 'Uploading PDF...' : 'Save Lecture Content'}
           </button>
         </div>
       </div>

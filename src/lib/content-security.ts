@@ -228,8 +228,28 @@ export function buildStudentSignedMediaUrl(
   const trimmed = rawUrl.trim();
   if (trimmed.startsWith('blob:')) return null;
 
-  // Do not alter YouTube/Vimeo embed origins other than fragment/query if safe
-  if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be') || trimmed.includes('vimeo.com')) {
+  // 1. Data URIs (base64 encoded video, audio, pdf) must NEVER have query parameters appended!
+  // Appending ?st_token=... directly corrupts base64 payload strings and breaks browser media demuxer.
+  if (trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  // 2. Do not alter YouTube/Vimeo/Google Drive/embed URLs
+  if (
+    trimmed.includes('youtube.com') ||
+    trimmed.includes('youtu.be') ||
+    trimmed.includes('vimeo.com') ||
+    trimmed.includes('drive.google.com')
+  ) {
+    return trimmed;
+  }
+
+  // 3. Pre-signed external cloud URLs (S3, CloudFront, etc.) with existing HMAC tokens
+  if (
+    trimmed.includes('X-Amz-Signature') ||
+    trimmed.includes('Signature=') ||
+    trimmed.includes('token=')
+  ) {
     return trimmed;
   }
 

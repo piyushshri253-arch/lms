@@ -166,8 +166,44 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const progressPercent = durationSeconds > 0 ? (currentTime / durationSeconds) * 100 : 0;
 
-  const isYouTube = resolvedVideoUrl?.includes('youtube.com') || resolvedVideoUrl?.includes('youtu.be');
-  const isVimeo = resolvedVideoUrl?.includes('vimeo.com');
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [isBuffering, setIsBuffering] = useState(false);
+
+  // Reset states when video source changes
+  useEffect(() => {
+    setVideoError(null);
+    setIsBuffering(false);
+  }, [resolvedVideoUrl]);
+
+  // Robust video ID extractors for diverse hosting providers
+  const extractYouTubeId = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    const embedMatch = trimmed.match(/youtube\.com\/embed\/([\w-]{11})/i);
+    if (embedMatch) return embedMatch[1];
+    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/i);
+    return match ? match[1] : null;
+  };
+
+  const extractVimeoId = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    const match = trimmed.match(/(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/i);
+    return match ? match[1] : null;
+  };
+
+  const extractGoogleDriveId = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (!trimmed.includes('drive.google.com')) return null;
+    const match = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i);
+    return match ? match[1] : null;
+  };
+
+  const youtubeId = extractYouTubeId(resolvedVideoUrl);
+  const vimeoId = !youtubeId ? extractVimeoId(resolvedVideoUrl) : null;
+  const googleDriveId = !youtubeId && !vimeoId ? extractGoogleDriveId(resolvedVideoUrl) : null;
+  const isEmbed = Boolean(youtubeId || vimeoId || googleDriveId);
 
   const watermarkPositionClasses = [
     'bottom-14 right-6',
@@ -205,50 +241,114 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }`}
     >
       {/* 1. YouTube Stream Embed */}
-      {isYouTube ? (
+      {youtubeId ? (
         <div className="w-full h-full aspect-video relative flex items-center justify-center bg-black overflow-hidden">
           <iframe
-            src={
-              resolvedVideoUrl?.includes('embed')
-                ? resolvedVideoUrl
-                : `https://www.youtube.com/embed/${resolvedVideoUrl?.match(/(?:v=|youtu\.be\/)([\w-]{11})/)?.[1]}?rel=0&modestbranding=1`
-            }
+            src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&autoplay=0`}
             title={title}
             className="w-full h-full aspect-video border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
         </div>
-      ) : isVimeo ? (
+      ) : vimeoId ? (
         /* 2. Vimeo Stream Embed */
         <div className="w-full h-full aspect-video relative flex items-center justify-center bg-black overflow-hidden">
           <iframe
-            src={`https://player.vimeo.com/video/${resolvedVideoUrl?.match(/vimeo\.com\/(\d+)/)?.[1]}`}
+            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=0`}
             title={title}
             className="w-full h-full aspect-video border-0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
           />
         </div>
-      ) : resolvedVideoUrl ? (
-        /* 3. Direct HTML5 MP4 / WebM / Local File Stream */
-        <video
-          ref={videoRef}
-          src={resolvedVideoUrl}
-          poster={thumbnail}
-          controlsList={securityPolicy.allowVideoDownload ? undefined : 'nodownload'}
-          disablePictureInPicture={securityPolicy.disablePictureInPicture}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={() => {
-            setIsPlaying(false);
-            onLessonComplete?.();
-          }}
-          className="w-full h-full aspect-video max-h-[78vh] object-contain cursor-pointer"
-          onClick={togglePlay}
-          playsInline
-        />
+      ) : googleDriveId ? (
+        /* 3. Google Drive Video Preview Embed */
+        <div className="w-full h-full aspect-video relative flex items-center justify-center bg-black overflow-hidden">
+          <iframe
+            src={`https://drive.google.com/file/d/${googleDriveId}/preview`}
+            title={title}
+            className="w-full h-full aspect-video border-0"
+            allow="autoplay"
+            allowFullScreen
+          />
+        </div>
+      ) : resolvedVideoUrl && !resolvedVideoUrl.startsWith('blob:') ? (
+        /* 4. Direct HTML5 MP4 / WebM / Base64 Data Stream */
+        <div className="w-full h-full relative flex items-center justify-center bg-black">
+          <video
+            ref={videoRef}
+            src={resolvedVideoUrl}
+            poster={thumbnail}
+            controlsList={securityPolicy.allowVideoDownload ? undefined : 'nodownload'}
+            disablePictureInPicture={securityPolicy.disablePictureInPicture}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onWaiting={() => setIsBuffering(true)}
+            onPlaying={() => {
+              setIsPlaying(true);
+              setIsBuffering(false);
+              setVideoError(null);
+            }}
+            onTimeUpdate={handleTimeUpdate}
+            onError={() => {
+              setVideoError('Video format or stream could not be loaded. Please ensure video source is valid.');
+            }}
+            onEnded={() => {
+              setIsPlaying(false);
+              onLessonComplete?.();
+            }}
+            className="w-full h-full aspect-video max-h-[78vh] object-contain cursor-pointer"
+            onClick={togglePlay}
+            playsInline
+            preload="metadata"
+          />
+
+          {/* Central Play Button Overlay when paused */}
+          {!isPlaying && !videoError && (
+            <button
+              type="button"
+              onClick={togglePlay}
+              className="absolute inset-0 m-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 hover:bg-primary text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-110 z-20 cursor-pointer pointer-events-auto"
+              aria-label="Play video"
+            >
+              <Icon name="play_arrow" size={38} fill />
+            </button>
+          )}
+
+          {/* Buffering Spinner */}
+          {isBuffering && !videoError && (
+            <div className="absolute inset-0 m-auto w-12 h-12 rounded-full border-4 border-white/30 border-t-white animate-spin pointer-events-none z-20" />
+          )}
+
+          {/* Error Message and Retry Action */}
+          {videoError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950/95 z-30 space-y-3">
+              <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                <Icon name="error_outline" size={28} />
+              </div>
+              <div className="space-y-1 max-w-sm">
+                <p className="text-sm font-bold text-white">Video Playback Issue</p>
+                <p className="text-xs text-slate-400">{videoError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setVideoError(null);
+                  if (videoRef.current) {
+                    videoRef.current.load();
+                    videoRef.current.play().catch(() => {});
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer"
+              >
+                Retry Playback
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
-        /* 4. Placeholder when no video attached yet */
+        /* 5. Placeholder when no video attached yet */
         <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-gradient-to-br from-slate-950 via-slate-900 to-black">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
             <Icon name="movie" size={32} />
@@ -263,15 +363,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* Floating Quality Badge */}
-      {!isYouTube && !isVimeo && (
+      {!isEmbed && (
         <div className="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-semibold text-white/90 border border-white/10 flex items-center gap-1.5 pointer-events-none">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>1080p HD Stream</span>
         </div>
       )}
 
-      {/* Signed Private Stream Security Badge (for native authenticated DRM streams) */}
-      {!isYouTube && !isVimeo && securityPolicy.signedUrlEnabled && (
+      {/* Signed Private Stream Security Badge */}
+      {!isEmbed && securityPolicy.signedUrlEnabled && (
         <div className="absolute top-4 right-4 z-20 bg-emerald-950/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 pointer-events-none">
           <Icon name="verified_user" size={12} />
           <span>Signed DRM Stream</span>
@@ -288,7 +388,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* Custom Overlay Controls (for direct video / audio files) */}
-      {!isYouTube && !isVimeo && resolvedVideoUrl && (
+      {!isEmbed && resolvedVideoUrl && !resolvedVideoUrl.startsWith('blob:') && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col justify-end px-5 pb-3 pt-4 gap-2 z-20 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
           {/* Scrubber */}
           <div
