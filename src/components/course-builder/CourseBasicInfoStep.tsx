@@ -380,7 +380,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
             <button
               type="button"
               onClick={() => addPoint('requirements', newRequirement, setNewRequirement)}
-              className="px-3 py-2 bg-secondary text-on-secondary text-xs font-bold rounded-xl cursor-pointer"
+              className="px-3 py-2 bg-primary text-on-secondary text-xs font-bold rounded-xl cursor-pointer"
             >
               Add
             </button>

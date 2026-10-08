@@ -22,7 +22,17 @@ const ALL_SUPPORTED_EXTENSIONS = Array.from(
     '.3gp',
     '.avi',
     '.ogg',
-    '.pdf'
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.txt',
+    '.rtf',
+    '.zip',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.webp',
+    '.svg'
   ])
 );
 
@@ -61,16 +71,20 @@ export async function POST(req: NextRequest) {
       }
 
       const ext = (path.extname(file.name) || '.mp4').toLowerCase();
-      if (!ALL_SUPPORTED_EXTENSIONS.includes(ext) && !file.type.startsWith('video/') && file.type !== 'application/pdf') {
+      const isVideoFile = file.type.startsWith('video/') || SUPPORTED_VIDEO_EXTENSIONS.includes(ext);
+      const isImageFile = file.type.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext);
+      const isDocFile = file.type === 'application/pdf' || ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.zip'].includes(ext);
+
+      if (!ALL_SUPPORTED_EXTENSIONS.includes(ext) && !isVideoFile && !isImageFile && !isDocFile) {
         return NextResponse.json(
           {
-            error: `Unsupported format "${ext}". Supported formats: MP4, MOV, WEBM, MKV, 3GP, PDF.`
+            error: `Unsupported format "${ext}". Supported formats: MP4, MOV, WebM, PDF, DOC, DOCX, Images.`
           },
           { status: 400 }
         );
       }
 
-      const safeRandomId = `vid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const safeRandomId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const safeFilename = `${safeRandomId}${ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -92,6 +106,18 @@ export async function POST(req: NextRequest) {
             file.type ||
             (ext === '.pdf'
               ? 'application/pdf'
+              : ext === '.doc'
+              ? 'application/msword'
+              : ext === '.docx'
+              ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+              : ext === '.png'
+              ? 'image/png'
+              : ext === '.jpg' || ext === '.jpeg'
+              ? 'image/jpeg'
+              : ext === '.webp'
+              ? 'image/webp'
+              : ext === '.svg'
+              ? 'image/svg+xml'
               : ext === '.mov'
               ? 'video/quicktime'
               : ext === '.webm'
@@ -129,7 +155,7 @@ export async function POST(req: NextRequest) {
               .update({
                 where: { id: existingLesson.id },
                 data: {
-                  videoUrl: publicVideoUrl.startsWith('data:') ? undefined : publicVideoUrl,
+                  videoUrl: isVideoFile ? (publicVideoUrl.startsWith('data:') ? undefined : publicVideoUrl) : undefined,
                   duration: durationText,
                   durationSeconds
                 }
@@ -145,7 +171,7 @@ export async function POST(req: NextRequest) {
           data: {
             name: assetName,
             url: publicVideoUrl.startsWith('data:') ? `/uploads/videos/${safeFilename}` : publicVideoUrl,
-            type: ext === '.pdf' ? 'DOCUMENT' : 'VIDEO',
+            type: isImageFile ? 'IMAGE' : isDocFile ? 'DOCUMENT' : 'VIDEO',
             provider: 'DIRECT_UPLOAD',
             format: ext.replace('.', ''),
             sizeBytes: file.size,
@@ -162,7 +188,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: 'Video uploaded and attached successfully.',
+        message: isVideoFile ? 'Video uploaded and attached successfully.' : 'Resource file uploaded and attached successfully.',
         asset: mediaAsset,
         videoUrl: publicVideoUrl,
         durationText,

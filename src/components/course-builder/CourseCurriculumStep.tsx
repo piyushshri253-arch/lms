@@ -1281,13 +1281,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 {currentTab === 'PDF' && (
                                   <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
                                     <div className="flex flex-col md:flex-row gap-4 items-start">
-                                      {/* Upload PDF from PC/Phone */}
+                                      {/* Upload PDF, Doc, Image from PC/Phone */}
                                       <div className="w-full md:w-1/2 p-4 bg-slate-50 border-2 border-dashed border-[#d1d7dc] rounded-md text-center space-y-2">
                                         <div className="text-xs font-bold text-slate-800">
-                                          Select PDF File from Computer or Phone
+                                          Select PDF, Doc, or Image File
                                         </div>
                                         <p className="text-[11px] text-slate-500">
-                                          Upload cheat sheets, slides, or reading handouts in .pdf format.
+                                          Upload handouts (.pdf), notes (.doc, .docx), or diagrams (.png, .jpg).
                                         </p>
                                         <label
                                           className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded font-bold text-xs cursor-pointer transition-colors shadow-2xs ${
@@ -1298,18 +1298,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         >
                                           <Icon
                                             name={
-                                              uploadingPdfItemId === les.id ? 'sync' : 'picture_as_pdf'
+                                              uploadingPdfItemId === les.id ? 'sync' : 'attach_file'
                                             }
                                             size={16}
                                           />
                                           <span>
                                             {uploadingPdfItemId === les.id
-                                              ? 'Uploading PDF... Please wait'
-                                              : 'Select PDF File (PC / Phone)'}
+                                              ? 'Uploading Resource... Please wait'
+                                              : 'Select File (PDF, Doc, Image)'}
                                           </span>
                                           <input
                                             type="file"
-                                            accept=".pdf,application/pdf"
+                                            accept=".pdf,.doc,.docx,.txt,.zip,image/*"
                                             className="hidden"
                                             onChange={(e) => {
                                               const f = e.target.files?.[0];
@@ -1322,11 +1322,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         </label>
                                       </div>
 
-                                      {/* Or Paste PDF URL */}
+                                      {/* Or Paste Resource / External URL */}
                                       <div className="w-full md:w-1/2 space-y-3">
                                         <div className="space-y-1">
                                           <label className="block text-xs font-bold text-slate-700">
-                                            Or Paste PDF Document URL
+                                            Or Paste Resource Link (Drive, GitHub, Web URL)
                                           </label>
                                           <input
                                             type="text"
@@ -1337,7 +1337,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                 type: 'PDF'
                                               })
                                             }
-                                            placeholder="https://.../handout.pdf"
+                                            placeholder="https://drive.google.com/... or https://..."
                                             className="w-full bg-slate-50 focus:bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none"
                                           />
                                         </div>
@@ -2064,17 +2064,17 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
         <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              📑 2. PDF Document / Study Material (Upload OR Paste URL)
+              📑 2. Study Resource / Handout (PDF, Doc, Image, or External Link)
             </label>
             <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
               isUploadingPdf ? 'bg-rose-400 text-white cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'
             }`}>
-              <Icon name={isUploadingPdf ? 'sync' : 'picture_as_pdf'} size={16} className={isUploadingPdf ? 'animate-spin' : ''} />
-              <span>{isUploadingPdf ? 'Uploading PDF...' : 'Upload PDF (PC / Mobile Phone)'}</span>
+              <Icon name={isUploadingPdf ? 'sync' : 'attach_file'} size={16} className={isUploadingPdf ? 'animate-spin' : ''} />
+              <span>{isUploadingPdf ? 'Uploading...' : 'Upload File (PDF / Doc / Image)'}</span>
               <input
                 type="file"
                 disabled={isUploadingPdf}
-                accept=".pdf,application/pdf"
+                accept=".pdf,.doc,.docx,.txt,.zip,image/*"
                 className="hidden"
                 onChange={async (e) => {
                   const f = e.target.files?.[0];
@@ -2094,8 +2094,8 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
                         pdfUrl: permanentPdf
                       }));
                       showToast({
-                        title: 'PDF Uploaded Successfully 🎉',
-                        description: `"${f.name}" attached as downloadable handout.`,
+                        title: 'Resource Attached 🎉',
+                        description: `"${f.name}" attached successfully.`,
                         type: 'success'
                       });
                     } else {
@@ -2104,8 +2104,8 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
                         pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
                       }));
                       showToast({
-                        title: 'PDF Upload Failed',
-                        description: data?.error || 'Could not upload PDF document. Please paste a direct document link.',
+                        title: 'Upload Failed',
+                        description: data?.error || 'Could not upload resource file. You can also paste an external web link below.',
                         type: 'error'
                       });
                     }
@@ -2115,8 +2115,8 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
                       pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
                     }));
                     showToast({
-                      title: 'PDF Upload Error',
-                      description: err?.message || 'Network error during PDF upload.',
+                      title: 'Upload Error',
+                      description: err?.message || 'Network error during upload.',
                       type: 'error'
                     });
                   } finally {
@@ -2130,7 +2130,7 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             type="text"
             value={formData.pdfUrl || ''}
             onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
-            placeholder="https://cdn.morenateach.com/notes.pdf or click 'Upload PDF' above..."
+            placeholder="https://drive.google.com/... or https://github.com/... or click 'Upload File' above..."
             className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
           />
         </div>

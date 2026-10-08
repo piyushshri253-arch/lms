@@ -50,6 +50,16 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
   // Single lecture upload states
   const [uploadingPdfLessonId, setUploadingPdfLessonId] = useState<string | null>(null);
+  const [activeResourceDropdownLessonId, setActiveResourceDropdownLessonId] = useState<string | null>(null);
+
+  // External resource link modal state
+  const [externalLinkModalTarget, setExternalLinkModalTarget] = useState<{
+    sectionId: string;
+    lessonId: string;
+    lessonTitle: string;
+    currentUrl?: string;
+  } | null>(null);
+  const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
 
   // Active quiz editor drawer state
   const [activeQuizLessonId, setActiveQuizLessonId] = useState<string | null>(null);
@@ -345,8 +355,13 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     e.target.value = '';
   };
 
-  // Direct 1-Click PDF file upload for a lesson
-  const handleUploadPdf = async (sectionId: string, lessonId: string, file: File) => {
+  // Multi-type resource upload handler (PDF, Document, Image)
+  const handleUploadResource = async (
+    sectionId: string,
+    lessonId: string,
+    file: File,
+    typeLabel: string = 'Resource'
+  ) => {
     if (!file) return;
     setUploadingPdfLessonId(lessonId);
 
@@ -361,36 +376,88 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         body: formData
       });
 
-      let finalPdfUrl = '';
+      let finalUrl = '';
       if (res.ok) {
         const data = await res.json();
-        finalPdfUrl = data.videoUrl || data.media?.url || '';
+        finalUrl = data.videoUrl || data.media?.url || '';
       } else {
-        throw new Error('PDF upload failed on server.');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `${typeLabel} upload failed on server.`);
       }
 
-      if (!finalPdfUrl) {
-        finalPdfUrl = URL.createObjectURL(file);
+      if (!finalUrl) {
+        finalUrl = URL.createObjectURL(file);
       }
 
       updateLesson(sectionId, lessonId, {
-        pdfUrl: finalPdfUrl
+        pdfUrl: finalUrl,
+        fileUrl: finalUrl
       });
 
       showToast({
-        title: 'Resource Attached 🎉',
-        description: `"${file.name}" attached to lesson.`,
+        title: `${typeLabel} Attached! 📎`,
+        description: `"${file.name}" attached successfully to lecture.`,
         type: 'success'
       });
     } catch (err: any) {
       showToast({
         title: 'Upload Error',
-        description: err.message || 'Could not upload PDF resource.',
+        description: err.message || `Could not upload ${typeLabel}.`,
         type: 'error'
       });
     } finally {
       setUploadingPdfLessonId(null);
+      setActiveResourceDropdownLessonId(null);
     }
+  };
+
+  // Helper to detect resource category, badge styling, and icon
+  const getResourceMeta = (url?: string) => {
+    if (!url) return null;
+    const clean = url.split('?')[0].toLowerCase();
+    if (clean.endsWith('.pdf') || url.includes('application/pdf')) {
+      return {
+        type: 'PDF',
+        label: 'PDF ✓',
+        icon: 'picture_as_pdf',
+        color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+      };
+    }
+    if (
+      clean.endsWith('.doc') ||
+      clean.endsWith('.docx') ||
+      clean.endsWith('.txt') ||
+      clean.endsWith('.rtf') ||
+      clean.endsWith('.zip')
+    ) {
+      return {
+        type: 'DOC',
+        label: 'Doc ✓',
+        icon: 'description',
+        color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+      };
+    }
+    if (
+      clean.endsWith('.png') ||
+      clean.endsWith('.jpg') ||
+      clean.endsWith('.jpeg') ||
+      clean.endsWith('.webp') ||
+      clean.endsWith('.svg') ||
+      url.startsWith('data:image/')
+    ) {
+      return {
+        type: 'IMAGE',
+        label: 'Image ✓',
+        icon: 'image',
+        color: 'bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800'
+      };
+    }
+    return {
+      type: 'LINK',
+      label: 'Link ↗',
+      icon: 'link',
+      color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+    };
   };
 
   // Stats calculation
@@ -400,7 +467,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     0
   );
   const totalWithPdf = (sections || []).reduce(
-    (acc, s) => acc + (s.lessons || []).filter((l) => !!l.pdfUrl).length,
+    (acc, s) => acc + (s.lessons || []).filter((l) => !!(l.pdfUrl || l.fileUrl)).length,
     0
   );
   const activeUploads = tasks.filter((t) => t.status === 'UPLOADING');
@@ -431,7 +498,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               </span>
             </div>
             <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-              Auto-filled syllabus from Excel. Upload lecture videos (2 parallel queue), attach PDF resources, and configure quizzes inline.
+              Upload lecture videos (2 parallel queue), attach multi-format resources (PDF, Doc, Image, or External Link), and configure quizzes inline.
             </p>
           </div>
         </div>
@@ -789,59 +856,333 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </label>
                                 )}
 
-                                {/* 2. RESOURCE / PDF ACTION */}
+                                {/* 2. RESOURCE DROPDOWN ACTION (PDF, DOC, IMAGE, EXTERNAL LINK) */}
                                 {uploadingPdfLessonId === lesson.id ? (
                                   <div className="px-2.5 py-1.5 bg-surface-container border border-outline-variant rounded-xl flex items-center gap-1.5 text-xs text-on-surface-variant">
                                     <Icon name="sync" size={14} className="animate-spin text-primary" />
-                                    <span>Saving PDF...</span>
+                                    <span>Attaching Resource...</span>
                                   </div>
                                 ) : lesson.pdfUrl ? (
-                                  <div className="flex items-center gap-1">
-                                    <a
-                                      href={lesson.pdfUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-xl text-xs font-bold flex items-center gap-1.5"
-                                      title="View attached PDF"
-                                    >
-                                      <Icon name="picture_as_pdf" size={14} />
-                                      <span>PDF ✓</span>
-                                    </a>
-                                    <label
-                                      className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant rounded-xl text-xs text-on-surface-variant cursor-pointer"
-                                      title="Replace PDF"
-                                    >
-                                      <Icon name="swap_horiz" size={14} />
-                                      <input
-                                        type="file"
-                                        accept=".pdf,.doc,.docx,.txt,.zip"
-                                        onChange={(e) => {
-                                          const f = e.target.files?.[0];
-                                          if (f) handleUploadPdf(section.id, lesson.id, f);
-                                          e.target.value = '';
-                                        }}
-                                        className="hidden"
-                                      />
-                                    </label>
+                                  <div className="relative flex items-center gap-1">
+                                    {(() => {
+                                      const resMeta = getResourceMeta(lesson.pdfUrl)!;
+                                      return (
+                                        <>
+                                          <a
+                                            href={lesson.pdfUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className={`px-2.5 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all hover:opacity-90 shadow-2xs ${resMeta.color}`}
+                                            title={`Open ${resMeta.label} in new tab`}
+                                          >
+                                            <Icon name={resMeta.icon} size={14} />
+                                            <span>{resMeta.label}</span>
+                                          </a>
+
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setActiveResourceDropdownLessonId((prev) =>
+                                                prev === lesson.id ? null : lesson.id
+                                              )
+                                            }
+                                            className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant rounded-xl text-xs text-on-surface-variant cursor-pointer transition-colors shadow-2xs"
+                                            title="Change or replace resource"
+                                          >
+                                            <Icon name="swap_horiz" size={14} />
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              updateLesson(section.id, lesson.id, {
+                                                pdfUrl: '',
+                                                fileUrl: ''
+                                              });
+                                              showToast({
+                                                title: 'Resource Removed',
+                                                description: 'Resource detached from lecture.',
+                                                type: 'info'
+                                              });
+                                            }}
+                                            className="p-1.5 bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant rounded-xl text-xs cursor-pointer transition-colors shadow-2xs"
+                                            title="Remove attached resource"
+                                          >
+                                            <Icon name="close" size={14} />
+                                          </button>
+                                        </>
+                                      );
+                                    })()}
+
+                                    {/* REPLACE RESOURCE DROPDOWN MENU */}
+                                    {activeResourceDropdownLessonId === lesson.id && (
+                                      <>
+                                        <div
+                                          className="fixed inset-0 z-40"
+                                          onClick={() => setActiveResourceDropdownLessonId(null)}
+                                        />
+                                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                                          <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
+                                            <span>Replace Resource</span>
+                                            <Icon name="tune" size={12} />
+                                          </div>
+
+                                          {/* PDF Document */}
+                                          <label className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors">
+                                            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                                              <Icon name="picture_as_pdf" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">PDF Document</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                .pdf handout / notes
+                                              </span>
+                                            </div>
+                                            <input
+                                              type="file"
+                                              accept=".pdf,application/pdf"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleUploadResource(section.id, lesson.id, f, 'PDF Document');
+                                                e.target.value = '';
+                                              }}
+                                              className="hidden"
+                                            />
+                                          </label>
+
+                                          {/* Word / Document */}
+                                          <label className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors">
+                                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                              <Icon name="description" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">Word / Document</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                .doc, .docx, .txt, .zip
+                                              </span>
+                                            </div>
+                                            <input
+                                              type="file"
+                                              accept=".doc,.docx,.txt,.rtf,.zip"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleUploadResource(section.id, lesson.id, f, 'Document');
+                                                e.target.value = '';
+                                              }}
+                                              className="hidden"
+                                            />
+                                          </label>
+
+                                          {/* Image / Diagram */}
+                                          <label className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors">
+                                            <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                              <Icon name="image" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">Image / Diagram</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                .png, .jpg, .webp, .svg
+                                              </span>
+                                            </div>
+                                            <input
+                                              type="file"
+                                              accept="image/png,image/jpeg,image/webp,image/svg+xml,image/*"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleUploadResource(section.id, lesson.id, f, 'Image');
+                                                e.target.value = '';
+                                              }}
+                                              className="hidden"
+                                            />
+                                          </label>
+
+                                          {/* External Link */}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveResourceDropdownLessonId(null);
+                                              setExternalLinkModalTarget({
+                                                sectionId: section.id,
+                                                lessonId: lesson.id,
+                                                lessonTitle: lesson.title,
+                                                currentUrl: lesson.pdfUrl || lesson.fileUrl || ''
+                                              });
+                                              setExternalLinkUrl(lesson.pdfUrl || lesson.fileUrl || '');
+                                            }}
+                                            className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors"
+                                          >
+                                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                              <Icon name="link" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">External Web Link</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                Drive, GitHub, Figma, URL
+                                              </span>
+                                            </div>
+                                          </button>
+
+                                          <div className="pt-1.5 mt-1 border-t border-outline-variant/60">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                updateLesson(section.id, lesson.id, {
+                                                  pdfUrl: '',
+                                                  fileUrl: ''
+                                                });
+                                                setActiveResourceDropdownLessonId(null);
+                                                showToast({
+                                                  title: 'Resource Removed',
+                                                  description: 'Resource detached from lecture.',
+                                                  type: 'info'
+                                                });
+                                              }}
+                                              className="w-full px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <Icon name="delete_outline" size={15} />
+                                              <span>Remove Current Resource</span>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 ) : (
-                                  <label
-                                    className="px-2.5 py-1.5 bg-surface hover:bg-surface-container text-on-surface border border-outline-variant rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                                    title="Attach PDF notes or downloadable resources"
-                                  >
-                                    <Icon name="attach_file" size={15} />
-                                    <span>Resource / PDF</span>
-                                    <input
-                                      type="file"
-                                      accept=".pdf,.doc,.docx,.txt,.zip"
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) handleUploadPdf(section.id, lesson.id, f);
-                                        e.target.value = '';
-                                      }}
-                                      className="hidden"
-                                    />
-                                  </label>
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setActiveResourceDropdownLessonId((prev) =>
+                                          prev === lesson.id ? null : lesson.id
+                                        )
+                                      }
+                                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all ${
+                                        activeResourceDropdownLessonId === lesson.id
+                                          ? 'bg-primary text-on-primary border-primary'
+                                          : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
+                                      }`}
+                                      title="Attach PDF, Document, Image, or External Link"
+                                    >
+                                      <Icon name="attach_file" size={15} />
+                                      <span>Resource</span>
+                                      <Icon
+                                        name={activeResourceDropdownLessonId === lesson.id ? 'expand_less' : 'arrow_drop_down'}
+                                        size={16}
+                                        className="-ml-1 opacity-70"
+                                      />
+                                    </button>
+
+                                    {/* ATTACH RESOURCE DROPDOWN MENU */}
+                                    {activeResourceDropdownLessonId === lesson.id && (
+                                      <>
+                                        <div
+                                          className="fixed inset-0 z-40"
+                                          onClick={() => setActiveResourceDropdownLessonId(null)}
+                                        />
+                                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                                          <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
+                                            <span>Attach Resource</span>
+                                            <span className="text-[9px] font-normal text-on-surface-variant">Choose format</span>
+                                          </div>
+
+                                          {/* PDF Document */}
+                                          <label className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors">
+                                            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                                              <Icon name="picture_as_pdf" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">PDF Document</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                .pdf handout / notes
+                                              </span>
+                                            </div>
+                                            <input
+                                              type="file"
+                                              accept=".pdf,application/pdf"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleUploadResource(section.id, lesson.id, f, 'PDF Document');
+                                                e.target.value = '';
+                                              }}
+                                              className="hidden"
+                                            />
+                                          </label>
+
+                                          {/* Word / Document */}
+                                          <label className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors">
+                                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                              <Icon name="description" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">Word / Document</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                .doc, .docx, .txt, .zip
+                                              </span>
+                                            </div>
+                                            <input
+                                              type="file"
+                                              accept=".doc,.docx,.txt,.rtf,.zip"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleUploadResource(section.id, lesson.id, f, 'Document');
+                                                e.target.value = '';
+                                              }}
+                                              className="hidden"
+                                            />
+                                          </label>
+
+                                          {/* Image / Diagram */}
+                                          <label className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors">
+                                            <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                              <Icon name="image" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">Image / Diagram</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                .png, .jpg, .webp, .svg
+                                              </span>
+                                            </div>
+                                            <input
+                                              type="file"
+                                              accept="image/png,image/jpeg,image/webp,image/svg+xml,image/*"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleUploadResource(section.id, lesson.id, f, 'Image');
+                                                e.target.value = '';
+                                              }}
+                                              className="hidden"
+                                            />
+                                          </label>
+
+                                          {/* External Link */}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveResourceDropdownLessonId(null);
+                                              setExternalLinkModalTarget({
+                                                sectionId: section.id,
+                                                lessonId: lesson.id,
+                                                lessonTitle: lesson.title,
+                                                currentUrl: lesson.pdfUrl || lesson.fileUrl || ''
+                                              });
+                                              setExternalLinkUrl(lesson.pdfUrl || lesson.fileUrl || '');
+                                            }}
+                                            className="w-full px-2.5 py-2 text-xs font-semibold rounded-xl hover:bg-surface-container text-on-surface flex items-center gap-2.5 cursor-pointer transition-colors"
+                                          >
+                                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                              <Icon name="link" size={16} />
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                              <span className="block font-bold leading-tight">External Web Link</span>
+                                              <span className="block text-[10px] text-on-surface-variant font-normal">
+                                                Drive, GitHub, Figma, URL
+                                              </span>
+                                            </div>
+                                          </button>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
                                 )}
 
                                 {/* 3. QUIZ EDIT ACTION */}
@@ -926,6 +1267,85 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* External Resource Web Link Modal */}
+      {externalLinkModalTarget && (
+        <Modal
+          isOpen={true}
+          onClose={() => setExternalLinkModalTarget(null)}
+          title="Attach External Resource Link"
+          maxWidth="md"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!externalLinkUrl.trim()) return;
+              let urlToSave = externalLinkUrl.trim();
+              if (!/^https?:\/\//i.test(urlToSave)) {
+                urlToSave = `https://${urlToSave}`;
+              }
+              updateLesson(
+                externalLinkModalTarget.sectionId,
+                externalLinkModalTarget.lessonId,
+                {
+                  pdfUrl: urlToSave,
+                  fileUrl: urlToSave
+                }
+              );
+              showToast({
+                title: 'Resource Link Attached! 🔗',
+                description: `External link attached to "${externalLinkModalTarget.lessonTitle}".`,
+                type: 'success'
+              });
+              setExternalLinkModalTarget(null);
+              setExternalLinkUrl('');
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-on-surface">
+                Lecture: <span className="text-primary">{externalLinkModalTarget.lessonTitle}</span>
+              </label>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                Attach any web link for students (e.g. Google Drive, GitHub repository, Figma design, Notion doc, or reference website).
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-on-surface">
+                Resource URL (Web Link) *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="https://drive.google.com/... or https://github.com/..."
+                value={externalLinkUrl}
+                onChange={(e) => setExternalLinkUrl(e.target.value)}
+                className="w-full bg-surface border border-outline-variant rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-mono"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-outline-variant/60">
+              <button
+                type="button"
+                onClick={() => setExternalLinkModalTarget(null)}
+                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-container border border-outline-variant font-bold text-xs text-on-surface cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!externalLinkUrl.trim()}
+                className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Icon name="link" size={15} />
+                <span>Attach Link 🚀</span>
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
