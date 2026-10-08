@@ -896,6 +896,16 @@ function InstructorCoursesStudioInner() {
                             <span>Edit</span>
                           </Link>
 
+                          {/* Student View Preview */}
+                          <Link
+                            href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
+                            className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1"
+                            title="Preview course exactly as students see it"
+                          >
+                            <Icon name="visibility" size={13} />
+                            <span>Preview</span>
+                          </Link>
+
                           {/* Approved: Instructor can now publish live */}
                           {isApproved && (
                             <button

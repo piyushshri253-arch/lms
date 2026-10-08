@@ -206,6 +206,7 @@ function CourseStudentPreviewInner() {
       id: l.id,
       title: l.title,
       duration: l.duration || '10:00',
+      type: (l.type === 'QUIZ' || l.type === 'quiz' ? 'quiz' : l.type === 'ARTICLE' || l.type === 'reading' ? 'reading' : 'video') as 'video' | 'reading' | 'quiz',
       completed: false,
       locked: !l.isFree
     }))
@@ -358,7 +359,7 @@ function CourseStudentPreviewInner() {
               }`}
             >
               <Icon name="storefront" size={15} />
-              <span>1. Course Landing Page & Pricing</span>
+              <span>1. Course Landing Page (Student View)</span>
             </button>
 
             <button
@@ -370,358 +371,429 @@ function CourseStudentPreviewInner() {
               }`}
             >
               <Icon name="play_circle" size={15} />
-              <span>2. Video, Quiz & Curriculum Player</span>
+              <span>2. Classroom Player & Lectures</span>
             </button>
           </div>
+
+          <a
+            href={`/courses/${course.slug || course.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all"
+            title="Open direct live student page in new tab"
+          >
+            <span>Live Student URL</span>
+            <Icon name="open_in_new" size={13} />
+          </a>
         </div>
       </header>
 
-      {/* MODE 1: STUDENT COURSE LANDING PAGE VIEW */}
+      {/* MODE 1: STUDENT COURSE LANDING PAGE VIEW (EXACT 100% MATCH TO STUDENT VIEW) */}
       {viewMode === 'LANDING_PAGE' ? (
-        <div className="flex-1">
-          {/* Hero Section */}
-          <section className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white py-10 sm:py-14 px-4 sm:px-8 border-b border-white/10">
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Left 8 Columns: Title, Subtitle, Rating, Meta */}
-              <div className="lg:col-span-8 space-y-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold">
+        <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
+          <UdemyNavbar />
+
+          <main className="w-full max-w-container-max mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative pb-24 md:pb-16">
+            {/* Left Column: Course Details */}
+            <div className="lg:col-span-8 flex flex-col gap-10">
+              {/* Breadcrumbs & Hero */}
+              <section className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 text-on-surface-variant text-xs sm:text-sm font-semibold">
+                  <span className="hover:text-primary transition-colors cursor-pointer">
+                    Browse
+                  </span>
+                  <Icon name="chevron_right" size={16} />
+                  <span className="hover:text-primary transition-colors cursor-pointer">
                     {typeof course.category === 'object'
                       ? course.category?.name || 'Masterclass'
                       : course.category || 'Masterclass'}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-200 text-[11px] font-semibold">
-                    Level: {course.level || 'All Levels'}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-semibold">
-                    Language: {course.language || 'English'}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-mono font-bold">
-                    Status: {displayStatus}
-                  </span>
+                  <Icon name="chevron_right" size={16} />
+                  <span className="text-on-surface truncate">{course.title}</span>
                 </div>
 
-                <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
+                <h1 className="font-extrabold text-3xl sm:text-4xl lg:text-5xl text-on-surface leading-tight tracking-tight">
                   {course.title}
                 </h1>
 
-                <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                  {course.subtitle ||
-                    course.shortDescription ||
-                    'Master practical production skills with real-world video lectures, hands-on quizzes, and downloadable architectural guides.'}
+                <p className="text-base sm:text-lg text-on-surface-variant max-w-3xl leading-relaxed">
+                  {course.subtitle || course.shortDescription || course.description || 'Master practical skills with real-world video lectures, hands-on quizzes, and downloadable architectural guides.'}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-5 pt-2 text-xs text-slate-300">
-                  <div className="flex items-center gap-1 text-amber-400 font-bold">
-                    <Icon name="star" fill size={16} />
-                    <span>{course.rating || '5.0'}</span>
-                    <span className="text-slate-400 font-normal">
-                      ({course.reviewsCount || 0} ratings)
+                {/* Badges & Meta Metrics */}
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2">
+                  <div className="flex items-center gap-1.5 bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors">
+                    <span className="text-sm font-bold text-on-surface">
+                      {typeof course.rating === 'number' ? course.rating.toFixed(1) : (course.rating || '5.0')}
+                    </span>
+                    <div className="flex text-amber-500">
+                      {[...Array(5)].map((_, i) => (
+                        <Icon key={i} name="star" fill size={16} />
+                      ))}
+                    </div>
+                    <span className="text-xs text-on-surface-variant ml-1">
+                      ({course.reviews?.length || course.reviewsCount || 0} reviews)
                     </span>
                   </div>
-                  <div>
-                    <span className="font-bold text-white">{course.studentsCount || 0}</span>{' '}
-                    students enrolled
+
+                  <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
+                    <Icon name="group" size={20} />
+                    <span>{course.studentsCount?.toLocaleString() || 0} students</span>
                   </div>
-                  <div>
-                    Created by{' '}
-                    <span className="font-bold text-indigo-300">
-                      {course.instructor?.name || 'Course Instructor'}
-                    </span>
+
+                  <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
+                    <Icon name="schedule" size={20} />
+                    <span>{course.durationHours || 30} hours total</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
+                    <Icon name="language" size={20} />
+                    <span>{course.language || 'English'}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Right 4 Columns: Student Pricing & Enrollment Card */}
-              <div className="lg:col-span-4 bg-white text-slate-900 rounded-2xl p-5 shadow-2xl border border-slate-200 space-y-4">
+                {/* Instructor Bio Card */}
+                {course.instructor && (
+                  <div className="flex items-center gap-3.5 mt-4 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/50 w-fit">
+                    <UserAvatar
+                      avatar={course.instructor.avatar}
+                      name={course.instructor.name || 'Course Instructor'}
+                      size="lg"
+                      className="w-12 h-12 shrink-0"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">
+                        Created by {course.instructor.name || 'Course Instructor'}
+                      </p>
+                      <p className="text-xs text-on-surface-variant">
+                        {course.instructor.title || course.instructor.bio || 'Lead Instructor & Systems Architect'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Mobile Video Preview & Pricing Box (< lg) */}
+              <div className="lg:hidden bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-md overflow-hidden flex flex-col">
                 <div
                   onClick={() => setViewMode('CLASSROOM_PLAYER')}
-                  className="relative rounded-xl overflow-hidden aspect-video bg-slate-900 flex items-center justify-center cursor-pointer group"
+                  className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant"
                 >
                   {course.thumbnail ? (
                     <img
                       src={course.thumbnail}
                       alt={course.title}
-                      className="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="text-center p-4 text-slate-400 text-xs">
-                      No Thumbnail Uploaded
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
+                      <Icon name="school" size={48} />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
-                    <div className="w-12 h-12 rounded-full bg-white text-indigo-600 flex items-center justify-center shadow-lg">
-                      <Icon name="play_arrow" fill size={26} />
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer">
+                    <div className="w-14 h-14 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
+                      <Icon name="play_arrow" fill size={28} className="ml-1 text-primary" />
                     </div>
-                    <span className="text-[11px] font-bold text-white bg-black/60 px-3 py-1 rounded-full">
-                      Preview Course Video & Player
+                  </div>
+                  <div className="absolute bottom-2.5 left-0 w-full px-3 flex justify-center">
+                    <span className="bg-black/70 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                      Preview this course
                     </span>
                   </div>
                 </div>
 
-                {/* Pricing Display */}
-                <div className="space-y-1">
-                  <div className="flex items-baseline gap-2.5">
-                    <span className="text-3xl font-black text-slate-900">
-                      {effectivePrice === 0
-                        ? 'Free'
-                        : `₹${effectivePrice.toLocaleString('en-IN')}`}
+                <div className="p-4 sm:p-6 flex flex-col gap-4">
+                  <div className="flex items-end gap-3">
+                    <span className={`text-2xl sm:text-3xl font-extrabold leading-none font-mono ${effectivePrice === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+                      {effectivePrice === 0 ? 'Free' : `₹${effectivePrice.toLocaleString('en-IN')}`}
                     </span>
                     {originalPrice && originalPrice > effectivePrice && (
-                      <>
-                        <span className="text-sm text-slate-400 line-through">
-                          ₹{originalPrice.toLocaleString('en-IN')}
-                        </span>
-                        <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          {discountPercent}% OFF
-                        </span>
-                      </>
+                      <span className="text-sm text-outline line-through mb-0.5 font-mono">
+                        ₹{originalPrice.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                    {effectivePrice === 0 && (
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-0.5">
+                        100% Free
+                      </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    {course.accessType === 'LIMITED_DAYS'
-                      ? `${course.accessDays || 365}-Days Full Enrolled Access`
-                      : 'Full Lifetime Enrolled Access • Certificate of Completion'}
-                  </p>
-                </div>
 
-                <button
-                  onClick={() => setViewMode('CLASSROOM_PLAYER')}
-                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all flex items-center justify-center gap-2"
-                >
-                  <Icon name="play_circle" size={18} />
-                  <span>Test Classroom Player (Video, PDF & Quiz)</span>
-                </button>
-
-                <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
-                  <div className="font-bold text-slate-900">This course includes:</div>
-                  <div className="flex items-center gap-2">
-                    <Icon name="smart_display" size={16} className="text-indigo-600" />
-                    <span>{allLessons.length} curriculum lectures & assessments</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Icon name="verified_user" size={16} className="text-emerald-600" />
-                    <span>256-Bit Signed DRM Video & PDF Protection</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Icon name="workspace_premium" size={16} className="text-amber-500" />
-                    <span>Verified Completion Certificate</span>
-                  </div>
+                  <button
+                    onClick={() => setViewMode('CLASSROOM_PLAYER')}
+                    className="w-full bg-[#a435f0] text-white font-bold py-3 rounded hover:bg-[#8710d8] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    <Icon name="play_circle" fill size={18} />
+                    <span>Test Classroom Player</span>
+                  </button>
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* Main Landing Page Content: What You'll Learn, Description, Curriculum */}
-          <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 space-y-8">
-              {/* What You Will Learn */}
+              {/* What You'll Learn Card */}
               {whatYouWillLearnList.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-                  <div>
-                    <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                      <Icon name="check_circle" size={20} className="text-emerald-600" />
+                <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                  <div className="border-b border-outline-variant pb-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-on-surface flex items-center gap-2.5">
+                      <Icon name="check_circle" size={24} className="text-primary" />
                       <span>WHAT YOU’LL LEARN</span>
                     </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">Key learning outcomes &amp; skills</p>
+                    <p className="text-xs text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 pt-1">
                     {whatYouWillLearnList.map((item: string, idx: number) => (
-                      <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
+                      <div key={idx} className="flex gap-3 items-start">
                         <Icon
                           name="check_circle"
-                          size={16}
-                          className="text-emerald-600 shrink-0 mt-0.5"
+                          fill
+                          size={20}
+                          className="text-primary mt-0.5 shrink-0"
                         />
-                        <span>{item}</span>
+                        <p className="text-xs sm:text-sm text-on-surface leading-relaxed">
+                          {item}
+                        </p>
                       </div>
                     ))}
                   </div>
+                </section>
+              )}
+
+              {/* Curriculum Section */}
+              <CurriculumAccordion
+                modules={modules}
+                courseSlug={course.slug || course.id}
+              />
+
+              {/* Before You Begin & Who This Course Is For */}
+              {(requirementsList.length > 0 || targetAudienceList.length > 0) && (
+                <div className={requirementsList.length > 0 && targetAudienceList.length > 0 ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "space-y-6"}>
+                  {requirementsList.length > 0 && (
+                    <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                      <div className="border-b border-outline-variant pb-3">
+                        <h2 className="text-lg sm:text-xl font-bold text-on-surface flex items-center gap-2">
+                          <Icon name="rule" size={22} className="text-secondary" />
+                          <span>BEFORE YOU BEGIN</span>
+                        </h2>
+                        <p className="text-xs text-on-surface-variant mt-0.5">Knowledge or experience you may need</p>
+                      </div>
+                      <ul className="space-y-3 pt-1">
+                        {requirementsList.map((item: string, idx: number) => (
+                          <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-on-surface">
+                            <span className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" />
+                            <span className="leading-relaxed">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  {targetAudienceList.length > 0 && (
+                    <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                      <div className="border-b border-outline-variant pb-3">
+                        <h2 className="text-lg sm:text-xl font-bold text-on-surface flex items-center gap-2">
+                          <Icon name="groups" size={22} className="text-tertiary" />
+                          <span>WHO THIS COURSE IS FOR</span>
+                        </h2>
+                        <p className="text-xs text-on-surface-variant mt-0.5">Who can benefit from this course</p>
+                      </div>
+                      <ul className="space-y-3 pt-1">
+                        {targetAudienceList.map((item: string, idx: number) => (
+                          <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-on-surface">
+                            <Icon name="person" size={18} className="text-tertiary shrink-0 mt-0.5" />
+                            <span className="leading-relaxed">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
                 </div>
               )}
 
-              {/* Course Curriculum Section */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-                <div className="flex items-center justify-between">
+              {/* Course Description Section */}
+              {course.description && (
+                <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                  <h2 className="text-xl sm:text-2xl font-bold text-on-surface pb-3 border-b border-outline-variant">
+                    Description
+                  </h2>
+                  <div className="text-xs sm:text-sm text-on-surface leading-relaxed whitespace-pre-line">
+                    {course.description}
+                  </div>
+                </section>
+              )}
+
+              {/* Student Reviews & Ratings Section */}
+              <section id="reviews" className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 scroll-mt-24">
+                <div className="flex justify-between items-center pb-4 border-b border-outline-variant">
                   <div>
-                    <h2 className="text-lg font-extrabold text-slate-900">Course Curriculum</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {(course.sections || []).length} modules • {allLessons.length} lectures
-                      (Click any lecture to preview its Video/Quiz/PDF)
-                    </p>
+                    <h3 className="text-xl font-bold text-on-surface">Student Reviews &amp; Feedback</h3>
+                    <p className="text-xs text-on-surface-variant mt-0.5">Real verified ratings from enrolled students</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-xl border border-amber-200">
+                    <Icon name="star" fill size={18} className="text-amber-500" />
+                    <span className="font-extrabold text-sm text-amber-900 dark:text-amber-300">
+                      {typeof course.rating === 'number' ? course.rating.toFixed(1) : (course.rating || '5.0')} / 5.0
+                    </span>
                   </div>
                 </div>
 
-                {allLessons.length === 0 ? (
-                  <div className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                    No curriculum modules or lectures have been added to this course yet.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
-                    {(course.sections || []).map((sec: any, sIdx: number) => {
-                      const isOpen = expandedSections.includes(sec.id);
-                      const mNum = sIdx + 1;
+                <div className="space-y-4 divide-y divide-outline-variant/40">
+                  {(!course.reviews || course.reviews.length === 0) ? (
+                    <div className="text-center py-8 bg-surface-container-low/40 rounded-xl border border-dashed border-outline-variant">
+                      <Icon name="rate_review" size={32} className="text-on-surface-variant/40 mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-on-surface">No student reviews yet</p>
+                      <p className="text-[11px] text-on-surface-variant mt-0.5">
+                        Students can review this course once published and enrolled.
+                      </p>
+                    </div>
+                  ) : (
+                    course.reviews.map((r: any) => {
+                      const reviewerName = r.user?.name || (typeof r.user === 'string' ? r.user : 'Verified Student');
+                      const reviewerAvatar = r.user?.avatar || null;
                       return (
-                        <div key={sec.id}>
-                          <button
-                            onClick={() => toggleSection(sec.id)}
-                            className="w-full px-4 py-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-left cursor-pointer"
-                          >
-                            <div>
-                              <span className="text-[10px] font-mono font-bold uppercase text-indigo-600 block">
-                                Module {mNum}
-                              </span>
-                              <span className="text-sm font-bold text-slate-900">{sec.title}</span>
-                              {sec.description && (
-                                <p className="text-xs text-slate-500 mt-0.5">{sec.description}</p>
-                              )}
+                        <div key={r.id} className="pt-4 first:pt-0 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2.5">
+                              <UserAvatar
+                                avatar={reviewerAvatar}
+                                name={reviewerName}
+                                size="sm"
+                                className="w-8 h-8 rounded-full"
+                              />
+                              <div>
+                                <span className="font-bold text-xs text-on-surface">{reviewerName}</span>
+                                {r.date && (
+                                  <span className="text-[10px] text-on-surface-variant block mt-0.5">
+                                    {new Date(r.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-slate-500">
-                              <span>{(sec.lessons || []).length} lectures</span>
-                              <Icon name={isOpen ? 'expand_less' : 'expand_more'} size={18} />
+                            <div className="flex text-amber-500">
+                              {[...Array(r.rating || 5)].map((_, i) => (
+                                <Icon key={i} name="star" fill size={14} />
+                              ))}
                             </div>
-                          </button>
-
-                          {isOpen && (
-                            <div className="divide-y divide-slate-100 bg-white">
-                              {(sec.lessons || []).map((les: any, lIdx: number) => {
-                                const lCode = `${mNum}.${lIdx + 1}`;
-                                const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
-                                return (
-                                  <div key={les.id} className="px-4 py-3 space-y-2 hover:bg-indigo-50/30">
-                                    <div className="flex items-center justify-between gap-3">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold text-xs shrink-0">
-                                          {lCode}
-                                        </span>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-slate-800 truncate">
-                                            {les.title}
-                                          </div>
-                                          {les.description && (
-                                            <p className="text-[11px] text-slate-500">{les.description}</p>
-                                          )}
-                                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
-                                            <span>{les.type || 'VIDEO'}</span>
-                                            <span>•</span>
-                                            <span>{les.duration || '10:00'}</span>
-                                            {les.isFree ? (
-                                              <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">
-                                                Free Preview
-                                              </span>
-                                            ) : (
-                                              <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
-                                                🔒 Enrolled Student Only
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      <button
-                                        onClick={() => {
-                                          setActiveLessonId(les.id);
-                                          setViewMode('CLASSROOM_PLAYER');
-                                        }}
-                                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 cursor-pointer"
-                                      >
-                                        Test in Player →
-                                      </button>
-                                    </div>
-
-                                    {subs.length > 0 && (
-                                      <div className="pl-6 sm:pl-9 space-y-1.5 border-l-2 border-indigo-200 ml-3 pt-1">
-                                        {subs.map((sub: any, subIdx: number) => {
-                                          const sCode = `${lCode}.${subIdx + 1}`;
-                                          return (
-                                            <div
-                                              key={sub.id || subIdx}
-                                              className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200/70 text-xs"
-                                            >
-                                              <div className="flex items-start gap-2">
-                                                <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-mono font-bold text-[10px] shrink-0">
-                                                  {sCode}
-                                                </span>
-                                                <div>
-                                                  <p className="font-semibold text-slate-800">{sub.title}</p>
-                                                  {sub.description && (
-                                                    <p className="text-[11px] text-slate-500">{sub.description}</p>
-                                                  )}
-                                                </div>
-                                              </div>
-                                              <span className="text-[11px] font-mono text-slate-500 shrink-0">
-                                                {sub.duration || '05:00'}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          </div>
+                          <p className="text-xs text-on-surface-variant leading-relaxed pl-10.5">{r.comment}</p>
                         </div>
                       );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Requirements & Target Audience */}
-              {(requirementsList.length > 0 || targetAudienceList.length > 0) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {requirementsList.length > 0 && (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
-                      <div>
-                        <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                          <Icon name="rule" size={18} className="text-indigo-600" />
-                          <span>BEFORE YOU BEGIN</span>
-                        </h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Knowledge or experience you may need</p>
-                      </div>
-                      <ul className="space-y-2 text-xs text-slate-700">
-                        {requirementsList.map((r: string, i: number) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
-                            <span>{r}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {targetAudienceList.length > 0 && (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
-                      <div>
-                        <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                          <Icon name="groups" size={18} className="text-purple-600" />
-                          <span>WHO THIS COURSE IS FOR</span>
-                        </h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Who can benefit from this course</p>
-                      </div>
-                      <ul className="space-y-2 text-xs text-slate-700">
-                        {targetAudienceList.map((t: string, i: number) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <Icon name="person" size={15} className="text-purple-500 shrink-0 mt-0.5" />
-                            <span>{t}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    })
                   )}
                 </div>
-              )}
+              </section>
+            </div>
 
-              {/* Full Course Description */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
-                <h2 className="text-lg font-extrabold text-slate-900">Course Description</h2>
-                <div className="text-xs sm:text-sm text-slate-700 whitespace-pre-wrap leading-7">
-                  {course.description || 'No detailed description added yet.'}
+            {/* Right Column: Floating Purchase Card */}
+            <div className="hidden lg:block lg:col-span-4 relative">
+              <div className="sticky top-[96px] bg-surface-container-lowest border border-outline-variant rounded-3xl shadow-xl overflow-hidden flex flex-col transition-all duration-300 hover:border-primary/40">
+                {/* Video Preview Hero */}
+                <div
+                  onClick={() => setViewMode('CLASSROOM_PLAYER')}
+                  className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant"
+                >
+                  {course.thumbnail ? (
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
+                      <Icon name="school" size={48} />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer">
+                    <div className="w-16 h-16 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
+                      <Icon name="play_arrow" fill size={32} className="ml-1 text-primary" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-3 left-0 w-full px-3 flex justify-center">
+                    <span className="bg-black/70 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-md">
+                      Preview this course
+                    </span>
+                  </div>
+                </div>
+
+                {/* Pricing & Checkout CTAs */}
+                <div className="p-6 sm:p-8 flex flex-col gap-5">
+                  <div className="flex items-end gap-3">
+                    <span className={`text-3xl sm:text-4xl font-extrabold leading-none font-mono ${effectivePrice === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+                      {effectivePrice === 0 ? 'Free' : `₹${effectivePrice.toLocaleString('en-IN')}`}
+                    </span>
+                    {originalPrice && originalPrice > effectivePrice && (
+                      <span className="text-base text-outline line-through mb-1 font-mono">
+                        ₹{originalPrice.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                    {effectivePrice === 0 && (
+                      <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-1">
+                        100% Free
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <button
+                      onClick={() => setViewMode('CLASSROOM_PLAYER')}
+                      className="w-full bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold py-3.5 rounded transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
+                    >
+                      <Icon name="play_circle" fill size={20} />
+                      <span>Test in Classroom Player</span>
+                    </button>
+                    <button
+                      className="w-full bg-white text-[#2d2f31] border border-[#2d2f31] font-bold py-3.5 rounded hover:bg-[#f7f9fa] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                    >
+                      <span>Buy now (Student CTA)</span>
+                    </button>
+                  </div>
+
+                  <p className="text-center text-xs text-on-surface-variant font-medium">
+                    30-Day Money-Back Guarantee
+                  </p>
+
+                  <div className="pt-4 border-t border-outline-variant">
+                    <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider mb-3">
+                      This course includes:
+                    </h4>
+                    <ul className="space-y-2.5 text-xs text-on-surface-variant">
+                      <li className="flex items-center gap-2.5">
+                        <Icon name="ondemand_video" size={18} className="text-primary" />
+                        <span>{course.durationHours || 30} hours on-demand video</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Icon name="menu_book" size={18} className="text-primary" />
+                        <span>{(course.sections || []).length} modules • {allLessons.length} lectures</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Icon name="all_inclusive" size={18} className="text-primary" />
+                        <span>Full lifetime access</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Icon name="military_tech" size={18} className="text-primary" />
+                        <span>Certificate of completion</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="flex justify-center items-center pt-4 border-t border-outline-variant">
+                    <button
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          navigator.clipboard?.writeText(window.location.href);
+                          alert('Preview link copied to clipboard!');
+                        }
+                      }}
+                      className="text-on-surface-variant text-xs font-semibold hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer py-1 px-3 rounded-lg hover:bg-surface-container-low"
+                    >
+                      <Icon name="share" size={18} />
+                      <span>Share this preview</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </main>
+
+          <UdemyFooter />
         </div>
       ) : (
         /* MODE 2: ENROLLED STUDENT CLASSROOM PLAYER VIEW (VIDEO, QUIZ, PDF, CURRICULUM) */

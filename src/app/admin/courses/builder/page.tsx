@@ -13,6 +13,10 @@ import { CoursePublishStep } from '@/components/course-builder/CoursePublishStep
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
+import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
 import { downloadCourseExcelTemplate, parseCourseExcelFile } from '@/lib/course-excel';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
 
@@ -782,6 +786,22 @@ function CourseBuilderContent() {
 
   const currentPlayerItem = activePreviewItem || allPlayableItems[0] || null;
 
+  const previewModules = courseState.sections.map((sec, idx) => ({
+    id: sec.id,
+    moduleNumber: idx + 1,
+    title: sec.title,
+    lessons: (sec.lessons || []).map((l: any) => ({
+      id: l.id,
+      title: l.title,
+      duration: l.duration || '10:00',
+      type: (l.type === 'QUIZ' || l.type === 'quiz' ? 'quiz' : l.type === 'ARTICLE' || l.type === 'reading' ? 'reading' : 'video') as 'video' | 'reading' | 'quiz',
+      completed: false,
+      locked: !l.isFree
+    }))
+  }));
+
+  const previewTotalLectures = courseState.sections.reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
+
   if (isLoading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
@@ -1209,6 +1229,20 @@ function CourseBuilderContent() {
                 </button>
               </div>
 
+              {/* Open full dedicated student preview tab if course has an ID */}
+              {courseState.id && (
+                <a
+                  href={`/instructor/courses/preview/${encodeURIComponent(courseState.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
+                  title="Open dedicated preview page in new tab"
+                >
+                  <span>Open Full Preview Page</span>
+                  <Icon name="open_in_new" size={14} />
+                </a>
+              )}
+
               {/* Close ('X') Button - Closes preview overlay while keeping 100% of typed builder fields! */}
               <button
                 type="button"
@@ -1223,230 +1257,366 @@ function CourseBuilderContent() {
           </div>
 
           {/* Preview Body */}
-          <div className="flex-1 overflow-y-auto bg-slate-50 text-slate-900">
+          <div className="flex-1 overflow-y-auto bg-white text-[#2d2f31]">
             {previewTab === 'LANDING' ? (
-              <div>
-                {/* Hero Banner */}
-                <section className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white py-10 px-4 sm:px-8">
-                  <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    <div className="lg:col-span-8 space-y-4">
-                      <div className="flex items-center gap-2 text-xs font-bold text-indigo-300 uppercase">
-                        <span>{courseState.category || 'Course'}</span>
-                        <span>•</span>
-                        <span>{courseState.level === 'BEGINNER' ? 'Foundational' : courseState.level}</span>
-                        <span>•</span>
-                        <span>{courseState.language}</span>
-                      </div>
-                      <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-                        {courseState.title || 'Untitled Master Course'}
-                      </h1>
-                      <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                        {courseState.shortDescription || 'Add a short subtitle in Step 1 to display it here.'}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-2">
-                        <span>👨‍🏫 Instructor: <strong>{currentUser?.name || 'Course Instructor'}</strong></span>
-                        <span>⏱️ Duration: <strong>{courseState.durationHours || 12} Hours</strong></span>
-                        <span>📚 Modules: <strong>{courseState.sections.length}</strong></span>
-                      </div>
-                    </div>
+              <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
+                <UdemyNavbar />
 
-                    {/* Right Price & Thumbnail Card */}
-                    <div className="lg:col-span-4 bg-white text-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
-                      {courseState.thumbnail ? (
-                        <img
-                          src={courseState.thumbnail}
-                          alt={courseState.title}
-                          className="w-full aspect-video object-cover"
-                        />
-                      ) : (
-                        <div className="w-full aspect-video bg-slate-900 text-slate-400 flex flex-col items-center justify-center gap-2 text-xs">
-                          <Icon name="image" size={32} />
-                          <span>Course Thumbnail Preview</span>
-                        </div>
-                      )}
-                      <div className="p-5 space-y-4">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-black text-slate-900">
-                            {courseState.price === 0
-                              ? 'FREE'
-                              : `${courseState.currency === 'USD' ? '$' : '₹'}${courseState.price}`}
+                <main className="w-full max-w-container-max mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative pb-24 md:pb-16">
+                  {/* Left Column: Course Details */}
+                  <div className="lg:col-span-8 flex flex-col gap-10">
+                    {/* Breadcrumbs & Hero */}
+                    <section className="flex flex-col gap-4">
+                      <div className="flex items-center gap-2 text-on-surface-variant text-xs sm:text-sm font-semibold">
+                        <span className="hover:text-primary transition-colors cursor-pointer">
+                          Browse
+                        </span>
+                        <Icon name="chevron_right" size={16} />
+                        <span className="hover:text-primary transition-colors cursor-pointer">
+                          {courseState.category || 'Teacher Development'}
+                        </span>
+                        <Icon name="chevron_right" size={16} />
+                        <span className="text-on-surface truncate">
+                          {courseState.title || 'Untitled Course'}
+                        </span>
+                      </div>
+
+                      <h1 className="font-extrabold text-3xl sm:text-4xl lg:text-5xl text-on-surface leading-tight tracking-tight">
+                        {courseState.title || 'Untitled Course'}
+                      </h1>
+
+                      <p className="text-base sm:text-lg text-on-surface-variant max-w-3xl leading-relaxed">
+                        {courseState.shortDescription || courseState.description || 'Master practical skills with real-world video lectures, hands-on quizzes, and downloadable architectural guides.'}
+                      </p>
+
+                      {/* Badges & Meta Metrics */}
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2">
+                        <div className="flex items-center gap-1.5 bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors">
+                          <span className="text-sm font-bold text-on-surface">5.0</span>
+                          <div className="flex text-amber-500">
+                            {[...Array(5)].map((_, i) => (
+                              <Icon key={i} name="star" fill size={16} />
+                            ))}
+                          </div>
+                          <span className="text-xs text-on-surface-variant ml-1">
+                            (Draft Preview)
                           </span>
-                          {courseState.discountPrice && courseState.discountPrice > courseState.price && (
-                            <span className="text-sm text-slate-400 line-through font-semibold">
-                              {courseState.currency === 'USD' ? '$' : '₹'}
-                              {courseState.discountPrice}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
+                          <Icon name="group" size={20} />
+                          <span>0 students</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
+                          <Icon name="schedule" size={20} />
+                          <span>{courseState.durationHours || 12} hours total</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-on-surface-variant text-xs sm:text-sm">
+                          <Icon name="language" size={20} />
+                          <span>{courseState.language || 'English'}</span>
+                        </div>
+                      </div>
+
+                      {/* Instructor Bio Card */}
+                      <div className="flex items-center gap-3.5 mt-4 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/50 w-fit">
+                        <UserAvatar
+                          avatar={currentUser?.avatar}
+                          name={currentUser?.name || 'Course Instructor'}
+                          size="lg"
+                          className="w-12 h-12 shrink-0"
+                        />
+                        <div>
+                          <p className="text-sm font-bold text-on-surface">
+                            Created by {currentUser?.name || 'Course Instructor'}
+                          </p>
+                          <p className="text-xs text-on-surface-variant">
+                            Course Author &amp; Educator
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Mobile Video Preview & Pricing Box (< lg) */}
+                    <div className="lg:hidden bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-md overflow-hidden flex flex-col">
+                      <div
+                        onClick={() => setPreviewTab('PLAYER')}
+                        className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant"
+                      >
+                        {courseState.thumbnail ? (
+                          <img
+                            src={courseState.thumbnail}
+                            alt={courseState.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
+                            <Icon name="school" size={48} />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer">
+                          <div className="w-14 h-14 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
+                            <Icon name="play_arrow" fill size={28} className="ml-1 text-primary" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-2.5 left-0 w-full px-3 flex justify-center">
+                          <span className="bg-black/70 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                            Preview this course
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 sm:p-6 flex flex-col gap-4">
+                        <div className="flex items-end gap-3">
+                          <span className={`text-2xl sm:text-3xl font-extrabold leading-none font-mono ${Number(courseState.price) === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+                            {Number(courseState.price) === 0 ? 'Free' : `₹${Number(courseState.price).toLocaleString('en-IN')}`}
+                          </span>
+                          {courseState.discountPrice && Number(courseState.discountPrice) > Number(courseState.price) && (
+                            <span className="text-sm text-outline line-through mb-0.5 font-mono">
+                              ₹{Number(courseState.discountPrice).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                          {Number(courseState.price) === 0 && (
+                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-0.5">
+                              100% Free
                             </span>
                           )}
                         </div>
+
                         <button
                           type="button"
                           onClick={() => setPreviewTab('PLAYER')}
-                          className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center gap-2 cursor-pointer"
+                          className="w-full bg-[#a435f0] text-white font-bold py-3 rounded hover:bg-[#8710d8] transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer text-sm"
                         >
-                          <Icon name="play_circle" size={18} />
-                          <span>Test Course in Classroom Player →</span>
+                          <Icon name="play_circle" fill size={18} />
+                          <span>Test Classroom Player</span>
                         </button>
                       </div>
                     </div>
-                  </div>
-                </section>
 
-                {/* Course Curriculum & Syllabus (Sections & Lectures) */}
-                <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 space-y-8">
-                  {/* What You Will Learn */}
-                  {Array.isArray(courseState.whatYouWillLearn) && courseState.whatYouWillLearn.filter(Boolean).length > 0 && (
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-                      <div>
-                        <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                          <Icon name="check_circle" size={18} className="text-emerald-600 shrink-0" />
-                          <span>WHAT YOU’LL LEARN</span>
-                        </h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Key learning outcomes &amp; skills</p>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {courseState.whatYouWillLearn.filter(Boolean).map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
-                            <Icon name="check_circle" size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                            <span>{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Full Description */}
-                  {courseState.description && (
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-                      <h3 className="text-base font-black text-slate-900">Course Description</h3>
-                      <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">
-                        {courseState.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Complete Multi-Level Curriculum Breakdown */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-black text-slate-900">
-                      Course Curriculum &amp; Syllabus ({courseState.sections.length} Modules)
-                    </h3>
-
-                    {courseState.sections.map((sec, sIdx) => {
-                      const mNum = sIdx + 1;
-                      return (
-                        <div
-                          key={sec.id}
-                          className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs"
-                        >
-                          <div className="p-4 sm:p-5 bg-slate-100/80 border-b border-slate-200 space-y-1.5">
-                            <div className="flex items-center justify-between gap-2">
-                              <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
-                                <span className="px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white font-mono text-xs">
-                                  Module {mNum}
-                                </span>
-                                <span>{sec.title}</span>
-                              </h4>
-                              <span className="text-xs font-mono text-slate-500">
-                                {sec.lessons.length} Lesson(s)
-                              </span>
-                            </div>
-                            {sec.description && (
-                              <p className="text-xs text-slate-600 leading-relaxed pl-1">
-                                {sec.description}
+                    {/* What You'll Learn Card */}
+                    {Array.isArray(courseState.whatYouWillLearn) && courseState.whatYouWillLearn.filter(Boolean).length > 0 && (
+                      <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                        <div className="border-b border-outline-variant pb-3">
+                          <h2 className="text-xl sm:text-2xl font-bold text-on-surface flex items-center gap-2.5">
+                            <Icon name="check_circle" size={24} className="text-primary" />
+                            <span>WHAT YOU’LL LEARN</span>
+                          </h2>
+                          <p className="text-xs text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 pt-1">
+                          {courseState.whatYouWillLearn.filter(Boolean).map((item: string, idx: number) => (
+                            <div key={idx} className="flex gap-3 items-start">
+                              <Icon
+                                name="check_circle"
+                                fill
+                                size={20}
+                                className="text-primary mt-0.5 shrink-0"
+                              />
+                              <p className="text-xs sm:text-sm text-on-surface leading-relaxed">
+                                {item}
                               </p>
-                            )}
-                          </div>
-
-                          <div className="divide-y divide-slate-100 p-4 space-y-3">
-                            {sec.lessons.map((les, lIdx) => {
-                              const lCode = `${lIdx + 1}`;
-                              const subs = Array.isArray(les.subLessons) ? les.subLessons : [];
-
-                              return (
-                                <div key={les.id} className="pt-2 first:pt-0 space-y-2">
-                                  <div
-                                    onClick={() => {
-                                      setActivePreviewItem({ ...les, code: lCode, moduleTitle: sec.title });
-                                      setPreviewTab('PLAYER');
-                                    }}
-                                    className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-indigo-50/60 cursor-pointer transition-colors"
-                                  >
-                                    <div className="flex items-start gap-2.5">
-                                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold text-xs shrink-0">
-                                        {lCode}
-                                      </span>
-                                      <div>
-                                        <p className="text-xs sm:text-sm font-bold text-slate-900">
-                                          {les.title}
-                                        </p>
-                                        {les.description && (
-                                          <p className="text-[11px] text-slate-500 mt-0.5">{les.description}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs font-mono text-slate-500 shrink-0">
-                                      <span className="uppercase text-[10px] px-2 py-0.5 rounded bg-slate-100">
-                                        {les.type}
-                                      </span>
-                                      <span>{les.duration || '10:00'}</span>
-                                    </div>
-                                  </div>
-
-
-                                </div>
-                              );
-                            })}
-                          </div>
+                            </div>
+                          ))}
                         </div>
-                      );
-                    })}
+                      </section>
+                    )}
+
+                    {/* Curriculum Section */}
+                    <CurriculumAccordion
+                      modules={previewModules}
+                      courseSlug={courseState.slug || 'preview'}
+                    />
+
+                    {/* Before You Begin & Who This Course Is For */}
+                    {((Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0) ||
+                      (Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0)) && (
+                      <div className={
+                        (Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0) &&
+                        (Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0)
+                          ? "grid grid-cols-1 md:grid-cols-2 gap-6"
+                          : "space-y-6"
+                      }>
+                        {Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0 && (
+                          <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                            <div className="border-b border-outline-variant pb-3">
+                              <h2 className="text-lg sm:text-xl font-bold text-on-surface flex items-center gap-2">
+                                <Icon name="rule" size={22} className="text-secondary" />
+                                <span>BEFORE YOU BEGIN</span>
+                              </h2>
+                              <p className="text-xs text-on-surface-variant mt-0.5">Knowledge or experience you may need</p>
+                            </div>
+                            <ul className="space-y-3 pt-1">
+                              {courseState.requirements.filter(Boolean).map((item: string, idx: number) => (
+                                <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-on-surface">
+                                  <span className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" />
+                                  <span className="leading-relaxed">{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        )}
+
+                        {Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0 && (
+                          <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                            <div className="border-b border-outline-variant pb-3">
+                              <h2 className="text-lg sm:text-xl font-bold text-on-surface flex items-center gap-2">
+                                <Icon name="groups" size={22} className="text-tertiary" />
+                                <span>WHO THIS COURSE IS FOR</span>
+                              </h2>
+                              <p className="text-xs text-on-surface-variant mt-0.5">Who can benefit from this course</p>
+                            </div>
+                            <ul className="space-y-3 pt-1">
+                              {courseState.targetAudience.filter(Boolean).map((item: string, idx: number) => (
+                                <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-on-surface">
+                                  <Icon name="person" size={18} className="text-tertiary shrink-0 mt-0.5" />
+                                  <span className="leading-relaxed">{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Course Description Section */}
+                    {courseState.description && (
+                      <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                        <h2 className="text-xl sm:text-2xl font-bold text-on-surface pb-3 border-b border-outline-variant">
+                          Description
+                        </h2>
+                        <div className="text-xs sm:text-sm text-on-surface leading-relaxed whitespace-pre-line">
+                          {courseState.description}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* Student Reviews & Ratings Section (Preview Placeholder) */}
+                    <section id="reviews" className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 scroll-mt-24">
+                      <div className="flex justify-between items-center pb-4 border-b border-outline-variant">
+                        <div>
+                          <h3 className="text-xl font-bold text-on-surface">Student Reviews &amp; Feedback</h3>
+                          <p className="text-xs text-on-surface-variant mt-0.5">Real verified ratings from enrolled students</p>
+                        </div>
+                        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-xl border border-amber-200">
+                          <Icon name="star" fill size={18} className="text-amber-500" />
+                          <span className="font-extrabold text-sm text-amber-900 dark:text-amber-300">
+                            5.0 / 5.0
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-center py-8 bg-surface-container-low/40 rounded-xl border border-dashed border-outline-variant">
+                        <Icon name="rate_review" size={32} className="text-on-surface-variant/40 mx-auto mb-2" />
+                        <p className="text-xs font-semibold text-on-surface">No student reviews yet (Preview Mode)</p>
+                        <p className="text-[11px] text-on-surface-variant mt-0.5">
+                          Enrolled students will be able to leave ratings and reviews once this course is published.
+                        </p>
+                      </div>
+                    </section>
                   </div>
 
-                  {/* Before You Begin & Who This Course Is For */}
-                  {((Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0) ||
-                    (Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0)) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-                      {Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3 shadow-2xs">
-                          <div>
-                            <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                              <Icon name="rule" size={18} className="text-indigo-600" />
-                              <span>BEFORE YOU BEGIN</span>
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Knowledge or experience you may need</p>
+                  {/* Right Column: Floating Purchase Card */}
+                  <div className="hidden lg:block lg:col-span-4 relative">
+                    <div className="sticky top-[96px] bg-surface-container-lowest border border-outline-variant rounded-3xl shadow-xl overflow-hidden flex flex-col transition-all duration-300 hover:border-primary/40">
+                      {/* Video Preview Hero */}
+                      <div
+                        onClick={() => setPreviewTab('PLAYER')}
+                        className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant"
+                      >
+                        {courseState.thumbnail ? (
+                          <img
+                            src={courseState.thumbnail}
+                            alt={courseState.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
+                            <Icon name="school" size={48} />
                           </div>
-                          <ul className="space-y-2 text-xs text-slate-700">
-                            {courseState.requirements.filter(Boolean).map((r, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
-                                <span>{r}</span>
-                              </li>
-                            ))}
-                          </ul>
+                        )}
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer">
+                          <div className="w-16 h-16 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
+                            <Icon name="play_arrow" fill size={32} className="ml-1 text-primary" />
+                          </div>
                         </div>
-                      )}
+                        <div className="absolute bottom-3 left-0 w-full px-3 flex justify-center">
+                          <span className="bg-black/70 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-md">
+                            Preview this course
+                          </span>
+                        </div>
+                      </div>
 
-                      {Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3 shadow-2xs">
-                          <div>
-                            <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                              <Icon name="groups" size={18} className="text-purple-600" />
-                              <span>WHO THIS COURSE IS FOR</span>
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Who can benefit from this course</p>
-                          </div>
-                          <ul className="space-y-2 text-xs text-slate-700">
-                            {courseState.targetAudience.filter(Boolean).map((t, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <Icon name="person" size={15} className="text-purple-500 shrink-0 mt-0.5" />
-                                <span>{t}</span>
-                              </li>
-                            ))}
+                      {/* Pricing & Checkout CTAs */}
+                      <div className="p-6 sm:p-8 flex flex-col gap-5">
+                        <div className="flex items-end gap-3">
+                          <span className={`text-3xl sm:text-4xl font-extrabold leading-none font-mono ${Number(courseState.price) === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+                            {Number(courseState.price) === 0 ? 'Free' : `₹${Number(courseState.price).toLocaleString('en-IN')}`}
+                          </span>
+                          {courseState.discountPrice && Number(courseState.discountPrice) > Number(courseState.price) && (
+                            <span className="text-base text-outline line-through mb-1 font-mono">
+                              ₹{Number(courseState.discountPrice).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                          {Number(courseState.price) === 0 && (
+                            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-1">
+                              100% Free
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewTab('PLAYER')}
+                            className="w-full bg-[#a435f0] text-white font-bold py-3.5 rounded hover:bg-[#8710d8] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
+                          >
+                            <Icon name="play_circle" fill size={20} />
+                            <span>Test Classroom Player</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewTab('PLAYER')}
+                            className="w-full bg-white text-[#2d2f31] border border-[#2d2f31] font-bold py-3.5 rounded hover:bg-[#f7f9fa] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                          >
+                            <span>Buy now (Preview)</span>
+                          </button>
+                        </div>
+
+                        <p className="text-center text-xs text-on-surface-variant font-medium">
+                          30-Day Money-Back Guarantee
+                        </p>
+
+                        <div className="pt-4 border-t border-outline-variant">
+                          <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider mb-3">
+                            This course includes:
+                          </h4>
+                          <ul className="space-y-2.5 text-xs text-on-surface-variant">
+                            <li className="flex items-center gap-2.5">
+                              <Icon name="ondemand_video" size={18} className="text-primary" />
+                              <span>{courseState.durationHours || 12} hours on-demand video</span>
+                            </li>
+                            <li className="flex items-center gap-2.5">
+                              <Icon name="menu_book" size={18} className="text-primary" />
+                              <span>{previewTotalLectures} lessons &amp; study resources</span>
+                            </li>
+                            <li className="flex items-center gap-2.5">
+                              <Icon name="all_inclusive" size={18} className="text-primary" />
+                              <span>Full lifetime access</span>
+                            </li>
+                            <li className="flex items-center gap-2.5">
+                              <Icon name="military_tech" size={18} className="text-primary" />
+                              <span>Certificate of completion</span>
+                            </li>
                           </ul>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                </main>
+
+                <UdemyFooter />
               </div>
             ) : (
               /* MODE 2: INTERACTIVE CLASSROOM PLAYER */
