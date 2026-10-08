@@ -1400,47 +1400,75 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 {/* TAB 4 CONTENT: QUICK QUIZ QUESTIONS */}
                                 {currentTab === 'QUIZ' && (
                                   <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#d1d7dc]/60">
                                       <div>
                                         <h5 className="text-xs font-bold text-slate-800">
-                                          Practice Quiz / Quick Questions for Lecture {lessonCode}
+                                          {les.title || `Practice Quiz / Quick Questions for Lecture ${lessonCode}`}
                                         </h5>
                                         <p className="text-[11px] text-slate-500">
-                                          Students test their comprehension after watching this lecture.
+                                          Students test their comprehension after completing this module item.
                                         </p>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const nextQ: QuizConfig = {
-                                            ...qConf,
-                                            questions: [
-                                              ...qConf.questions,
-                                              {
-                                                id: `q-${Date.now()}-${qConf.questions.length}`,
-                                                question: '',
-                                                options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                correctIndex: 0,
-                                                explanation: '',
-                                                points: 10
-                                              }
-                                            ]
-                                          };
-                                          handleUpdateLessonInline(section.id, les.id, {
-                                            quizData: nextQ,
-                                            type: 'QUIZ'
-                                          });
-                                        }}
-                                        className="px-3 py-1.5 bg-[#2d2f31] hover:bg-black text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                      >
-                                        <Icon name="add" size={14} />
-                                        <span>+ Add Question</span>
-                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const nextQ: QuizConfig = {
+                                              ...qConf,
+                                              questions: [
+                                                ...qConf.questions,
+                                                {
+                                                  id: `q-${Date.now()}-${qConf.questions.length}`,
+                                                  question: '',
+                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                  correctIndex: 0,
+                                                  explanation: '',
+                                                  points: 10
+                                                }
+                                              ]
+                                            };
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              quizData: nextQ,
+                                              type: 'QUIZ'
+                                            });
+                                            showToast({
+                                              title: 'Question Added',
+                                              description: `Question ${nextQ.questions.length} added to ${les.title || 'Quiz'}.`,
+                                              type: 'info'
+                                            });
+                                          }}
+                                          className="px-3 py-1.5 bg-[#2d2f31] hover:bg-black text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                        >
+                                          <Icon name="add" size={14} />
+                                          <span>Add Question</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              quizData: qConf,
+                                              type: 'QUIZ'
+                                            });
+                                            setOpenContentDrawerId(null);
+                                            showToast({
+                                              title: 'Quiz Saved Successfully! ✓',
+                                              description: `"${les.title || 'Quiz'}" saved with ${qConf.questions.length} questions. You can now add the next quiz!`,
+                                              type: 'success'
+                                            });
+                                          }}
+                                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                          title="Save quiz questions and close editor"
+                                        >
+                                          <Icon name="check_circle" size={14} />
+                                          <span>Save Quiz</span>
+                                        </button>
+                                      </div>
                                     </div>
 
                                     {qConf.questions.length === 0 ? (
                                       <div className="p-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] rounded bg-slate-50">
-                                        No questions added yet. Click &ldquo;+ Add Question&rdquo; above to create practice questions for this lecture.
+                                        No questions added yet. Click &ldquo;Add Question&rdquo; above to create practice questions for this lecture.
                                       </div>
                                     ) : (
                                       <div className="space-y-3">
@@ -1550,6 +1578,63 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             />
                                           </div>
                                         ))}
+
+                                        {/* Bottom Action Bar for Quiz Questions */}
+                                        <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d1d7dc]/60">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const nextQ: QuizConfig = {
+                                                ...qConf,
+                                                questions: [
+                                                  ...qConf.questions,
+                                                  {
+                                                    id: `q-${Date.now()}-${qConf.questions.length}`,
+                                                    question: '',
+                                                    options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                    correctIndex: 0,
+                                                    explanation: '',
+                                                    points: 10
+                                                  }
+                                                ]
+                                              };
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                quizData: nextQ,
+                                                type: 'QUIZ'
+                                              });
+                                              showToast({
+                                                title: 'Question Added',
+                                                description: `Question ${nextQ.questions.length} added.`,
+                                                type: 'info'
+                                              });
+                                            }}
+                                            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-300"
+                                          >
+                                            <Icon name="add" size={14} />
+                                            <span>Add Another Question</span>
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                quizData: qConf,
+                                                type: 'QUIZ'
+                                              });
+                                              setOpenContentDrawerId(null);
+                                              showToast({
+                                                title: 'Quiz Saved Successfully! ✓',
+                                                description: `"${les.title || 'Quiz'}" saved with ${qConf.questions.length} questions. You can now add the next quiz!`,
+                                                type: 'success'
+                                              });
+                                            }}
+                                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                            title="Save all questions and close quiz editor"
+                                          >
+                                            <Icon name="check_circle" size={14} />
+                                            <span>Save &amp; Close Quiz</span>
+                                          </button>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
