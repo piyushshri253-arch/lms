@@ -4,6 +4,10 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { useParams, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
+import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
@@ -193,6 +197,19 @@ function CourseStudentPreviewInner() {
   const whatYouWillLearnList = course ? parseList(course.whatYouWillLearn) : [];
   const requirementsList = course ? parseList(course.requirements) : [];
   const targetAudienceList = course ? parseList(course.targetAudience) : [];
+
+  const modules = (course?.sections || []).map((sec: any, idx: number) => ({
+    id: sec.id,
+    moduleNumber: idx + 1,
+    title: sec.title,
+    lessons: (sec.lessons || []).map((l: any) => ({
+      id: l.id,
+      title: l.title,
+      duration: l.duration || '10:00',
+      completed: false,
+      locked: !l.isFree
+    }))
+  }));
 
   const toggleSection = (secId: string) => {
     setExpandedSections((prev) =>
