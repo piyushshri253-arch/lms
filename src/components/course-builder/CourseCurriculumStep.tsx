@@ -865,8 +865,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   {lessonCode}.
                                 </span>
 
-                                {/* Inline Title & Description Inputs */}
-                                <div className="flex-1 min-w-[160px] space-y-0.5">
+                                {/* Inline Title Input */}
+                                <div className="flex-1 min-w-[160px]">
                                   <input
                                     type="text"
                                     value={les.title}
@@ -874,16 +874,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                     }
                                     placeholder={`Lesson ${lessonCode} Title`}
-                                    className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-0.5 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={les.description || ''}
-                                    onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, { description: e.target.value })
-                                    }
-                                    placeholder={`Lesson ${lessonCode} description / summary (from Excel)...`}
-                                    className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-0.5 text-[11px] text-slate-500 focus:outline-none transition-colors"
+                                    className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                   />
                                 </div>
 

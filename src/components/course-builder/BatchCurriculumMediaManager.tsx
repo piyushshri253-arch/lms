@@ -705,19 +705,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       FREE PREVIEW
                                     </span>
                                   )}
-                                </div>
-
-                                {/* Lecture Description (from Excel, fully editable inline!) */}
-                                <input
-                                  type="text"
-                                  value={lesson.description || ''}
-                                  onChange={(e) => updateLesson(section.id, lesson.id, { description: e.target.value })}
-                                  placeholder="Lecture description / learning outcome (from Excel)..."
-                                  className="w-full text-xs text-on-surface-variant bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none"
-                                />
-
-                                <div className="flex items-center gap-3 text-[11px] text-outline font-medium pl-1">
-                                  <span className="flex items-center gap-1">
+                                  <span className="flex items-center gap-1 text-[11px] text-outline font-medium ml-1">
                                     <Icon name="schedule" size={13} />
                                     {lesson.duration || '10:00'}
                                   </span>

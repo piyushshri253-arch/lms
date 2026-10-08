@@ -129,104 +129,70 @@ export function downloadCourseExcelTemplate() {
   ];
   XLSX.utils.book_append_sheet(wb, wsDetails, 'Course Details');
 
-  // 2. Curriculum Syllabus Sheet Data (Module 1 with lectures under it without repeating module columns)
+  // 2. Curriculum Syllabus Sheet Data (Module 1 with lectures under it without repeating module columns or descriptions)
   const curriculumRows = [
     {
       'Module Title': 'Module 1: Foundations of Web Architecture & Modern AI',
-      'Module Description': 'Internet protocols, browser DOM rendering, Node.js runtime, and modern AI stack overview',
       'Lecture Title': '1.1 Course Orientation & Modern Tech Stack Roadmap',
-      'Lecture Description': 'Overview of the master projects, dev tooling setup, and learning objectives',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '08:30',
       'Is Preview Free (Yes/No)': 'Yes'
     },
     {
       'Module Title': '', // Left blank on purpose - automatically grouped under Module 1
-      'Module Description': '', // Left blank on purpose
       'Lecture Title': '1.2 Setting Up VS Code, Git, and Modern Terminal Workflow',
-      'Lecture Description': 'Configuring developer environment, extensions, and version control',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '14:15',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': '',
-      'Module Description': '',
       'Lecture Title': '1.3 Understanding Modern JavaScript & DOM Architecture',
-      'Lecture Description': 'Core event loop, closures, and browser rendering lifecycle',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '12:00',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': 'Module 2: Frontend Engineering with Next.js & React 19',
-      'Module Description': 'Component architecture, server vs client components, hooks, and responsive styling',
       'Lecture Title': '2.1 Server Components & Dynamic Routing in Next.js',
-      'Lecture Description': 'Page routing, layout patterns, and data streaming techniques',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '18:45',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': '',
-      'Module Description': '',
       'Lecture Title': '2.2 Building Responsive Master Layouts with Tailwind CSS',
-      'Lecture Description': 'Flexbox, CSS grid, dark mode theming, and accessible design systems',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '22:10',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': 'Module 3: Backend APIs & Database Architecture',
-      'Module Description': 'Database modeling, PostgreSQL schema design, Prisma ORM, and secure REST APIs',
       'Lecture Title': '3.1 Relational Database Modeling with PostgreSQL & Prisma',
-      'Lecture Description': 'Tables, relations, foreign keys, migrations, and indexing strategies',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '25:30',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': '',
-      'Module Description': '',
       'Lecture Title': '3.2 Building Secure Authentication & Role Permissions',
-      'Lecture Description': 'JWT tokens, cookie security, password hashing, and role-based access control',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '28:15',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': '',
-      'Module Description': '',
-      'Lecture Title': 'Quiz 1: Foundations Knowledge Check',
-      'Lecture Description': 'Verify core understanding of web protocols and AI concepts',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'QUIZ',
-      'Duration (mm:ss)': '10:00',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': '',
-      'Module Description': '',
-      'Lecture Title': '3.3 Module 3 Knowledge Check & Coding Quiz',
-      'Lecture Description': 'Test your understanding of REST APIs, database models, and authentication',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'QUIZ',
-      'Duration (mm:ss)': '15:00',
       'Is Preview Free (Yes/No)': 'No'
     }
   ];
 
   const wsCurriculum = XLSX.utils.json_to_sheet(curriculumRows);
   wsCurriculum['!cols'] = [
-    { wch: 42 }, // Module Title
-    { wch: 55 }, // Module Description
-    { wch: 42 }, // Lecture Title
-    { wch: 55 }, // Lecture Description
+    { wch: 45 }, // Module Title
+    { wch: 45 }, // Lecture Title
     { wch: 28 }, // Lecture Type
-    { wch: 22 }, // Duration
+    { wch: 20 }, // Duration
     { wch: 24 }  // Is Preview Free
   ];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum');
 
-  // 3. Quizzes & MCQs Sheet Data
+  // 3. Quizzes & MCQs Sheet Data (Write Module & Quiz Title once; subsequent questions leave them blank)
   const quizRows = [
     {
       'Module (e.g. Module 1)': 'Module 1',
@@ -241,8 +207,8 @@ export function downloadCourseExcelTemplate() {
       'Passing Score (%)': 70
     },
     {
-      'Module (e.g. Module 1)': 'Module 1',
-      'Quiz Title': 'Quiz 1',
+      'Module (e.g. Module 1)': '', // Left blank on purpose - automatically belongs to Module 1 Quiz 1!
+      'Quiz Title': '', // Left blank on purpose - automatically belongs to Module 1 Quiz 1!
       'Question Text': 'Which JavaScript engine powers Google Chrome and Node.js runtime?',
       'Option A': 'SpiderMonkey',
       'Option B': 'JavaScriptCore',
@@ -265,6 +231,18 @@ export function downloadCourseExcelTemplate() {
       'Passing Score (%)': 70
     },
     {
+      'Module (e.g. Module 1)': '', // Left blank on purpose - automatically belongs to Module 2 Quiz 2!
+      'Quiz Title': '', // Left blank on purpose - automatically belongs to Module 2 Quiz 2!
+      'Question Text': 'Which hook is used for executing side effects like API fetching or subscriptions?',
+      'Option A': 'useEffect',
+      'Option B': 'useMemo',
+      'Option C': 'useCallback',
+      'Option D': 'useReducer',
+      'Correct Option (A/B/C/D)': 'A',
+      'Explanation': 'useEffect manages lifecycle side effects in React function components.',
+      'Passing Score (%)': 70
+    },
+    {
       'Module (e.g. Module 1)': 'Module 3',
       'Quiz Title': 'Quiz 3',
       'Question Text': 'Which database language is primarily used for defining and querying relational databases?',
@@ -274,6 +252,18 @@ export function downloadCourseExcelTemplate() {
       'Option D': 'JSON',
       'Correct Option (A/B/C/D)': 'C',
       'Explanation': 'SQL (Structured Query Language) is the standard query language for relational databases like PostgreSQL.',
+      'Passing Score (%)': 70
+    },
+    {
+      'Module (e.g. Module 1)': '', // Left blank on purpose - automatically belongs to Module 3 Quiz 3!
+      'Quiz Title': '', // Left blank on purpose - automatically belongs to Module 3 Quiz 3!
+      'Question Text': 'Which SQL clause is used to filter records based on a specific condition?',
+      'Option A': 'WHERE',
+      'Option B': 'ORDER BY',
+      'Option C': 'GROUP BY',
+      'Option D': 'SELECT',
+      'Correct Option (A/B/C/D)': 'A',
+      'Explanation': 'The WHERE clause filters rows satisfying given Boolean conditions.',
       'Passing Score (%)': 70
     }
   ];
@@ -300,24 +290,20 @@ export function downloadCourseExcelTemplate() {
       'Instructions': 'Fill your Masterclass title, category, level (Foundational, Intermediate, Advanced, All Levels), pricing, and descriptions in the "Course Details" tab.'
     },
     {
-      'Section': 'How to Fill Curriculum Modules',
-      'Instructions': 'Type Module Title and Module Description once. All subsequent lecture rows left blank under it will automatically be placed inside that same module! No need to repeat the module name.'
-    },
-    {
-      'Section': 'Lectures & Descriptions',
-      'Instructions': 'Each row represents one lecture. Provide Lecture Title and Lecture Description. Type can be VIDEO, PDF, or QUIZ.'
+      'Section': 'How to Fill Curriculum Modules & Lectures',
+      'Instructions': 'Type Module Title once (e.g. Module 1: Foundations). All subsequent lecture rows left blank under it will automatically be placed inside that same module! No need to repeat the module name. Enter Lecture Title, Type (VIDEO/PDF/QUIZ), Duration (mm:ss), and Is Preview Free.'
     },
     {
       'Section': 'How to Fill Quizzes & MCQs',
-      'Instructions': 'Use the "Quizzes & MCQs" tab to add multiple-choice questions for each module. Specify Module (e.g. Module 1), Quiz Title (e.g. Quiz 1), Question Text, Options A-D, Correct Option (A/B/C/D), Explanation, and Passing Score.'
+      'Instructions': 'In "Quizzes & MCQs" tab, type Module (e.g. Module 1) and Quiz Title (e.g. Quiz 1) ONCE on the first row of that quiz. For all following questions in that quiz, leave Module and Quiz Title BLANK! They will automatically group inside that same quiz. Provide Question Text, Options A-D, Correct Option (A/B/C/D), Explanation, and Passing Score.'
     },
     {
       'Section': 'Videos, Resources & Thumbnails',
-      'Instructions': 'Spreadsheet auto-fills course structure, syllabus, text, and quizzes. You can upload video files and PDF resources directly using the batch uploader (2 parallel uploads queue) in Instructor Studio.'
+      'Instructions': 'Spreadsheet auto-fills entire course structure, syllabus, text, and quizzes. Once uploaded, upload video files and PDF resources using the batch uploader (2 parallel uploads queue) in Instructor Studio.'
     }
   ];
   const wsGuide = XLSX.utils.json_to_sheet(instructionsRows);
-  wsGuide['!cols'] = [{ wch: 32 }, { wch: 95 }];
+  wsGuide['!cols'] = [{ wch: 36 }, { wch: 95 }];
   XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
   // Trigger browser download
@@ -633,6 +619,9 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
       }
       const sections = result.sections;
 
+      let activeSection: BuilderSection | null = null;
+      let activeQuizLesson: BuilderLesson | null = null;
+
       quizRawRows.forEach((row, rowIdx) => {
         const findQField = (exactKeys: string[], fallbackKeyword?: string) => {
           for (const [rKey, rVal] of Object.entries(row)) {
@@ -669,70 +658,125 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
 
         if (!questionText && !optA && !optB) return; // Skip empty row
 
-        // Find or assign target section
-        let targetSection: BuilderSection | undefined;
+        // 1. Resolve Target Module / Section:
         if (moduleIdentifier) {
+          let foundSection: BuilderSection | undefined;
           const numMatch = moduleIdentifier.match(/\d+/);
           if (numMatch) {
             const modIndex = parseInt(numMatch[0], 10) - 1;
             if (modIndex >= 0 && modIndex < sections.length) {
-              targetSection = sections[modIndex];
+              foundSection = sections[modIndex];
             }
           }
-          if (!targetSection) {
-            targetSection = sections.find((s) =>
+          if (!foundSection) {
+            foundSection = sections.find((s) =>
               s.title.toLowerCase().includes(moduleIdentifier.toLowerCase())
             );
           }
-        }
-
-        if (!targetSection) {
-          if (sections.length > 0) {
-            targetSection = sections[0];
-          } else {
-            targetSection = {
-              id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
-              title: 'Module 1: Foundations & Orientation',
+          if (!foundSection) {
+            const newModNum = sections.length + 1;
+            foundSection = {
+              id: `sec-${Date.now()}-${newModNum}-${Math.random().toString(36).substring(2, 6)}`,
+              title: moduleIdentifier.toLowerCase().includes('module') ? moduleIdentifier : `Module ${newModNum}: ${moduleIdentifier}`,
               description: '',
-              order: 1,
+              order: newModNum,
               lessons: []
             };
-            sections.push(targetSection);
+            sections.push(foundSection);
+          }
+
+          // If target module switched, reset active quiz lesson
+          if (!activeSection || activeSection.id !== foundSection.id) {
+            activeSection = foundSection;
+            activeQuizLesson = null;
+          }
+        } else {
+          // Module is BLANK on this row: inherit activeSection!
+          if (!activeSection) {
+            if (sections.length > 0) {
+              activeSection = sections[0];
+            } else {
+              activeSection = {
+                id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
+                title: 'Module 1: Foundations & Orientation',
+                description: '',
+                order: 1,
+                lessons: []
+              };
+              sections.push(activeSection);
+            }
           }
         }
 
-        const secOrder = targetSection.order || 1;
-        const defaultQuizTitle = quizTitleRaw || `Quiz ${secOrder}`;
+        const secOrder = activeSection.order || 1;
 
-        // Find or create QUIZ lesson in this module
-        let quizLesson = targetSection.lessons.find(
-          (l) => l.type === 'QUIZ' && (!quizTitleRaw || l.title.toLowerCase() === quizTitleRaw.toLowerCase())
-        );
+        // 2. Resolve Target Quiz Lesson inside activeSection:
+        if (quizTitleRaw) {
+          // Explicit Quiz Title given on this row:
+          let foundQuiz = activeSection.lessons.find(
+            (l) => l.type === 'QUIZ' && l.title.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()
+          );
 
-        if (!quizLesson) {
-          quizLesson = targetSection.lessons.find((l) => l.type === 'QUIZ');
+          if (!foundQuiz) {
+            // Check if there is an empty QUIZ lesson created by curriculum with no questions yet
+            foundQuiz = activeSection.lessons.find(
+              (l) => l.type === 'QUIZ' && (!l.quizData || (l.quizData as any).questions?.length === 0)
+            );
+            if (foundQuiz) {
+              foundQuiz.title = quizTitleRaw;
+            }
+          }
+
+          if (!foundQuiz) {
+            foundQuiz = {
+              id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+              title: quizTitleRaw,
+              description: `Assessment for Module ${secOrder}`,
+              type: 'QUIZ',
+              duration: '10:00',
+              durationSeconds: 600,
+              isFree: false,
+              isPublished: true,
+              order: activeSection.lessons.length + 1,
+              quizData: {
+                questions: [],
+                passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+                attemptLimit: 0
+              },
+              subLessons: []
+            };
+            activeSection.lessons.push(foundQuiz);
+          }
+
+          activeQuizLesson = foundQuiz;
+        } else {
+          // Quiz Title is BLANK on this row: inherit activeQuizLesson!
+          if (!activeQuizLesson || !activeSection.lessons.some((l) => l.id === activeQuizLesson!.id)) {
+            activeQuizLesson = activeSection.lessons.find((l) => l.type === 'QUIZ') || null;
+            if (!activeQuizLesson) {
+              activeQuizLesson = {
+                id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+                title: `Quiz ${secOrder}`,
+                description: `Assessment for Module ${secOrder}`,
+                type: 'QUIZ',
+                duration: '10:00',
+                durationSeconds: 600,
+                isFree: false,
+                isPublished: true,
+                order: activeSection.lessons.length + 1,
+                quizData: {
+                  questions: [],
+                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+                  attemptLimit: 0
+                },
+                subLessons: []
+              };
+              activeSection.lessons.push(activeQuizLesson);
+            }
+          }
         }
 
-        if (!quizLesson) {
-          quizLesson = {
-            id: `les-${Date.now()}-${secOrder}-${targetSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-            title: defaultQuizTitle,
-            description: `Assessment for Module ${secOrder}`,
-            type: 'QUIZ',
-            duration: '10:00',
-            durationSeconds: 600,
-            isFree: false,
-            isPublished: true,
-            order: targetSection.lessons.length + 1,
-            quizData: {
-              questions: [],
-              passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
-              attemptLimit: 0
-            },
-            subLessons: []
-          };
-          targetSection.lessons.push(quizLesson);
-        }
+        const quizLesson = activeQuizLesson;
 
         // Parse correct option index
         const cleanCorrect = correctRaw.trim().toUpperCase();
