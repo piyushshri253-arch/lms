@@ -762,20 +762,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         Module {moduleNum}:
                       </span>
 
-                      <div className="flex-1 min-w-[200px] space-y-1">
+                      <div className="flex-1 min-w-[200px]">
                         <input
                           type="text"
                           value={section.title}
                           onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
                           placeholder={`Module ${moduleNum} Title (e.g. Introduction & Foundations)`}
-                          className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
-                        />
-                        <input
-                          type="text"
-                          value={section.description || ''}
-                          onChange={(e) => handleUpdateSectionField(section.id, 'description', e.target.value)}
-                          placeholder={`Module ${moduleNum} Description (from Excel syllabus)...`}
-                          className="w-full bg-slate-50 hover:bg-white border border-slate-200 focus:border-[#2d2f31] rounded px-3 py-1 text-xs text-slate-600 focus:outline-none transition-colors"
+                          className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors shadow-2xs"
                         />
                       </div>
                     </div>
@@ -1696,58 +1689,54 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       )}
 
       {/* Add / Edit Section Modal */}
-      <Modal
-        isOpen={isAddSectionOpen}
-        onClose={() => setIsAddSectionOpen(false)}
-        maxWidth="md"
-        title={editingSectionId ? 'Edit Module Details' : 'Add New Curriculum Module'}
-        subtitle="Set the module title and description"
-      >
-        <form onSubmit={handleAddSection} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Module Title *
-            </label>
-            <input
-              type="text"
-              required
-              value={newSectionTitle}
-              onChange={(e) => setNewSectionTitle(e.target.value)}
-              placeholder="e.g. Module 2: Digital Assessment & Student Engagement"
-              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
-            />
-          </div>
+      {(() => {
+        const activeModNum = editingSectionId
+          ? sections.findIndex((s) => s.id === editingSectionId) + 1
+          : sections.length + 1;
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Module Description
-            </label>
-            <textarea
-              rows={3}
-              value={newSectionDescription}
-              onChange={(e) => setNewSectionDescription(e.target.value)}
-              placeholder="Describe what students will learn in this module..."
-              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-xs text-on-surface focus:outline-none focus:border-primary font-medium resize-y"
-            />
-          </div>
+        return (
+          <Modal
+            isOpen={isAddSectionOpen}
+            onClose={() => setIsAddSectionOpen(false)}
+            maxWidth="md"
+            title={editingSectionId ? `Edit Module ${activeModNum}` : `Add Module ${activeModNum}`}
+            subtitle={`Set the title for Module ${activeModNum} of your course`}
+          >
+            <form onSubmit={handleAddSection} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                  Module {activeModNum} Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newSectionTitle}
+                  onChange={(e) => setNewSectionTitle(e.target.value)}
+                  placeholder={`e.g. Module ${activeModNum}: Foundations & Core Concepts`}
+                  className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-xs sm:text-sm text-on-surface focus:outline-none focus:border-primary font-bold"
+                  autoFocus
+                />
+              </div>
 
-          <div className="pt-3 border-t border-outline-variant/60 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setIsAddSectionOpen(false)}
-              className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer"
-            >
-              {editingSectionId ? 'Save Module' : 'Create Module'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+              <div className="pt-3 border-t border-outline-variant/60 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddSectionOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer"
+                >
+                  {editingSectionId ? 'Save Module' : `Create Module ${activeModNum}`}
+                </button>
+              </div>
+            </form>
+          </Modal>
+        );
+      })()}
 
       {/* Lesson Studio Editor Modal */}
       {editingLesson && (

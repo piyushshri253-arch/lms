@@ -921,80 +921,80 @@ function CourseBuilderContent() {
         {/* Subtle top accent bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600" />
 
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
-              <Icon name="table_view" size={24} />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-extrabold text-base text-on-surface">
-                  Excel Course Auto-Fill &amp; Curriculum Importer
-                </h3>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                  .XLSX Template
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant">
-                  One-Click Auto-Fill
-                </span>
-              </div>
-              <p className="text-xs text-on-surface-variant mt-1 max-w-2xl leading-relaxed">
-                Download the official template, fill in course details, modules, lectures &amp; pricing in Excel, and upload to auto-fill all 5 steps instantly! You can then upload video lectures (2 parallel queue) and PDF resources directly below.
-              </p>
-            </div>
+        {/* Top: Header, Title, Badges & Full-Width Description */}
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+            <Icon name="table_view" size={24} />
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto shrink-0">
-            {/* Batch Media Studio Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsBatchMediaManagerOpen((prev) => !prev)}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all ${
-                isBatchMediaManagerOpen
-                  ? 'bg-indigo-700 text-white shadow-indigo-600/30 ring-2 ring-indigo-400'
-                  : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-600/20 hover:scale-[1.02]'
-              }`}
-              title="Toggle inline batch video uploader and resource manager"
-            >
-              <Icon name={isBatchMediaManagerOpen ? 'expand_less' : 'video_settings'} size={17} />
-              <span>
-                {isBatchMediaManagerOpen
-                  ? 'Hide Media Studio ▲'
-                  : 'Batch Upload Videos & Resources ⚡'}
+          <div className="flex-1 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-extrabold text-base sm:text-lg text-on-surface">
+                Excel Course Auto-Fill &amp; Curriculum Importer
+              </h3>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                .XLSX Template
               </span>
-            </button>
-
-            {/* Download Template Button */}
-            <button
-              type="button"
-              onClick={handleDownloadExcelTemplate}
-              className="px-3.5 py-2.5 bg-surface hover:bg-surface-container text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:border-emerald-500/50 flex items-center gap-2 cursor-pointer shadow-2xs transition-all"
-              title="Download official Excel course spreadsheet template"
-            >
-              <Icon name="download" size={16} className="text-emerald-600 dark:text-emerald-400" />
-              <span>Download Template (.xlsx)</span>
-            </button>
-
-            {/* Upload & Auto-Fill Button */}
-            <label
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02] disabled:opacity-50"
-              title="Upload completed Excel spreadsheet to auto-fill course"
-            >
-              <Icon
-                name={isImportingExcel ? 'sync' : 'upload_file'}
-                size={16}
-                className={isImportingExcel ? 'animate-spin' : ''}
-              />
-              <span>{isImportingExcel ? 'Importing Course...' : 'Upload & Auto-Fill 🚀'}</span>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleUploadExcel}
-                disabled={isImportingExcel}
-                className="hidden"
-              />
-            </label>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant">
+                One-Click Auto-Fill
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+              Download the official template, fill in course details, modules, lectures, quizzes &amp; pricing in Excel, and upload to auto-fill all 5 steps instantly! You can then upload video lectures (2 parallel queue) and PDF resources directly below.
+            </p>
           </div>
+        </div>
+
+        {/* Bottom: Action Buttons Placed Cleanly Underneath */}
+        <div className="pt-3 border-t border-outline-variant/60 flex flex-wrap items-center gap-3">
+          {/* Batch Media Studio Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsBatchMediaManagerOpen((prev) => !prev)}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all ${
+              isBatchMediaManagerOpen
+                ? 'bg-indigo-700 text-white shadow-indigo-600/30 ring-2 ring-indigo-400'
+                : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-600/20 hover:scale-[1.02]'
+            }`}
+            title="Toggle inline batch video uploader and resource manager"
+          >
+            <Icon name={isBatchMediaManagerOpen ? 'expand_less' : 'video_settings'} size={17} />
+            <span>
+              {isBatchMediaManagerOpen
+                ? 'Hide Media Studio ▲'
+                : 'Batch Upload Videos & Resources ⚡'}
+            </span>
+          </button>
+
+          {/* Download Template Button */}
+          <button
+            type="button"
+            onClick={handleDownloadExcelTemplate}
+            className="px-4 py-2.5 bg-surface hover:bg-surface-container text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:border-emerald-500/50 flex items-center gap-2 cursor-pointer shadow-2xs transition-all"
+            title="Download official Excel course spreadsheet template"
+          >
+            <Icon name="download" size={16} className="text-emerald-600 dark:text-emerald-400" />
+            <span>Download Template (.xlsx)</span>
+          </button>
+
+          {/* Upload & Auto-Fill Button */}
+          <label
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02] disabled:opacity-50"
+            title="Upload completed Excel spreadsheet to auto-fill course"
+          >
+            <Icon
+              name={isImportingExcel ? 'sync' : 'upload_file'}
+              size={16}
+              className={isImportingExcel ? 'animate-spin' : ''}
+            />
+            <span>{isImportingExcel ? 'Importing Course...' : 'Upload & Auto-Fill 🚀'}</span>
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleUploadExcel}
+              disabled={isImportingExcel}
+              className="hidden"
+            />
+          </label>
         </div>
 
         {/* Inline Batch Media Manager (Opens right here without a popup modal) */}
