@@ -551,7 +551,8 @@ function InstructorCoursesStudioInner() {
           </div>
         </div>
 
-        {/* Metric Cards */}
+        {/* Metric Cards (Authored Courses, Total Active Learners, Gross Portfolio Value - Commented out as requested) */}
+        {/*
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center justify-between">
             <div>
@@ -590,6 +591,7 @@ function InstructorCoursesStudioInner() {
             </div>
           </div>
         </div>
+        */}
 
         {/* Courses Table / Cards Container */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
