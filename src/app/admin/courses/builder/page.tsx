@@ -1294,9 +1294,15 @@ function CourseBuilderContent() {
                 {/* Course Curriculum & Syllabus (Sections & Lectures) */}
                 <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 space-y-8">
                   {/* What You Will Learn */}
-                  {Array.isArray(courseState.whatYouWillLearn) && courseState.whatYouWillLearn.length > 0 && (
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-                      <h3 className="text-base font-black text-slate-900 mb-4">What You Will Learn</h3>
+                  {Array.isArray(courseState.whatYouWillLearn) && courseState.whatYouWillLearn.filter(Boolean).length > 0 && (
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                      <div>
+                        <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                          <Icon name="check_circle" size={18} className="text-emerald-600 shrink-0" />
+                          <span>WHAT YOU’LL LEARN</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Key learning outcomes &amp; skills</p>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {courseState.whatYouWillLearn.filter(Boolean).map((item, idx) => (
                           <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
@@ -1394,6 +1400,52 @@ function CourseBuilderContent() {
                       );
                     })}
                   </div>
+
+                  {/* Before You Begin & Who This Course Is For */}
+                  {((Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0) ||
+                    (Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0)) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+                      {Array.isArray(courseState.requirements) && courseState.requirements.filter(Boolean).length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3 shadow-2xs">
+                          <div>
+                            <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                              <Icon name="rule" size={18} className="text-indigo-600" />
+                              <span>BEFORE YOU BEGIN</span>
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">Knowledge or experience you may need</p>
+                          </div>
+                          <ul className="space-y-2 text-xs text-slate-700">
+                            {courseState.requirements.filter(Boolean).map((r, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {Array.isArray(courseState.targetAudience) && courseState.targetAudience.filter(Boolean).length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3 shadow-2xs">
+                          <div>
+                            <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                              <Icon name="groups" size={18} className="text-purple-600" />
+                              <span>WHO THIS COURSE IS FOR</span>
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">Who can benefit from this course</p>
+                          </div>
+                          <ul className="space-y-2 text-xs text-slate-700">
+                            {courseState.targetAudience.filter(Boolean).map((t, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <Icon name="person" size={15} className="text-purple-500 shrink-0 mt-0.5" />
+                                <span>{t}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

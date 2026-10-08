@@ -310,9 +310,9 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
               <Icon name="check_circle" size={16} className="text-primary" />
-              <span>What Students Will Learn</span>
+              <span>WHAT YOU’LL LEARN</span>
             </h4>
-            <p className="text-[11px] text-on-surface-variant mt-0.5">Key takeaways &amp; capabilities</p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
           </div>
 
           <div className="flex gap-2">
@@ -360,9 +360,9 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
               <Icon name="rule" size={16} className="text-secondary" />
-              <span>Prerequisites &amp; Setup</span>
+              <span>BEFORE YOU BEGIN</span>
             </h4>
-            <p className="text-[11px] text-on-surface-variant mt-0.5">Required prior knowledge</p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">Knowledge or experience you may need</p>
           </div>
 
           <div className="flex gap-2">
@@ -410,9 +410,9 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
               <Icon name="groups" size={16} className="text-tertiary" />
-              <span>Target Audience</span>
+              <span>WHO THIS COURSE IS FOR</span>
             </h4>
-            <p className="text-[11px] text-on-surface-variant mt-0.5">Who this course is designed for</p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">Who can benefit from this course</p>
           </div>
 
           <div className="flex gap-2">

@@ -320,6 +320,9 @@ export async function GET(
         subtitle: snap.shortDescription ?? finalFormattedCourse.subtitle,
         price: snap.price ?? finalFormattedCourse.price,
         originalPrice: snap.discountPrice ?? finalFormattedCourse.originalPrice,
+        whatYouWillLearn: snap.whatYouWillLearn ?? finalFormattedCourse.whatYouWillLearn,
+        requirements: snap.requirements ?? finalFormattedCourse.requirements,
+        targetAudience: snap.targetAudience ?? finalFormattedCourse.targetAudience,
         sections: snap.sections ?? finalFormattedCourse.sections
       };
     }

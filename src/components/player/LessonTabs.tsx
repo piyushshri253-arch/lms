@@ -607,13 +607,17 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
           {/* C. What you'll learn (Udemy 2-column checklist) */}
           {parsedWhatYouWillLearn.length > 0 && (
             <div className="border border-[#d1d7dc] rounded-xl p-6 bg-[#f7f9fa]/60 space-y-4">
-              <h3 className="font-extrabold text-base text-[#2d2f31]">
-                What you'll learn
-              </h3>
+              <div>
+                <h3 className="font-extrabold text-base text-[#2d2f31] flex items-center gap-2">
+                  <Icon name="check_circle" size={18} className="text-emerald-600 shrink-0" />
+                  <span>WHAT YOU’LL LEARN</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Key learning outcomes &amp; skills</p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {parsedWhatYouWillLearn.map((item, idx) => (
                   <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700 leading-relaxed">
-                    <Icon name="check" size={16} className="text-[#2d2f31] shrink-0 mt-0.5" />
+                    <Icon name="check" size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </div>
                 ))}
@@ -624,13 +628,17 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
           {/* D. Requirements */}
           {parsedRequirements.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-extrabold text-base text-[#2d2f31]">
-                Requirements
-              </h3>
+              <div>
+                <h3 className="font-extrabold text-base text-[#2d2f31] flex items-center gap-2">
+                  <Icon name="rule" size={18} className="text-indigo-600 shrink-0" />
+                  <span>BEFORE YOU BEGIN</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Knowledge or experience you may need</p>
+              </div>
               <ul className="space-y-2 text-xs text-slate-700">
                 {parsedRequirements.map((req, idx) => (
                   <li key={idx} className="flex items-start gap-2">
-                    <span className="text-slate-400 font-bold">•</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
                     <span>{req}</span>
                   </li>
                 ))}
@@ -641,9 +649,13 @@ export const LessonTabs: React.FC<LessonTabsProps> = ({
           {/* E. Target Audience */}
           {parsedTargetAudience.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-extrabold text-base text-[#2d2f31]">
-                Who this course is for:
-              </h3>
+              <div>
+                <h3 className="font-extrabold text-base text-[#2d2f31] flex items-center gap-2">
+                  <Icon name="groups" size={18} className="text-purple-600 shrink-0" />
+                  <span>WHO THIS COURSE IS FOR</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Who can benefit from this course</p>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {parsedTargetAudience.map((aud, idx) => (
                   <span

@@ -91,6 +91,24 @@ export default function CourseDetailsPage() {
   const course = courseData;
   const isEnrolled = !!course?.isEnrolled || (enrolledCourseIds && course ? enrolledCourseIds.includes(course.id) : false);
 
+  const parseList = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.filter(Boolean);
+    if (typeof val === 'string' && val.trim()) {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch {
+        return val.split('\n').map((s: string) => s.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  };
+
+  const whatYouWillLearnList = course ? parseList(course.whatYouWillLearn) : [];
+  const requirementsList = course ? parseList(course.requirements) : [];
+  const targetAudienceList = course ? parseList(course.targetAudience) : [];
+
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCode.trim()) return;
@@ -492,16 +510,17 @@ export default function CourseDetailsPage() {
           </div>
 
           {/* What You'll Learn Card */}
-          {course.whatYouWillLearn && (
-            <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm">
-              <h2 className="text-xl sm:text-2xl font-bold text-on-surface mb-6 pb-3 border-b border-outline-variant">
-                What you&apos;ll learn
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                {(typeof course.whatYouWillLearn === 'string'
-                  ? JSON.parse(course.whatYouWillLearn)
-                  : course.whatYouWillLearn
-                ).map((item: string, idx: number) => (
+          {whatYouWillLearnList.length > 0 && (
+            <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+              <div className="border-b border-outline-variant pb-3">
+                <h2 className="text-xl sm:text-2xl font-bold text-on-surface flex items-center gap-2.5">
+                  <Icon name="check_circle" size={24} className="text-primary" />
+                  <span>WHAT YOU’LL LEARN</span>
+                </h2>
+                <p className="text-xs text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 pt-1">
+                {whatYouWillLearnList.map((item: string, idx: number) => (
                   <div key={idx} className="flex gap-3 items-start">
                     <Icon
                       name="check_circle"
@@ -509,7 +528,7 @@ export default function CourseDetailsPage() {
                       size={20}
                       className="text-primary mt-0.5 shrink-0"
                     />
-                    <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                    <p className="text-xs sm:text-sm text-on-surface leading-relaxed">
                       {item}
                     </p>
                   </div>
@@ -523,6 +542,51 @@ export default function CourseDetailsPage() {
             modules={modules}
             courseSlug={course.slug || course.id}
           />
+
+          {/* Before You Begin & Who This Course Is For */}
+          {(requirementsList.length > 0 || targetAudienceList.length > 0) && (
+            <div className={requirementsList.length > 0 && targetAudienceList.length > 0 ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "space-y-6"}>
+              {requirementsList.length > 0 && (
+                <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                  <div className="border-b border-outline-variant pb-3">
+                    <h2 className="text-lg sm:text-xl font-bold text-on-surface flex items-center gap-2">
+                      <Icon name="rule" size={22} className="text-secondary" />
+                      <span>BEFORE YOU BEGIN</span>
+                    </h2>
+                    <p className="text-xs text-on-surface-variant mt-0.5">Knowledge or experience you may need</p>
+                  </div>
+                  <ul className="space-y-3 pt-1">
+                    {requirementsList.map((item: string, idx: number) => (
+                      <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-on-surface">
+                        <span className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" />
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {targetAudienceList.length > 0 && (
+                <section className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                  <div className="border-b border-outline-variant pb-3">
+                    <h2 className="text-lg sm:text-xl font-bold text-on-surface flex items-center gap-2">
+                      <Icon name="groups" size={22} className="text-tertiary" />
+                      <span>WHO THIS COURSE IS FOR</span>
+                    </h2>
+                    <p className="text-xs text-on-surface-variant mt-0.5">Who can benefit from this course</p>
+                  </div>
+                  <ul className="space-y-3 pt-1">
+                    {targetAudienceList.map((item: string, idx: number) => (
+                      <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-on-surface">
+                        <Icon name="person" size={18} className="text-tertiary shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          )}
 
           {/* Student Reviews & Ratings Section */}
           <section id="reviews" className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 scroll-mt-24">

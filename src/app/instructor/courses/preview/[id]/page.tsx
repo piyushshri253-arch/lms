@@ -176,6 +176,24 @@ function CourseStudentPreviewInner() {
   const activeLesson =
     allLessons.find((l) => l.id === activeLessonId) || allLessons[0] || null;
 
+  const parseList = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.filter(Boolean);
+    if (typeof val === 'string' && val.trim()) {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch {
+        return val.split('\n').map((s: string) => s.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  };
+
+  const whatYouWillLearnList = course ? parseList(course.whatYouWillLearn) : [];
+  const requirementsList = course ? parseList(course.requirements) : [];
+  const targetAudienceList = course ? parseList(course.targetAudience) : [];
+
   const toggleSection = (secId: string) => {
     setExpandedSections((prev) =>
       prev.includes(secId) ? prev.filter((id) => id !== secId) : [...prev, secId]
@@ -481,11 +499,17 @@ function CourseStudentPreviewInner() {
           <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-8">
               {/* What You Will Learn */}
-              {Array.isArray(course.whatYouWillLearn) && course.whatYouWillLearn.length > 0 && (
+              {whatYouWillLearnList.length > 0 && (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-                  <h2 className="text-lg font-extrabold text-slate-900">What you&apos;ll learn</h2>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                      <Icon name="check_circle" size={20} className="text-emerald-600" />
+                      <span>WHAT YOU’LL LEARN</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Key learning outcomes &amp; skills</p>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {course.whatYouWillLearn.map((item: string, idx: number) => (
+                    {whatYouWillLearnList.map((item: string, idx: number) => (
                       <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
                         <Icon
                           name="check_circle"
@@ -629,25 +653,42 @@ function CourseStudentPreviewInner() {
               </div>
 
               {/* Requirements & Target Audience */}
-              {((Array.isArray(course.requirements) && course.requirements.length > 0) ||
-                (Array.isArray(course.targetAudience) && course.targetAudience.length > 0)) && (
+              {(requirementsList.length > 0 || targetAudienceList.length > 0) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {Array.isArray(course.requirements) && course.requirements.length > 0 && (
+                  {requirementsList.length > 0 && (
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
-                      <h3 className="text-sm font-extrabold text-slate-900">Requirements</h3>
-                      <ul className="space-y-2 text-xs text-slate-700 list-disc pl-4">
-                        {course.requirements.map((r: string, i: number) => (
-                          <li key={i}>{r}</li>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                          <Icon name="rule" size={18} className="text-indigo-600" />
+                          <span>BEFORE YOU BEGIN</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Knowledge or experience you may need</p>
+                      </div>
+                      <ul className="space-y-2 text-xs text-slate-700">
+                        {requirementsList.map((r: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
+                            <span>{r}</span>
+                          </li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  {Array.isArray(course.targetAudience) && course.targetAudience.length > 0 && (
+                  {targetAudienceList.length > 0 && (
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
-                      <h3 className="text-sm font-extrabold text-slate-900">Target Audience</h3>
-                      <ul className="space-y-2 text-xs text-slate-700 list-disc pl-4">
-                        {course.targetAudience.map((t: string, i: number) => (
-                          <li key={i}>{t}</li>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                          <Icon name="groups" size={18} className="text-purple-600" />
+                          <span>WHO THIS COURSE IS FOR</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Who can benefit from this course</p>
+                      </div>
+                      <ul className="space-y-2 text-xs text-slate-700">
+                        {targetAudienceList.map((t: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <Icon name="person" size={15} className="text-purple-500 shrink-0 mt-0.5" />
+                            <span>{t}</span>
+                          </li>
                         ))}
                       </ul>
                     </div>
