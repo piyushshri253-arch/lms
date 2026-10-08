@@ -48,9 +48,9 @@ export function downloadCourseExcelTemplate() {
     },
     {
       'Field Name': 'Skill Level',
-      'Your Value': 'Beginner',
+      'Your Value': 'Foundational',
       'Required / Optional': 'Required',
-      'Instructions': 'Choose one: Beginner, Intermediate, Advanced, or All Levels'
+      'Instructions': 'Choose one: Foundational, Intermediate, Advanced, or All Levels'
     },
     {
       'Field Name': 'Language',
@@ -197,6 +197,15 @@ export function downloadCourseExcelTemplate() {
     {
       'Module Title': '',
       'Module Description': '',
+      'Lecture Title': 'Quiz 1: Foundations Knowledge Check',
+      'Lecture Description': 'Verify core understanding of web protocols and AI concepts',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'QUIZ',
+      'Duration (mm:ss)': '10:00',
+      'Is Preview Free (Yes/No)': 'No'
+    },
+    {
+      'Module Title': '',
+      'Module Description': '',
       'Lecture Title': '3.3 Module 3 Knowledge Check & Coding Quiz',
       'Lecture Description': 'Test your understanding of REST APIs, database models, and authentication',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'QUIZ',
@@ -217,11 +226,78 @@ export function downloadCourseExcelTemplate() {
   ];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum');
 
-  // 3. User Guide & Format Instructions Sheet
+  // 3. Quizzes & MCQs Sheet Data
+  const quizRows = [
+    {
+      'Module (e.g. Module 1)': 'Module 1',
+      'Quiz Title': 'Quiz 1',
+      'Question Text': 'What protocol provides encrypted communication over the World Wide Web?',
+      'Option A': 'HTTP',
+      'Option B': 'HTTPS',
+      'Option C': 'FTP',
+      'Option D': 'SMTP',
+      'Correct Option (A/B/C/D)': 'B',
+      'Explanation': 'HTTPS encrypts communication between the client browser and web server using TLS/SSL.',
+      'Passing Score (%)': 70
+    },
+    {
+      'Module (e.g. Module 1)': 'Module 1',
+      'Quiz Title': 'Quiz 1',
+      'Question Text': 'Which JavaScript engine powers Google Chrome and Node.js runtime?',
+      'Option A': 'SpiderMonkey',
+      'Option B': 'JavaScriptCore',
+      'Option C': 'V8 Engine',
+      'Option D': 'Chakra',
+      'Correct Option (A/B/C/D)': 'C',
+      'Explanation': 'Google’s open-source V8 engine compiles JavaScript directly to native machine code.',
+      'Passing Score (%)': 70
+    },
+    {
+      'Module (e.g. Module 1)': 'Module 2',
+      'Quiz Title': 'Quiz 2',
+      'Question Text': 'In React, which built-in hook is used to declare and manage local component state?',
+      'Option A': 'useEffect',
+      'Option B': 'useState',
+      'Option C': 'useRef',
+      'Option D': 'useContext',
+      'Correct Option (A/B/C/D)': 'B',
+      'Explanation': 'useState is the standard React hook for managing stateful values in functional components.',
+      'Passing Score (%)': 70
+    },
+    {
+      'Module (e.g. Module 1)': 'Module 3',
+      'Quiz Title': 'Quiz 3',
+      'Question Text': 'Which database language is primarily used for defining and querying relational databases?',
+      'Option A': 'HTML',
+      'Option B': 'CSS',
+      'Option C': 'SQL',
+      'Option D': 'JSON',
+      'Correct Option (A/B/C/D)': 'C',
+      'Explanation': 'SQL (Structured Query Language) is the standard query language for relational databases like PostgreSQL.',
+      'Passing Score (%)': 70
+    }
+  ];
+
+  const wsQuizzes = XLSX.utils.json_to_sheet(quizRows);
+  wsQuizzes['!cols'] = [
+    { wch: 24 }, // Module
+    { wch: 20 }, // Quiz Title
+    { wch: 75 }, // Question Text
+    { wch: 28 }, // Option A
+    { wch: 28 }, // Option B
+    { wch: 28 }, // Option C
+    { wch: 28 }, // Option D
+    { wch: 26 }, // Correct Option
+    { wch: 65 }, // Explanation
+    { wch: 20 }  // Passing Score (%)
+  ];
+  XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
+
+  // 4. User Guide & Format Instructions Sheet
   const instructionsRows = [
     {
       'Section': 'How to Fill Course Details',
-      'Instructions': 'Fill your Masterclass title, category, level, pricing, and descriptions in the "Course Details" tab.'
+      'Instructions': 'Fill your Masterclass title, category, level (Foundational, Intermediate, Advanced, All Levels), pricing, and descriptions in the "Course Details" tab.'
     },
     {
       'Section': 'How to Fill Curriculum Modules',
@@ -232,12 +308,16 @@ export function downloadCourseExcelTemplate() {
       'Instructions': 'Each row represents one lecture. Provide Lecture Title and Lecture Description. Type can be VIDEO, PDF, or QUIZ.'
     },
     {
+      'Section': 'How to Fill Quizzes & MCQs',
+      'Instructions': 'Use the "Quizzes & MCQs" tab to add multiple-choice questions for each module. Specify Module (e.g. Module 1), Quiz Title (e.g. Quiz 1), Question Text, Options A-D, Correct Option (A/B/C/D), Explanation, and Passing Score.'
+    },
+    {
       'Section': 'Videos, Resources & Thumbnails',
-      'Instructions': 'Spreadsheet auto-fills course structure and text. You can upload video files and PDF resources directly using the batch uploader (2 parallel uploads queue) in Instructor Studio.'
+      'Instructions': 'Spreadsheet auto-fills course structure, syllabus, text, and quizzes. You can upload video files and PDF resources directly using the batch uploader (2 parallel uploads queue) in Instructor Studio.'
     }
   ];
   const wsGuide = XLSX.utils.json_to_sheet(instructionsRows);
-  wsGuide['!cols'] = [{ wch: 32 }, { wch: 90 }];
+  wsGuide['!cols'] = [{ wch: 32 }, { wch: 95 }];
   XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
   // Trigger browser download
@@ -265,9 +345,9 @@ function parseDurationToSeconds(durationStr: string): number {
 function normalizeSkillLevel(levelStr?: string): string {
   if (!levelStr) return 'ALL_LEVELS';
   const clean = levelStr.toUpperCase().trim();
-  if (clean.includes('BEG')) return 'BEGINNER';
+  if (clean.includes('FOUND') || clean.includes('BEG')) return 'BEGINNER';
   if (clean.includes('INTER')) return 'INTERMEDIATE';
-  if (clean.includes('ADV')) return 'ADVANCED';
+  if (clean.includes('ADV') || clean.includes('EXP')) return 'EXPERT';
   return 'ALL_LEVELS';
 }
 
@@ -501,14 +581,14 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
 
         // 2. Lecture / Lesson Creation:
         if (lessonTitle || lessonDesc || durationStr) {
-          const finalLessonTitle = lessonTitle || `Lecture ${currentSection.lessons.length + 1}`;
+          const isQuiz = /quiz/i.test(lessonTypeRaw) || /quiz/i.test(lessonTitle);
+          const finalLessonTitle = lessonTitle || (isQuiz ? `Quiz ${currentSection.order}` : `Lecture ${currentSection.lessons.length + 1}`);
           const durationSeconds = parseDurationToSeconds(durationStr);
-          const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' =
-            /quiz/i.test(lessonTypeRaw)
-              ? 'QUIZ'
-              : /pdf|doc|file|reading/i.test(lessonTypeRaw)
-              ? 'PDF'
-              : 'VIDEO';
+          const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' = isQuiz
+            ? 'QUIZ'
+            : /pdf|doc|file|reading/i.test(lessonTypeRaw)
+            ? 'PDF'
+            : 'VIDEO';
 
           currentSection.lessons.push({
             id: `les-${Date.now()}-${currentSection.order}-${currentSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
@@ -520,6 +600,13 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             isFree,
             isPublished: true,
             order: currentSection.lessons.length + 1,
+            quizData: isQuiz
+              ? {
+                  questions: [],
+                  passingScore: 70,
+                  attemptLimit: 0
+                }
+              : undefined,
             subLessons: []
           });
         }
@@ -528,6 +615,172 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
       if (sections.length > 0) {
         result.sections = sections;
       }
+    }
+  }
+
+  // 3. Quizzes & MCQs Sheet Parsing (Auto-populates questions, options & answers into respective module quizzes)
+  const quizSheetName = sheetNames.find((name) =>
+    /quiz|mcq|assessment|question/i.test(name)
+  );
+
+  if (quizSheetName && wb.Sheets[quizSheetName]) {
+    const qSheet = wb.Sheets[quizSheetName];
+    const quizRawRows: any[] = XLSX.utils.sheet_to_json(qSheet);
+
+    if (quizRawRows.length > 0) {
+      if (!result.sections) {
+        result.sections = [];
+      }
+      const sections = result.sections;
+
+      quizRawRows.forEach((row, rowIdx) => {
+        const findQField = (exactKeys: string[], fallbackKeyword?: string) => {
+          for (const [rKey, rVal] of Object.entries(row)) {
+            const cleanKey = rKey.trim().toLowerCase();
+            if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
+              if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                return String(rVal).trim();
+              }
+            }
+          }
+          if (fallbackKeyword) {
+            for (const [rKey, rVal] of Object.entries(row)) {
+              const cleanKey = rKey.trim().toLowerCase();
+              if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
+                if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                  return String(rVal).trim();
+                }
+              }
+            }
+          }
+          return '';
+        };
+
+        const moduleIdentifier = findQField(['module (e.g. module 1)', 'module', 'module name', 'module #', 'section'], 'module');
+        const quizTitleRaw = findQField(['quiz title', 'quiz name', 'quiz', 'assessment title'], 'quiz');
+        const questionText = findQField(['question text', 'question', 'prompt', 'mcq'], 'question');
+        const optA = findQField(['option a', 'choice a', 'a']);
+        const optB = findQField(['option b', 'choice b', 'b']);
+        const optC = findQField(['option c', 'choice c', 'c']);
+        const optD = findQField(['option d', 'choice d', 'd']);
+        const correctRaw = findQField(['correct option (a/b/c/d)', 'correct option', 'correct answer', 'answer', 'correct key', 'correct'], 'correct');
+        const explanation = findQField(['explanation', 'explanation (optional)', 'rationale', 'solution'], 'explanation');
+        const passScoreRaw = findQField(['passing score (%)', 'passing score', 'pass %', 'passing grade'], 'pass');
+
+        if (!questionText && !optA && !optB) return; // Skip empty row
+
+        // Find or assign target section
+        let targetSection: BuilderSection | undefined;
+        if (moduleIdentifier) {
+          const numMatch = moduleIdentifier.match(/\d+/);
+          if (numMatch) {
+            const modIndex = parseInt(numMatch[0], 10) - 1;
+            if (modIndex >= 0 && modIndex < sections.length) {
+              targetSection = sections[modIndex];
+            }
+          }
+          if (!targetSection) {
+            targetSection = sections.find((s) =>
+              s.title.toLowerCase().includes(moduleIdentifier.toLowerCase())
+            );
+          }
+        }
+
+        if (!targetSection) {
+          if (sections.length > 0) {
+            targetSection = sections[0];
+          } else {
+            targetSection = {
+              id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
+              title: 'Module 1: Foundations & Orientation',
+              description: '',
+              order: 1,
+              lessons: []
+            };
+            sections.push(targetSection);
+          }
+        }
+
+        const secOrder = targetSection.order || 1;
+        const defaultQuizTitle = quizTitleRaw || `Quiz ${secOrder}`;
+
+        // Find or create QUIZ lesson in this module
+        let quizLesson = targetSection.lessons.find(
+          (l) => l.type === 'QUIZ' && (!quizTitleRaw || l.title.toLowerCase() === quizTitleRaw.toLowerCase())
+        );
+
+        if (!quizLesson) {
+          quizLesson = targetSection.lessons.find((l) => l.type === 'QUIZ');
+        }
+
+        if (!quizLesson) {
+          quizLesson = {
+            id: `les-${Date.now()}-${secOrder}-${targetSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+            title: defaultQuizTitle,
+            description: `Assessment for Module ${secOrder}`,
+            type: 'QUIZ',
+            duration: '10:00',
+            durationSeconds: 600,
+            isFree: false,
+            isPublished: true,
+            order: targetSection.lessons.length + 1,
+            quizData: {
+              questions: [],
+              passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+              attemptLimit: 0
+            },
+            subLessons: []
+          };
+          targetSection.lessons.push(quizLesson);
+        }
+
+        // Parse correct option index
+        const cleanCorrect = correctRaw.trim().toUpperCase();
+        let correctIndex = 0;
+        if (cleanCorrect === 'B' || cleanCorrect === '2') correctIndex = 1;
+        else if (cleanCorrect === 'C' || cleanCorrect === '3') correctIndex = 2;
+        else if (cleanCorrect === 'D' || cleanCorrect === '4') correctIndex = 3;
+
+        const rawOptions = [optA, optB, optC, optD].filter(Boolean);
+        const options = rawOptions.length >= 2 ? rawOptions : [optA || 'Option A', optB || 'Option B', optC || 'Option C', optD || 'Option D'];
+
+        if (options.length > 0 && isNaN(parseInt(cleanCorrect, 10)) && !['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          const matchedIdx = options.findIndex((opt) => opt.toLowerCase() === cleanCorrect.toLowerCase());
+          if (matchedIdx !== -1) {
+            correctIndex = matchedIdx;
+          }
+        }
+
+        if (correctIndex >= options.length) {
+          correctIndex = 0;
+        }
+
+        const newQuestion = {
+          id: `q-${Date.now()}-${rowIdx + 1}-${Math.random().toString(36).substring(2, 6)}`,
+          question: questionText || `Question ${rowIdx + 1}`,
+          options,
+          correctIndex,
+          explanation: explanation || '',
+          points: 1
+        };
+
+        if (!quizLesson.quizData || typeof quizLesson.quizData === 'string') {
+          try {
+            quizLesson.quizData = typeof quizLesson.quizData === 'string' ? JSON.parse(quizLesson.quizData) : { questions: [], passingScore: 70, attemptLimit: 0 };
+          } catch {
+            quizLesson.quizData = { questions: [], passingScore: 70, attemptLimit: 0 };
+          }
+        }
+
+        const qData: any = quizLesson.quizData;
+        if (!Array.isArray(qData.questions)) {
+          qData.questions = [];
+        }
+        if (passScoreRaw && !isNaN(parseInt(passScoreRaw, 10))) {
+          qData.passingScore = parseInt(passScoreRaw, 10);
+        }
+        qData.questions.push(newQuestion);
+      });
     }
   }
 

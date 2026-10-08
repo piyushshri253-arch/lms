@@ -252,7 +252,7 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
 
         {openSections.level && (
           <div className="mt-3 space-y-2.5">
-            {['All Levels', 'Beginner', 'Intermediate', 'Expert'].map((lvl) => {
+            {['All Levels', 'Foundational', 'Intermediate', 'Expert'].map((lvl) => {
               const isChecked = filters.level.toLowerCase() === lvl.toLowerCase();
               return (
                 <label

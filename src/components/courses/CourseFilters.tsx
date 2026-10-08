@@ -31,7 +31,7 @@ export const CourseFilters: React.FC<CourseFiltersProps> = ({
     { label: 'Mobile Dev', value: 'Mobile Dev', count: categoryCounts['Mobile Dev'] || 30 }
   ];
 
-  const levels = ['All Levels', 'Beginner', 'Intermediate', 'Expert'];
+  const levels = ['All Levels', 'Foundational', 'Intermediate', 'Expert'];
 
   return (
     <aside className="w-full md:w-[280px] bg-surface-container-lowest border-r border-outline-variant p-6 flex-shrink-0 sidebar-scroll overflow-y-auto">

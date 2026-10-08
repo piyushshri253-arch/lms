@@ -484,7 +484,7 @@ export default function SuperAdminCoursesPage() {
                 className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
               >
                 <option value="ALL_LEVELS">All Levels</option>
-                <option value="BEGINNER">Beginner</option>
+                <option value="BEGINNER">Foundational</option>
                 <option value="INTERMEDIATE">Intermediate</option>
                 <option value="EXPERT">Expert</option>
               </select>

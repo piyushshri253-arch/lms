@@ -223,7 +223,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
                 className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-xs font-bold text-on-surface focus:outline-none focus:border-primary cursor-pointer"
               >
                 <option value="ALL_LEVELS">All Levels</option>
-                <option value="BEGINNER">Beginner</option>
+                <option value="BEGINNER">Foundational</option>
                 <option value="INTERMEDIATE">Intermediate</option>
                 <option value="EXPERT">Expert / Advanced</option>
               </select>

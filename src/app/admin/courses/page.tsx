@@ -710,7 +710,7 @@ function CoursesPageContent() {
                     onChange={(e) => setCourseFormData({ ...courseFormData, level: e.target.value })}
                     className="w-full bg-surface-container-low border border-outline-variant/80 rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:border-primary"
                   >
-                    <option value="BEGINNER">Beginner Level</option>
+                    <option value="BEGINNER">Foundational</option>
                     <option value="INTERMEDIATE">Intermediate Level</option>
                     <option value="ADVANCED">Advanced / Masterclass</option>
                     <option value="ALL_LEVELS">All Levels Welcome</option>

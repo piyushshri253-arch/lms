@@ -1184,7 +1184,7 @@ function CourseBuilderContent() {
                       <div className="flex items-center gap-2 text-xs font-bold text-indigo-300 uppercase">
                         <span>{courseState.category || 'Course'}</span>
                         <span>•</span>
-                        <span>{courseState.level}</span>
+                        <span>{courseState.level === 'BEGINNER' ? 'Foundational' : courseState.level}</span>
                         <span>•</span>
                         <span>{courseState.language}</span>
                       </div>

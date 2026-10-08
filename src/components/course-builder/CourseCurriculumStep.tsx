@@ -385,6 +385,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const lessonNum = targetSec.lessons.length + 1;
     const lessonCode = `${lessonNum}`;
 
+    // Count existing quizzes in this module
+    const existingQuizzesInModule = targetSec.lessons.filter((l) => l.type === 'QUIZ');
+    const quizTitle =
+      existingQuizzesInModule.length === 0
+        ? `Quiz ${moduleNum}`
+        : `Quiz ${moduleNum}.${existingQuizzesInModule.length + 1}`;
+
     const defaultTitle =
       type === 'VIDEO'
         ? `Video Lecture ${lessonCode}`
@@ -393,7 +400,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         : type === 'PDF'
         ? `Study Resource ${lessonCode}`
         : type === 'QUIZ'
-        ? `Knowledge Check ${lessonCode}`
+        ? quizTitle
         : `Resource Material ${lessonCode}`;
 
     let defaultQuiz: QuizConfig | undefined;
@@ -404,7 +411,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         questions: [
           {
             id: `q-${Date.now()}`,
-            question: 'Enter your assessment question here...',
+            question: `Assessment question for ${quizTitle}...`,
             options: ['Option A', 'Option B', 'Option C', 'Option D'],
             correctIndex: 0,
             explanation: 'Explanation for the correct answer.',
@@ -440,7 +447,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       setOpenContentDrawerId(newLesson.id);
       setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
     }
-    showToast({ title: `Added Lecture ${lessonCode}`, description: `${defaultTitle} added to Module ${moduleNum}.`, type: 'success' });
+    showToast({
+      title: type === 'QUIZ' ? `Added ${defaultTitle}` : `Added Lecture ${lessonCode}`,
+      description: `${defaultTitle} added to Module ${moduleNum}.`,
+      type: 'success'
+    });
   };
 
   // Update Lesson inline
@@ -684,7 +695,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto"
           >
             <Icon name="add" size={16} />
-            <span>+ Add Module (Module {sections.length + 1})</span>
+            <span>Add Module</span>
           </button>
         </div>
       </div>
@@ -1564,7 +1575,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       className="px-3.5 py-1.5 bg-white border border-[#2d2f31] hover:bg-slate-100 text-[#2d2f31] font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                       <Icon name="add" size={14} />
-                      <span>+ Lecture</span>
+                      <span>Lecture</span>
                     </button>
                     <button
                       type="button"
@@ -1572,7 +1583,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Icon name="quiz" size={14} />
-                      <span>+ Quiz</span>
+                      <span>Quiz</span>
                     </button>
                   </div>
                 </div>
@@ -1580,7 +1591,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             );
           })}
 
-          {/* BOTTOM DASHED BUTTON: + ADD MODULE */}
+          {/* BOTTOM DASHED BUTTON: ADD MODULE */}
           <div className="pt-2">
             <button
               type="button"
@@ -1593,7 +1604,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
               className="w-full py-4 border-2 border-dashed border-[#2d2f31]/40 hover:border-[#2d2f31] bg-white hover:bg-slate-50 text-[#2d2f31] font-bold text-sm rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
             >
               <Icon name="add_circle" size={18} />
-              <span>+ Add Module (Module {sections.length + 1})</span>
+              <span>Add Module</span>
             </button>
           </div>
         </div>
