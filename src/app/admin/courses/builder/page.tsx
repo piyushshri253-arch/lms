@@ -14,6 +14,7 @@ import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
 import { downloadCourseExcelTemplate, parseCourseExcelFile } from '@/lib/course-excel';
+import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
 
 const getDefaultCourseState = () => ({
   title: '',
@@ -98,6 +99,9 @@ function CourseBuilderContent() {
   const [isLivePreviewOpen, setIsLivePreviewOpen] = useState<boolean>(false);
   const [previewTab, setPreviewTab] = useState<'LANDING' | 'PLAYER'>('LANDING');
   const [activePreviewItem, setActivePreviewItem] = useState<any>(null);
+
+  // Batch Media and Parallel Video Upload Queue Manager Modal
+  const [isBatchMediaManagerOpen, setIsBatchMediaManagerOpen] = useState<boolean>(false);
 
   // Full Course Form State
   const [courseState, setCourseState] = useState<{
@@ -774,6 +778,10 @@ function CourseBuilderContent() {
         description: `"${parsed.title || 'Course'}" imported! Basic info, ${modulesCount} modules (${lessonsCount} lessons), and pricing auto-filled successfully.`,
         type: 'success'
       });
+
+      if (parsed.sections && parsed.sections.length > 0) {
+        setIsBatchMediaManagerOpen(true);
+      }
     } catch (err: any) {
       showToast({
         title: 'Excel Import Error',
@@ -932,6 +940,16 @@ function CourseBuilderContent() {
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
           <button
             type="button"
+            onClick={() => setIsBatchMediaManagerOpen(true)}
+            className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
+            title="Open batch lecture video uploader (2 parallel queue) and resource manager"
+          >
+            <Icon name="video_settings" size={17} />
+            <span>Batch Upload Videos &amp; Resources ⚡</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleDownloadExcelTemplate}
             className="px-3.5 py-2.5 bg-white dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-emerald-300 dark:border-emerald-700 flex items-center gap-2 cursor-pointer shadow-xs transition-all"
             title="Download official Excel course spreadsheet template"
@@ -1034,6 +1052,7 @@ function CourseBuilderContent() {
           sections={courseState.sections}
           onChange={(newSections) => handleUpdateField('sections', newSections)}
           courseSlug={courseState.slug}
+          onOpenBatchMediaManager={() => setIsBatchMediaManagerOpen(true)}
         />
       )}
 
@@ -1512,6 +1531,15 @@ function CourseBuilderContent() {
           </div>
         </div>
       )}
+
+      {/* Batch Curriculum Media & Parallel Video Queue Manager Modal */}
+      <BatchCurriculumMediaManager
+        isOpen={isBatchMediaManagerOpen}
+        onClose={() => setIsBatchMediaManagerOpen(false)}
+        sections={courseState.sections}
+        onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
+        courseTitle={courseState.title}
+      />
     </div>
   );
 }

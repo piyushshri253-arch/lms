@@ -6,10 +6,10 @@ import { Icon } from './Icon';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '5xl' | '6xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -40,8 +40,12 @@ export const Modal: React.FC<ModalProps> = ({
     sm: 'max-w-[480px]',
     md: 'max-w-[580px]',
     lg: 'max-w-[720px]',
-    xl: 'max-w-[900px]'
-  }[maxWidth];
+    xl: 'max-w-[900px]',
+    '2xl': 'max-w-[1050px]',
+    '4xl': 'max-w-[1200px]',
+    '5xl': 'max-w-[1300px]',
+    '6xl': 'max-w-[1400px]'
+  }[maxWidth] || 'max-w-[900px]';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/65 backdrop-blur-md animate-in fade-in duration-200">

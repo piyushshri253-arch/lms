@@ -67,12 +67,14 @@ interface CourseCurriculumStepProps {
   sections: BuilderSection[];
   onChange: (sections: BuilderSection[]) => void;
   courseSlug?: string;
+  onOpenBatchMediaManager?: () => void;
 }
 
 export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   sections,
   onChange,
-  courseSlug
+  courseSlug,
+  onOpenBatchMediaManager
 }) => {
   const { showToast } = useApp();
 
@@ -650,6 +652,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {onOpenBatchMediaManager && (
+            <button
+              type="button"
+              onClick={onOpenBatchMediaManager}
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
+              title="Open parallel video upload queue and curriculum resource manager"
+            >
+              <Icon name="video_settings" size={16} />
+              <span>Batch Videos &amp; Resources ⚡</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setIsAiModalOpen(true)}

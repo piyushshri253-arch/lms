@@ -129,68 +129,116 @@ export function downloadCourseExcelTemplate() {
   ];
   XLSX.utils.book_append_sheet(wb, wsDetails, 'Course Details');
 
-  // 2. Curriculum Syllabus Sheet Data
+  // 2. Curriculum Syllabus Sheet Data (Module 1 with lectures under it without repeating module columns)
   const curriculumRows = [
     {
-      'Module Title': 'Module 1: Foundations of Web Architecture & AI',
+      'Module Title': 'Module 1: Foundations of Web Architecture & Modern AI',
       'Module Description': 'Internet protocols, browser DOM rendering, Node.js runtime, and modern AI stack overview',
-      'Lesson Title': '1.1 Course Orientation & Modern Tech Stack Roadmap',
-      'Lesson Description': 'Overview of the master projects, dev tooling setup, and learning objectives',
-      'Lesson Duration (mm:ss)': '08:30',
+      'Lecture Title': '1.1 Course Orientation & Modern Tech Stack Roadmap',
+      'Lecture Description': 'Overview of the master projects, dev tooling setup, and learning objectives',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '08:30',
       'Is Preview Free (Yes/No)': 'Yes'
     },
     {
-      'Module Title': 'Module 1: Foundations of Web Architecture & AI',
-      'Module Description': 'Internet protocols, browser DOM rendering, Node.js runtime, and modern AI stack overview',
-      'Lesson Title': '1.2 Setting Up VS Code, Git, and Modern Terminal Workflow',
-      'Lesson Description': 'Configuring developer environment, extensions, and version control',
-      'Lesson Duration (mm:ss)': '14:15',
+      'Module Title': '', // Left blank on purpose - automatically grouped under Module 1
+      'Module Description': '', // Left blank on purpose
+      'Lecture Title': '1.2 Setting Up VS Code, Git, and Modern Terminal Workflow',
+      'Lecture Description': 'Configuring developer environment, extensions, and version control',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '14:15',
+      'Is Preview Free (Yes/No)': 'No'
+    },
+    {
+      'Module Title': '',
+      'Module Description': '',
+      'Lecture Title': '1.3 Understanding Modern JavaScript & DOM Architecture',
+      'Lecture Description': 'Core event loop, closures, and browser rendering lifecycle',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '12:00',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': 'Module 2: Frontend Engineering with Next.js & React 19',
       'Module Description': 'Component architecture, server vs client components, hooks, and responsive styling',
-      'Lesson Title': '2.1 Server Components & Dynamic Routing in Next.js',
-      'Lesson Description': 'Page routing, layout patterns, and data streaming techniques',
-      'Lesson Duration (mm:ss)': '18:45',
+      'Lecture Title': '2.1 Server Components & Dynamic Routing in Next.js',
+      'Lecture Description': 'Page routing, layout patterns, and data streaming techniques',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '18:45',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
-      'Module Title': 'Module 2: Frontend Engineering with Next.js & React 19',
-      'Module Description': 'Component architecture, server vs client components, hooks, and responsive styling',
-      'Lesson Title': '2.2 Building Responsive Master Layouts with Tailwind CSS',
-      'Lesson Description': 'Flexbox, CSS grid, dark mode theming, and accessible design systems',
-      'Lesson Duration (mm:ss)': '22:10',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': 'Module 3: Backend APIs & Database Architecture',
-      'Module Description': 'Database modeling, PostgreSQL schema design, Prisma ORM, and secure REST APIs',
-      'Lesson Title': '3.1 Relational Database Modeling with PostgreSQL & Prisma',
-      'Lesson Description': 'Tables, relations, foreign keys, migrations, and indexing strategies',
-      'Lesson Duration (mm:ss)': '25:30',
+      'Module Title': '',
+      'Module Description': '',
+      'Lecture Title': '2.2 Building Responsive Master Layouts with Tailwind CSS',
+      'Lecture Description': 'Flexbox, CSS grid, dark mode theming, and accessible design systems',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '22:10',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': 'Module 3: Backend APIs & Database Architecture',
       'Module Description': 'Database modeling, PostgreSQL schema design, Prisma ORM, and secure REST APIs',
-      'Lesson Title': '3.2 Building Secure Authentication & Role Permissions',
-      'Lesson Description': 'JWT tokens, cookie security, password hashing, and role-based access control',
-      'Lesson Duration (mm:ss)': '28:15',
+      'Lecture Title': '3.1 Relational Database Modeling with PostgreSQL & Prisma',
+      'Lecture Description': 'Tables, relations, foreign keys, migrations, and indexing strategies',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '25:30',
+      'Is Preview Free (Yes/No)': 'No'
+    },
+    {
+      'Module Title': '',
+      'Module Description': '',
+      'Lecture Title': '3.2 Building Secure Authentication & Role Permissions',
+      'Lecture Description': 'JWT tokens, cookie security, password hashing, and role-based access control',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
+      'Duration (mm:ss)': '28:15',
+      'Is Preview Free (Yes/No)': 'No'
+    },
+    {
+      'Module Title': '',
+      'Module Description': '',
+      'Lecture Title': '3.3 Module 3 Knowledge Check & Coding Quiz',
+      'Lecture Description': 'Test your understanding of REST APIs, database models, and authentication',
+      'Lecture Type (VIDEO/PDF/QUIZ)': 'QUIZ',
+      'Duration (mm:ss)': '15:00',
       'Is Preview Free (Yes/No)': 'No'
     }
   ];
 
   const wsCurriculum = XLSX.utils.json_to_sheet(curriculumRows);
   wsCurriculum['!cols'] = [
-    { wch: 38 }, // Module Title
+    { wch: 42 }, // Module Title
     { wch: 55 }, // Module Description
-    { wch: 42 }, // Lesson Title
-    { wch: 50 }, // Lesson Description
-    { wch: 25 }, // Lesson Duration
+    { wch: 42 }, // Lecture Title
+    { wch: 55 }, // Lecture Description
+    { wch: 28 }, // Lecture Type
+    { wch: 22 }, // Duration
     { wch: 24 }  // Is Preview Free
   ];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum');
+
+  // 3. User Guide & Format Instructions Sheet
+  const instructionsRows = [
+    {
+      'Section': 'How to Fill Course Details',
+      'Instructions': 'Fill your Masterclass title, category, level, pricing, and descriptions in the "Course Details" tab.'
+    },
+    {
+      'Section': 'How to Fill Curriculum Modules',
+      'Instructions': 'Type Module Title and Module Description once. All subsequent lecture rows left blank under it will automatically be placed inside that same module! No need to repeat the module name.'
+    },
+    {
+      'Section': 'Lectures & Descriptions',
+      'Instructions': 'Each row represents one lecture. Provide Lecture Title and Lecture Description. Type can be VIDEO, PDF, or QUIZ.'
+    },
+    {
+      'Section': 'Videos, Resources & Thumbnails',
+      'Instructions': 'Spreadsheet auto-fills course structure and text. You can upload video files and PDF resources directly using the batch uploader (2 parallel uploads queue) in Instructor Studio.'
+    }
+  ];
+  const wsGuide = XLSX.utils.json_to_sheet(instructionsRows);
+  wsGuide['!cols'] = [{ wch: 32 }, { wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
   // Trigger browser download
   XLSX.writeFile(wb, 'MORENA_Course_Upload_Template.xlsx');
@@ -368,22 +416,17 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
     const rawRows: any[] = XLSX.utils.sheet_to_json(curSheet);
 
     if (rawRows.length > 0) {
-      // Group lessons by module title
-      const modulesMap: Map<
-        string,
-        {
-          title: string;
-          description: string;
-          lessons: BuilderLesson[];
-        }
-      > = new Map();
+      const sections: BuilderSection[] = [];
+      let currentSection: BuilderSection | null = null;
 
       rawRows.forEach((row, idx) => {
         // Find column values with flexible keys
         const getRowVal = (...keys: string[]) => {
           for (const key of keys) {
             for (const [rKey, rVal] of Object.entries(row)) {
-              if (rKey.trim().toLowerCase() === key.toLowerCase() || rKey.trim().toLowerCase().includes(key.toLowerCase())) {
+              const cleanRKey = rKey.trim().toLowerCase();
+              const cleanKey = key.toLowerCase();
+              if (cleanRKey === cleanKey || cleanRKey.includes(cleanKey)) {
                 if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
                   return String(rVal).trim();
                 }
@@ -393,56 +436,80 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           return '';
         };
 
-        const modTitle = getRowVal('module title', 'module') || `Module ${modulesMap.size + 1}`;
-        const modDesc = getRowVal('module description', 'module desc');
-        const lessonTitle = getRowVal('lesson title', 'lesson', 'title') || `Lesson ${idx + 1}`;
-        const lessonDesc = getRowVal('lesson description', 'lesson desc', 'description');
-        const durationStr = getRowVal('lesson duration', 'duration') || '10:00';
+        const rawModTitle = getRowVal('module title', 'module name', 'module');
+        const rawModDesc = getRowVal('module description', 'module desc');
+        const lessonTitle = getRowVal('lecture title', 'lesson title', 'lecture', 'lesson', 'title');
+        const lessonDesc = getRowVal('lecture description', 'lesson description', 'lecture desc', 'lesson desc', 'description');
+        const lessonTypeRaw = getRowVal('lecture type', 'lesson type', 'type') || 'VIDEO';
+        const durationStr = getRowVal('lesson duration', 'duration', 'time') || '10:00';
         const isFreeRaw = getRowVal('is preview free', 'is free', 'preview');
         const isFree = /yes|true|1|free/i.test(isFreeRaw);
 
-        if (!modulesMap.has(modTitle)) {
-          modulesMap.set(modTitle, {
-            title: modTitle,
-            description: modDesc,
-            lessons: []
+        // Skip completely empty rows
+        if (!rawModTitle && !rawModDesc && !lessonTitle && !lessonDesc) return;
+
+        // 1. Module Assignment (User does not have to repeat module title on every row):
+        if (rawModTitle) {
+          // Check if this module already exists by title
+          const existing = sections.find((s) => s.title.toLowerCase().trim() === rawModTitle.toLowerCase().trim());
+          if (existing) {
+            currentSection = existing;
+            if (!currentSection.description && rawModDesc) {
+              currentSection.description = rawModDesc;
+            }
+          } else {
+            currentSection = {
+              id: `sec-${Date.now()}-${sections.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+              title: rawModTitle,
+              description: rawModDesc || '',
+              order: sections.length + 1,
+              lessons: []
+            };
+            sections.push(currentSection);
+          }
+        } else {
+          // Module Title is left blank on this row (automatically inherits the active module above it!)
+          if (!currentSection) {
+            currentSection = {
+              id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
+              title: 'Module 1: Foundations & Orientation',
+              description: rawModDesc || '',
+              order: 1,
+              lessons: []
+            };
+            sections.push(currentSection);
+          } else if (!currentSection.description && rawModDesc) {
+            currentSection.description = rawModDesc;
+          }
+        }
+
+        // 2. Lecture / Lesson Creation:
+        if (lessonTitle || lessonDesc || durationStr) {
+          const finalLessonTitle = lessonTitle || `Lecture ${currentSection.lessons.length + 1}`;
+          const durationSeconds = parseDurationToSeconds(durationStr);
+          const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' =
+            /quiz/i.test(lessonTypeRaw)
+              ? 'QUIZ'
+              : /pdf|doc|file|reading/i.test(lessonTypeRaw)
+              ? 'PDF'
+              : 'VIDEO';
+
+          currentSection.lessons.push({
+            id: `les-${Date.now()}-${currentSection.order}-${currentSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+            title: finalLessonTitle,
+            description: lessonDesc || '',
+            type: normalizedType,
+            duration: durationStr,
+            durationSeconds,
+            isFree,
+            isPublished: true,
+            order: currentSection.lessons.length + 1,
+            subLessons: []
           });
         }
-
-        const modGroup = modulesMap.get(modTitle)!;
-        if (!modGroup.description && modDesc) {
-          modGroup.description = modDesc;
-        }
-
-        const durationSeconds = parseDurationToSeconds(durationStr);
-
-        modGroup.lessons.push({
-          id: `les-${Date.now()}-${modulesMap.size}-${modGroup.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-          title: lessonTitle,
-          description: lessonDesc,
-          type: 'VIDEO',
-          duration: durationStr,
-          durationSeconds,
-          isFree,
-          isPublished: true,
-          order: modGroup.lessons.length + 1,
-          subLessons: []
-        });
       });
 
-      if (modulesMap.size > 0) {
-        const sections: BuilderSection[] = [];
-        let modIndex = 1;
-        for (const [, group] of modulesMap) {
-          sections.push({
-            id: `sec-${Date.now()}-${modIndex}-${Math.random().toString(36).substring(2, 6)}`,
-            title: group.title,
-            description: group.description,
-            order: modIndex,
-            lessons: group.lessons
-          });
-          modIndex++;
-        }
+      if (sections.length > 0) {
         result.sections = sections;
       }
     }
