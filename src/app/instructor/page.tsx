@@ -418,7 +418,7 @@ function InstructorCoursesStudioInner() {
               className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md shadow-violet-600/20 transition-all cursor-pointer shrink-0"
             >
               <Icon name="add_circle" size={18} />
-              <span>+ Create Course</span>
+              <span>+ Create New Course</span>
             </Link>
           </div>
         </div>
@@ -606,29 +606,39 @@ function InstructorCoursesStudioInner() {
               </p>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative w-full md:w-72">
-              <Icon
-                name="search"
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search courses by title or topic..."
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                >
-                  <Icon name="close" size={14} />
-                </button>
-              )}
+            {/* Search Bar & Create Course Action */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Icon
+                  name="search"
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search courses by title or topic..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                )}
+              </div>
+
+              <Link
+                href="/instructor/courses/builder"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+              >
+                <Icon name="add_circle" size={16} />
+                <span>+ Create New Course</span>
+              </Link>
             </div>
           </div>
 
@@ -758,10 +768,10 @@ function InstructorCoursesStudioInner() {
               ) : (
                 <Link
                   href="/instructor/courses/builder"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white font-bold text-xs rounded-xl hover:bg-violet-500 shadow-sm cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-sm cursor-pointer"
                 >
                   <Icon name="add_circle" size={16} />
-                  <span>Create Course</span>
+                  <span>Create New Course</span>
                 </Link>
               )}
             </div>
