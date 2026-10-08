@@ -53,13 +53,6 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
       step: 0
     },
     {
-      id: 'thumbnail',
-      label: 'Course Thumbnail Image',
-      passed: !!courseData.thumbnail && courseData.thumbnail.length > 0,
-      message: courseData.thumbnail ? 'Thumbnail uploaded.' : 'Upload a thumbnail image for course cards.',
-      step: 1
-    },
-    {
       id: 'sections',
       label: 'Curriculum Sections / Modules',
       passed: (courseData.sections || []).length >= 1,
@@ -67,7 +60,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         (courseData.sections || []).length >= 1
           ? `${courseData.sections.length} module(s) created.`
           : 'Create at least 1 section in Curriculum.',
-      step: 2
+      step: 1
     },
     {
       id: 'lessons',
@@ -77,6 +70,13 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         allLessons.length >= 1
           ? `${allLessons.length} lesson(s) in curriculum.`
           : 'Add at least 1 lecture in Curriculum.',
+      step: 1
+    },
+    {
+      id: 'thumbnail',
+      label: 'Course Thumbnail Image',
+      passed: !!courseData.thumbnail && courseData.thumbnail.length > 0,
+      message: courseData.thumbnail ? 'Thumbnail uploaded.' : 'Upload a thumbnail image for course cards.',
       step: 2
     },
     {

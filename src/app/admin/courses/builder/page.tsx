@@ -101,9 +101,6 @@ function CourseBuilderContent() {
   const [previewTab, setPreviewTab] = useState<'LANDING' | 'PLAYER'>('LANDING');
   const [activePreviewItem, setActivePreviewItem] = useState<any>(null);
 
-  // Batch Media and Parallel Video Upload Queue Manager Modal
-  const [isBatchMediaManagerOpen, setIsBatchMediaManagerOpen] = useState<boolean>(false);
-
   // Full Course Form State
   const [courseState, setCourseState] = useState<{
     id?: string;
@@ -749,8 +746,8 @@ function CourseBuilderContent() {
 
   const steps = [
     { title: '1. Basic Information', icon: 'info' },
-    { title: '2. Media & Thumbnail', icon: 'image' },
-    { title: '3. Curriculum & Syllabus', icon: 'view_timeline' },
+    { title: '2. Curriculum & Syllabus', icon: 'view_timeline' },
+    { title: '3. Media & Thumbnail', icon: 'image' },
     { title: '4. Pricing & Access', icon: 'payments' },
     { title: isInstructor ? '5. Review & Submit' : '5. Publish & Review', icon: 'verified' }
   ];
@@ -852,10 +849,6 @@ function CourseBuilderContent() {
         description: `"${parsed.title || 'Course'}" imported! Basic info, ${modulesCount} modules (${lessonsCount} lessons), and pricing auto-filled successfully.`,
         type: 'success'
       });
-
-      if (parsed.sections && parsed.sections.length > 0) {
-        setIsBatchMediaManagerOpen(true);
-      }
     } catch (err: any) {
       showToast({
         title: 'Excel Import Error',
@@ -877,15 +870,6 @@ function CourseBuilderContent() {
       }`}
     >
       <div className="flex items-center gap-2">
-        <Link
-          href={isInstructor ? '/instructor' : '/admin/courses'}
-          className="px-3.5 py-2.5 rounded-xl bg-surface border border-outline-variant hover:bg-surface-container text-on-surface font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
-          title="Exit to courses list"
-        >
-          <Icon name="arrow_back" size={16} />
-          <span>Exit</span>
-        </Link>
-
         <button
           type="button"
           disabled={currentStep === 0}
@@ -1013,32 +997,13 @@ function CourseBuilderContent() {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-              Download the official template, fill in course details, modules, lectures, quizzes &amp; pricing in Excel, and upload to auto-fill all 5 steps instantly! You can then upload video lectures (2 parallel queue) and PDF resources directly below.
+              Download the official template, fill in course details, modules, lectures, quizzes &amp; pricing in Excel, and upload to auto-fill all instantly! You can then upload video lectures and resources directly below.
             </p>
           </div>
         </div>
 
         {/* Bottom: Action Buttons Placed Cleanly Underneath */}
         <div className="pt-3 border-t border-outline-variant/60 flex flex-wrap items-center gap-3">
-          {/* Batch Media Studio Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsBatchMediaManagerOpen((prev) => !prev)}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all ${
-              isBatchMediaManagerOpen
-                ? 'bg-indigo-700 text-white shadow-indigo-600/30 ring-2 ring-indigo-400'
-                : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-600/20 hover:scale-[1.02]'
-            }`}
-            title="Toggle inline batch video uploader and resource manager"
-          >
-            <Icon name={isBatchMediaManagerOpen ? 'expand_less' : 'video_settings'} size={17} />
-            <span>
-              {isBatchMediaManagerOpen
-                ? 'Hide Media Studio ▲'
-                : 'Batch Upload Videos & Resources ⚡'}
-            </span>
-          </button>
-
           {/* Download Template Button */}
           <button
             type="button"
@@ -1070,19 +1035,6 @@ function CourseBuilderContent() {
             />
           </label>
         </div>
-
-        {/* Inline Batch Media Manager (Opens right here without a popup modal) */}
-        {isBatchMediaManagerOpen && (
-          <div className="pt-3 border-t border-outline-variant/60">
-            <BatchCurriculumMediaManager
-              isOpen={true}
-              onClose={() => setIsBatchMediaManagerOpen(false)}
-              sections={courseState.sections}
-              onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
-              courseTitle={courseState.title}
-            />
-          </div>
-        )}
       </div>
 
       {/* Step Navigation Tabs */}
@@ -1143,23 +1095,46 @@ function CourseBuilderContent() {
         />
       )}
 
-      {/* Step 2: Media */}
+      {/* Step 2: Curriculum & Syllabus */}
       {currentStep === 1 && (
-        <CourseMediaStep
-          thumbnail={courseState.thumbnail}
-          banner={courseState.banner}
-          onChange={handleUpdateField}
-        />
-      )}
-
-      {/* Step 3: Curriculum */}
-      {currentStep === 2 && (
         <CourseCurriculumStep
           sections={courseState.sections || []}
           onChange={(newSections) => handleUpdateField('sections', newSections)}
           courseSlug={courseState.slug}
-          onOpenBatchMediaManager={() => setIsBatchMediaManagerOpen(true)}
+          onOpenBatchMediaManager={() => setCurrentStep(2)}
         />
+      )}
+
+      {/* Step 3: Media & Thumbnail + Curriculum Video & Resources Studio */}
+      {currentStep === 2 && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          <CourseMediaStep
+            thumbnail={courseState.thumbnail}
+            banner={courseState.banner}
+            onChange={handleUpdateField}
+          />
+
+          {/* Curriculum Video Lectures & Resources Studio */}
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
+                <Icon name="video_settings" size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-on-surface">Curriculum Videos &amp; Study Resources Studio</h3>
+                <p className="text-xs text-on-surface-variant">
+                  Upload video lectures directly to each module, attach study PDFs &amp; files, and auto-detect duration.
+                </p>
+              </div>
+            </div>
+            <BatchCurriculumMediaManager
+              isOpen={true}
+              sections={courseState.sections || []}
+              onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
+              courseTitle={courseState.title}
+            />
+          </div>
+        </div>
       )}
 
       {/* Step 4: Pricing */}
