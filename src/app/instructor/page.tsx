@@ -158,7 +158,7 @@ function InstructorCoursesStudioInner() {
 
       showToast({
         title: 'Course Published Live! 🚀',
-        description: 'Your approved masterclass is now live on the landing page for student enrollments.',
+        description: 'Your approved course is now live on the landing page for student enrollments.',
         type: 'success'
       });
     } catch (err: any) {
@@ -599,7 +599,7 @@ function InstructorCoursesStudioInner() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-900">
-                Your Authored Masterclasses
+                Your Authored Courses
               </h2>
               <p className="text-xs text-slate-500">
                 Manage syllabus, publish live, move to draft, or mark courses active/inactive
@@ -761,7 +761,7 @@ function InstructorCoursesStudioInner() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white font-bold text-xs rounded-xl hover:bg-violet-500 shadow-sm cursor-pointer"
                 >
                   <Icon name="add_circle" size={16} />
-                  <span>Create New Masterclass</span>
+                  <span>Create Course</span>
                 </Link>
               )}
             </div>
@@ -1067,7 +1067,7 @@ function InstructorCoursesStudioInner() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         maxWidth="md"
-        title="Initialize New Masterclass"
+        title="Initialize New Course"
         subtitle="Add a new verified course to your instructor profile"
       >
         <form onSubmit={handleCreateCourse} className="space-y-4">

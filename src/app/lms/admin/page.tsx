@@ -379,7 +379,7 @@ export default function LmsAdminDashboardPage() {
                 +
               </div>
               <div>
-                <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">Create Masterclass</p>
+                <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">Create Course</p>
                 <p className="text-[10px] text-slate-400">Launch a new course syllabus</p>
               </div>
             </Link>

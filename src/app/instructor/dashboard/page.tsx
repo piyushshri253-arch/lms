@@ -203,7 +203,7 @@ export default function InstructorDashboardPage() {
                 {metrics.totalCourses}
               </div>
               <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
-                <span>All authored masterclasses</span>
+                <span>All authored courses</span>
                 <ChevronRight className="w-3 h-3 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
