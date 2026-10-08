@@ -87,6 +87,7 @@ function CourseBuilderContent() {
   const [isLoading, setIsLoading] = useState<boolean>(!!editSlugOrId);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [isImportingExcel, setIsImportingExcel] = useState<boolean>(false);
   const [hasLoadedInitial, setHasLoadedInitial] = useState<boolean>(false);
 
   // Background auto-save to database status
@@ -198,7 +199,7 @@ function CourseBuilderContent() {
   // When an instructor creates or updates a course, it automatically saves to DB as DRAFT
   // so if they close the browser or leave, it already appears under Drafts in Instructor Studio!
   useEffect(() => {
-    if (!hasLoadedInitial || isPublishing) return;
+    if (!hasLoadedInitial || isPublishing || isImportingExcel) return;
     if (courseState.status !== 'DRAFT') return;
     if (!courseState.title || courseState.title.trim().length < 3) return;
 
@@ -228,7 +229,7 @@ function CourseBuilderContent() {
     }
 
     autoSaveTimerRef.current = setTimeout(async () => {
-      if (isAutoSavingRef.current || isPublishing) return;
+      if (isAutoSavingRef.current || isPublishing || isImportingExcel) return;
       try {
         isAutoSavingRef.current = true;
         setAutoSaveStatus('saving');
@@ -241,29 +242,44 @@ function CourseBuilderContent() {
       } finally {
         isAutoSavingRef.current = false;
       }
-    }, 2500);
+    }, 3500);
 
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
     };
-  }, [courseState, hasLoadedInitial, isPublishing]);
+  }, [courseState, hasLoadedInitial, isPublishing, isImportingExcel]);
 
   const loadCourse = async (identifier: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/courses/${identifier}`);
+      const res = await fetch(`/api/courses/${encodeURIComponent(identifier)}`);
       const data = await res.json();
       if (res.ok && data.course) {
         const c = data.course;
+        const parseArrayField = (raw: any): string[] => {
+          if (Array.isArray(raw)) return raw;
+          if (typeof raw === 'string') {
+            try {
+              const p = JSON.parse(raw);
+              if (Array.isArray(p)) return p;
+            } catch {}
+            return raw.split(/[;\n\r]+/).map((s: string) => s.trim()).filter(Boolean);
+          }
+          return [];
+        };
+
         const loadedState = {
           id: c.id,
           title: c.title,
           slug: c.slug,
           shortDescription: c.subtitle || c.shortDescription || '',
           description: c.description || '',
-          category: c.category || 'Teacher Development',
+          category:
+            typeof c.category === 'object' && c.category
+              ? c.category.name || ''
+              : String(c.category || 'Teacher Development'),
           level: c.level || 'ALL_LEVELS',
           language: c.language || 'English',
           durationHours: c.durationHours || 0,
@@ -275,9 +291,9 @@ function CourseBuilderContent() {
           status: c.status || 'DRAFT',
           accessType: c.accessType || 'LIFETIME',
           accessDays: c.accessDays || null,
-          whatYouWillLearn: c.whatYouWillLearn || [],
-          requirements: c.requirements || [],
-          targetAudience: c.targetAudience || [],
+          whatYouWillLearn: parseArrayField(c.whatYouWillLearn),
+          requirements: parseArrayField(c.requirements),
+          targetAudience: parseArrayField(c.targetAudience),
           seoTitle: c.seoTitle || '',
           seoDescription: c.seoDescription || '',
           sections: (c.sections || []).map((s: any, sIdx: number) => ({
@@ -379,8 +395,8 @@ function CourseBuilderContent() {
       setIsSaving(true);
     }
     try {
-      let savedCourseId = courseState.id;
-      let savedSlug = courseState.slug;
+      let savedCourseId = courseState.id || editSlugOrId || '';
+      let savedSlug = courseState.slug || '';
 
       const isSubmitting = Boolean(options?.submitForApproval);
       const isInstructorUser = currentUser?.role === 'INSTRUCTOR';
@@ -425,6 +441,8 @@ function CourseBuilderContent() {
         sections: courseState.sections
       };
 
+      let responseData: any = null;
+
       if (!savedCourseId) {
         // Create new course in DB
         const res = await fetch('/api/courses', {
@@ -433,10 +451,9 @@ function CourseBuilderContent() {
           body: JSON.stringify(payload)
         });
 
-        let data: any = {};
         try {
           const text = await res.text();
-          data = text ? JSON.parse(text) : {};
+          responseData = text ? JSON.parse(text) : {};
         } catch {
           if (res.status === 413) {
             throw new Error('Image or payload is too large for the server. Please select an optimized image under 5MB.');
@@ -444,22 +461,22 @@ function CourseBuilderContent() {
           throw new Error(`Server returned error (${res.status}). Please try again.`);
         }
 
-        if (!res.ok) throw new Error(data.error || 'Failed to create course');
+        if (!res.ok) throw new Error(responseData?.error || 'Failed to create course');
 
-        savedCourseId = data.course.id;
-        savedSlug = data.course.slug;
+        if (responseData?.course?.id) savedCourseId = responseData.course.id;
+        if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       } else {
-        // Update existing course in DB
-        const res = await fetch(`/api/courses/${courseState.slug || savedCourseId}`, {
+        // Update existing course in DB using reliable ID/identifier
+        const targetIdentifier = savedCourseId || courseState.id || courseState.slug;
+        const res = await fetch(`/api/courses/${encodeURIComponent(targetIdentifier)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
-        let data: any = {};
         try {
           const text = await res.text();
-          data = text ? JSON.parse(text) : {};
+          responseData = text ? JSON.parse(text) : {};
         } catch {
           if (res.status === 413) {
             throw new Error('Image or payload is too large for the server. Please select an optimized image under 5MB.');
@@ -467,8 +484,9 @@ function CourseBuilderContent() {
           throw new Error(`Server returned error (${res.status}). Please try again.`);
         }
 
-        if (!res.ok) throw new Error(data.error || 'Failed to update course');
-        if (data.course?.slug) savedSlug = data.course.slug;
+        if (!res.ok) throw new Error(responseData?.error || 'Failed to update course');
+        if (responseData?.course?.id) savedCourseId = responseData.course.id;
+        if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       }
 
       if (options?.resetAfterSave) {
@@ -503,7 +521,65 @@ function CourseBuilderContent() {
           type: 'success'
         });
       } else {
-        if (savedCourseId && savedSlug) {
+        // Synchronize server-assigned database IDs for sections & lessons so subsequent auto-saves never loop
+        if (responseData?.course?.sections && Array.isArray(responseData.course.sections)) {
+          const syncedSections: BuilderSection[] = responseData.course.sections.map((s: any, sIdx: number) => ({
+            id: s.id,
+            title: s.title || `Module ${sIdx + 1}`,
+            description: s.description || '',
+            order: s.order || sIdx + 1,
+            lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
+              id: l.id,
+              title: l.title || `Lesson ${lIdx + 1}`,
+              description: l.description || '',
+              type: l.type || 'VIDEO',
+              content: l.content || '',
+              videoUrl: l.videoUrl || '',
+              pdfUrl: l.pdfUrl || '',
+              fileUrl: l.fileUrl || '',
+              quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
+              subLessons: (() => {
+                try {
+                  const p = JSON.parse(l.resources || '[]');
+                  return Array.isArray(p) ? p : p?.subLessons || [];
+                } catch {
+                  return [];
+                }
+              })(),
+              duration: l.duration || '10:00',
+              durationSeconds: l.durationSeconds || 600,
+              isFree: Boolean(l.isFree),
+              isPublished: l.isPublished !== false,
+              order: l.order || lIdx + 1
+            }))
+          }));
+
+          const updatedState = {
+            ...courseState,
+            id: savedCourseId || courseState.id,
+            slug: savedSlug || courseState.slug,
+            sections: syncedSections
+          };
+
+          // Synchronize payload ref to prevent immediate re-trigger of auto-save
+          lastSavedPayloadRef.current = JSON.stringify({
+            title: (updatedState.title || '').trim(),
+            description: updatedState.description,
+            shortDescription: updatedState.shortDescription,
+            price: updatedState.price,
+            currency: updatedState.currency,
+            category: updatedState.category,
+            level: updatedState.level,
+            sectionsCount: updatedState.sections?.length,
+            sectionsSummary: updatedState.sections?.map((s) => ({
+              id: s.id,
+              title: s.title,
+              lessons: s.lessons?.map((l) => ({ id: l.id, title: l.title, type: l.type, videoUrl: l.videoUrl }))
+            }))
+          });
+
+          setCourseState(updatedState);
+        } else if (savedCourseId && savedSlug) {
           setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
         }
 
@@ -717,8 +793,6 @@ function CourseBuilderContent() {
       </div>
     );
   }
-
-  const [isImportingExcel, setIsImportingExcel] = useState<boolean>(false);
 
   const handleDownloadExcelTemplate = () => {
     try {
@@ -1081,7 +1155,7 @@ function CourseBuilderContent() {
       {/* Step 3: Curriculum */}
       {currentStep === 2 && (
         <CourseCurriculumStep
-          sections={courseState.sections}
+          sections={courseState.sections || []}
           onChange={(newSections) => handleUpdateField('sections', newSections)}
           courseSlug={courseState.slug}
           onOpenBatchMediaManager={() => setIsBatchMediaManagerOpen(true)}
@@ -1245,7 +1319,7 @@ function CourseBuilderContent() {
                 {/* Course Curriculum & Syllabus (Sections & Lectures) */}
                 <div className="max-w-6xl mx-auto py-10 px-4 sm:px-8 space-y-8">
                   {/* What You Will Learn */}
-                  {courseState.whatYouWillLearn?.length > 0 && (
+                  {Array.isArray(courseState.whatYouWillLearn) && courseState.whatYouWillLearn.length > 0 && (
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
                       <h3 className="text-base font-black text-slate-900 mb-4">What You Will Learn</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -84,13 +84,29 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
     }
   };
 
+  const ensureArray = (val: any): string[] => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+      return val.split(/[;\n\r]+/).map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const learnPoints = ensureArray(data.whatYouWillLearn);
+  const requirementPoints = ensureArray(data.requirements);
+  const audiencePoints = ensureArray(data.targetAudience);
+
   const addPoint = (
     field: 'whatYouWillLearn' | 'requirements' | 'targetAudience',
     val: string,
     setVal: (v: string) => void
   ) => {
     if (!val.trim()) return;
-    const current = data[field] || [];
+    const current = ensureArray(data[field]);
     onChange(field, [...current, val.trim()]);
     setVal('');
   };
@@ -99,7 +115,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
     field: 'whatYouWillLearn' | 'requirements' | 'targetAudience',
     index: number
   ) => {
-    const current = [...(data[field] || [])];
+    const current = [...ensureArray(data[field])];
     current.splice(index, 1);
     onChange(field, current);
   };
@@ -321,7 +337,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {(data.whatYouWillLearn || []).map((point, idx) => (
+            {learnPoints.map((point, idx) => (
               <div
                 key={idx}
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
@@ -371,7 +387,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {(data.requirements || []).map((req, idx) => (
+            {requirementPoints.map((req, idx) => (
               <div
                 key={idx}
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
@@ -420,7 +436,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {(data.targetAudience || []).map((aud, idx) => (
+            {audiencePoints.map((aud, idx) => (
               <div
                 key={idx}
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"

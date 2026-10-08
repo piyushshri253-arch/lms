@@ -615,10 +615,28 @@ export async function PUT(
       }
     }
 
+    let newSlug: string | undefined = undefined;
+    if (body.slug && typeof body.slug === 'string' && body.slug.trim() && body.slug !== course.slug) {
+      const cleanSlug = body.slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      if (cleanSlug) {
+        const existingWithSlug = await prisma.course.findFirst({
+          where: {
+            organizationId: course.organizationId,
+            slug: cleanSlug,
+            id: { not: course.id }
+          }
+        });
+        if (!existingWithSlug) {
+          newSlug = cleanSlug;
+        }
+      }
+    }
+
     const updated = await prisma.course.update({
       where: { id: course.id },
       data: {
         title: body.title !== undefined ? body.title.trim() : undefined,
+        slug: newSlug || undefined,
         description: body.description !== undefined ? body.description : undefined,
         shortDescription: body.shortDescription !== undefined ? body.shortDescription : undefined,
         price: body.price !== undefined ? Number(body.price) : undefined,

@@ -226,11 +226,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     lessonId: string,
     updates: Partial<BuilderLesson>
   ) => {
-    const updated = sections.map((sec) => {
+    const updated = (sections || []).map((sec) => {
       if (sec.id !== sectionId) return sec;
       return {
         ...sec,
-        lessons: sec.lessons.map((les) => {
+        lessons: (sec.lessons || []).map((les) => {
           if (les.id !== lessonId) return les;
           return { ...les, ...updates };
         })
@@ -299,8 +299,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       hasVideo: boolean;
     }[] = [];
 
-    sections.forEach((s) => {
-      s.lessons.forEach((l) => {
+    (sections || []).forEach((s) => {
+      (s.lessons || []).forEach((l) => {
         allLessonsList.push({
           sectionId: s.id,
           lessonId: l.id,
@@ -394,13 +394,13 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   };
 
   // Stats calculation
-  const totalLessons = sections.reduce((acc, s) => acc + s.lessons.length, 0);
-  const totalWithVideo = sections.reduce(
-    (acc, s) => acc + s.lessons.filter((l) => !!l.videoUrl).length,
+  const totalLessons = (sections || []).reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
+  const totalWithVideo = (sections || []).reduce(
+    (acc, s) => acc + (s.lessons || []).filter((l) => !!l.videoUrl).length,
     0
   );
-  const totalWithPdf = sections.reduce(
-    (acc, s) => acc + s.lessons.filter((l) => !!l.pdfUrl).length,
+  const totalWithPdf = (sections || []).reduce(
+    (acc, s) => acc + (s.lessons || []).filter((l) => !!l.pdfUrl).length,
     0
   );
   const activeUploads = tasks.filter((t) => t.status === 'UPLOADING');
@@ -601,9 +601,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         </div>
       ) : (
         <div className="space-y-4">
-          {sections.map((section, sIdx) => {
+          {(sections || []).map((section, sIdx) => {
             const isCollapsed = collapsedSections[section.id];
-            const secWithVideos = section.lessons.filter((l) => !!l.videoUrl).length;
+            const secLessons = section.lessons || [];
+            const secWithVideos = secLessons.filter((l) => !!l.videoUrl).length;
 
             return (
               <div
@@ -625,10 +626,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                           {section.title}
                         </h3>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant font-bold">
-                          {section.lessons.length} Lectures
+                          {secLessons.length} Lectures
                         </span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                          {secWithVideos}/{section.lessons.length} Videos
+                          {secWithVideos}/{secLessons.length} Videos
                         </span>
                       </div>
                       {section.description && (
@@ -649,12 +650,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 {/* Lessons List under this Module */}
                 {!isCollapsed && (
                   <div className="divide-y divide-outline-variant/60">
-                    {section.lessons.length === 0 ? (
+                    {secLessons.length === 0 ? (
                       <div className="p-4 text-xs text-on-surface-variant text-center">
                         No lectures in this module yet.
                       </div>
                     ) : (
-                      section.lessons.map((lesson, lIdx) => {
+                      secLessons.map((lesson, lIdx) => {
                         const task = tasks.find((t) => t.lessonId === lesson.id);
                         const isTaskUploading = task?.status === 'UPLOADING';
                         const isTaskQueued = task?.status === 'QUEUED';
@@ -1063,7 +1064,7 @@ const InlineQuickQuizEditor: React.FC<InlineQuickQuizEditorProps> = ({
 
               {/* Options */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-4">
-                {q.options.map((opt, oIdx) => (
+                {(q.options || []).map((opt, oIdx) => (
                   <div key={oIdx} className="flex items-center gap-1.5">
                     <input
                       type="radio"
