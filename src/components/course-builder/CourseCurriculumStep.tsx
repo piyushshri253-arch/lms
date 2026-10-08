@@ -663,27 +663,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {onOpenBatchMediaManager && (
-            <button
-              type="button"
-              onClick={onOpenBatchMediaManager}
-              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
-              title="Open parallel video upload queue and curriculum resource manager"
-            >
-              <Icon name="video_settings" size={16} />
-              <span>Batch Videos &amp; Resources ⚡</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setIsAiModalOpen(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
-          >
-            <Icon name="sparkles" size={16} />
-            <span>AI Curriculum Generator</span>
-          </button>
-
           <button
             type="button"
             onClick={() => {
@@ -878,23 +857,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   />
                                 </div>
 
-                                {/* Format Selector Dropdown */}
-                                <select
-                                  value={les.type || 'VIDEO'}
-                                  onChange={(e) => {
-                                    const newType = e.target.value as 'TEXT' | 'QUIZ' | 'VIDEO' | 'PDF';
-                                    handleUpdateLessonInline(section.id, les.id, { type: newType });
-                                    setActiveContentTab((prev) => ({ ...prev, [les.id]: newType }));
-                                  }}
-                                  className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded px-2 py-1 border border-slate-300 focus:outline-none cursor-pointer shrink-0"
-                                  title="Lesson Primary Format"
-                                >
-                                  <option value="VIDEO">🎬 Video Lecture</option>
-                                  <option value="TEXT">📝 Article / Notes</option>
-                                  <option value="QUIZ">❓ Quiz Assessment</option>
-                                  <option value="PDF">📑 PDF Resource</option>
-                                </select>
-
                                 {/* Attached Content Badges */}
                                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                                   {les.videoUrl && (
@@ -935,41 +897,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </label>
                               </div>
 
-                              {/* Action Buttons on Lecture: + Content ⌄, + Sub-Topic, Delete */}
+                              {/* Action Buttons on Lecture: Delete */}
                               <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                                {/* Udemy's Signature + Content ⌄ Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => toggleContentDrawer(les.id)}
-                                  className={`px-3 py-1.5 rounded border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                                    isDrawerOpen
-                                      ? 'bg-[#2d2f31] text-white border-[#2d2f31]'
-                                      : 'bg-white hover:bg-slate-50 text-[#2d2f31] border-[#2d2f31]'
-                                  }`}
-                                  title="Add or edit video, PDF, notes, or quiz questions for this lecture"
-                                >
-                                  <span>
-                                    {isDrawerOpen
-                                      ? '✕ Close'
-                                      : hasContent
-                                      ? 'Edit Content'
-                                      : '+ Content'}
-                                  </span>
-                                  <Icon
-                                    name={isDrawerOpen ? 'expand_less' : 'expand_more'}
-                                    size={15}
-                                  />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
-                                  className="p-1.5 text-slate-400 hover:text-slate-800 rounded hover:bg-slate-100 cursor-pointer"
-                                  title="Open Full Multi-Content Modal"
-                                >
-                                  <Icon name="tune" size={15} />
-                                </button>
-
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteLesson(section.id, les.id)}
