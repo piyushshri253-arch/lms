@@ -747,17 +747,26 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       </div>
 
                       {/* Module Title Label & Inline Input */}
-                      <span className="font-extrabold text-sm text-slate-900 shrink-0 font-sans">
+                      <span className="font-extrabold text-sm text-slate-900 shrink-0 font-sans pt-1">
                         Module {moduleNum}:
                       </span>
 
-                      <input
-                        type="text"
-                        value={section.title}
-                        onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
-                        placeholder={`Module ${moduleNum} Title (e.g. Introduction & Foundations)`}
-                        className="flex-1 bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
-                      />
+                      <div className="flex-1 min-w-[200px] space-y-1">
+                        <input
+                          type="text"
+                          value={section.title}
+                          onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
+                          placeholder={`Module ${moduleNum} Title (e.g. Introduction & Foundations)`}
+                          className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors"
+                        />
+                        <input
+                          type="text"
+                          value={section.description || ''}
+                          onChange={(e) => handleUpdateSectionField(section.id, 'description', e.target.value)}
+                          placeholder={`Module ${moduleNum} Description (from Excel syllabus)...`}
+                          className="w-full bg-slate-50 hover:bg-white border border-slate-200 focus:border-[#2d2f31] rounded px-3 py-1 text-xs text-slate-600 focus:outline-none transition-colors"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
@@ -852,16 +861,27 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   {lessonCode}.
                                 </span>
 
-                                {/* Inline Title Input */}
-                                <input
-                                  type="text"
-                                  value={les.title}
-                                  onChange={(e) =>
-                                    handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
-                                  }
-                                  placeholder={`Lesson ${lessonCode} Title`}
-                                  className="flex-1 min-w-[140px] bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
-                                />
+                                {/* Inline Title & Description Inputs */}
+                                <div className="flex-1 min-w-[160px] space-y-0.5">
+                                  <input
+                                    type="text"
+                                    value={les.title}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                    }
+                                    placeholder={`Lesson ${lessonCode} Title`}
+                                    className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-0.5 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={les.description || ''}
+                                    onChange={(e) =>
+                                      handleUpdateLessonInline(section.id, les.id, { description: e.target.value })
+                                    }
+                                    placeholder={`Lesson ${lessonCode} description / summary (from Excel)...`}
+                                    className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-0.5 text-[11px] text-slate-500 focus:outline-none transition-colors"
+                                  />
+                                </div>
 
                                 {/* Format Selector Dropdown */}
                                 <select

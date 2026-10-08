@@ -420,13 +420,25 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
       let currentSection: BuilderSection | null = null;
 
       rawRows.forEach((row, idx) => {
-        // Find column values with flexible keys
-        const getRowVal = (...keys: string[]) => {
-          for (const key of keys) {
+        // Accurate column finder that matches exact keys first, then non-conflicting prefixes
+        const findField = (exactKeys: string[], fallbackKeyword?: string, excludeKeyword?: string) => {
+          // 1. Exact match (case-insensitive)
+          for (const [rKey, rVal] of Object.entries(row)) {
+            const cleanKey = rKey.trim().toLowerCase();
+            if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
+              if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                return String(rVal).trim();
+              }
+            }
+          }
+          // 2. Fallback keyword match with exclusion guard
+          if (fallbackKeyword) {
             for (const [rKey, rVal] of Object.entries(row)) {
-              const cleanRKey = rKey.trim().toLowerCase();
-              const cleanKey = key.toLowerCase();
-              if (cleanRKey === cleanKey || cleanRKey.includes(cleanKey)) {
+              const cleanKey = rKey.trim().toLowerCase();
+              if (excludeKeyword && cleanKey.includes(excludeKeyword.toLowerCase())) {
+                continue;
+              }
+              if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
                 if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
                   return String(rVal).trim();
                 }
@@ -436,13 +448,17 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           return '';
         };
 
-        const rawModTitle = getRowVal('module title', 'module name', 'module');
-        const rawModDesc = getRowVal('module description', 'module desc');
-        const lessonTitle = getRowVal('lecture title', 'lesson title', 'lecture', 'lesson', 'title');
-        const lessonDesc = getRowVal('lecture description', 'lesson description', 'lecture desc', 'lesson desc', 'description');
-        const lessonTypeRaw = getRowVal('lecture type', 'lesson type', 'type') || 'VIDEO';
-        const durationStr = getRowVal('lesson duration', 'duration', 'time') || '10:00';
-        const isFreeRaw = getRowVal('is preview free', 'is free', 'preview');
+        const rawModTitle = findField(['module title', 'module name', 'module', 'section title', 'section name']);
+        const rawModDesc = findField(['module description', 'module desc', 'section description', 'section desc'], 'module desc');
+        const lessonTitle = findField(['lecture title', 'lesson title', 'lecture name', 'lesson name', 'lecture', 'lesson'], 'title', 'module');
+        const lessonDesc = findField(
+          ['lecture description', 'lesson description', 'lecture desc', 'lesson desc', 'lecture summary', 'lesson summary'],
+          'desc',
+          'module'
+        );
+        const lessonTypeRaw = findField(['lecture type (video/pdf/quiz)', 'lecture type', 'lesson type', 'type', 'format'], 'type') || 'VIDEO';
+        const durationStr = findField(['duration (mm:ss)', 'lesson duration', 'duration', 'time', 'length'], 'duration') || '10:00';
+        const isFreeRaw = findField(['is preview free (yes/no)', 'is preview free', 'is free', 'preview free', 'free preview', 'preview']);
         const isFree = /yes|true|1|free/i.test(isFreeRaw);
 
         // Skip completely empty rows
