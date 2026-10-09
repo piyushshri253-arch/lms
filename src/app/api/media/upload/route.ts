@@ -199,6 +199,39 @@ export async function POST(req: NextRequest) {
             (user.role === 'INSTRUCTOR' && existingLesson.section.course.instructorId === user.id);
 
           if (isAllowed) {
+            let updatedResourcesStr: string | undefined = undefined;
+            if (isDocFile) {
+              try {
+                let parsed: any = null;
+                try {
+                  parsed = JSON.parse(existingLesson.resources || '[]');
+                } catch {}
+                const currentList = Array.isArray(parsed?.resourcesList)
+                  ? parsed.resourcesList
+                  : [];
+                const newRes = {
+                  id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  name: file.name,
+                  url: publicVideoUrl,
+                  type: (ext === '.pdf') ? 'PDF' : (['.zip', '.rar', '.7z'].includes(ext) ? 'ZIP' : (isImageFile ? 'IMAGE' : 'DOC')),
+                  sizeBytes: file.size
+                };
+                const updatedList = [...currentList, newRes];
+                updatedResourcesStr = JSON.stringify({
+                  subLessons: parsed?.subLessons || (Array.isArray(parsed) ? parsed : []),
+                  videoFileName: parsed?.videoFileName,
+                  resourceFileName: file.name,
+                  resourcesList: updatedList
+                });
+              } catch {}
+            }
+
+            const newType = isVideoFile
+              ? 'VIDEO'
+              : existingLesson.videoUrl
+              ? existingLesson.type
+              : (isDocFile ? 'PDF' : existingLesson.type);
+
             await prisma.lesson
               .update({
                 where: { id: existingLesson.id },
@@ -206,9 +239,10 @@ export async function POST(req: NextRequest) {
                   videoUrl: isVideoFile ? publicVideoUrl : undefined,
                   pdfUrl: isDocFile ? publicVideoUrl : undefined,
                   fileUrl: !isVideoFile && !isDocFile ? publicVideoUrl : undefined,
-                  type: isVideoFile ? 'VIDEO' : isDocFile ? 'PDF' : undefined,
-                  duration: durationText,
-                  durationSeconds
+                  type: newType,
+                  resources: updatedResourcesStr !== undefined ? updatedResourcesStr : undefined,
+                  duration: isVideoFile ? durationText : undefined,
+                  durationSeconds: isVideoFile ? durationSeconds : undefined
                 }
               })
               .catch(() => {});

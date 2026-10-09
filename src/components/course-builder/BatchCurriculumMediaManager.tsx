@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
@@ -276,7 +276,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       };
     });
 
-    // Fallback: If section ID changed due to background auto-save, search across all sections for lessonId
+    // Fallback 1: If section ID changed due to background auto-save, search across all sections for lessonId
     if (!matched) {
       updated = currentSections.map((sec) => ({
         ...sec,
@@ -290,6 +290,25 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       }));
     }
 
+    // Fallback 2: If lesson ID changed (e.g. from les-1790... to DB cuid), match by section and lesson position
+    if (!matched) {
+      updated = currentSections.map((sec, sIdx) => {
+        const isSecMatch = sec.id === sectionId || `sec-${sIdx}` === sectionId;
+        if (!isSecMatch) return sec;
+        return {
+          ...sec,
+          lessons: (sec.lessons || []).map((les, lIdx) => {
+            if (!matched && (lessonId.startsWith('les-') || lIdx === 0)) {
+              matched = true;
+              return { ...les, ...updates };
+            }
+            return les;
+          })
+        };
+      });
+    }
+
+    sectionsRef.current = updated;
     onChangeSections(updated);
   };
 
@@ -1017,7 +1036,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       onClick={() => cancelTask(task.id)}
                                       className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
                                     >
-                                      âœ•
+                                      <Icon name="close" size={13} />
                                     </button>
                                   </div>
                                 ) : isTaskQueued ? (
@@ -1029,7 +1048,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       onClick={() => cancelTask(task.id)}
                                       className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
                                     >
-                                      âœ•
+                                      <Icon name="close" size={13} />
                                     </button>
                                   </div>
                                 ) : lesson.videoUrl ? (
@@ -1438,3 +1457,4 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     </div>
   );
 };
+

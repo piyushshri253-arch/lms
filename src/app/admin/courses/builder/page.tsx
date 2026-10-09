@@ -132,6 +132,10 @@ function CourseBuilderContent() {
     sections: BuilderSection[];
   }>(getDefaultCourseState());
 
+  // Mutable ref to always have latest courseState without stale closure pitfalls in debounced timers
+  const courseStateRef = React.useRef(courseState);
+  courseStateRef.current = courseState;
+
   // Listen for custom preview event from CourseAssessmentsBanner or child components
   useEffect(() => {
     const handleOpenPreview = () => {
@@ -196,7 +200,7 @@ function CourseBuilderContent() {
     }
   }, [courseState, currentStep, hasLoadedInitial, draftStorageKey]);
 
-  // Automated background auto-save to PostgreSQL DB (debounced 2.5s)
+  // Automated background auto-save to PostgreSQL DB (debounced 3.5s)
   // When an instructor creates or updates a course, it automatically saves to DB as DRAFT
   // so if they close the browser or leave, it already appears under Drafts in Instructor Studio!
   useEffect(() => {
@@ -204,7 +208,7 @@ function CourseBuilderContent() {
     if (courseState.status !== 'DRAFT') return;
     if (!courseState.title || courseState.title.trim().length < 3) return;
 
-    // Hash summary of content to prevent duplicate calls
+    // Hash summary of content including lessons, videos, and multi-format attached study resources
     const currentPayloadSummary = JSON.stringify({
       title: courseState.title.trim(),
       description: courseState.description,
@@ -217,7 +221,17 @@ function CourseBuilderContent() {
       sectionsSummary: courseState.sections?.map((s) => ({
         id: s.id,
         title: s.title,
-        lessons: s.lessons?.map((l) => ({ id: l.id, title: l.title, type: l.type, videoUrl: l.videoUrl }))
+        lessons: s.lessons?.map((l) => ({
+          id: l.id,
+          title: l.title,
+          type: l.type,
+          videoUrl: l.videoUrl,
+          pdfUrl: l.pdfUrl,
+          fileUrl: l.fileUrl,
+          resourceFileName: l.resourceFileName,
+          resourcesCount: l.resourcesList?.length || 0,
+          resourcesSummary: l.resourcesList?.map((r) => `${r.id}_${r.name}_${r.url}`).join(',')
+        }))
       }))
     });
 
@@ -399,7 +413,8 @@ function CourseBuilderContent() {
     silent?: boolean;
     resetAfterSave?: boolean;
   }) => {
-    if (!courseState.title.trim()) {
+    const state = courseStateRef.current;
+    if (!state.title.trim()) {
       if (!options?.silent) {
         showToast({
           title: 'Course Title Required',
@@ -418,50 +433,52 @@ function CourseBuilderContent() {
       setIsSaving(true);
     }
     try {
-      let savedCourseId = courseState.id || editSlugOrId || '';
-      let savedSlug = courseState.slug || '';
+      let savedCourseId = state.id || editSlugOrId || '';
+      let savedSlug = state.slug || '';
 
       const isSubmitting = Boolean(options?.submitForApproval);
       const isInstructorUser = currentUser?.role === 'INSTRUCTOR';
 
       // Auto-compress any bulky base64 data URLs to prevent Vercel 413 payload limit
       const [optimizedThumbnail, optimizedBanner] = await Promise.all([
-        ensureOptimizedDataUrl(courseState.thumbnail, 960, 540, 0.75),
-        ensureOptimizedDataUrl(courseState.banner, 1280, 720, 0.72)
+        ensureOptimizedDataUrl(state.thumbnail, 960, 540, 0.75),
+        ensureOptimizedDataUrl(state.banner, 1280, 720, 0.72)
       ]);
 
-      if (optimizedThumbnail !== courseState.thumbnail || optimizedBanner !== courseState.banner) {
-        setCourseState((prev) => ({
-          ...prev,
-          thumbnail: optimizedThumbnail || prev.thumbnail,
-          banner: optimizedBanner || prev.banner
-        }));
+      if (optimizedThumbnail !== state.thumbnail || optimizedBanner !== state.banner) {
+        const withOptimized = {
+          ...courseStateRef.current,
+          thumbnail: optimizedThumbnail || courseStateRef.current.thumbnail,
+          banner: optimizedBanner || courseStateRef.current.banner
+        };
+        courseStateRef.current = withOptimized;
+        setCourseState(withOptimized);
       }
 
       const payload = {
-        title: courseState.title,
-        description: courseState.description || 'Draft course curriculum overview.',
-        shortDescription: courseState.shortDescription,
-        category: courseState.category,
-        level: courseState.level,
-        language: courseState.language,
-        price: courseState.price,
-        discountPrice: courseState.discountPrice,
-        currency: courseState.currency || 'INR',
-        thumbnail: optimizedThumbnail || courseState.thumbnail,
-        banner: optimizedBanner || courseState.banner,
-        durationHours: courseState.durationHours,
-        status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : courseState.status,
+        title: state.title,
+        description: state.description || 'Draft course curriculum overview.',
+        shortDescription: state.shortDescription,
+        category: state.category,
+        level: state.level,
+        language: state.language,
+        price: state.price,
+        discountPrice: state.discountPrice,
+        currency: state.currency || 'INR',
+        thumbnail: optimizedThumbnail || state.thumbnail,
+        banner: optimizedBanner || state.banner,
+        durationHours: state.durationHours,
+        status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : state.status,
         submitForApproval: isSubmitting,
         submitVersionForReview: isSubmitting,
-        whatYouWillLearn: courseState.whatYouWillLearn,
-        requirements: courseState.requirements,
-        targetAudience: courseState.targetAudience,
-        seoTitle: courseState.seoTitle,
-        seoDescription: courseState.seoDescription,
-        accessType: courseState.accessType,
-        accessDays: courseState.accessDays,
-        sections: (courseState.sections || []).map((sec) => ({
+        whatYouWillLearn: state.whatYouWillLearn,
+        requirements: state.requirements,
+        targetAudience: state.targetAudience,
+        seoTitle: state.seoTitle,
+        seoDescription: state.seoDescription,
+        accessType: state.accessType,
+        accessDays: state.accessDays,
+        sections: (state.sections || []).map((sec) => ({
           ...sec,
           lessons: (sec.lessons || []).map((les) => ({
             ...les,
@@ -469,7 +486,9 @@ function CourseBuilderContent() {
             videoUrl: les.videoUrl?.startsWith('data:') ? '' : les.videoUrl,
             videoFileName: les.videoFileName,
             resourceFileName: les.resourceFileName,
-            resourcesList: les.resourcesList
+            resourcesList: les.resourcesList,
+            pdfUrl: les.pdfUrl,
+            fileUrl: les.fileUrl
           }))
         }))
       };
@@ -500,7 +519,7 @@ function CourseBuilderContent() {
         if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       } else {
         // Update existing course in DB using reliable ID/identifier
-        const targetIdentifier = savedCourseId || courseState.id || courseState.slug;
+        const targetIdentifier = savedCourseId || state.id || state.slug;
         const res = await fetch(`/api/courses/${encodeURIComponent(targetIdentifier)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -528,8 +547,8 @@ function CourseBuilderContent() {
           localStorage.removeItem('morena_course_builder_draft_new');
           localStorage.removeItem('morena_course_builder_live_preview');
           if (savedCourseId) localStorage.removeItem(`morena_course_builder_draft_${savedCourseId}`);
-          if (courseState.id) localStorage.removeItem(`morena_course_builder_draft_${courseState.id}`);
-          if (courseState.slug) localStorage.removeItem(`morena_course_builder_draft_${courseState.slug}`);
+          if (state.id) localStorage.removeItem(`morena_course_builder_draft_${state.id}`);
+          if (state.slug) localStorage.removeItem(`morena_course_builder_draft_${state.slug}`);
           Object.keys(localStorage).forEach((k) => {
             if (k.startsWith('morena_course_builder_draft_')) {
               localStorage.removeItem(k);
@@ -538,7 +557,9 @@ function CourseBuilderContent() {
         } catch {}
 
         // Reset course state back to clean initial blank form
-        setCourseState(getDefaultCourseState());
+        const cleanDefault = getDefaultCourseState();
+        courseStateRef.current = cleanDefault;
+        setCourseState(cleanDefault);
         setCurrentStep(0);
         lastSavedPayloadRef.current = '';
 
@@ -550,20 +571,21 @@ function CourseBuilderContent() {
 
         showToast({
           title: 'Draft Saved to Studio 💾',
-          description: `"${courseState.title}" saved to Drafts. Form is reset and ready to create a new course!`,
+          description: `"${state.title}" saved to Drafts. Form is reset and ready to create a new course!`,
           type: 'success'
         });
       } else {
         // Synchronize server-assigned database IDs for sections & lessons so subsequent auto-saves never loop
         if (responseData?.course?.sections && Array.isArray(responseData.course.sections)) {
+          const currentState = courseStateRef.current;
           const syncedSections: BuilderSection[] = responseData.course.sections.map((s: any, sIdx: number) => ({
             id: s.id,
             title: s.title || `Module ${sIdx + 1}`,
             description: s.description || '',
             order: s.order || sIdx + 1,
             lessons: (s.lessons || []).map((l: any, lIdx: number) => {
-              // Local section and lesson lookup to preserve any local videoUrl that was just attached
-              const localSec = (courseState.sections || []).find((sec) => sec.id === s.id) || courseState.sections?.[sIdx];
+              // Local section and lesson lookup to preserve any local videoUrl or resources that were just attached
+              const localSec = (currentState.sections || []).find((sec) => sec.id === s.id) || currentState.sections?.[sIdx];
               const localLes = localSec?.lessons?.find((les) => les.id === l.id) || localSec?.lessons?.[lIdx];
               const resolvedVideo = l.videoUrl || localLes?.videoUrl || '';
               const resolvedPdf = l.pdfUrl || localLes?.pdfUrl || '';
@@ -578,7 +600,22 @@ function CourseBuilderContent() {
                 : (parsedRes?.subLessons || localLes?.subLessons || []);
               const videoFileName = localLes?.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || l.videoFileName;
               const resourceFileName = localLes?.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || l.resourceFileName;
-              const resourcesList = localLes?.resourcesList || (!Array.isArray(parsedRes) && Array.isArray(parsedRes?.resourcesList) ? parsedRes.resourcesList : undefined) || l.resourcesList || undefined;
+
+              // Server resources list
+              const serverResourcesList = !Array.isArray(parsedRes) && Array.isArray(parsedRes?.resourcesList) && parsedRes.resourcesList.length > 0
+                ? parsedRes.resourcesList
+                : (Array.isArray(l.resourcesList) && l.resourcesList.length > 0 ? l.resourcesList : undefined);
+
+              // ALWAYS prioritize localLes.resourcesList if it has items, so newly attached files are never wiped during ID sync
+              const localResourcesList = Array.isArray(localLes?.resourcesList) && localLes.resourcesList.length > 0
+                ? localLes.resourcesList
+                : undefined;
+
+              const resourcesList = localResourcesList || serverResourcesList || undefined;
+              const finalResources = resourcesList || [];
+              const finalPdf = resolvedPdf || finalResources.find((r: any) => r.type === 'PDF')?.url || '';
+              const finalFile = resolvedFile || finalResources[0]?.url || '';
+              const finalResName = resourceFileName || localLes?.resourceFileName || finalResources[0]?.name || '';
 
               return {
                 id: l.id,
@@ -588,10 +625,10 @@ function CourseBuilderContent() {
                 content: l.content || '',
                 videoUrl: resolvedVideo,
                 videoFileName,
-                resourceFileName,
+                resourceFileName: finalResName,
                 resourcesList,
-                pdfUrl: resolvedPdf,
-                fileUrl: resolvedFile,
+                pdfUrl: finalPdf,
+                fileUrl: finalFile,
                 quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
                 subLessons,
                 duration: l.duration || localLes?.duration || '10:00',
@@ -604,11 +641,13 @@ function CourseBuilderContent() {
           }));
 
           const updatedState = {
-            ...courseState,
-            id: savedCourseId || courseState.id,
-            slug: savedSlug || courseState.slug,
+            ...currentState,
+            id: savedCourseId || currentState.id,
+            slug: savedSlug || currentState.slug,
             sections: syncedSections
           };
+
+          courseStateRef.current = updatedState;
 
           // Synchronize payload ref to prevent immediate re-trigger of auto-save
           lastSavedPayloadRef.current = JSON.stringify({
@@ -623,13 +662,25 @@ function CourseBuilderContent() {
             sectionsSummary: updatedState.sections?.map((s) => ({
               id: s.id,
               title: s.title,
-              lessons: s.lessons?.map((l) => ({ id: l.id, title: l.title, type: l.type, videoUrl: l.videoUrl }))
+              lessons: s.lessons?.map((l) => ({
+                id: l.id,
+                title: l.title,
+                type: l.type,
+                videoUrl: l.videoUrl,
+                pdfUrl: l.pdfUrl,
+                fileUrl: l.fileUrl,
+                resourceFileName: l.resourceFileName,
+                resourcesCount: l.resourcesList?.length || 0,
+                resourcesSummary: l.resourcesList?.map((r) => `${r.id}_${r.name}_${r.url}`).join(',')
+              }))
             }))
           });
 
           setCourseState(updatedState);
         } else if (savedCourseId && savedSlug) {
-          setCourseState((prev) => ({ ...prev, id: savedCourseId, slug: savedSlug }));
+          const updatedState = { ...courseStateRef.current, id: savedCourseId, slug: savedSlug };
+          courseStateRef.current = updatedState;
+          setCourseState(updatedState);
         }
 
         // Silent background sync updates URL and local cache
