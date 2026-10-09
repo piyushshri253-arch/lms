@@ -6,9 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 import {
   BuilderSection,
-  BuilderLesson,
-  QuizConfig,
-  QuizQuestion
+  BuilderLesson
 } from './CourseCurriculumStep';
 
 export interface VideoQueueTask {
@@ -63,8 +61,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   } | null>(null);
   const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
 
-  // Active quiz editor drawer state
-  const [activeQuizLessonId, setActiveQuizLessonId] = useState<string | null>(null);
+
 
   // Video preview modal
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
@@ -181,7 +178,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           );
 
           showToast({
-            title: 'Video Attached 🎉',
+            title: 'Video Attached ðŸŽ‰',
             description: `"${task.lessonTitle}" uploaded (${durationText})`,
             type: 'success'
           });
@@ -306,7 +303,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     }
 
     showToast({
-      title: 'Video Queued ⏳',
+      title: 'Video Queued â³',
       description: `"${lessonTitle}" added to upload queue (Position #${tasks.filter((t) => t.status === 'QUEUED').length + 1}).`,
       type: 'info'
     });
@@ -372,7 +369,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     if (newTasks.length > 0) {
       setTasks((prev) => [...prev, ...newTasks]);
       showToast({
-        title: `${newTasks.length} Videos Added to Queue! 🚀`,
+        title: `${newTasks.length} Videos Added to Queue! ðŸš€`,
         description: `Max 2 videos will upload in parallel. Remaining videos will automatically upload next.`,
         type: 'success'
       });
@@ -422,7 +419,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
 
       showToast({
-        title: `${typeLabel} Attached! 📎`,
+        title: `${typeLabel} Attached! ðŸ“Ž`,
         description: `"${file.name}" attached successfully to lecture.`,
         type: 'success'
       });
@@ -445,7 +442,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     if (clean.endsWith('.pdf') || url.includes('application/pdf')) {
       return {
         type: 'PDF',
-        label: 'PDF ✓',
+        label: 'PDF âœ“',
         icon: 'picture_as_pdf',
         color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
       };
@@ -459,7 +456,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     ) {
       return {
         type: 'DOC',
-        label: 'Doc ✓',
+        label: 'Doc âœ“',
         icon: 'description',
         color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800'
       };
@@ -474,14 +471,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     ) {
       return {
         type: 'IMAGE',
-        label: 'Image ✓',
+        label: 'Image âœ“',
         icon: 'image',
         color: 'bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800'
       };
     }
     return {
       type: 'LINK',
-      label: 'Link ↗',
+      label: 'Link â†—',
       icon: 'link',
       color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
     };
@@ -571,7 +568,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-black text-on-surface">
-                Curriculum Media &amp; Video Queue Studio ⚡
+                Curriculum Media &amp; Video Queue Studio âš¡
               </h2>
               <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
                 Inline Studio
@@ -591,7 +588,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             title="Collapse Media Manager"
           >
             <Icon name="expand_less" size={16} />
-            <span>Collapse Studio ▲</span>
+            <span>Collapse Studio â–²</span>
           </button>
         )}
       </div>
@@ -637,7 +634,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               title="Select multiple video files from your device to queue"
             >
               <Icon name="cloud_upload" size={18} />
-              <span>Bulk Select Multiple Videos 🎬</span>
+              <span>Bulk Select Multiple Videos ðŸŽ¬</span>
               <input
                 type="file"
                 multiple
@@ -666,7 +663,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-indigo-200 flex items-center gap-1.5">
                 <Icon name="sync" size={14} className="animate-spin text-emerald-400" />
-                Active Video Uploads ({activeUploads.length}/2 Active • {queuedUploads.length} Waiting in Queue)
+                Active Video Uploads ({activeUploads.length}/2 Active â€¢ {queuedUploads.length} Waiting in Queue)
               </span>
               <span className="text-[11px] font-mono text-slate-400">
                 {completedUploads.length} finished
@@ -816,19 +813,6 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isLastLesson = lIdx === secLessons.length - 1;
                         const isDropdownActive = activeResourceDropdownLessonId === lesson.id;
 
-                        const quizConfig: QuizConfig =
-                          typeof lesson.quizData === 'string'
-                            ? (() => {
-                                try {
-                                  return JSON.parse(lesson.quizData);
-                                } catch {
-                                  return { questions: [] };
-                                }
-                              })()
-                            : lesson.quizData || { questions: [] };
-                        const quizQuestionsCount = quizConfig.questions?.length || 0;
-
-                        const isQuizOpen = activeQuizLessonId === lesson.id;
 
                         return (
                           <div
@@ -886,7 +870,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       onClick={() => cancelTask(task.id)}
                                       className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
                                     >
-                                      ✕
+                                      âœ•
                                     </button>
                                   </div>
                                 ) : isTaskQueued ? (
@@ -898,7 +882,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       onClick={() => cancelTask(task.id)}
                                       className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
                                     >
-                                      ✕
+                                      âœ•
                                     </button>
                                   </div>
                                 ) : lesson.videoUrl ? (
@@ -916,7 +900,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           <span className="truncate max-w-[90px] sm:max-w-[125px] text-left" title={vidName}>
                                             {vidName || 'Video Attached'}
                                           </span>
-                                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
+                                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">âœ“</span>
                                         </button>
                                       );
                                     })()}
@@ -982,7 +966,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             <span className="truncate max-w-[80px] sm:max-w-[110px] text-left" title={resName}>
                                               {resName || resMeta.label}
                                             </span>
-                                            <span className="text-[10px] opacity-75 shrink-0">✓</span>
+                                            <span className="text-[10px] opacity-75 shrink-0">âœ“</span>
                                           </a>
 
                                           <button
@@ -1292,49 +1276,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </div>
                                 )}
 
-                                {/* 3. QUIZ EDIT ACTION */}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setActiveQuizLessonId((prev) => (prev === lesson.id ? null : lesson.id))
-                                  }
-                                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all shrink-0 ${
-                                    quizQuestionsCount > 0
-                                      ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800'
-                                      : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant shadow-2xs'
-                                  }`}
-                                  title="Add or edit MCQ questions for this lecture"
-                                >
-                                  <Icon name="quiz" size={15} />
-                                  <span>
-                                    {quizQuestionsCount > 0
-                                      ? `Quiz (${quizQuestionsCount} Qs)`
-                                      : 'Edit Quiz'}
-                                  </span>
-                                </button>
                               </div>
                             </div>
-
-                            {/* INLINE QUICK QUIZ DRAWER */}
-                            {isQuizOpen && (
-                              <InlineQuickQuizEditor
-                                lesson={lesson}
-                                sectionId={section.id}
-                                onSave={(updatedQuiz) => {
-                                  updateLesson(section.id, lesson.id, {
-                                    quizData: updatedQuiz,
-                                    type: 'QUIZ'
-                                  });
-                                  setActiveQuizLessonId(null);
-                                  showToast({
-                                    title: 'Quiz Questions Saved! 📝',
-                                    description: `${updatedQuiz.questions.length} questions attached to "${lesson.title}".`,
-                                    type: 'success'
-                                  });
-                                }}
-                                onCancel={() => setActiveQuizLessonId(null)}
-                              />
-                            )}
                           </div>
                         );
                       })
@@ -1456,194 +1399,6 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           </form>
         </Modal>
       )}
-    </div>
-  );
-};
-
-// -------------------------------------------------------------
-// Inline Quick Quiz Component for easy quiz configuration right here!
-// -------------------------------------------------------------
-interface InlineQuickQuizEditorProps {
-  lesson: BuilderLesson;
-  sectionId: string;
-  onSave: (quiz: QuizConfig) => void;
-  onCancel: () => void;
-}
-
-const InlineQuickQuizEditor: React.FC<InlineQuickQuizEditorProps> = ({
-  lesson,
-  onSave,
-  onCancel
-}) => {
-  const initialQuiz: QuizConfig =
-    typeof lesson.quizData === 'string'
-      ? (() => {
-          try {
-            return JSON.parse(lesson.quizData);
-          } catch {
-            return { questions: [], passingScore: 70, attemptLimit: 0 };
-          }
-        })()
-      : lesson.quizData || { questions: [], passingScore: 70, attemptLimit: 0 };
-
-  const [questions, setQuestions] = useState<QuizQuestion[]>(
-    Array.isArray(initialQuiz.questions) ? initialQuiz.questions : []
-  );
-  const [passingScore, setPassingScore] = useState<number>(initialQuiz.passingScore || 70);
-
-  const handleAddQuestion = () => {
-    const newQ: QuizQuestion = {
-      id: `q-${Date.now()}-${questions.length + 1}`,
-      question: '',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctIndex: 0,
-      explanation: '',
-      points: 1
-    };
-    setQuestions([...questions, newQ]);
-  };
-
-  const handleUpdateQ = (idx: number, field: string, val: any) => {
-    setQuestions((prev) =>
-      prev.map((q, i) => (i === idx ? { ...q, [field]: val } : q))
-    );
-  };
-
-  const handleUpdateOption = (qIdx: number, optIdx: number, val: string) => {
-    setQuestions((prev) =>
-      prev.map((q, i) => {
-        if (i !== qIdx) return q;
-        const newOpts = [...q.options];
-        newOpts[optIdx] = val;
-        return { ...q, options: newOpts };
-      })
-    );
-  };
-
-  const handleRemoveQ = (idx: number) => {
-    setQuestions((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  return (
-    <div className="mt-3 p-4 bg-surface-container rounded-2xl border border-purple-300 dark:border-purple-900/60 space-y-4 animate-in fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h4 className="font-extrabold text-sm text-purple-900 dark:text-purple-300 flex items-center gap-2">
-            <Icon name="assignment" size={16} />
-            Quiz &amp; MCQ Assessment: {lesson.title}
-          </h4>
-          <p className="text-xs text-on-surface-variant">
-            Create questions for this lecture. Students will take this quiz to verify module mastery.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-on-surface flex items-center gap-1.5">
-            <span>Pass Score:</span>
-            <input
-              type="number"
-              min="10"
-              max="100"
-              value={passingScore}
-              onChange={(e) => setPassingScore(Number(e.target.value) || 70)}
-              className="w-14 px-2 py-1 rounded-lg border border-outline-variant bg-surface text-center font-bold text-xs"
-            />
-            <span>%</span>
-          </label>
-        </div>
-      </div>
-
-      {questions.length === 0 ? (
-        <div className="p-4 bg-surface rounded-xl border border-dashed border-outline-variant text-center">
-          <p className="text-xs text-on-surface-variant">No questions yet.</p>
-          <button
-            type="button"
-            onClick={handleAddQuestion}
-            className="mt-2 px-3 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs inline-flex items-center gap-1 cursor-pointer"
-          >
-            <Icon name="add" size={14} /> Add First MCQ Question
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {questions.map((q, qIdx) => (
-            <div
-              key={q.id}
-              className="p-3 bg-surface rounded-xl border border-outline-variant space-y-2 text-xs"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-primary font-mono">Q{qIdx + 1}.</span>
-                <input
-                  type="text"
-                  placeholder="Enter Question text..."
-                  value={q.question}
-                  onChange={(e) => handleUpdateQ(qIdx, 'question', e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-outline-variant bg-surface-container font-medium text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveQ(qIdx)}
-                  className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                  title="Delete question"
-                >
-                  <Icon name="delete" size={15} />
-                </button>
-              </div>
-
-              {/* Options */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-4">
-                {(q.options || []).map((opt, oIdx) => (
-                  <div key={oIdx} className="flex items-center gap-1.5">
-                    <input
-                      type="radio"
-                      name={`correct-${q.id}`}
-                      checked={q.correctIndex === oIdx}
-                      onChange={() => handleUpdateQ(qIdx, 'correctIndex', oIdx)}
-                      className="cursor-pointer text-primary"
-                      title="Mark as correct answer"
-                    />
-                    <input
-                      type="text"
-                      value={opt}
-                      onChange={(e) => handleUpdateOption(qIdx, oIdx, e.target.value)}
-                      className={`flex-1 px-2 py-1 rounded-md border text-xs ${
-                        q.correctIndex === oIdx
-                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 font-bold'
-                          : 'border-outline-variant bg-surface'
-                      }`}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={handleAddQuestion}
-            className="px-3 py-1.5 rounded-xl bg-surface border border-outline-variant text-on-surface hover:bg-surface-container font-bold text-xs inline-flex items-center gap-1 cursor-pointer"
-          >
-            <Icon name="add" size={14} /> Add Another Question
-          </button>
-        </div>
-      )}
-
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-purple-200 dark:border-purple-900/60">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-1.5 rounded-xl bg-surface border border-outline-variant text-on-surface text-xs font-bold cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave({ questions, passingScore, attemptLimit: 0 })}
-          className="px-4 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-black shadow-xs cursor-pointer"
-        >
-          Save Quiz Questions ✓
-        </button>
-      </div>
     </div>
   );
 };
