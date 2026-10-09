@@ -659,10 +659,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant shadow-xs">
         <div>
           <h3 className="text-lg font-black text-on-surface">
-            Curriculum Builder (Modules &amp; Lectures)
+            Curriculum Builder (Modules &amp; Lessons)
           </h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Organize your course into Modules and Lectures. Add Video, PDF resources, Reading Notes, and Practice Quizzes to each lecture.
+            Organize your course into Modules and Lessons. Add Video, PDF resources, Reading Notes, and Practice Quizzes to each lecture.
           </p>
         </div>
 

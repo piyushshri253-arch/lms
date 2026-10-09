@@ -789,7 +789,7 @@ function CourseBuilderContent() {
 
   const steps = [
     { title: '1. Basic Information', icon: 'info' },
-    { title: '2. Curriculum & Syllabus', icon: 'view_timeline' },
+    { title: '2. Course Curriculum', icon: 'view_timeline' },
     { title: '3. Media & Thumbnail', icon: 'image' },
     { title: '4. Pricing & Access', icon: 'payments' },
     { title: isInstructor ? '5. Review & Submit' : '5. Publish & Review', icon: 'verified' }
