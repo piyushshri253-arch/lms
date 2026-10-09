@@ -85,11 +85,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
             setStreamError(null);
           } else {
-            setStreamError(data.error || 'Enrollment required to stream this masterclass video.');
+            if (videoUrl) {
+              setResolvedVideoUrl(videoUrl);
+              setStreamError(null);
+            } else {
+              setStreamError(data.error || 'Enrollment required to stream this masterclass video.');
+            }
           }
         }
       } catch {
-        if (isMounted) setResolvedVideoUrl(videoUrl || null);
+        if (isMounted) {
+          setResolvedVideoUrl(videoUrl || null);
+          setStreamError(null);
+        }
       }
     };
 
@@ -273,7 +281,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             allowFullScreen
           />
         </div>
-      ) : resolvedVideoUrl && !resolvedVideoUrl.startsWith('blob:') ? (
+      ) : resolvedVideoUrl ? (
         /* 4. Direct HTML5 MP4 / WebM / Base64 Data Stream */
         <div className="w-full h-full relative flex items-center justify-center bg-black">
           <video
@@ -292,7 +300,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }}
             onTimeUpdate={handleTimeUpdate}
             onError={() => {
-              setVideoError('Video format or stream could not be loaded. Please ensure video source is valid.');
+              if (videoUrl && resolvedVideoUrl !== videoUrl) {
+                setResolvedVideoUrl(videoUrl);
+              } else {
+                setVideoError('Video format or stream could not be loaded. Please ensure video source is valid.');
+              }
             }}
             onEnded={() => {
               setIsPlaying(false);

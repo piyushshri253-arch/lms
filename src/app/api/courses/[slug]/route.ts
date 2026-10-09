@@ -709,11 +709,24 @@ export async function PUT(
                 : typeof lesData.quizData === 'string'
                 ? lesData.quizData
                 : null;
-            const subLessonsStr = Array.isArray(lesData.subLessons)
-              ? JSON.stringify(lesData.subLessons)
-              : undefined;
 
             const existingLesson = (section.lessons || []).find((l) => l.id === lesData.id);
+
+            let existingResourcesObj: any = null;
+            if (existingLesson?.resources) {
+              try { existingResourcesObj = JSON.parse(existingLesson.resources); } catch {}
+            }
+            const subLessonsList = Array.isArray(lesData.subLessons)
+              ? lesData.subLessons
+              : (Array.isArray(existingResourcesObj) ? existingResourcesObj : existingResourcesObj?.subLessons || []);
+            const videoFileName = lesData.videoFileName || (!Array.isArray(existingResourcesObj) && existingResourcesObj?.videoFileName) || undefined;
+            const resourceFileName = lesData.resourceFileName || (!Array.isArray(existingResourcesObj) && existingResourcesObj?.resourceFileName) || undefined;
+
+            const subLessonsStr = JSON.stringify({
+              subLessons: subLessonsList,
+              videoFileName,
+              resourceFileName
+            });
 
             // Clean URLs: ignore blob URLs and ignore bulky data: URLs (prevent payload bloat)
             let cleanVideoUrl =

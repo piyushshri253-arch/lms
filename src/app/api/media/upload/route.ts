@@ -84,8 +84,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const safeRandomId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const safeFilename = `${safeRandomId}${ext}`;
+      const rawBaseName = path.parse(file.name).name;
+      const cleanBase = rawBaseName
+        .replace(/[^a-zA-Z0-9_\-\.\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '_') || 'lecture';
+      const safeFilename = `${Date.now()}_${cleanBase}${ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
 
       const publicVideoUrl = `/uploads/videos/${safeFilename}`;
@@ -149,6 +153,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const base64Data = buffer.length <= 45 * 1024 * 1024 ? buffer.toString('base64') : null;
       let mediaAsset: any = null;
       try {
         mediaAsset = await prisma.mediaAsset.create({
@@ -165,16 +170,38 @@ export async function POST(req: NextRequest) {
             uploadedBy: user.id,
             uploadedByUser: `${user.name} (${user.role})`,
             courseId: validCourseId,
-            lessonId: validLessonId
+            lessonId: validLessonId,
+            data: base64Data
           }
         });
-      } catch {}
+      } catch {
+        try {
+          mediaAsset = await prisma.mediaAsset.create({
+            data: {
+              name: assetName,
+              url: publicVideoUrl,
+              type: isImageFile ? 'IMAGE' : isDocFile ? 'DOCUMENT' : 'VIDEO',
+              provider: 'DIRECT_UPLOAD',
+              format: ext.replace('.', ''),
+              sizeBytes: file.size,
+              durationSeconds,
+              durationText,
+              status: 'READY',
+              uploadedBy: user.id,
+              uploadedByUser: `${user.name} (${user.role})`,
+              courseId: validCourseId,
+              lessonId: validLessonId
+            }
+          });
+        } catch {}
+      }
 
       return NextResponse.json({
         success: true,
         message: isVideoFile ? 'Video uploaded and attached successfully.' : 'Resource file uploaded and attached successfully.',
         asset: mediaAsset,
         videoUrl: publicVideoUrl,
+        fileName: file.name,
         durationText,
         durationSeconds
       });

@@ -891,7 +891,7 @@ function CourseStudentPreviewInner() {
                   lessonId={activeLesson.id}
                   thumbnail={course.thumbnail}
                   duration={activeLesson.duration}
-                  isFree={Boolean(activeLesson.isFree)}
+                  isFree={true}
                 />
               )}
             </div>

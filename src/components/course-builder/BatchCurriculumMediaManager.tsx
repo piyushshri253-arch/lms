@@ -151,9 +151,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           let videoUrl = '';
+          let fileName = task.file.name;
           try {
             const data = JSON.parse(xhr.responseText);
             videoUrl = data.videoUrl || data.media?.url || '';
+            if (data.fileName) fileName = data.fileName;
           } catch {
             videoUrl = URL.createObjectURL(task.file);
           }
@@ -165,7 +167,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           // Update sections state in parent
           updateLesson(task.sectionId, task.lessonId, {
             videoUrl,
-            videoFileName: task.file.name,
+            videoFileName: fileName || task.file.name,
             duration: durationText,
             durationSeconds,
             type: 'VIDEO'
@@ -494,8 +496,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       const last = clean.split('/').filter(Boolean).pop();
       if (last) {
         const decoded = decodeURIComponent(last);
-        const withoutTimestamp = decoded.replace(/^\d{10,14}[-_]/, '');
-        return withoutTimestamp || decoded;
+        const withoutPrefix = decoded
+          .replace(/^\d{10,14}[-_]/, '')
+          .replace(/^media-\d+-[a-z0-9]+[-_]?/i, '');
+        return withoutPrefix.replace(/_/g, ' ') || decoded;
       }
     } catch {}
     return 'video.mp4';
@@ -512,8 +516,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         const last = pathname.split('/').filter(Boolean).pop();
         if (last && last.includes('.')) {
           const decoded = decodeURIComponent(last);
-          const withoutTimestamp = decoded.replace(/^\d{10,14}[-_]/, '');
-          return withoutTimestamp || decoded;
+          const withoutPrefix = decoded
+            .replace(/^\d{10,14}[-_]/, '')
+            .replace(/^media-\d+-[a-z0-9]+[-_]?/i, '');
+          return withoutPrefix.replace(/_/g, ' ') || decoded;
         }
         return parsed.hostname + (pathname && pathname !== '/' ? pathname : '');
       } catch {
@@ -525,8 +531,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       const last = clean.split('/').filter(Boolean).pop();
       if (last) {
         const decoded = decodeURIComponent(last);
-        const withoutTimestamp = decoded.replace(/^\d{10,14}[-_]/, '');
-        return withoutTimestamp || decoded;
+        const withoutPrefix = decoded
+          .replace(/^\d{10,14}[-_]/, '')
+          .replace(/^media-\d+-[a-z0-9]+[-_]?/i, '');
+        return withoutPrefix.replace(/_/g, ' ') || decoded;
       }
     } catch {}
     return 'Attached Resource';

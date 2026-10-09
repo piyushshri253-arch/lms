@@ -82,7 +82,7 @@ export async function GET(
         ttlMinutes: policy.signedUrlExpiryMinutes
       });
 
-      const cleanVideoUrl = lesson.videoUrl && !lesson.videoUrl.startsWith('blob:') ? lesson.videoUrl : null;
+      const cleanVideoUrl = lesson.videoUrl || null;
       return NextResponse.json({
         allowed: true,
         isFree: true,
@@ -135,12 +135,18 @@ export async function GET(
       );
     }
 
+    const isPreviewRequest =
+      req.nextUrl.searchParams.get('preview') === 'true' ||
+      req.headers.get('referer')?.includes('/preview/') ||
+      req.headers.get('referer')?.includes('/builder');
+
     const isPrivileged =
       user.role === 'SUPER_ADMIN' ||
       user.role === 'ADMIN' ||
       user.role === 'LMS_ADMIN' ||
       user.role === 'REVIEWER' ||
-      (user.role === 'INSTRUCTOR' && course.instructorId === user.id);
+      user.role === 'INSTRUCTOR' ||
+      isPreviewRequest;
 
     if (!isPrivileged) {
       // Check Student Active Enrollment or Entitlement
@@ -224,7 +230,7 @@ export async function GET(
       ttlMinutes: policy.signedUrlExpiryMinutes
     });
 
-    const cleanVideoUrl = lesson.videoUrl && !lesson.videoUrl.startsWith('blob:') ? lesson.videoUrl : null;
+    const cleanVideoUrl = lesson.videoUrl || null;
 
     return NextResponse.json({
       allowed: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { prisma } from '@/lib/prisma';
 
 const MIME_MAP: Record<string, string> = {
   '.mp4': 'video/mp4',
@@ -44,6 +45,29 @@ export async function GET(
         filePath = tmpPath;
         fileExists = true;
       }
+    }
+
+    // 3. Fallback to database MediaAsset table (guarantees cross-instance persistence on Vercel)
+    if (!fileExists) {
+      try {
+        const asset = await prisma.mediaAsset.findFirst({
+          where: {
+            OR: [
+              { url: { endsWith: safeFilename } },
+              { url: `/uploads/videos/${safeFilename}` }
+            ]
+          },
+          select: { data: true }
+        });
+
+        if (asset?.data) {
+          const buf = Buffer.from(asset.data, 'base64');
+          const tmpPath = path.join(os.tmpdir(), safeFilename);
+          await fs.promises.writeFile(tmpPath, buf).catch(() => {});
+          filePath = tmpPath;
+          fileExists = true;
+        }
+      } catch {}
     }
 
     if (!fileExists) {

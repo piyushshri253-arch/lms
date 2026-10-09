@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
@@ -302,23 +302,39 @@ function CourseBuilderContent() {
             title: s.title,
             description: s.description || '',
             order: s.order || sIdx + 1,
-            lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
-              id: l.id,
-              title: l.title,
-              description: l.description || '',
-              type: l.type || 'VIDEO',
-              content: l.content,
-              videoUrl: l.videoUrl,
-              pdfUrl: l.pdfUrl,
-              fileUrl: l.fileUrl,
-              quizData: l.quizData,
-              subLessons: Array.isArray(l.subLessons) ? l.subLessons : [],
-              duration: l.duration,
-              durationSeconds: l.durationSeconds,
-              isFree: l.isFree,
-              isPublished: l.isPublished,
-              order: l.order || lIdx + 1
-            }))
+            lessons: (s.lessons || []).map((l: any, lIdx: number) => {
+              let parsedRes: any = null;
+              try {
+                parsedRes = JSON.parse(l.resources || '[]');
+              } catch {}
+              const subLessons = Array.isArray(l.subLessons)
+                ? l.subLessons
+                : Array.isArray(parsedRes)
+                ? parsedRes
+                : parsedRes?.subLessons || [];
+              const videoFileName = l.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || undefined;
+              const resourceFileName = l.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || undefined;
+
+              return {
+                id: l.id,
+                title: l.title,
+                description: l.description || '',
+                type: l.type || 'VIDEO',
+                content: l.content,
+                videoUrl: l.videoUrl,
+                videoFileName,
+                resourceFileName,
+                pdfUrl: l.pdfUrl,
+                fileUrl: l.fileUrl,
+                quizData: l.quizData,
+                subLessons,
+                duration: l.duration,
+                durationSeconds: l.durationSeconds,
+                isFree: l.isFree,
+                isPublished: l.isPublished,
+                order: l.order || lIdx + 1
+              };
+            })
           }))
         };
         setCourseState(loadedState);
@@ -444,7 +460,9 @@ function CourseBuilderContent() {
           lessons: (sec.lessons || []).map((les) => ({
             ...les,
             // Prevent bulky base64 data URLs from blowing up request payload
-            videoUrl: les.videoUrl?.startsWith('data:') ? '' : les.videoUrl
+            videoUrl: les.videoUrl?.startsWith('data:') ? '' : les.videoUrl,
+            videoFileName: les.videoFileName,
+            resourceFileName: les.resourceFileName
           }))
         }))
       };
@@ -538,11 +556,21 @@ function CourseBuilderContent() {
             order: s.order || sIdx + 1,
             lessons: (s.lessons || []).map((l: any, lIdx: number) => {
               // Local section and lesson lookup to preserve any local videoUrl that was just attached
-              const localSec = (courseState.sections || []).find((sec) => sec.id === s.id);
-              const localLes = localSec?.lessons?.find((les) => les.id === l.id);
+              const localSec = (courseState.sections || []).find((sec) => sec.id === s.id) || courseState.sections?.[sIdx];
+              const localLes = localSec?.lessons?.find((les) => les.id === l.id) || localSec?.lessons?.[lIdx];
               const resolvedVideo = l.videoUrl || localLes?.videoUrl || '';
               const resolvedPdf = l.pdfUrl || localLes?.pdfUrl || '';
               const resolvedFile = l.fileUrl || localLes?.fileUrl || '';
+
+              let parsedRes: any = null;
+              try {
+                parsedRes = JSON.parse(l.resources || '[]');
+              } catch {}
+              const subLessons = Array.isArray(parsedRes)
+                ? parsedRes
+                : (parsedRes?.subLessons || localLes?.subLessons || []);
+              const videoFileName = localLes?.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || l.videoFileName;
+              const resourceFileName = localLes?.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || l.resourceFileName;
 
               return {
                 id: l.id,
@@ -551,17 +579,12 @@ function CourseBuilderContent() {
                 type: l.type || 'VIDEO',
                 content: l.content || '',
                 videoUrl: resolvedVideo,
+                videoFileName,
+                resourceFileName,
                 pdfUrl: resolvedPdf,
                 fileUrl: resolvedFile,
                 quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
-                subLessons: (() => {
-                  try {
-                    const p = JSON.parse(l.resources || '[]');
-                    return Array.isArray(p) ? p : p?.subLessons || [];
-                  } catch {
-                    return [];
-                  }
-                })(),
+                subLessons,
                 duration: l.duration || localLes?.duration || '10:00',
                 durationSeconds: l.durationSeconds || localLes?.durationSeconds || 600,
                 isFree: Boolean(l.isFree),
@@ -800,7 +823,12 @@ function CourseBuilderContent() {
     return items;
   }, [courseState.sections]);
 
-  const currentPlayerItem = activePreviewItem || allPlayableItems[0] || null;
+  const rawCurrentPlayerItem = activePreviewItem || allPlayableItems[0] || null;
+  const currentPlayerItem = useMemo(() => {
+    if (!rawCurrentPlayerItem) return null;
+    const fresh = allPlayableItems.find((item) => item.id === rawCurrentPlayerItem.id);
+    return fresh ? { ...rawCurrentPlayerItem, ...fresh } : rawCurrentPlayerItem;
+  }, [rawCurrentPlayerItem, allPlayableItems]);
 
   const previewModules = courseState.sections.map((sec, idx) => ({
     id: sec.id,
@@ -1679,6 +1707,7 @@ function CourseBuilderContent() {
                                   <VideoPlayer
                                     videoUrl={currentPlayerItem.videoUrl}
                                     title={currentPlayerItem.title}
+                                    isFree={true}
                                   />
                                 ) : (
                                   <div className="p-12 text-center space-y-2 text-slate-400">

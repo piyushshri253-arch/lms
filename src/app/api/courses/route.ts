@@ -323,9 +323,11 @@ export async function POST(request: Request) {
                 : typeof les.quizData === 'string'
                 ? les.quizData
                 : null;
-            const subLessonsStr = Array.isArray(les.subLessons)
-              ? JSON.stringify(les.subLessons)
-              : '[]';
+            const subLessonsStr = JSON.stringify({
+              subLessons: Array.isArray(les.subLessons) ? les.subLessons : [],
+              videoFileName: les.videoFileName || undefined,
+              resourceFileName: les.resourceFileName || undefined
+            });
 
             const cleanVideoUrl =
               les.videoUrl &&
