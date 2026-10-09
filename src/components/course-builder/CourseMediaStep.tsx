@@ -172,15 +172,15 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, onChang
               className="hidden"
             />
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
                 disabled={isCompressing}
                 onClick={() => thumbnailFileRef.current?.click()}
-                className="px-4 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <Icon name={isCompressing ? 'sync' : 'cloud_upload'} size={16} className={isCompressing ? 'animate-spin' : ''} />
-                <span>{isCompressing ? 'Optimizing & Attaching...' : 'Upload from Computer'}</span>
+                <span>{isCompressing ? 'Optimizing & Attaching...' : 'Upload from Device (PC / Phone)'}</span>
               </button>
 
               {thumbnail && (
@@ -188,25 +188,16 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, onChang
                   type="button"
                   disabled={isCompressing}
                   onClick={() => onChange('thumbnail', '')}
-                  className="px-4 py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2.5 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   Clear Thumbnail
                 </button>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface">
-                Or Paste Image CDN / Cloud URL
-              </label>
-              <input
-                type="url"
-                value={thumbnail.startsWith('data:') ? '' : thumbnail}
-                onChange={(e) => onChange('thumbnail', e.target.value)}
-                placeholder="https://images.unsplash.com/photo-... or cloud CDN"
-                className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-mono"
-              />
-            </div>
+            <p className="text-[11px] text-on-surface-variant">
+              Upload directly from your PC, laptop, or mobile phone. Supports JPG, PNG, WebP, or SVG (Max 20MB). Automatically optimized for high-speed page loading.
+            </p>
           </div>
         </div>
       </div>
