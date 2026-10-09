@@ -272,6 +272,30 @@ export async function GET(
                 return [];
               }
             })(),
+            resourcesList: canSeeMediaUrls ? (() => {
+              try {
+                const parsed = JSON.parse((les as any).resources || '[]');
+                return Array.isArray(parsed?.resourcesList) ? parsed.resourcesList : undefined;
+              } catch {
+                return undefined;
+              }
+            })() : null,
+            videoFileName: (() => {
+              try {
+                const parsed = JSON.parse((les as any).resources || '[]');
+                return (les as any).videoFileName || (!Array.isArray(parsed) && parsed?.videoFileName) || undefined;
+              } catch {
+                return undefined;
+              }
+            })(),
+            resourceFileName: (() => {
+              try {
+                const parsed = JSON.parse((les as any).resources || '[]');
+                return (les as any).resourceFileName || (!Array.isArray(parsed) && parsed?.resourceFileName) || undefined;
+              } catch {
+                return undefined;
+              }
+            })(),
             completed: completedLessonIds.includes(les.id),
             locked: isLocked,
             isFree: les.isFree,
@@ -722,10 +746,17 @@ export async function PUT(
             const videoFileName = lesData.videoFileName || (!Array.isArray(existingResourcesObj) && existingResourcesObj?.videoFileName) || undefined;
             const resourceFileName = lesData.resourceFileName || (!Array.isArray(existingResourcesObj) && existingResourcesObj?.resourceFileName) || undefined;
 
+            const resourcesList = Array.isArray(lesData.resourcesList)
+              ? lesData.resourcesList
+              : (!Array.isArray(existingResourcesObj) && Array.isArray(existingResourcesObj?.resourcesList))
+              ? existingResourcesObj.resourcesList
+              : undefined;
+
             const subLessonsStr = JSON.stringify({
               subLessons: subLessonsList,
               videoFileName,
-              resourceFileName
+              resourceFileName,
+              resourcesList
             });
 
             // Clean URLs: ignore blob URLs and ignore bulky data: URLs (prevent payload bloat)

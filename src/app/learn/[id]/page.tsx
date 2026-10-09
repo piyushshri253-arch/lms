@@ -393,12 +393,20 @@ export default function LearnPlayerPage() {
   const activeLessonHasPdf = Boolean(activeLesson?.pdfUrl && activeLesson.pdfUrl.trim().length > 0);
   const activeLessonHasFile = Boolean(activeLesson?.fileUrl && activeLesson.fileUrl.trim().length > 0);
   const activeLessonHasArticleDoc = Boolean(activeLesson?.content && activeLesson.content.trim().length > 0);
-  const activeLessonHasResources = activeLessonHasPdf || activeLessonHasFile || activeLessonHasArticleDoc;
+  const activeLessonCustomResources: any[] = Array.isArray(activeLesson?.resourcesList) ? activeLesson.resourcesList : [];
+  const activeLessonHasResources = activeLessonHasPdf || activeLessonHasFile || activeLessonHasArticleDoc || activeLessonCustomResources.length > 0;
 
   const activeResources = [
     ...(activeLessonHasArticleDoc ? [{ name: `${activeLesson.title} (Study Notes .doc)`, url: '#doc', isDocArticle: true }] : []),
-    ...(activeLessonHasPdf ? [{ name: `${activeLesson.title} (PDF Handout)`, url: activeLesson.pdfUrl }] : []),
-    ...(activeLessonHasFile ? [{ name: `${activeLesson.title} (Downloadable Resource)`, url: activeLesson.fileUrl }] : []),
+    ...activeLessonCustomResources.map((r: any) => ({
+      name: r.name,
+      url: r.url,
+      type: r.type,
+      size: r.sizeBytes ? `${Math.round(r.sizeBytes / 1024)} KB` : undefined
+    })),
+    // Fallback if resourcesList is empty but legacy pdfUrl / fileUrl exist
+    ...(activeLessonCustomResources.length === 0 && activeLessonHasPdf ? [{ name: `${activeLesson.title} (PDF Handout)`, url: activeLesson.pdfUrl }] : []),
+    ...(activeLessonCustomResources.length === 0 && activeLessonHasFile ? [{ name: `${activeLesson.title} (Downloadable Resource)`, url: activeLesson.fileUrl }] : []),
     ...(Array.isArray(course?.resources) ? course.resources : [])
   ];
 
@@ -732,40 +740,75 @@ export default function LearnPlayerPage() {
                         </button>
                       )}
 
-                      {activeLessonHasPdf && (
-                        <a
-                          href={activeLesson.pdfUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-full text-left p-2 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <span className="text-base leading-none">📑</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
-                            <div className="text-[10px] text-slate-500 font-normal">Slides &amp; reference guide</div>
-                          </div>
-                          <Icon name="open_in_new" size={14} className="text-slate-400 shrink-0" />
-                        </a>
-                      )}
+                      {/* Multiple Attached Resources (PDF, DOC, IMAGE, LINK, ZIP) */}
+                      {activeLessonCustomResources.length > 0 ? (
+                        activeLessonCustomResources.map((res: any) => {
+                          const isPdf = res.type === 'PDF' || res.url?.toLowerCase().endsWith('.pdf');
+                          const isDoc = res.type === 'DOC' || res.url?.toLowerCase().match(/\.(doc|docx|txt|rtf)$/);
+                          const isImage = res.type === 'IMAGE' || res.url?.toLowerCase().match(/\.(png|jpg|jpeg|webp|svg)$/);
+                          const isLink = res.type === 'LINK' || res.url?.startsWith('http');
+                          const isZip = res.type === 'ZIP' || res.url?.toLowerCase().endsWith('.zip');
 
-                      {activeLessonHasFile && (
-                        <a
-                          href={activeLesson.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-full text-left p-2 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <span className="text-base leading-none">📦</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate font-bold text-slate-900">Download Attached File</div>
-                            <div className="text-[10px] text-slate-500 font-normal">Project assets &amp; code</div>
-                          </div>
-                          <Icon name="download" size={14} className="text-slate-400 shrink-0" />
-                        </a>
+                          const iconEmoji = isPdf ? '📑' : isDoc ? '📝' : isImage ? '🖼️' : isZip ? '📦' : isLink ? '🔗' : '📎';
+                          const typeLabel = isPdf ? 'PDF Document' : isDoc ? 'Word Document' : isImage ? 'Image' : isZip ? 'Zip Archive' : isLink ? 'Web Link' : 'Resource';
+
+                          return (
+                            <a
+                              key={res.id}
+                              href={res.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={!isLink}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full text-left p-2 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <span className="text-base leading-none">{iconEmoji}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-bold text-slate-900" title={res.name}>{res.name}</div>
+                                <div className="text-[10px] text-slate-500 font-normal">{typeLabel}</div>
+                              </div>
+                              <Icon name={isLink ? 'open_in_new' : 'download'} size={14} className="text-slate-400 shrink-0" />
+                            </a>
+                          );
+                        })
+                      ) : (
+                        <>
+                          {activeLessonHasPdf && (
+                            <a
+                              href={activeLesson.pdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full text-left p-2 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <span className="text-base leading-none">📑</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
+                                <div className="text-[10px] text-slate-500 font-normal">Slides &amp; reference guide</div>
+                              </div>
+                              <Icon name="open_in_new" size={14} className="text-slate-400 shrink-0" />
+                            </a>
+                          )}
+
+                          {activeLessonHasFile && (
+                            <a
+                              href={activeLesson.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full text-left p-2 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <span className="text-base leading-none">📦</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-bold text-slate-900">Download Attached File</div>
+                                <div className="text-[10px] text-slate-500 font-normal">Project assets &amp; code</div>
+                              </div>
+                              <Icon name="download" size={14} className="text-slate-400 shrink-0" />
+                            </a>
+                          )}
+                        </>
                       )}
 
                       {activeLessonHasArticleDoc && (
@@ -966,7 +1009,8 @@ export default function LearnPlayerPage() {
                           const hasPdf = Boolean(les.pdfUrl && les.pdfUrl.trim().length > 0);
                           const hasFile = Boolean(les.fileUrl && les.fileUrl.trim().length > 0);
                           const hasArticleDoc = Boolean(les.content && les.content.trim().length > 0);
-                          const hasResources = hasPdf || hasFile || hasArticleDoc;
+                          const customResources: any[] = Array.isArray(les.resourcesList) ? les.resourcesList : [];
+                          const hasResources = hasPdf || hasFile || hasArticleDoc || customResources.length > 0;
                           const isLessonLocked = !isEnrolled && !les.isFree;
 
                           const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
@@ -1109,40 +1153,74 @@ export default function LearnPlayerPage() {
                                         </button>
                                       )}
 
-                                      {hasPdf && (
-                                        <a
-                                          href={les.pdfUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          download
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
-                                        >
-                                          <span className="text-sm">📑</span>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
-                                            <div className="text-[10px] text-slate-500 font-normal">Lecture slides &amp; guide</div>
-                                          </div>
-                                          <Icon name="open_in_new" size={13} className="text-slate-400 shrink-0" />
-                                        </a>
-                                      )}
+                                      {customResources.length > 0 ? (
+                                        customResources.map((res: any) => {
+                                          const isPdf = res.type === 'PDF' || res.url?.toLowerCase().endsWith('.pdf');
+                                          const isDoc = res.type === 'DOC' || res.url?.toLowerCase().match(/\.(doc|docx|txt|rtf)$/);
+                                          const isImage = res.type === 'IMAGE' || res.url?.toLowerCase().match(/\.(png|jpg|jpeg|webp|svg)$/);
+                                          const isLink = res.type === 'LINK' || res.url?.startsWith('http');
+                                          const isZip = res.type === 'ZIP' || res.url?.toLowerCase().endsWith('.zip');
 
-                                      {hasFile && (
-                                        <a
-                                          href={les.fileUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          download
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
-                                        >
-                                          <span className="text-sm">📦</span>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="truncate font-bold text-slate-900">Download Attached File</div>
-                                            <div className="text-[10px] text-slate-500 font-normal">Project resources</div>
-                                          </div>
-                                          <Icon name="download" size={13} className="text-slate-400 shrink-0" />
-                                        </a>
+                                          const iconEmoji = isPdf ? '📑' : isDoc ? '📝' : isImage ? '🖼️' : isZip ? '📦' : isLink ? '🔗' : '📎';
+                                          const typeLabel = isPdf ? 'PDF Handout' : isDoc ? 'Word Doc' : isImage ? 'Image' : isZip ? 'Zip File' : isLink ? 'Web Link' : 'Resource';
+
+                                          return (
+                                            <a
+                                              key={res.id}
+                                              href={res.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download={!isLink}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <span className="text-sm">{iconEmoji}</span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="truncate font-bold text-slate-900" title={res.name}>{res.name}</div>
+                                                <div className="text-[10px] text-slate-500 font-normal">{typeLabel}</div>
+                                              </div>
+                                              <Icon name={isLink ? 'open_in_new' : 'download'} size={13} className="text-slate-400 shrink-0" />
+                                            </a>
+                                          );
+                                        })
+                                      ) : (
+                                        <>
+                                          {hasPdf && (
+                                            <a
+                                              href={les.pdfUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <span className="text-sm">📑</span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
+                                                <div className="text-[10px] text-slate-500 font-normal">Lecture slides &amp; guide</div>
+                                              </div>
+                                              <Icon name="open_in_new" size={13} className="text-slate-400 shrink-0" />
+                                            </a>
+                                          )}
+
+                                          {hasFile && (
+                                            <a
+                                              href={les.fileUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <span className="text-sm">📦</span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="truncate font-bold text-slate-900">Download Attached File</div>
+                                                <div className="text-[10px] text-slate-500 font-normal">Project resources</div>
+                                              </div>
+                                              <Icon name="download" size={13} className="text-slate-400 shrink-0" />
+                                            </a>
+                                          )}
+                                        </>
                                       )}
 
                                       {hasArticleDoc && (
@@ -1243,7 +1321,8 @@ export default function LearnPlayerPage() {
                           const hasPdf = Boolean(les.pdfUrl && les.pdfUrl.trim().length > 0);
                           const hasFile = Boolean(les.fileUrl && les.fileUrl.trim().length > 0);
                           const hasArticleDoc = Boolean(les.content && les.content.trim().length > 0);
-                          const hasResources = hasPdf || hasFile || hasArticleDoc;
+                          const customResources: any[] = Array.isArray(les.resourcesList) ? les.resourcesList : [];
+                          const hasResources = hasPdf || hasFile || hasArticleDoc || customResources.length > 0;
 
                           const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
                           const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
@@ -1325,7 +1404,7 @@ export default function LearnPlayerPage() {
                                   </button>
 
                                   {openResourceMenuId === `mobile_${les.id}` && (
-                                    <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-[#d1d7dc] p-2 space-y-1 z-50 animate-in fade-in duration-100 text-left">
+                                    <div className="absolute right-0 mt-1.5 w-60 bg-white rounded-xl shadow-2xl border border-[#d1d7dc] p-2 space-y-1 z-50 animate-in fade-in duration-100 text-left">
                                       {hasArticleDoc && (
                                         <button
                                           type="button"
@@ -1344,37 +1423,71 @@ export default function LearnPlayerPage() {
                                         </button>
                                       )}
 
-                                      {hasPdf && (
-                                        <a
-                                          href={les.pdfUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          download
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
-                                        >
-                                          <span>📑</span>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
-                                            <div className="text-[10px] text-slate-500 font-normal">PDF document</div>
-                                          </div>
-                                        </a>
-                                      )}
+                                      {customResources.length > 0 ? (
+                                        customResources.map((res: any) => {
+                                          const isPdf = res.type === 'PDF' || res.url?.toLowerCase().endsWith('.pdf');
+                                          const isDoc = res.type === 'DOC' || res.url?.toLowerCase().match(/\.(doc|docx|txt|rtf)$/);
+                                          const isImage = res.type === 'IMAGE' || res.url?.toLowerCase().match(/\.(png|jpg|jpeg|webp|svg)$/);
+                                          const isLink = res.type === 'LINK' || res.url?.startsWith('http');
+                                          const isZip = res.type === 'ZIP' || res.url?.toLowerCase().endsWith('.zip');
 
-                                      {hasFile && (
-                                        <a
-                                          href={les.fileUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          download
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
-                                        >
-                                          <span>📦</span>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="truncate font-bold text-slate-900">Download Attached File</div>
-                                          </div>
-                                        </a>
+                                          const iconEmoji = isPdf ? '📑' : isDoc ? '📝' : isImage ? '🖼️' : isZip ? '📦' : isLink ? '🔗' : '📎';
+                                          const typeLabel = isPdf ? 'PDF Handout' : isDoc ? 'Word Doc' : isImage ? 'Image' : isZip ? 'Zip File' : isLink ? 'Web Link' : 'Resource';
+
+                                          return (
+                                            <a
+                                              key={res.id}
+                                              href={res.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download={!isLink}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <span className="text-sm">{iconEmoji}</span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="truncate font-bold text-slate-900" title={res.name}>{res.name}</div>
+                                                <div className="text-[10px] text-slate-500 font-normal">{typeLabel}</div>
+                                              </div>
+                                              <Icon name={isLink ? 'open_in_new' : 'download'} size={13} className="text-slate-400 shrink-0" />
+                                            </a>
+                                          );
+                                        })
+                                      ) : (
+                                        <>
+                                          {hasPdf && (
+                                            <a
+                                              href={les.pdfUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-rose-700 hover:bg-rose-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <span>📑</span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="truncate font-bold text-slate-900">Download PDF Handout</div>
+                                                <div className="text-[10px] text-slate-500 font-normal">PDF document</div>
+                                              </div>
+                                            </a>
+                                          )}
+
+                                          {hasFile && (
+                                            <a
+                                              href={les.fileUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="w-full text-left p-1.5 text-xs text-slate-800 hover:text-indigo-700 hover:bg-indigo-50/70 rounded-lg font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                            >
+                                              <span>📦</span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="truncate font-bold text-slate-900">Download Attached File</div>
+                                              </div>
+                                            </a>
+                                          )}
+                                        </>
                                       )}
                                     </div>
                                   )}

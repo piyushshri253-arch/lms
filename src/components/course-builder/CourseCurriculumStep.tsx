@@ -22,6 +22,14 @@ export interface QuizConfig {
   attemptLimit: number; // 0 = unlimited
 }
 
+export interface LessonResourceItem {
+  id: string;
+  name: string;
+  url: string;
+  type: 'PDF' | 'DOC' | 'IMAGE' | 'ZIP' | 'LINK' | 'OTHER';
+  sizeBytes?: number;
+}
+
 export interface BuilderSubLesson {
   id: string;
   code?: string; // e.g. "1.1.1", "2.1.1"
@@ -33,6 +41,7 @@ export interface BuilderSubLesson {
   videoFileName?: string;
   pdfUrl?: string;
   resourceFileName?: string;
+  resourcesList?: LessonResourceItem[];
   quizData?: QuizConfig | string;
   duration?: string;
   isFree?: boolean;
@@ -50,6 +59,7 @@ export interface BuilderLesson {
   pdfUrl?: string;
   fileUrl?: string;
   resourceFileName?: string;
+  resourcesList?: LessonResourceItem[];
   quizData?: QuizConfig | string;
   subLessons?: BuilderSubLesson[];
   duration?: string;
@@ -57,6 +67,37 @@ export interface BuilderLesson {
   isFree?: boolean;
   isPublished?: boolean;
   order: number;
+}
+
+export function getLessonResourcesList(lesson?: BuilderLesson | BuilderSubLesson | null): LessonResourceItem[] {
+  if (!lesson) return [];
+  if (Array.isArray(lesson.resourcesList) && lesson.resourcesList.length > 0) {
+    return lesson.resourcesList;
+  }
+  const list: LessonResourceItem[] = [];
+  if (lesson.pdfUrl) {
+    const rawUrl = lesson.pdfUrl.split('?')[0].toLowerCase();
+    let detectedType: 'PDF' | 'DOC' | 'IMAGE' | 'ZIP' | 'LINK' | 'OTHER' = 'PDF';
+    if (rawUrl.endsWith('.doc') || rawUrl.endsWith('.docx') || rawUrl.endsWith('.txt')) detectedType = 'DOC';
+    else if (rawUrl.endsWith('.zip')) detectedType = 'ZIP';
+    else if (rawUrl.endsWith('.png') || rawUrl.endsWith('.jpg') || rawUrl.endsWith('.jpeg') || rawUrl.endsWith('.webp')) detectedType = 'IMAGE';
+    else if (lesson.pdfUrl.startsWith('http://') || lesson.pdfUrl.startsWith('https://')) detectedType = 'LINK';
+
+    list.push({
+      id: `res-pdf-${lesson.id || '1'}`,
+      name: (lesson as any).resourceFileName || (detectedType === 'PDF' ? 'Lecture Handout.pdf' : 'Attached Resource'),
+      url: lesson.pdfUrl,
+      type: detectedType
+    });
+  } else if ((lesson as any).fileUrl) {
+    list.push({
+      id: `res-file-${lesson.id || '1'}`,
+      name: (lesson as any).resourceFileName || 'Resource File',
+      url: (lesson as any).fileUrl,
+      type: 'OTHER'
+    });
+  }
+  return list;
 }
 
 export interface BuilderSection {

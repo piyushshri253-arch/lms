@@ -326,7 +326,8 @@ export async function POST(request: Request) {
             const subLessonsStr = JSON.stringify({
               subLessons: Array.isArray(les.subLessons) ? les.subLessons : [],
               videoFileName: les.videoFileName || undefined,
-              resourceFileName: les.resourceFileName || undefined
+              resourceFileName: les.resourceFileName || undefined,
+              resourcesList: Array.isArray(les.resourcesList) ? les.resourcesList : undefined
             });
 
             const cleanVideoUrl =

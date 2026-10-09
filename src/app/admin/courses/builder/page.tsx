@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui/Icon';
 import { useApp } from '@/context/AppContext';
 import { CourseBasicInfoStep } from '@/components/course-builder/CourseBasicInfoStep';
 import { CourseMediaStep } from '@/components/course-builder/CourseMediaStep';
-import { CourseCurriculumStep, BuilderSection } from '@/components/course-builder/CourseCurriculumStep';
+import { CourseCurriculumStep, BuilderSection, getLessonResourcesList, LessonResourceItem } from '@/components/course-builder/CourseCurriculumStep';
 import { CoursePricingStep } from '@/components/course-builder/CoursePricingStep';
 import { CoursePublishStep } from '@/components/course-builder/CoursePublishStep';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
@@ -314,6 +314,11 @@ function CourseBuilderContent() {
                 : parsedRes?.subLessons || [];
               const videoFileName = l.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || undefined;
               const resourceFileName = l.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || undefined;
+              const resourcesList = Array.isArray(l.resourcesList)
+                ? l.resourcesList
+                : (!Array.isArray(parsedRes) && Array.isArray(parsedRes?.resourcesList))
+                ? parsedRes.resourcesList
+                : undefined;
 
               return {
                 id: l.id,
@@ -324,6 +329,7 @@ function CourseBuilderContent() {
                 videoUrl: l.videoUrl,
                 videoFileName,
                 resourceFileName,
+                resourcesList,
                 pdfUrl: l.pdfUrl,
                 fileUrl: l.fileUrl,
                 quizData: l.quizData,
@@ -462,7 +468,8 @@ function CourseBuilderContent() {
             // Prevent bulky base64 data URLs from blowing up request payload
             videoUrl: les.videoUrl?.startsWith('data:') ? '' : les.videoUrl,
             videoFileName: les.videoFileName,
-            resourceFileName: les.resourceFileName
+            resourceFileName: les.resourceFileName,
+            resourcesList: les.resourcesList
           }))
         }))
       };
@@ -571,6 +578,7 @@ function CourseBuilderContent() {
                 : (parsedRes?.subLessons || localLes?.subLessons || []);
               const videoFileName = localLes?.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || l.videoFileName;
               const resourceFileName = localLes?.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || l.resourceFileName;
+              const resourcesList = localLes?.resourcesList || (!Array.isArray(parsedRes) && Array.isArray(parsedRes?.resourcesList) ? parsedRes.resourcesList : undefined) || l.resourcesList || undefined;
 
               return {
                 id: l.id,
@@ -581,6 +589,7 @@ function CourseBuilderContent() {
                 videoUrl: resolvedVideo,
                 videoFileName,
                 resourceFileName,
+                resourcesList,
                 pdfUrl: resolvedPdf,
                 fileUrl: resolvedFile,
                 quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
@@ -1695,13 +1704,14 @@ function CourseBuilderContent() {
                         const hasQuestions =
                           Array.isArray(quizObj?.questions) && quizObj.questions.length > 0;
                         const hasVideo = !!currentPlayerItem.videoUrl;
-                        const hasPdf = !!currentPlayerItem.pdfUrl;
+                        const attachedResources = getLessonResourcesList(currentPlayerItem);
+                        const hasResources = attachedResources.length > 0;
                         const hasNotes = !!currentPlayerItem.content;
 
                         return (
                           <div className="space-y-4">
                             {/* 1. VIDEO PLAYER */}
-                            {(hasVideo || (!hasPdf && !hasNotes && !hasQuestions)) && (
+                            {(hasVideo || (!hasResources && !hasNotes && !hasQuestions)) && (
                               <div className="rounded-2xl overflow-hidden border border-white/10 bg-black min-h-[340px] flex items-center justify-center">
                                 {hasVideo ? (
                                   <VideoPlayer
@@ -1724,31 +1734,54 @@ function CourseBuilderContent() {
                               </div>
                             )}
 
-                            {/* 2. ATTACHED PDF RESOURCE */}
-                            {hasPdf && (
-                              <div className="p-4 rounded-2xl bg-slate-800/90 border border-rose-500/40 flex flex-wrap items-center justify-between gap-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
-                                    <Icon name="picture_as_pdf" size={22} />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs font-extrabold text-white">
-                                      📑 Attached PDF Study Material ({currentPlayerItem.code})
-                                    </p>
-                                    <p className="text-[11px] text-slate-400">
-                                      Downloadable / viewable PDF lecture handout
-                                    </p>
-                                  </div>
+                            {/* 2. ATTACHED STUDY RESOURCES (PDF, DOC, IMAGE, WEB LINKS) */}
+                            {hasResources && (
+                              <div className="space-y-2.5">
+                                <div className="text-[11px] font-black uppercase tracking-wider text-indigo-300 flex items-center gap-1.5 px-1">
+                                  <Icon name="attach_file" size={14} className="text-indigo-400" />
+                                  <span>Attached Study Resources &amp; Downloads ({attachedResources.length})</span>
                                 </div>
-                                <a
-                                  href={currentPlayerItem.pdfUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5"
-                                >
-                                  <Icon name="open_in_new" size={14} />
-                                  <span>Open / Download PDF</span>
-                                </a>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  {attachedResources.map((res) => {
+                                    const isPdf = res.type === 'PDF' || res.url.toLowerCase().endsWith('.pdf');
+                                    const isDoc = res.type === 'DOC' || res.url.toLowerCase().endsWith('.doc') || res.url.toLowerCase().endsWith('.docx');
+                                    const isImage = res.type === 'IMAGE' || res.url.toLowerCase().match(/\.(png|jpg|jpeg|webp|svg)$/);
+                                    const isLink = res.type === 'LINK' || res.url.startsWith('http');
+                                    const isZip = res.type === 'ZIP' || res.url.toLowerCase().endsWith('.zip');
+
+                                    const iconName = isPdf ? 'picture_as_pdf' : isDoc ? 'description' : isImage ? 'image' : isZip ? 'folder_zip' : isLink ? 'link' : 'attach_file';
+                                    const colorClass = isPdf ? 'text-rose-400 bg-rose-500/20 border-rose-500/30' : isDoc ? 'text-blue-400 bg-blue-500/20 border-blue-500/30' : isImage ? 'text-purple-400 bg-purple-500/20 border-purple-500/30' : isZip ? 'text-amber-400 bg-amber-500/20 border-amber-500/30' : 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30';
+                                    const btnClass = isPdf ? 'bg-rose-600 hover:bg-rose-500' : isDoc ? 'bg-blue-600 hover:bg-blue-500' : isImage ? 'bg-purple-600 hover:bg-purple-500' : isZip ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500';
+
+                                    return (
+                                      <div key={res.id} className="p-3.5 rounded-2xl bg-slate-800/90 border border-white/10 flex items-center justify-between gap-3 shadow-md">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${colorClass}`}>
+                                            <Icon name={iconName} size={18} />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-white truncate" title={res.name}>
+                                              {res.name}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 capitalize">
+                                              {res.type || 'Resource'}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <a
+                                          href={res.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className={`px-3 py-1.5 rounded-xl ${btnClass} text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors shadow-2xs`}
+                                          title="Open or download resource"
+                                        >
+                                          <Icon name={isLink ? 'open_in_new' : 'download'} size={13} />
+                                          <span>{isLink ? 'Open Link' : 'Download'}</span>
+                                        </a>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             )}
 

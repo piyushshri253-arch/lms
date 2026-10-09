@@ -11,6 +11,7 @@ import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
+import { getLessonResourcesList, LessonResourceItem } from '@/components/course-builder/CourseCurriculumStep';
 
 function CourseStudentPreviewInner() {
   const params = useParams();
@@ -817,6 +818,7 @@ function CourseStudentPreviewInner() {
                   </div>
                   {(sec.lessons || []).map((les: any) => {
                     const isCurrent = activeLesson?.id === les.id;
+                    const lessonResources = getLessonResourcesList(les);
                     return (
                       <button
                         key={les.id}
@@ -840,13 +842,26 @@ function CourseStudentPreviewInner() {
                           />
                           <span className="text-xs truncate">{les.title}</span>
                         </div>
-                        <span
-                          className={`text-[10px] font-mono shrink-0 ${
-                            isCurrent ? 'text-indigo-100' : 'text-slate-400'
-                          }`}
-                        >
-                          {les.type || 'VIDEO'}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {lessonResources.length > 0 && (
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 ${
+                                isCurrent ? 'bg-indigo-700 text-indigo-100' : 'bg-amber-100 text-amber-800'
+                              }`}
+                              title={`${lessonResources.length} study resource(s) attached`}
+                            >
+                              <span>📁</span>
+                              <span>{lessonResources.length}</span>
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] font-mono ${
+                              isCurrent ? 'text-indigo-100' : 'text-slate-400'
+                            }`}
+                          >
+                            {les.type || 'VIDEO'}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
@@ -862,37 +877,111 @@ function CourseStudentPreviewInner() {
                 <div className="bg-white rounded-2xl p-12 text-center text-slate-500 text-sm">
                   Add at least one lecture or quiz in the Course Builder to test the classroom player.
                 </div>
-              ) : activeLesson.type === 'QUIZ' ? (
-                <QuizPlayer
-                  title={activeLesson.title}
-                  lessonId={activeLesson.id}
-                  quizData={activeLesson.quizData}
-                  onPass={() => {}}
-                />
-              ) : activeLesson.type === 'PDF' ||
-                activeLesson.type === 'TEXT' ||
-                activeLesson.type === 'DOWNLOAD' ? (
-                <ArticlePlayer
-                  title={activeLesson.title}
-                  lessonId={activeLesson.id}
-                  type={activeLesson.type}
-                  content={activeLesson.content}
-                  pdfUrl={activeLesson.pdfUrl}
-                  fileUrl={activeLesson.fileUrl}
-                  allowDownload={Boolean(activeLesson.allowDownload)}
-                  duration={activeLesson.duration}
-                  isCompleted={false}
-                  onComplete={() => {}}
-                />
               ) : (
-                <VideoPlayer
-                  title={activeLesson.title}
-                  videoUrl={activeLesson.videoUrl}
-                  lessonId={activeLesson.id}
-                  thumbnail={course.thumbnail}
-                  duration={activeLesson.duration}
-                  isFree={true}
-                />
+                <>
+                  {activeLesson.type === 'QUIZ' ? (
+                    <QuizPlayer
+                      title={activeLesson.title}
+                      lessonId={activeLesson.id}
+                      quizData={activeLesson.quizData}
+                      onPass={() => {}}
+                    />
+                  ) : activeLesson.type === 'PDF' ||
+                    activeLesson.type === 'TEXT' ||
+                    activeLesson.type === 'DOWNLOAD' ? (
+                    <ArticlePlayer
+                      title={activeLesson.title}
+                      lessonId={activeLesson.id}
+                      type={activeLesson.type}
+                      content={activeLesson.content}
+                      pdfUrl={activeLesson.pdfUrl}
+                      fileUrl={activeLesson.fileUrl}
+                      allowDownload={Boolean(activeLesson.allowDownload)}
+                      duration={activeLesson.duration}
+                      isCompleted={false}
+                      onComplete={() => {}}
+                    />
+                  ) : (
+                    <VideoPlayer
+                      title={activeLesson.title}
+                      videoUrl={activeLesson.videoUrl}
+                      lessonId={activeLesson.id}
+                      thumbnail={course.thumbnail}
+                      duration={activeLesson.duration}
+                      isFree={true}
+                    />
+                  )}
+
+                  {/* Attached Study Resources Section */}
+                  {(() => {
+                    const activeResources = getLessonResourcesList(activeLesson);
+                    if (activeResources.length === 0) return null;
+
+                    return (
+                      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                            <span className="text-base">📁</span>
+                            <span>Attached Study Resources ({activeResources.length})</span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-medium">Click to open or download</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                          {activeResources.map((res: LessonResourceItem) => {
+                            const isPdf = res.type === 'PDF' || res.url?.toLowerCase().endsWith('.pdf');
+                            const isDoc = res.type === 'DOC' || res.url?.toLowerCase().match(/\.(doc|docx|txt|rtf)$/);
+                            const isImage = res.type === 'IMAGE' || res.url?.toLowerCase().match(/\.(png|jpg|jpeg|webp|svg)$/);
+                            const isLink = res.type === 'LINK' || res.url?.startsWith('http');
+                            const isZip = res.type === 'ZIP' || res.url?.toLowerCase().endsWith('.zip');
+
+                            const iconEmoji = isPdf ? '📑' : isDoc ? '📝' : isImage ? '🖼️' : isZip ? '📦' : isLink ? '🔗' : '📎';
+                            const badgeBg = isPdf
+                              ? 'bg-rose-50 border-rose-200 text-rose-700'
+                              : isDoc
+                              ? 'bg-blue-50 border-blue-200 text-blue-700'
+                              : isImage
+                              ? 'bg-purple-50 border-purple-200 text-purple-700'
+                              : isZip
+                              ? 'bg-amber-50 border-amber-200 text-amber-700'
+                              : isLink
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                              : 'bg-slate-50 border-slate-200 text-slate-700';
+
+                            return (
+                              <a
+                                key={res.id}
+                                href={res.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={!isLink}
+                                className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition-all group cursor-pointer"
+                              >
+                                <span className="text-xl shrink-0">{iconEmoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate" title={res.name}>
+                                    {res.name}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${badgeBg}`}>
+                                      {res.type}
+                                    </span>
+                                    {res.sizeBytes && (
+                                      <span className="text-[10px] text-slate-400 font-mono">
+                                        {Math.round(res.sizeBytes / 1024)} KB
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Icon name={isLink ? 'open_in_new' : 'download'} size={16} className="text-slate-400 group-hover:text-indigo-600 shrink-0" />
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
           </main>
