@@ -324,7 +324,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     }
 
     showToast({
-      title: 'Video Queued â³',
+      title: 'Video Queued',
       description: `"${lessonTitle}" added to upload queue (Position #${tasks.filter((t) => t.status === 'QUEUED').length + 1}).`,
       type: 'info'
     });
@@ -782,7 +782,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               title="Select multiple video files from your device to queue"
             >
               <Icon name="cloud_upload" size={18} />
-              <span>Bulk Select Multiple Videos ðŸŽ¬</span>
+              <span>Bulk Select Multiple Videos</span>
               <input
                 type="file"
                 multiple
@@ -811,7 +811,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-indigo-200 flex items-center gap-1.5">
                 <Icon name="sync" size={14} className="animate-spin text-emerald-400" />
-                Active Video Uploads ({activeUploads.length}/2 Active â€¢ {queuedUploads.length} Waiting in Queue)
+                Active Video Uploads ({activeUploads.length}/2 Active • {queuedUploads.length} Waiting in Queue)
               </span>
               <span className="text-[11px] font-mono text-slate-400">
                 {completedUploads.length} finished
@@ -1047,7 +1047,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           <span className="truncate max-w-[90px] sm:max-w-[125px] text-left" title={vidName}>
                                             {vidName || 'Video Attached'}
                                           </span>
-                                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">âœ“</span>
+                                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
                                         </button>
                                       );
                                     })()}
