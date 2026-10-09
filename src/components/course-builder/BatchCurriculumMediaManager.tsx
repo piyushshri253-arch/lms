@@ -165,6 +165,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           // Update sections state in parent
           updateLesson(task.sectionId, task.lessonId, {
             videoUrl,
+            videoFileName: task.file.name,
             duration: durationText,
             durationSeconds,
             type: 'VIDEO'
@@ -414,7 +415,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
       updateLesson(sectionId, lessonId, {
         pdfUrl: finalUrl,
-        fileUrl: finalUrl
+        fileUrl: finalUrl,
+        resourceFileName: file.name
       });
 
       showToast({
@@ -481,6 +483,53 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       icon: 'link',
       color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
     };
+  };
+
+  // Helper to extract clean file name for video
+  const getVideoFileName = (url?: string, storedName?: string): string => {
+    if (storedName?.trim()) return storedName.trim();
+    if (!url) return '';
+    try {
+      const clean = url.split('?')[0].split('#')[0];
+      const last = clean.split('/').filter(Boolean).pop();
+      if (last) {
+        const decoded = decodeURIComponent(last);
+        const withoutTimestamp = decoded.replace(/^\d{10,14}[-_]/, '');
+        return withoutTimestamp || decoded;
+      }
+    } catch {}
+    return 'video.mp4';
+  };
+
+  // Helper to extract clean file name for study resource
+  const getResourceFileName = (url?: string, storedName?: string): string => {
+    if (storedName?.trim()) return storedName.trim();
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        const parsed = new URL(url);
+        const pathname = parsed.pathname;
+        const last = pathname.split('/').filter(Boolean).pop();
+        if (last && last.includes('.')) {
+          const decoded = decodeURIComponent(last);
+          const withoutTimestamp = decoded.replace(/^\d{10,14}[-_]/, '');
+          return withoutTimestamp || decoded;
+        }
+        return parsed.hostname + (pathname && pathname !== '/' ? pathname : '');
+      } catch {
+        return url;
+      }
+    }
+    try {
+      const clean = url.split('?')[0].split('#')[0];
+      const last = clean.split('/').filter(Boolean).pop();
+      if (last) {
+        const decoded = decodeURIComponent(last);
+        const withoutTimestamp = decoded.replace(/^\d{10,14}[-_]/, '');
+        return withoutTimestamp || decoded;
+      }
+    } catch {}
+    return 'Attached Resource';
   };
 
   // Stats calculation
@@ -690,21 +739,28 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-36">
           {(sections || []).map((section, sIdx) => {
             const isCollapsed = collapsedSections[section.id];
             const secLessons = section.lessons || [];
             const secWithVideos = secLessons.filter((l) => !!l.videoUrl).length;
+            const hasActiveDropdown = secLessons.some(
+              (l) => l.id === activeResourceDropdownLessonId
+            );
 
             return (
               <div
                 key={section.id}
-                className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xs overflow-hidden"
+                className={`bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xs transition-shadow relative ${
+                  hasActiveDropdown ? 'z-30 ring-1 ring-primary/30' : 'z-10'
+                }`}
               >
                 {/* Module Header Bar */}
                 <div
                   onClick={() => toggleSectionCollapse(section.id)}
-                  className="p-4 bg-surface-container-low hover:bg-surface-container border-b border-outline-variant flex items-center justify-between cursor-pointer select-none transition-colors"
+                  className={`p-4 bg-surface-container-low hover:bg-surface-container border-outline-variant flex items-center justify-between cursor-pointer select-none transition-colors ${
+                    isCollapsed ? 'rounded-2xl' : 'rounded-t-2xl border-b'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
@@ -739,9 +795,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
                 {/* Lessons List under this Module */}
                 {!isCollapsed && (
-                  <div className="divide-y divide-outline-variant/60">
+                  <div className="divide-y divide-outline-variant/60 rounded-b-2xl">
                     {secLessons.length === 0 ? (
-                      <div className="p-4 text-xs text-on-surface-variant text-center">
+                      <div className="p-4 text-xs text-on-surface-variant text-center rounded-b-2xl">
                         No lectures in this module yet.
                       </div>
                     ) : (
@@ -749,6 +805,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const task = tasks.find((t) => t.lessonId === lesson.id);
                         const isTaskUploading = task?.status === 'UPLOADING';
                         const isTaskQueued = task?.status === 'QUEUED';
+                        const isLastLesson = lIdx === secLessons.length - 1;
+                        const isDropdownActive = activeResourceDropdownLessonId === lesson.id;
 
                         const quizConfig: QuizConfig =
                           typeof lesson.quizData === 'string'
@@ -765,7 +823,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isQuizOpen = activeQuizLessonId === lesson.id;
 
                         return (
-                          <div key={lesson.id} className="p-4 hover:bg-surface-container/30 transition-colors">
+                          <div
+                            key={lesson.id}
+                            className={`p-4 hover:bg-surface-container/30 transition-colors relative ${
+                              isLastLesson ? 'rounded-b-2xl' : ''
+                            } ${isDropdownActive ? 'z-30' : 'z-10'}`}
+                          >
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                               {/* Left: Lecture Details & Editable Description */}
                               <div className="space-y-1.5 flex-1 min-w-[240px] max-w-xl">
@@ -832,15 +895,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </div>
                                 ) : lesson.videoUrl ? (
                                   <div className="flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewVideoUrl(lesson.videoUrl || '')}
-                                      className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                                      title="Preview uploaded video"
-                                    >
-                                      <Icon name="play_circle" size={15} />
-                                      <span>Video Attached ✓</span>
-                                    </button>
+                                    {(() => {
+                                      const vidName = getVideoFileName(lesson.videoUrl, lesson.videoFileName);
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreviewVideoUrl(lesson.videoUrl || '')}
+                                          className="max-w-[200px] sm:max-w-[240px] px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                                          title={`Video File: ${vidName}\nClick to preview video`}
+                                        >
+                                          <Icon name="play_circle" size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                          <span className="truncate max-w-[130px] text-left" title={vidName}>
+                                            {vidName || 'Video Attached'}
+                                          </span>
+                                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
+                                        </button>
+                                      );
+                                    })()}
 
                                     <label
                                       className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs cursor-pointer"
@@ -889,17 +960,21 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   <div className="relative flex items-center gap-1">
                                     {(() => {
                                       const resMeta = getResourceMeta(lesson.pdfUrl)!;
+                                      const resName = getResourceFileName(lesson.pdfUrl, lesson.resourceFileName);
                                       return (
                                         <>
                                           <a
                                             href={lesson.pdfUrl}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className={`px-2.5 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all hover:opacity-90 shadow-2xs ${resMeta.color}`}
-                                            title={`Open ${resMeta.label} in new tab`}
+                                            className={`max-w-[190px] sm:max-w-[220px] px-2.5 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all hover:opacity-90 shadow-2xs ${resMeta.color}`}
+                                            title={`Resource File: ${resName}\nType: ${resMeta.label}\nClick to view / download`}
                                           >
-                                            <Icon name={resMeta.icon} size={14} />
-                                            <span>{resMeta.label}</span>
+                                            <Icon name={resMeta.icon} size={14} className="shrink-0" />
+                                            <span className="truncate max-w-[120px] text-left" title={resName}>
+                                              {resName || resMeta.label}
+                                            </span>
+                                            <span className="text-[10px] opacity-75 shrink-0">✓</span>
                                           </a>
 
                                           <button
@@ -920,7 +995,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             onClick={() => {
                                               updateLesson(section.id, lesson.id, {
                                                 pdfUrl: '',
-                                                fileUrl: ''
+                                                fileUrl: '',
+                                                resourceFileName: ''
                                               });
                                               showToast({
                                                 title: 'Resource Removed',
@@ -944,7 +1020,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           className="fixed inset-0 z-40"
                                           onClick={() => setActiveResourceDropdownLessonId(null)}
                                         />
-                                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                                        <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
                                           <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
                                             <span>Replace Resource</span>
                                             <Icon name="tune" size={12} />
@@ -1102,7 +1178,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           className="fixed inset-0 z-40"
                                           onClick={() => setActiveResourceDropdownLessonId(null)}
                                         />
-                                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                                        <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
                                           <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
                                             <span>Attach Resource</span>
                                             <span className="text-[9px] font-normal text-on-surface-variant">Choose format</span>
@@ -1314,7 +1390,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 externalLinkModalTarget.lessonId,
                 {
                   pdfUrl: urlToSave,
-                  fileUrl: urlToSave
+                  fileUrl: urlToSave,
+                  resourceFileName: urlToSave.replace(/^https?:\/\//i, '')
                 }
               );
               showToast({

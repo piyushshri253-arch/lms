@@ -30,7 +30,9 @@ export interface BuilderSubLesson {
   type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD';
   content?: string;
   videoUrl?: string;
+  videoFileName?: string;
   pdfUrl?: string;
+  resourceFileName?: string;
   quizData?: QuizConfig | string;
   duration?: string;
   isFree?: boolean;
@@ -44,8 +46,10 @@ export interface BuilderLesson {
   type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD';
   content?: string;
   videoUrl?: string;
+  videoFileName?: string;
   pdfUrl?: string;
   fileUrl?: string;
+  resourceFileName?: string;
   quizData?: QuizConfig | string;
   subLessons?: BuilderSubLesson[];
   duration?: string;
