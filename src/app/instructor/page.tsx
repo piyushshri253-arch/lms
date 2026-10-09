@@ -681,97 +681,87 @@ function InstructorCoursesStudioInner() {
             </div>
           </div>
 
-          {/* Navigation Filter Tabs & Create Course Action */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-              <button
-                type="button"
-                onClick={() => setActiveTab('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'ALL'
-                    ? 'bg-violet-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                <Icon name="dashboard" size={15} />
-                <span>All Courses ({courses.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('PUBLISHED')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'PUBLISHED'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                <Icon name="rocket_launch" size={15} />
-                <span>Published Live ({publishedCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('IN_REVIEW')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'IN_REVIEW'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                <Icon name="hourglass_top" size={15} />
-                <span>Pending Approval ({inReviewCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('DRAFT')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'DRAFT'
-                    ? 'bg-slate-800 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                <Icon name="edit_note" size={15} />
-                <span>Drafts ({draftCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('INACTIVE')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'INACTIVE'
-                    ? 'bg-slate-700 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                <Icon name="pause_circle" size={15} />
-                <span>Inactive ({inactiveCount})</span>
-              </button>
-
-              {rejectedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('REJECTED')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'REJECTED'
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                  }`}
-                >
-                  <Icon name="feedback" size={15} />
-                  <span>Needs Changes ({rejectedCount})</span>
-                </button>
-              )}
-            </div>
-
-            <Link
-              href="/instructor/courses/builder"
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+          {/* Navigation Filter Tabs */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => setActiveTab('ALL')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'ALL'
+                  ? 'bg-violet-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
             >
-              <Icon name="add_circle" size={16} />
-              <span>+ Create New Course</span>
-            </Link>
+              <Icon name="dashboard" size={15} />
+              <span>All Courses ({courses.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('PUBLISHED')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'PUBLISHED'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              <Icon name="rocket_launch" size={15} />
+              <span>Published Live ({publishedCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('IN_REVIEW')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'IN_REVIEW'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              <Icon name="hourglass_top" size={15} />
+              <span>Pending Approval ({inReviewCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('DRAFT')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'DRAFT'
+                  ? 'bg-slate-800 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              <Icon name="edit_note" size={15} />
+              <span>Drafts ({draftCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('INACTIVE')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'INACTIVE'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              <Icon name="pause_circle" size={15} />
+              <span>Inactive ({inactiveCount})</span>
+            </button>
+
+            {rejectedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('REJECTED')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'REJECTED'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                }`}
+              >
+                <Icon name="feedback" size={15} />
+                <span>Needs Changes ({rejectedCount})</span>
+              </button>
+            )}
           </div>
 
           {isLoading ? (
@@ -824,7 +814,8 @@ function InstructorCoursesStudioInner() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredAuthoredCourses.map((course) => {
                 const isPublished = course.status === 'PUBLISHED';
                 const isApproved = course.status === 'APPROVED';
@@ -1076,7 +1067,19 @@ function InstructorCoursesStudioInner() {
                 );
               })}
             </div>
-          )}
+
+            {/* Create New Course Action Below Course Cards */}
+            <div className="pt-6 border-t border-slate-200 flex items-center justify-center">
+              <Link
+                href="/instructor/courses/builder"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-violet-600/20 hover:shadow-lg transition-all cursor-pointer"
+              >
+                <Icon name="add_circle" size={18} />
+                <span>+ Create New Course</span>
+              </Link>
+            </div>
+          </div>
+        )}
         </div>
       </div>
 
