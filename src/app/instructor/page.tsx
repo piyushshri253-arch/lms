@@ -47,10 +47,15 @@ function InstructorCoursesStudioInner() {
   // Course Actions State
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
 
-  // Inactive Modal State (Instructors cannot delete courses, only mark active/inactive)
+  // Inactive Modal State
   const [isMakeInactiveModalOpen, setIsMakeInactiveModalOpen] = useState(false);
   const [courseToMakeInactive, setCourseToMakeInactive] = useState<CourseAuthored | null>(null);
   const [isMarkingInactive, setIsMarkingInactive] = useState(false);
+
+  // Delete Draft Course Modal State (Instructors can delete DRAFT courses)
+  const [isDeleteDraftModalOpen, setIsDeleteDraftModalOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<CourseAuthored | null>(null);
+  const [isDeletingDraft, setIsDeletingDraft] = useState(false);
 
   // Create Course Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -208,8 +213,52 @@ function InstructorCoursesStudioInner() {
     }
   };
 
+  // Permanently delete a Draft course
+  const handleConfirmDeleteDraft = async () => {
+    if (!courseToDelete) return;
+    setIsDeletingDraft(true);
+    setActionInProgressId(courseToDelete.id);
+    try {
+      const identifier = courseToDelete.id || courseToDelete.slug;
+      const res = await fetch(`/api/courses/${encodeURIComponent(identifier)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete draft course');
+      }
 
-  // Mark Course as Inactive (Instructors cannot delete courses, only mark active/inactive)
+      setCourses((prev) => prev.filter((c) => c.id !== courseToDelete.id));
+
+      // Clear local storage draft cache if any
+      try {
+        localStorage.removeItem(`morena_course_builder_draft_${courseToDelete.id}`);
+        if (courseToDelete.slug) {
+          localStorage.removeItem(`morena_course_builder_draft_${courseToDelete.slug}`);
+        }
+      } catch {}
+
+      showToast({
+        title: 'Draft Course Deleted 🗑️',
+        description: `"${courseToDelete.title}" has been permanently deleted from your drafts.`,
+        type: 'success'
+      });
+
+      setIsDeleteDraftModalOpen(false);
+      setCourseToDelete(null);
+    } catch (err: any) {
+      showToast({
+        title: 'Delete Failed',
+        description: err.message || 'Failed to delete draft course.',
+        type: 'error'
+      });
+    } finally {
+      setIsDeletingDraft(false);
+      setActionInProgressId(null);
+    }
+  };
+
+  // Mark Course as Inactive
   const handleConfirmMakeInactive = async () => {
     if (!courseToMakeInactive) return;
     setIsMarkingInactive(true);
@@ -940,6 +989,23 @@ function InstructorCoursesStudioInner() {
                             </button>
                           )}
 
+                          {/* Delete Draft Course Option (strictly Drafts only) */}
+                          {isDraft && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => {
+                                setCourseToDelete(course);
+                                setIsDeleteDraftModalOpen(true);
+                              }}
+                              className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="Delete this draft course permanently"
+                            >
+                              <Icon name="delete" size={13} />
+                              <span>Del</span>
+                            </button>
+                          )}
+
                           {/* Move to Draft Option */}
                           {(isPublished || isUnderReview || isApproved) && (
                             <button
@@ -1014,6 +1080,73 @@ function InstructorCoursesStudioInner() {
           )}
         </div>
       </div>
+
+      {/* Delete Draft Course Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteDraftModalOpen}
+        onClose={() => {
+          if (!isDeletingDraft) {
+            setIsDeleteDraftModalOpen(false);
+            setCourseToDelete(null);
+          }
+        }}
+        maxWidth="md"
+        title="Delete Draft Course"
+        subtitle="This action cannot be undone"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+              <Icon name="delete_forever" size={22} />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-rose-950">
+                Are you sure you want to permanently delete this draft?
+              </h4>
+              <p className="text-xs text-rose-800 leading-relaxed">
+                You are about to delete <strong className="font-semibold text-rose-950">&quot;{courseToDelete?.title}&quot;</strong>.
+                All draft curriculum sections, lessons, and uploaded files for this draft will be permanently deleted.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+            ℹ️ <strong>Draft Only:</strong> Only unpublished draft courses can be deleted. Published courses with student enrollments cannot be deleted.
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={isDeletingDraft}
+              onClick={() => {
+                setIsDeleteDraftModalOpen(false);
+                setCourseToDelete(null);
+              }}
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeletingDraft}
+              onClick={handleConfirmDeleteDraft}
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              {isDeletingDraft ? (
+                <>
+                  <Icon name="sync" size={14} className="animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="delete" size={14} />
+                  <span>Delete Draft</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Mark Course Inactive Confirmation Modal */}
       <Modal

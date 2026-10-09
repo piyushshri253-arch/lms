@@ -881,10 +881,18 @@ export async function DELETE(
     }
 
     if (user.role === 'INSTRUCTOR') {
-      return NextResponse.json(
-        { error: 'Action not allowed: Instructors cannot permanently delete courses. You can activate or deactivate your courses instead.' },
-        { status: 403 }
-      );
+      if (course.instructorId !== user.id) {
+        return NextResponse.json(
+          { error: 'Forbidden: You can only delete courses authored by your account.' },
+          { status: 403 }
+        );
+      }
+      if (course.status !== 'DRAFT') {
+        return NextResponse.json(
+          { error: 'Action not allowed: Instructors can only delete draft courses. Published or live courses can be deactivated instead.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Safely decouple/cleanup relations that don't cascade automatically
