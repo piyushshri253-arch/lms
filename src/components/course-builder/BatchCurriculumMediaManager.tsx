@@ -686,39 +686,20 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
   return (
     <div className="bg-surface-container-low/70 border-2 border-indigo-500/40 dark:border-indigo-500/30 rounded-3xl p-5 sm:p-7 shadow-xl space-y-6 animate-in fade-in duration-300">
-      {/* Studio Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-outline-variant/60">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
-            <Icon name="video_settings" size={24} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black text-on-surface">
-                Curriculum Media &amp; Video Queue Studio ⚡
-              </h2>
-              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
-                Inline Studio
-              </span>
-            </div>
-            <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-              Upload lecture videos (2 parallel queue) and attach multi-format study resources (PDF, Doc, Image, or External Link).
-            </p>
-          </div>
-        </div>
-
-        {onClose && (
+      {/* Studio Header Bar (Collapse button if onClose provided) */}
+      {onClose && (
+        <div className="flex justify-end pb-2">
           <button
             type="button"
             onClick={onClose}
-            className="self-end sm:self-center px-4 py-2 bg-surface hover:bg-surface-container text-on-surface text-xs font-bold rounded-xl border border-outline-variant flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+            className="px-4 py-2 bg-surface hover:bg-surface-container text-on-surface text-xs font-bold rounded-xl border border-outline-variant flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
             title="Collapse Media Manager"
           >
             <Icon name="expand_less" size={16} />
-            <span>Collapse Studio â–²</span>
+            <span>Collapse Studio ▲</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Control Strip & Live Queue Summary */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-indigo-900/50">
