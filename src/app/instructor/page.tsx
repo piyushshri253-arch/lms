@@ -467,7 +467,7 @@ function InstructorCoursesStudioInner() {
               className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md shadow-violet-600/20 transition-all cursor-pointer shrink-0"
             >
               <Icon name="add_circle" size={18} />
-              <span>+ Create New Course</span>
+              <span>Create New Course</span>
             </Link>
           </div>
         </div>
@@ -1075,7 +1075,7 @@ function InstructorCoursesStudioInner() {
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-violet-600/20 hover:shadow-lg transition-all cursor-pointer"
               >
                 <Icon name="add_circle" size={18} />
-                <span>+ Create New Course</span>
+                <span>Create New Course</span>
               </Link>
             </div>
           </div>
