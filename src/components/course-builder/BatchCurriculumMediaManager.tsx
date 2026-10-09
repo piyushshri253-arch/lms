@@ -829,10 +829,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                               isLastLesson ? 'rounded-b-2xl' : ''
                             } ${isDropdownActive ? 'z-30' : 'z-10'}`}
                           >
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 min-w-0">
                               {/* Left: Lecture Details & Editable Description */}
-                              <div className="space-y-1.5 flex-1 min-w-[240px] max-w-xl">
-                                <div className="flex items-center gap-2">
+                              <div className="space-y-1.5 flex-1 min-w-0 max-w-xl">
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
                                   <span className="font-mono text-xs font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10 shrink-0">
                                     {sIdx + 1}.{lIdx + 1}
                                   </span>
@@ -841,7 +841,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     value={lesson.title}
                                     onChange={(e) => updateLesson(section.id, lesson.id, { title: e.target.value })}
                                     placeholder={`Lecture ${sIdx + 1}.${lIdx + 1} Title`}
-                                    className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1"
+                                    className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1 min-w-[120px]"
                                   />
                                   <span
                                     className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 ${
@@ -859,7 +859,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       FREE PREVIEW
                                     </span>
                                   )}
-                                  <span className="flex items-center gap-1 text-[11px] text-outline font-medium ml-1">
+                                  <span className="flex items-center gap-1 text-[11px] text-outline font-medium ml-1 shrink-0">
                                     <Icon name="schedule" size={13} />
                                     {lesson.duration || '10:00'}
                                   </span>
@@ -867,10 +867,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                               </div>
 
                               {/* Right: Action Controls (Video, PDF, Quiz) */}
-                              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full justify-start lg:justify-end">
                                 {/* 1. VIDEO ACTION */}
                                 {isTaskUploading ? (
-                                  <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-800 rounded-xl flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-200">
+                                  <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-800 rounded-xl flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-200 shrink-0">
                                     <Icon name="sync" size={14} className="animate-spin text-blue-600" />
                                     <span>Uploading {task.progress}%</span>
                                     <button
@@ -882,7 +882,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     </button>
                                   </div>
                                 ) : isTaskQueued ? (
-                                  <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-xl flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200">
+                                  <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-xl flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200 shrink-0">
                                     <Icon name="hourglass_top" size={14} className="text-amber-600" />
                                     <span>Queued in Slot #{tasks.findIndex((t) => t.id === task.id) + 1}</span>
                                     <button
@@ -894,18 +894,18 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     </button>
                                   </div>
                                 ) : lesson.videoUrl ? (
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 shrink-0 max-w-full">
                                     {(() => {
                                       const vidName = getVideoFileName(lesson.videoUrl, lesson.videoFileName);
                                       return (
                                         <button
                                           type="button"
                                           onClick={() => setPreviewVideoUrl(lesson.videoUrl || '')}
-                                          className="max-w-[200px] sm:max-w-[240px] px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                                          className="max-w-[160px] sm:max-w-[200px] px-2.5 sm:px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
                                           title={`Video File: ${vidName}\nClick to preview video`}
                                         >
                                           <Icon name="play_circle" size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                          <span className="truncate max-w-[130px] text-left" title={vidName}>
+                                          <span className="truncate max-w-[90px] sm:max-w-[125px] text-left" title={vidName}>
                                             {vidName || 'Video Attached'}
                                           </span>
                                           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
@@ -914,7 +914,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     })()}
 
                                     <label
-                                      className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs cursor-pointer"
+                                      className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs cursor-pointer shrink-0"
                                       title="Replace video"
                                     >
                                       <Icon name="swap_horiz" size={15} />
@@ -932,7 +932,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </div>
                                 ) : (
                                   <label
-                                    className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                                    className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
                                     title="Upload video from PC or mobile"
                                   >
                                     <Icon name="videocam" size={15} />
@@ -952,12 +952,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
                                 {/* 2. RESOURCE DROPDOWN ACTION (PDF, DOC, IMAGE, EXTERNAL LINK) */}
                                 {uploadingPdfLessonId === lesson.id ? (
-                                  <div className="px-2.5 py-1.5 bg-surface-container border border-outline-variant rounded-xl flex items-center gap-1.5 text-xs text-on-surface-variant">
+                                  <div className="px-2.5 py-1.5 bg-surface-container border border-outline-variant rounded-xl flex items-center gap-1.5 text-xs text-on-surface-variant shrink-0">
                                     <Icon name="sync" size={14} className="animate-spin text-primary" />
                                     <span>Attaching Resource...</span>
                                   </div>
                                 ) : lesson.pdfUrl ? (
-                                  <div className="relative flex items-center gap-1">
+                                  <div className="relative flex items-center gap-1 shrink-0 max-w-full">
                                     {(() => {
                                       const resMeta = getResourceMeta(lesson.pdfUrl)!;
                                       const resName = getResourceFileName(lesson.pdfUrl, lesson.resourceFileName);
@@ -967,11 +967,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             href={lesson.pdfUrl}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className={`max-w-[190px] sm:max-w-[220px] px-2.5 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all hover:opacity-90 shadow-2xs ${resMeta.color}`}
+                                            className={`max-w-[150px] sm:max-w-[190px] px-2 sm:px-2.5 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all hover:opacity-90 shadow-2xs shrink-0 ${resMeta.color}`}
                                             title={`Resource File: ${resName}\nType: ${resMeta.label}\nClick to view / download`}
                                           >
                                             <Icon name={resMeta.icon} size={14} className="shrink-0" />
-                                            <span className="truncate max-w-[120px] text-left" title={resName}>
+                                            <span className="truncate max-w-[80px] sm:max-w-[110px] text-left" title={resName}>
                                               {resName || resMeta.label}
                                             </span>
                                             <span className="text-[10px] opacity-75 shrink-0">✓</span>
@@ -1147,7 +1147,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     )}
                                   </div>
                                 ) : (
-                                  <div className="relative">
+                                  <div className="relative shrink-0">
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -1155,7 +1155,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           prev === lesson.id ? null : lesson.id
                                         )
                                       }
-                                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all ${
+                                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all shrink-0 ${
                                         activeResourceDropdownLessonId === lesson.id
                                           ? 'bg-primary text-on-primary border-primary'
                                           : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
@@ -1290,7 +1290,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   onClick={() =>
                                     setActiveQuizLessonId((prev) => (prev === lesson.id ? null : lesson.id))
                                   }
-                                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all shrink-0 ${
                                     quizQuestionsCount > 0
                                       ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800'
                                       : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant shadow-2xs'
