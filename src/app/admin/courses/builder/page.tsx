@@ -56,7 +56,7 @@ const getDefaultCourseState = () => ({
   sections: [
     {
       id: `sec-${Date.now()}-1`,
-      title: 'Module 1: Foundations & Pedagogy Setup',
+      title: 'Foundations & Pedagogy Setup',
       description: 'Core pedagogical frameworks, active classroom strategies, and foundational orientation.',
       order: 1,
       lessons: [

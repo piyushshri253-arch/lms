@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { VideoUploadModal } from '@/components/media/VideoUploadModal';
 import { AiCourseGeneratorModal } from '@/components/ai/AiCourseGeneratorModal';
 import { useApp } from '@/context/AppContext';
+import { cleanModuleTitle, cleanLectureTitle, cleanQuizTitle } from '@/lib/course-excel';
 
 export interface QuizQuestion {
   id: string;
@@ -365,12 +366,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       const mNum = sections.length + sIdx + 1;
       return {
         id: `sec-${Date.now()}-${sIdx}`,
-        title: s.title || `Module ${mNum}`,
+        title: s.title ? cleanModuleTitle(s.title) : 'Overview & Fundamentals',
         description: s.description || '',
         order: mNum,
         lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
           id: `les-${Date.now()}-${sIdx}-${lIdx}`,
-          title: l.title || `Lecture ${lIdx + 1}: Lesson Topic`,
+          title: l.title ? cleanLectureTitle(l.title) : 'Lesson Topic',
           type: l.type || 'VIDEO',
           description: l.description || '',
           duration: l.duration || '10:00',
@@ -388,10 +389,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     e.preventDefault();
     if (!newSectionTitle.trim()) return;
 
+    const cleanedTitle = cleanModuleTitle(newSectionTitle.trim()) || newSectionTitle.trim();
+
     if (editingSectionId) {
       const updated = sections.map((s) =>
         s.id === editingSectionId
-          ? { ...s, title: newSectionTitle.trim(), description: newSectionDescription.trim() }
+          ? { ...s, title: cleanedTitle, description: newSectionDescription.trim() }
           : s
       );
       onChange(updated);
@@ -400,13 +403,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     } else {
       const newSec: BuilderSection = {
         id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        title: newSectionTitle.trim(),
+        title: cleanedTitle,
         description: newSectionDescription.trim(),
         order: sections.length + 1,
         lessons: [
           {
             id: `les-${Date.now()}-1`,
-            title: 'Introduction & Overview',
+            title: 'Welcome & Course Orientation',
             description: '',
             type: 'VIDEO',
             duration: '10:00',
@@ -419,7 +422,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         ]
       };
       onChange([...sections, newSec]);
-      showToast({ title: 'Module Added', description: `Created ${newSec.title}`, type: 'success' });
+      showToast({ title: 'Module Added', description: `Created Module ${newSec.order}: ${newSec.title}`, type: 'success' });
     }
 
     setNewSectionTitle('');
@@ -466,10 +469,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const nextQuizNum = totalQuizzesCount + 1;
     const quizTitle = `Quiz ${nextQuizNum}`;
 
-    const defaultTitle =
-      type === 'QUIZ'
-        ? quizTitle
-        : `Lecture ${nextLectureNum}`;
+    const defaultTitle = '';
 
     let defaultQuiz: QuizConfig | undefined;
     if (type === 'QUIZ') {
@@ -746,7 +746,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             type="button"
             onClick={() => {
               setEditingSectionId(null);
-              setNewSectionTitle(`Module ${sections.length + 1}: `);
+              setNewSectionTitle('');
               setNewSectionDescription('');
               setIsAddSectionOpen(true);
             }}
@@ -766,12 +766,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           </div>
           <h4 className="font-bold text-sm text-on-surface">Curriculum is currently empty</h4>
           <p className="text-xs text-on-surface-variant max-w-sm mx-auto">
-            Start building your course by adding your first module (e.g. &ldquo;Module 1: Getting Started&rdquo;).
+            Start building your course by adding your first module (e.g. &ldquo;Foundations &amp; Core Concepts&rdquo;).
           </p>
           <button
             type="button"
             onClick={() => {
-              setNewSectionTitle('Module 1: Foundations & Core Concepts');
+              setNewSectionTitle('Foundations & Core Concepts');
               setNewSectionDescription('');
               setIsAddSectionOpen(true);
             }}
@@ -825,7 +825,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           type="text"
                           value={section.title}
                           onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
-                          placeholder={`Module ${moduleNum} Title (e.g. Introduction & Foundations)`}
+                          onBlur={() => handleUpdateSectionField(section.id, 'title', cleanModuleTitle(section.title))}
+                          placeholder="Module Title (e.g. Foundations & Architecture)"
                           className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors shadow-2xs"
                         />
                       </div>
@@ -935,7 +936,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       onChange={(e) =>
                                         handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                       }
-                                      placeholder={`Quiz ${itemMeta.num} Title (e.g. Module ${moduleNum} Knowledge Test)`}
+                                      onBlur={() =>
+                                        handleUpdateLessonInline(section.id, les.id, { title: cleanQuizTitle(les.title) })
+                                      }
+                                      placeholder="Quiz Title (e.g. Knowledge Assessment)"
                                       className="w-full bg-white hover:bg-purple-50/50 focus:bg-white border border-purple-200 focus:border-purple-600 rounded px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none transition-colors"
                                     />
                                   </div>
@@ -1324,7 +1328,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     onChange={(e) =>
                                       handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                     }
-                                    placeholder={`Lecture ${itemMeta.num} Title`}
+                                    onBlur={() =>
+                                      handleUpdateLessonInline(section.id, les.id, { title: cleanLectureTitle(les.title) })
+                                    }
+                                    placeholder="Lecture Title (e.g. Introduction & Roadmap)"
                                     className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                   />
                                 </div>
@@ -1415,7 +1422,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
               type="button"
               onClick={() => {
                 setEditingSectionId(null);
-                setNewSectionTitle(`Module ${sections.length + 1}: `);
+                setNewSectionTitle('');
                 setNewSectionDescription('');
                 setIsAddSectionOpen(true);
               }}
@@ -1452,7 +1459,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                   required
                   value={newSectionTitle}
                   onChange={(e) => setNewSectionTitle(e.target.value)}
-                  placeholder={`e.g. Module ${activeModNum}: Foundations & Core Concepts`}
+                  placeholder="e.g. Foundations & Core Concepts"
                   className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-xs sm:text-sm text-on-surface focus:outline-none focus:border-primary font-bold"
                   autoFocus
                 />

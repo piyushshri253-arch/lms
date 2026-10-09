@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
@@ -10,6 +10,7 @@ import {
   LessonResourceItem,
   getLessonResourcesList
 } from './CourseCurriculumStep';
+import { cleanModuleTitle, cleanLectureTitle } from '@/lib/course-excel';
 
 export interface VideoQueueTask {
   id: string;
@@ -964,7 +965,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-extrabold text-sm text-on-surface">
-                          {section.title}
+                          Module {sIdx + 1}: {cleanModuleTitle(section.title) || `Module ${sIdx + 1}`}
                         </h3>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant font-bold">
                           {secLessons.length} Lectures
@@ -1022,7 +1023,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     type="text"
                                     value={lesson.title}
                                     onChange={(e) => updateLesson(section.id, lesson.id, { title: e.target.value })}
-                                    placeholder={`Lecture ${globalLectureNum} Title`}
+                                    onBlur={() => updateLesson(section.id, lesson.id, { title: cleanLectureTitle(lesson.title) })}
+                                    placeholder="Lecture Title (e.g. Course Orientation & Roadmap)"
                                     className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1 min-w-[120px]"
                                   />
                                   <span

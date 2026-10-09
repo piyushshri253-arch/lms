@@ -21,6 +21,57 @@ export interface ParsedCourseData {
 }
 
 /**
+ * Strips redundant module prefixes like "Module 1:", "Module 1 -", "Section 1:", "Module 01."
+ * so that only the pure title enters the text input field.
+ */
+export function cleanModuleTitle(raw?: string | null): string {
+  if (!raw) return '';
+  let str = String(raw).trim();
+  // Strip leading "Module 1:", "Section 1 -", "Module 01.", "Module 1", "Section 1"
+  str = str.replace(/^(module|section)\s*\d+[\s:\-\.]*/i, '').trim();
+  // Strip leading numbers like "1: ", "1 - ", "1. "
+  str = str.replace(/^(\d+(\.\d+)*)[\s:\-\.]+\s*/, '').trim();
+  // If only a lone number or single word "Module" was left, clear it
+  str = str.replace(/^\d+(\.\d+)*$/, '').trim();
+  str = str.replace(/^(module|section)$/i, '').trim();
+  return str;
+}
+
+/**
+ * Strips redundant lecture prefixes like "1.1 ", "Lecture 1:", "Lecture 1 -", "01. ", "Lesson 1:"
+ * so that only the pure title enters the text input field.
+ */
+export function cleanLectureTitle(raw?: string | null): string {
+  if (!raw) return '';
+  let str = String(raw).trim();
+  // Strip leading "Lecture 1:", "Lesson 1 -", "Lecture 01.", "Lecture 1", "Lesson 1"
+  str = str.replace(/^(lecture|lesson)\s*\d+[\s:\-\.]*/i, '').trim();
+  // Strip leading numbering like "1.1: ", "1.1 - ", "1.1.1 ", "1.1 ", "01. ", "1 - ", "1: ", "1. "
+  str = str.replace(/^(\d+(\.\d+)*)[\s:\-\.]+\s*/, '').trim();
+  // If only a lone number or decimal like "1" or "1.1" was left, clear it
+  str = str.replace(/^\d+(\.\d+)*$/, '').trim();
+  str = str.replace(/^(lecture|lesson)$/i, '').trim();
+  return str;
+}
+
+/**
+ * Strips redundant quiz prefixes like "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
+ * so that only the pure title enters the text input field.
+ */
+export function cleanQuizTitle(raw?: string | null): string {
+  if (!raw) return '';
+  let str = String(raw).trim();
+  // Strip leading "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
+  str = str.replace(/^(quiz|assessment)\s*\d+[\s:\-\.]*/i, '').trim();
+  // Strip leading numbers like "1: ", "1 - ", "1. "
+  str = str.replace(/^(\d+(\.\d+)*)[\s:\-\.]+\s*/, '').trim();
+  // If only a lone number or "Quiz" was left, clear it
+  str = str.replace(/^\d+(\.\d+)*$/, '').trim();
+  str = str.replace(/^(quiz|assessment)$/i, '').trim();
+  return str;
+}
+
+/**
  * Generates and downloads the official Course Upload Template (.xlsx)
  */
 export function downloadCourseExcelTemplate() {
@@ -132,50 +183,50 @@ export function downloadCourseExcelTemplate() {
   // 2. Curriculum Syllabus Sheet Data (Module 1 with lectures under it without repeating module columns or descriptions)
   const curriculumRows = [
     {
-      'Module Title': 'Module 1: Foundations of Web Architecture & Modern AI',
-      'Lecture Title': '1.1 Course Orientation & Modern Tech Stack Roadmap',
+      'Module Title': 'Foundations of Web Architecture & Modern AI',
+      'Lecture Title': 'Course Orientation & Modern Tech Stack Roadmap',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '08:30',
       'Is Preview Free (Yes/No)': 'Yes'
     },
     {
       'Module Title': '', // Left blank on purpose - automatically grouped under Module 1
-      'Lecture Title': '1.2 Setting Up VS Code, Git, and Modern Terminal Workflow',
+      'Lecture Title': 'Setting Up VS Code, Git, and Modern Terminal Workflow',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '14:15',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': '',
-      'Lecture Title': '1.3 Understanding Modern JavaScript & DOM Architecture',
+      'Lecture Title': 'Understanding Modern JavaScript & DOM Architecture',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '12:00',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
-      'Module Title': 'Module 2: Frontend Engineering with Next.js & React 19',
-      'Lecture Title': '2.1 Server Components & Dynamic Routing in Next.js',
+      'Module Title': 'Frontend Engineering with Next.js & React 19',
+      'Lecture Title': 'Server Components & Dynamic Routing in Next.js',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '18:45',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': '',
-      'Lecture Title': '2.2 Building Responsive Master Layouts with Tailwind CSS',
+      'Lecture Title': 'Building Responsive Master Layouts with Tailwind CSS',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '22:10',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
-      'Module Title': 'Module 3: Backend APIs & Database Architecture',
-      'Lecture Title': '3.1 Relational Database Modeling with PostgreSQL & Prisma',
+      'Module Title': 'Backend APIs & Database Architecture',
+      'Lecture Title': 'Relational Database Modeling with PostgreSQL & Prisma',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '25:30',
       'Is Preview Free (Yes/No)': 'No'
     },
     {
       'Module Title': '',
-      'Lecture Title': '3.2 Building Secure Authentication & Role Permissions',
+      'Lecture Title': 'Building Secure Authentication & Role Permissions',
       'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
       'Duration (mm:ss)': '28:15',
       'Is Preview Free (Yes/No)': 'No'
@@ -196,7 +247,7 @@ export function downloadCourseExcelTemplate() {
   const quizRows = [
     {
       'Module (e.g. Module 1)': 'Module 1',
-      'Quiz Title': 'Quiz 1',
+      'Quiz Title': 'Web Architecture & Modern AI Assessment',
       'Question Text': 'What protocol provides encrypted communication over the World Wide Web?',
       'Option A': 'HTTP',
       'Option B': 'HTTPS',
@@ -220,7 +271,7 @@ export function downloadCourseExcelTemplate() {
     },
     {
       'Module (e.g. Module 1)': 'Module 2',
-      'Quiz Title': 'Quiz 2',
+      'Quiz Title': 'Next.js & React 19 Component Test',
       'Question Text': 'In React, which built-in hook is used to declare and manage local component state?',
       'Option A': 'useEffect',
       'Option B': 'useState',
@@ -244,7 +295,7 @@ export function downloadCourseExcelTemplate() {
     },
     {
       'Module (e.g. Module 1)': 'Module 3',
-      'Quiz Title': 'Quiz 3',
+      'Quiz Title': 'Database & API Architecture Quiz',
       'Question Text': 'Which database language is primarily used for defining and querying relational databases?',
       'Option A': 'HTML',
       'Option B': 'CSS',
@@ -271,7 +322,7 @@ export function downloadCourseExcelTemplate() {
   const wsQuizzes = XLSX.utils.json_to_sheet(quizRows);
   wsQuizzes['!cols'] = [
     { wch: 24 }, // Module
-    { wch: 20 }, // Quiz Title
+    { wch: 28 }, // Quiz Title
     { wch: 75 }, // Question Text
     { wch: 28 }, // Option A
     { wch: 28 }, // Option B
@@ -291,11 +342,11 @@ export function downloadCourseExcelTemplate() {
     },
     {
       'Section': 'How to Fill Curriculum Modules & Lectures',
-      'Instructions': 'Type Module Title once (e.g. Module 1: Foundations). All subsequent lecture rows left blank under it will automatically be placed inside that same module! No need to repeat the module name. Enter Lecture Title, Type (VIDEO/PDF/QUIZ), Duration (mm:ss), and Is Preview Free.'
+      'Instructions': 'Type clean Module Title (e.g. Foundations of Web Architecture) and clean Lecture Title (e.g. Course Orientation). Do not add "Module 1:" or "Lecture 1:" numbering - the platform automatically labels "Module 1", "Module 2" and "Lecture 1", "Lecture 2" continuous numbering! All subsequent lecture rows left blank under a module automatically belong to that module.'
     },
     {
       'Section': 'How to Fill Quizzes & MCQs',
-      'Instructions': 'In "Quizzes & MCQs" tab, type Module (e.g. Module 1) and Quiz Title (e.g. Quiz 1) ONCE on the first row of that quiz. For all following questions in that quiz, leave Module and Quiz Title BLANK! They will automatically group inside that same quiz. Provide Question Text, Options A-D, Correct Option (A/B/C/D), Explanation, and Passing Score.'
+      'Instructions': 'In "Quizzes & MCQs" tab, enter Module (e.g. Module 1) and Quiz Title (e.g. Web Architecture Assessment) ONCE on the first row of that quiz. Do not add "Quiz 1:" prefix - the platform automatically numbers "Quiz 1", "Quiz 2"! For all following questions in that quiz, leave Module and Quiz Title BLANK! They will automatically group inside that same quiz. Provide Question Text, Options A-D, Correct Option (A/B/C/D), Explanation, and Passing Score.'
     },
     {
       'Section': 'Videos, Resources & Thumbnails',
@@ -516,7 +567,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
 
         const rawModTitle = findField(['module title', 'module name', 'module', 'section title', 'section name']);
         const rawModDesc = findField(['module description', 'module desc', 'section description', 'section desc'], 'module desc');
-        const lessonTitle = findField(['lecture title', 'lesson title', 'lecture name', 'lesson name', 'lecture', 'lesson'], 'title', 'module');
+        const rawLessonTitle = findField(['lecture title', 'lesson title', 'lecture name', 'lesson name', 'lecture', 'lesson'], 'title', 'module');
         const lessonDesc = findField(
           ['lecture description', 'lesson description', 'lecture desc', 'lesson desc', 'lecture summary', 'lesson summary'],
           'desc',
@@ -528,12 +579,20 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         const isFree = /yes|true|1|free/i.test(isFreeRaw);
 
         // Skip completely empty rows
-        if (!rawModTitle && !rawModDesc && !lessonTitle && !lessonDesc) return;
+        if (!rawModTitle && !rawModDesc && !rawLessonTitle && !lessonDesc) return;
+
+        const cleanedModTitle = rawModTitle ? cleanModuleTitle(rawModTitle) : '';
+        const cleanedLessonTitle = rawLessonTitle ? cleanLectureTitle(rawLessonTitle) : '';
 
         // 1. Module Assignment (User does not have to repeat module title on every row):
         if (rawModTitle) {
-          // Check if this module already exists by title
-          const existing = sections.find((s) => s.title.toLowerCase().trim() === rawModTitle.toLowerCase().trim());
+          // Check if this module already exists by title or raw key
+          const existing = sections.find((s) => {
+            if (cleanedModTitle && s.title.toLowerCase().trim() === cleanedModTitle.toLowerCase().trim()) return true;
+            if ((s as any)._rawModKey && (s as any)._rawModKey === rawModTitle.toLowerCase().trim()) return true;
+            return false;
+          });
+
           if (existing) {
             currentSection = existing;
             if (!currentSection.description && rawModDesc) {
@@ -542,11 +601,12 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           } else {
             currentSection = {
               id: `sec-${Date.now()}-${sections.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-              title: rawModTitle,
+              title: cleanedModTitle,
               description: rawModDesc || '',
               order: sections.length + 1,
               lessons: []
             };
+            (currentSection as any)._rawModKey = rawModTitle.toLowerCase().trim();
             sections.push(currentSection);
           }
         } else {
@@ -554,7 +614,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           if (!currentSection) {
             currentSection = {
               id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
-              title: 'Module 1: Foundations & Orientation',
+              title: 'Foundations & Orientation',
               description: rawModDesc || '',
               order: 1,
               lessons: []
@@ -566,9 +626,11 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         }
 
         // 2. Lecture / Lesson Creation:
-        if (lessonTitle || lessonDesc || durationStr) {
-          const isQuiz = /quiz/i.test(lessonTypeRaw) || /quiz/i.test(lessonTitle);
-          const finalLessonTitle = lessonTitle || (isQuiz ? `Quiz ${currentSection.order}` : `Lecture ${currentSection.lessons.length + 1}`);
+        if (rawLessonTitle || lessonDesc || durationStr) {
+          const isQuiz = /quiz/i.test(lessonTypeRaw) || /quiz/i.test(rawLessonTitle);
+          const finalLessonTitle = isQuiz
+            ? (cleanQuizTitle(rawLessonTitle) || '')
+            : cleanedLessonTitle;
           const durationSeconds = parseDurationToSeconds(durationStr);
           const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' = isQuiz
             ? 'QUIZ'
@@ -596,6 +658,10 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             subLessons: []
           });
         }
+      });
+
+      sections.forEach((s) => {
+        delete (s as any)._rawModKey;
       });
 
       if (sections.length > 0) {
@@ -675,9 +741,10 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           }
           if (!foundSection) {
             const newModNum = sections.length + 1;
+            const cleanedSecTitle = cleanModuleTitle(moduleIdentifier);
             foundSection = {
               id: `sec-${Date.now()}-${newModNum}-${Math.random().toString(36).substring(2, 6)}`,
-              title: moduleIdentifier.toLowerCase().includes('module') ? moduleIdentifier : `Module ${newModNum}: ${moduleIdentifier}`,
+              title: cleanedSecTitle,
               description: '',
               order: newModNum,
               lessons: []
@@ -698,7 +765,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             } else {
               activeSection = {
                 id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
-                title: 'Module 1: Foundations & Orientation',
+                title: 'Foundations & Orientation',
                 description: '',
                 order: 1,
                 lessons: []
@@ -709,13 +776,17 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         }
 
         const secOrder = activeSection.order || 1;
+        const cleanedQuizTitle = quizTitleRaw ? cleanQuizTitle(quizTitleRaw) : '';
 
         // 2. Resolve Target Quiz Lesson inside activeSection:
         if (quizTitleRaw) {
           // Explicit Quiz Title given on this row:
-          let foundQuiz = activeSection.lessons.find(
-            (l) => l.type === 'QUIZ' && l.title.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()
-          );
+          let foundQuiz = activeSection.lessons.find((l) => {
+            if (l.type !== 'QUIZ') return false;
+            if (cleanedQuizTitle && l.title.toLowerCase().trim() === cleanedQuizTitle.toLowerCase().trim()) return true;
+            if (l.title.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()) return true;
+            return false;
+          });
 
           if (!foundQuiz) {
             // Check if there is an empty QUIZ lesson created by curriculum with no questions yet
@@ -723,14 +794,14 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
               (l) => l.type === 'QUIZ' && (!l.quizData || (l.quizData as any).questions?.length === 0)
             );
             if (foundQuiz) {
-              foundQuiz.title = quizTitleRaw;
+              foundQuiz.title = cleanedQuizTitle;
             }
           }
 
           if (!foundQuiz) {
             foundQuiz = {
               id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-              title: quizTitleRaw,
+              title: cleanedQuizTitle,
               description: `Assessment for Module ${secOrder}`,
               type: 'QUIZ',
               duration: '10:00',
@@ -756,7 +827,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             if (!activeQuizLesson) {
               activeQuizLesson = {
                 id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-                title: `Quiz ${secOrder}`,
+                title: '',
                 description: `Assessment for Module ${secOrder}`,
                 type: 'QUIZ',
                 duration: '10:00',
