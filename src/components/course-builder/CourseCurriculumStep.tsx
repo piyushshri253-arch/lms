@@ -1790,9 +1790,20 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
 
           {formData.videoUrl && !formData.videoUrl.startsWith('blob:') && (
             <div className="pt-1">
-              <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mb-1.5">
-                <Icon name="check_circle" size={14} />
-                <span>Video Ready for Playback</span>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                  <Icon name="check_circle" size={14} />
+                  <span>Video Ready for Playback</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, videoUrl: '', videoFileName: '', clearVideo: true }))}
+                  className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 hover:underline cursor-pointer"
+                  title="Remove video"
+                >
+                  <Icon name="close" size={13} />
+                  <span>Remove Video</span>
+                </button>
               </div>
               {(formData.videoUrl.startsWith('data:') ||
                 formData.videoUrl.startsWith('/uploads/') ||

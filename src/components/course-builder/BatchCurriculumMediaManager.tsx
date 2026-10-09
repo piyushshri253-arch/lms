@@ -537,6 +537,28 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     });
   };
 
+  // Remove attached video from a lecture so user can upload a new one
+  const handleRemoveVideo = (sectionId: string, lessonId: string, lessonTitle?: string) => {
+    // If there is an active/queued upload task for this lesson, cancel it
+    const activeTask = tasks.find((t) => t.lessonId === lessonId);
+    if (activeTask) {
+      cancelTask(activeTask.id);
+    }
+
+    updateLesson(sectionId, lessonId, {
+      videoUrl: '',
+      videoFileName: '',
+      clearVideo: true,
+      removeVideo: true
+    } as any);
+
+    showToast({
+      title: 'Video Removed',
+      description: `Video removed from "${lessonTitle || 'lecture'}". You can now upload a new video.`,
+      type: 'info'
+    });
+  };
+
   // Helper to detect resource category, badge styling, and icon
   const getResourceMeta = (url?: string, explicitType?: string) => {
     if (explicitType === 'PDF') {
@@ -1087,6 +1109,15 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         className="hidden"
                                       />
                                     </label>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
+                                      className="p-1.5 bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-xl text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
+                                      title={`Remove video from "${lesson.title}" so you can upload a new one`}
+                                    >
+                                      <Icon name="close" size={15} />
+                                    </button>
                                   </div>
                                 ) : (
                                   <label

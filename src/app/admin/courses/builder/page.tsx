@@ -488,7 +488,9 @@ function CourseBuilderContent() {
             resourceFileName: les.resourceFileName,
             resourcesList: les.resourcesList,
             pdfUrl: les.pdfUrl,
-            fileUrl: les.fileUrl
+            fileUrl: les.fileUrl,
+            clearVideo: (les as any).clearVideo || (!les.videoUrl ? true : undefined),
+            removeVideo: (les as any).removeVideo || (!les.videoUrl ? true : undefined)
           }))
         }))
       };
@@ -587,7 +589,8 @@ function CourseBuilderContent() {
               // Local section and lesson lookup to preserve any local videoUrl or resources that were just attached
               const localSec = (currentState.sections || []).find((sec) => sec.id === s.id) || currentState.sections?.[sIdx];
               const localLes = localSec?.lessons?.find((les) => les.id === l.id) || localSec?.lessons?.[lIdx];
-              const resolvedVideo = l.videoUrl || localLes?.videoUrl || '';
+              const isVideoExplicitlyCleared = Boolean((localLes as any)?.clearVideo || (localLes as any)?.removeVideo || localLes?.videoUrl === '');
+              const resolvedVideo = isVideoExplicitlyCleared ? '' : (l.videoUrl || localLes?.videoUrl || '');
               const resolvedPdf = l.pdfUrl || localLes?.pdfUrl || '';
               const resolvedFile = l.fileUrl || localLes?.fileUrl || '';
 
@@ -598,7 +601,7 @@ function CourseBuilderContent() {
               const subLessons = Array.isArray(parsedRes)
                 ? parsedRes
                 : (parsedRes?.subLessons || localLes?.subLessons || []);
-              const videoFileName = localLes?.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || l.videoFileName;
+              const videoFileName = isVideoExplicitlyCleared ? '' : (localLes?.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || l.videoFileName);
               const resourceFileName = localLes?.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || l.resourceFileName;
 
               // Server resources list
