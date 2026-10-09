@@ -88,43 +88,18 @@ export async function POST(req: NextRequest) {
       const safeFilename = `${safeRandomId}${ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
 
-      let publicVideoUrl = `/uploads/videos/${safeFilename}`;
+      const publicVideoUrl = `/uploads/videos/${safeFilename}`;
 
       try {
         const uploadDir = ensureVideoUploadDir();
         const filePath = path.join(uploadDir, safeFilename);
         await fs.promises.writeFile(filePath, buffer);
       } catch {
-        // On Vercel serverless, public/ is read-only (EROFS). Write to /tmp and return inline data URL if <= 3.5MB
+        // On Vercel serverless, public/ is read-only (EROFS). Write to /tmp and our /uploads/videos/[filename] route streams it
         try {
           const tmpPath = path.join(os.tmpdir(), safeFilename);
           await fs.promises.writeFile(tmpPath, buffer);
         } catch {}
-
-        if (buffer.length <= 3.8 * 1024 * 1024) {
-          const mime =
-            file.type ||
-            (ext === '.pdf'
-              ? 'application/pdf'
-              : ext === '.doc'
-              ? 'application/msword'
-              : ext === '.docx'
-              ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-              : ext === '.png'
-              ? 'image/png'
-              : ext === '.jpg' || ext === '.jpeg'
-              ? 'image/jpeg'
-              : ext === '.webp'
-              ? 'image/webp'
-              : ext === '.svg'
-              ? 'image/svg+xml'
-              : ext === '.mov'
-              ? 'video/quicktime'
-              : ext === '.webm'
-              ? 'video/webm'
-              : 'video/mp4');
-          publicVideoUrl = `data:${mime};base64,${buffer.toString('base64')}`;
-        }
       }
 
       const assetName = customTitle || file.name.replace(ext, '');
@@ -150,12 +125,21 @@ export async function POST(req: NextRequest) {
 
         if (existingLesson) {
           validLessonId = existingLesson.id;
-          if (user.role === 'INSTRUCTOR' && existingLesson.section.course.instructorId === user.id) {
+          const isAllowed =
+            user.role === 'ADMIN' ||
+            user.role === 'SUPER_ADMIN' ||
+            user.role === 'LMS_ADMIN' ||
+            (user.role === 'INSTRUCTOR' && existingLesson.section.course.instructorId === user.id);
+
+          if (isAllowed) {
             await prisma.lesson
               .update({
                 where: { id: existingLesson.id },
                 data: {
-                  videoUrl: isVideoFile ? (publicVideoUrl.startsWith('data:') ? undefined : publicVideoUrl) : undefined,
+                  videoUrl: isVideoFile ? publicVideoUrl : undefined,
+                  pdfUrl: isDocFile ? publicVideoUrl : undefined,
+                  fileUrl: !isVideoFile && !isDocFile ? publicVideoUrl : undefined,
+                  type: isVideoFile ? 'VIDEO' : isDocFile ? 'PDF' : undefined,
                   duration: durationText,
                   durationSeconds
                 }
@@ -170,7 +154,7 @@ export async function POST(req: NextRequest) {
         mediaAsset = await prisma.mediaAsset.create({
           data: {
             name: assetName,
-            url: publicVideoUrl.startsWith('data:') ? `/uploads/videos/${safeFilename}` : publicVideoUrl,
+            url: publicVideoUrl,
             type: isImageFile ? 'IMAGE' : isDocFile ? 'DOCUMENT' : 'VIDEO',
             provider: 'DIRECT_UPLOAD',
             format: ext.replace('.', ''),

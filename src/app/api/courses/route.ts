@@ -327,7 +327,12 @@ export async function POST(request: Request) {
               ? JSON.stringify(les.subLessons)
               : '[]';
 
-            const cleanVideoUrl = les.videoUrl && !les.videoUrl.startsWith('blob:') ? les.videoUrl : null;
+            const cleanVideoUrl =
+              les.videoUrl &&
+              !les.videoUrl.startsWith('blob:') &&
+              !les.videoUrl.startsWith('data:')
+                ? les.videoUrl
+                : null;
             let lesType = les.type || 'VIDEO';
             if (lesType === 'VIDEO' && !cleanVideoUrl) {
               if (quizDataStr) {

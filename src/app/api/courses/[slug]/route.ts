@@ -367,8 +367,12 @@ export async function PUT(
     let body: any = {};
     try {
       body = await request.json();
-    } catch {
-      body = {};
+    } catch (err: any) {
+      console.warn('PUT /api/courses/[slug] - Failed to parse request JSON:', err?.message);
+      return NextResponse.json(
+        { error: 'Payload too large or malformed. Please ensure large media files are uploaded via the media studio.' },
+        { status: 413 }
+      );
     }
 
     const course = await prisma.course.findFirst({
@@ -710,7 +714,40 @@ export async function PUT(
               : undefined;
 
             const existingLesson = (section.lessons || []).find((l) => l.id === lesData.id);
-            const cleanVideoUrl = lesData.videoUrl && !lesData.videoUrl.startsWith('blob:') ? lesData.videoUrl : null;
+
+            // Clean URLs: ignore blob URLs and ignore bulky data: URLs (prevent payload bloat)
+            let cleanVideoUrl =
+              lesData.videoUrl &&
+              !lesData.videoUrl.startsWith('blob:') &&
+              !lesData.videoUrl.startsWith('data:')
+                ? lesData.videoUrl
+                : null;
+
+            // Preserve existing DB video if incoming payload didn't provide one, unless explicitly instructed to clear
+            if (!cleanVideoUrl && existingLesson?.videoUrl && !lesData.clearVideo && !lesData.removeVideo) {
+              cleanVideoUrl = existingLesson.videoUrl;
+            }
+
+            let cleanPdfUrl =
+              lesData.pdfUrl &&
+              !lesData.pdfUrl.startsWith('blob:') &&
+              !lesData.pdfUrl.startsWith('data:')
+                ? lesData.pdfUrl
+                : null;
+            if (!cleanPdfUrl && existingLesson?.pdfUrl && !lesData.clearPdf && !lesData.removePdf) {
+              cleanPdfUrl = existingLesson.pdfUrl;
+            }
+
+            let cleanFileUrl =
+              lesData.fileUrl &&
+              !lesData.fileUrl.startsWith('blob:') &&
+              !lesData.fileUrl.startsWith('data:')
+                ? lesData.fileUrl
+                : null;
+            if (!cleanFileUrl && existingLesson?.fileUrl && !lesData.clearFile && !lesData.removeFile) {
+              cleanFileUrl = existingLesson.fileUrl;
+            }
+
             let lesType = lesData.type || 'VIDEO';
             if (lesType === 'VIDEO' && !cleanVideoUrl) {
               if (quizDataStr) {
@@ -721,7 +758,7 @@ export async function PUT(
               }
               if (lesType === 'VIDEO' && lesData.content && lesData.content.trim().length > 0) {
                 lesType = 'TEXT';
-              } else if (lesType === 'VIDEO' && lesData.pdfUrl) {
+              } else if (lesType === 'VIDEO' && cleanPdfUrl) {
                 lesType = 'PDF';
               }
             }
@@ -734,13 +771,13 @@ export async function PUT(
                   description: lesData.description !== undefined ? lesData.description : undefined,
                   type: lesType,
                   content: lesData.content !== undefined ? lesData.content : undefined,
-                  videoUrl: cleanVideoUrl !== undefined ? cleanVideoUrl : undefined,
-                  pdfUrl: lesData.pdfUrl !== undefined ? lesData.pdfUrl : undefined,
-                  fileUrl: lesData.fileUrl !== undefined ? lesData.fileUrl : undefined,
+                  videoUrl: cleanVideoUrl !== undefined ? cleanVideoUrl : (lesData.clearVideo ? null : existingLesson.videoUrl),
+                  pdfUrl: cleanPdfUrl !== undefined ? cleanPdfUrl : undefined,
+                  fileUrl: cleanFileUrl !== undefined ? cleanFileUrl : undefined,
                   quizData: quizDataStr,
                   resources: subLessonsStr,
-                  duration: lesData.duration || '10:00',
-                  durationSeconds: lesData.durationSeconds || 600,
+                  duration: lesData.duration || existingLesson.duration || '10:00',
+                  durationSeconds: lesData.durationSeconds || existingLesson.durationSeconds || 600,
                   isFree: lesData.isFree !== undefined ? !!lesData.isFree : undefined,
                   isPublished: lesData.isPublished !== undefined ? lesData.isPublished : undefined,
                   order: lesData.order || lIdx + 1
@@ -756,8 +793,8 @@ export async function PUT(
                   type: lesType,
                   content: lesData.content || null,
                   videoUrl: cleanVideoUrl || null,
-                  pdfUrl: lesData.pdfUrl || null,
-                  fileUrl: lesData.fileUrl || null,
+                  pdfUrl: cleanPdfUrl || null,
+                  fileUrl: cleanFileUrl || null,
                   quizData: quizDataStr,
                   resources: subLessonsStr || '[]',
                   duration: lesData.duration || '10:00',

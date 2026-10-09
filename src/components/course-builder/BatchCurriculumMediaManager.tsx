@@ -47,6 +47,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const [tasks, setTasks] = useState<VideoQueueTask[]>([]);
   const tasksRef = useRef<VideoQueueTask[]>([]);
   tasksRef.current = tasks;
+  const sectionsRef = useRef<BuilderSection[]>(sections);
+  sectionsRef.current = sections;
 
   // Single lecture upload states
   const [uploadingPdfLessonId, setUploadingPdfLessonId] = useState<string | null>(null);
@@ -230,22 +232,43 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     }
   };
 
-  // Helper to update a lesson inside sections
+  // Helper to update a lesson inside sections resiliently
   const updateLesson = (
     sectionId: string,
     lessonId: string,
     updates: Partial<BuilderLesson>
   ) => {
-    const updated = (sections || []).map((sec) => {
-      if (sec.id !== sectionId) return sec;
+    const currentSections = sectionsRef.current || sections || [];
+    let matched = false;
+
+    let updated = currentSections.map((sec, sIdx) => {
+      const isSecMatch = sec.id === sectionId || `sec-${sIdx}` === sectionId;
+      if (!isSecMatch) return sec;
       return {
         ...sec,
-        lessons: (sec.lessons || []).map((les) => {
-          if (les.id !== lessonId) return les;
+        lessons: (sec.lessons || []).map((les, lIdx) => {
+          const isLesMatch = les.id === lessonId || `les-${lIdx}` === lessonId;
+          if (!isLesMatch) return les;
+          matched = true;
           return { ...les, ...updates };
         })
       };
     });
+
+    // Fallback: If section ID changed due to background auto-save, search across all sections for lessonId
+    if (!matched) {
+      updated = currentSections.map((sec) => ({
+        ...sec,
+        lessons: (sec.lessons || []).map((les) => {
+          if (les.id === lessonId) {
+            matched = true;
+            return { ...les, ...updates };
+          }
+          return les;
+        })
+      }));
+    }
+
     onChangeSections(updated);
   };
 

@@ -439,7 +439,14 @@ function CourseBuilderContent() {
         seoDescription: courseState.seoDescription,
         accessType: courseState.accessType,
         accessDays: courseState.accessDays,
-        sections: courseState.sections
+        sections: (courseState.sections || []).map((sec) => ({
+          ...sec,
+          lessons: (sec.lessons || []).map((les) => ({
+            ...les,
+            // Prevent bulky base64 data URLs from blowing up request payload
+            videoUrl: les.videoUrl?.startsWith('data:') ? '' : les.videoUrl
+          }))
+        }))
       };
 
       let responseData: any = null;
@@ -529,30 +536,39 @@ function CourseBuilderContent() {
             title: s.title || `Module ${sIdx + 1}`,
             description: s.description || '',
             order: s.order || sIdx + 1,
-            lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
-              id: l.id,
-              title: l.title || `Lesson ${lIdx + 1}`,
-              description: l.description || '',
-              type: l.type || 'VIDEO',
-              content: l.content || '',
-              videoUrl: l.videoUrl || '',
-              pdfUrl: l.pdfUrl || '',
-              fileUrl: l.fileUrl || '',
-              quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
-              subLessons: (() => {
-                try {
-                  const p = JSON.parse(l.resources || '[]');
-                  return Array.isArray(p) ? p : p?.subLessons || [];
-                } catch {
-                  return [];
-                }
-              })(),
-              duration: l.duration || '10:00',
-              durationSeconds: l.durationSeconds || 600,
-              isFree: Boolean(l.isFree),
-              isPublished: l.isPublished !== false,
-              order: l.order || lIdx + 1
-            }))
+            lessons: (s.lessons || []).map((l: any, lIdx: number) => {
+              // Local section and lesson lookup to preserve any local videoUrl that was just attached
+              const localSec = (courseState.sections || []).find((sec) => sec.id === s.id);
+              const localLes = localSec?.lessons?.find((les) => les.id === l.id);
+              const resolvedVideo = l.videoUrl || localLes?.videoUrl || '';
+              const resolvedPdf = l.pdfUrl || localLes?.pdfUrl || '';
+              const resolvedFile = l.fileUrl || localLes?.fileUrl || '';
+
+              return {
+                id: l.id,
+                title: l.title || `Lesson ${lIdx + 1}`,
+                description: l.description || '',
+                type: l.type || 'VIDEO',
+                content: l.content || '',
+                videoUrl: resolvedVideo,
+                pdfUrl: resolvedPdf,
+                fileUrl: resolvedFile,
+                quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
+                subLessons: (() => {
+                  try {
+                    const p = JSON.parse(l.resources || '[]');
+                    return Array.isArray(p) ? p : p?.subLessons || [];
+                  } catch {
+                    return [];
+                  }
+                })(),
+                duration: l.duration || localLes?.duration || '10:00',
+                durationSeconds: l.durationSeconds || localLes?.durationSeconds || 600,
+                isFree: Boolean(l.isFree),
+                isPublished: l.isPublished !== false,
+                order: l.order || lIdx + 1
+              };
+            })
           }));
 
           const updatedState = {
