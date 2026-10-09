@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
@@ -336,7 +336,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     }[] = [];
 
     (sections || []).forEach((s) => {
-      (s.lessons || []).forEach((l) => {
+      (s.lessons || []).filter((l) => l.type !== 'QUIZ').forEach((l) => {
         allLessonsList.push({
           sectionId: s.id,
           lessonId: l.id,
@@ -642,17 +642,35 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     return 'Attached Resource';
   };
 
-  // Stats calculation
-  const totalLessons = (sections || []).reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
+  // Global continuous lecture numbering map across all modules (excluding quizzes)
+  const globalLectureNumberMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    let count = 0;
+    (sections || []).forEach((sec) => {
+      (sec.lessons || []).forEach((les) => {
+        if (les.type !== 'QUIZ') {
+          count += 1;
+          map[les.id] = count;
+        }
+      });
+    });
+    return map;
+  }, [sections]);
+
+  // Stats calculation (Excludes quizzes - quizzes are created and edited strictly in Course Curriculum)
+  const totalLessons = (sections || []).reduce(
+    (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ').length,
+    0
+  );
   const totalWithVideo = (sections || []).reduce(
-    (acc, s) => acc + (s.lessons || []).filter((l) => !!l.videoUrl).length,
+    (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ' && !!l.videoUrl).length,
     0
   );
   const totalWithPdf = (sections || []).reduce(
     (acc, s) =>
       acc +
       (s.lessons || []).filter(
-        (l) => (l.resourcesList && l.resourcesList.length > 0) || !!(l.pdfUrl || l.fileUrl)
+        (l) => l.type !== 'QUIZ' && ((l.resourcesList && l.resourcesList.length > 0) || !!(l.pdfUrl || l.fileUrl))
       ).length,
     0
   );
@@ -677,14 +695,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-black text-on-surface">
-                Curriculum Media &amp; Video Queue Studio âš¡
+                Curriculum Media &amp; Video Queue Studio ⚡
               </h2>
               <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
                 Inline Studio
               </span>
             </div>
             <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-              Upload lecture videos (2 parallel queue), attach multi-format resources (PDF, Doc, Image, or External Link), and configure quizzes inline.
+              Upload lecture videos (2 parallel queue) and attach multi-format study resources (PDF, Doc, Image, or External Link).
             </p>
           </div>
         </div>
@@ -856,7 +874,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         <div className="space-y-4 pb-36">
           {(sections || []).map((section, sIdx) => {
             const isCollapsed = collapsedSections[section.id];
-            const secLessons = section.lessons || [];
+            // Quizzes are strictly created and edited in Course Curriculum; exclude from media studio
+            const secLessons = (section.lessons || []).filter((l) => l.type !== 'QUIZ');
             const secWithVideos = secLessons.filter((l) => !!l.videoUrl).length;
             const hasActiveDropdown = secLessons.some(
               (l) => l.id === activeResourceDropdownLessonId
@@ -921,7 +940,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isTaskQueued = task?.status === 'QUEUED';
                         const isLastLesson = lIdx === secLessons.length - 1;
                         const isDropdownActive = activeResourceDropdownLessonId === lesson.id;
-
+                        const globalLectureNum = globalLectureNumberMap[lesson.id] || (lIdx + 1);
 
                         return (
                           <div
@@ -934,21 +953,19 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                               {/* Left: Lecture Details & Editable Description */}
                               <div className="space-y-1.5 flex-1 min-w-0 max-w-xl">
                                 <div className="flex flex-wrap items-center gap-2 min-w-0">
-                                  <span className="font-mono text-xs font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10 shrink-0">
-                                    {sIdx + 1}.{lIdx + 1}
+                                  <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10 shrink-0">
+                                    Lecture {globalLectureNum}
                                   </span>
                                   <input
                                     type="text"
                                     value={lesson.title}
                                     onChange={(e) => updateLesson(section.id, lesson.id, { title: e.target.value })}
-                                    placeholder={`Lecture ${sIdx + 1}.${lIdx + 1} Title`}
+                                    placeholder={`Lecture ${globalLectureNum} Title`}
                                     className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1 min-w-[120px]"
                                   />
                                   <span
                                     className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 ${
-                                      lesson.type === 'QUIZ'
-                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                                        : lesson.type === 'PDF'
+                                      lesson.type === 'PDF'
                                         ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                                         : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
                                     }`}

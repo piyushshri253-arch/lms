@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { VideoUploadModal } from '@/components/media/VideoUploadModal';
@@ -182,6 +182,29 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       return { questions: [], passingScore: 70, attemptLimit: 0 };
     }
   };
+
+  // Continuous global item numbering across all modules:
+  // - Lectures: Lecture 1, Lecture 2, Lecture 3, Lecture 4, ...
+  // - Quizzes: Quiz 1, Quiz 2, ...
+  const itemNumbering = useMemo(() => {
+    let lectureCount = 0;
+    let quizCount = 0;
+    const map: Record<string, { type: 'LECTURE' | 'QUIZ'; num: number; label: string }> = {};
+
+    (sections || []).forEach((sec) => {
+      (sec.lessons || []).forEach((les) => {
+        if (les.type === 'QUIZ') {
+          quizCount += 1;
+          map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
+        } else {
+          lectureCount += 1;
+          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
+        }
+      });
+    });
+
+    return { map, totalLectures: lectureCount, totalQuizzes: quizCount };
+  }, [sections]);
 
   // Direct 1-Click PDF File Upload from System (PC/Laptop) or Mobile Phone
   const handleDirectPdfFileSelect = async (
@@ -417,7 +440,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     showToast({ title: 'Module Removed', type: 'info' });
   };
 
-  // Add / Create Lesson (e.g., Lecture 1, 2 sequentially per module)
+  // Add / Create Lesson or Quiz (Lecture 1, 2, 3, 4 continuous across modules; Quiz 1, 2 sequential)
   const handleCreateLesson = (
     sectionId: string,
     type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD',
@@ -427,26 +450,26 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (sIdx === -1) return;
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
-    const lessonNum = targetSec.lessons.length + 1;
-    const lessonCode = `${lessonNum}`;
 
-    // Count existing quizzes in this module
-    const existingQuizzesInModule = targetSec.lessons.filter((l) => l.type === 'QUIZ');
-    const quizTitle =
-      existingQuizzesInModule.length === 0
-        ? `Quiz ${moduleNum}`
-        : `Quiz ${moduleNum}.${existingQuizzesInModule.length + 1}`;
+    // Count existing non-quiz lectures across the entire course
+    const totalLecturesCount = sections.reduce(
+      (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ').length,
+      0
+    );
+    // Count existing quizzes across the entire course
+    const totalQuizzesCount = sections.reduce(
+      (acc, s) => acc + (s.lessons || []).filter((l) => l.type === 'QUIZ').length,
+      0
+    );
+
+    const nextLectureNum = totalLecturesCount + 1;
+    const nextQuizNum = totalQuizzesCount + 1;
+    const quizTitle = `Quiz ${nextQuizNum}`;
 
     const defaultTitle =
-      type === 'VIDEO'
-        ? `Video Lecture ${lessonCode}`
-        : type === 'TEXT'
-        ? `Reading Guide ${lessonCode}`
-        : type === 'PDF'
-        ? `Study Resource ${lessonCode}`
-        : type === 'QUIZ'
+      type === 'QUIZ'
         ? quizTitle
-        : `Resource Material ${lessonCode}`;
+        : `Lecture ${nextLectureNum}`;
 
     let defaultQuiz: QuizConfig | undefined;
     if (type === 'QUIZ') {
@@ -460,7 +483,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             options: ['Option A', 'Option B', 'Option C', 'Option D'],
             correctIndex: 0,
             explanation: 'Explanation for the correct answer.',
-            points: 1
+            points: 10
           }
         ]
       };
@@ -476,9 +499,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       content: type === 'TEXT' ? '# Key Concepts\n\nWrite your lesson notes and explanation here.' : undefined,
       quizData: defaultQuiz,
       subLessons: [],
-      isFree: lessonNum === 1 && moduleNum === 1,
+      isFree: type !== 'QUIZ' && nextLectureNum === 1 && moduleNum === 1,
       isPublished: true,
-      order: lessonNum
+      order: targetSec.lessons.length + 1
     };
 
     const updated = sections.map((s) =>
@@ -493,7 +516,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
     }
     showToast({
-      title: type === 'QUIZ' ? `Added ${defaultTitle}` : `Added Lecture ${lessonCode}`,
+      title: type === 'QUIZ' ? `Added ${quizTitle}` : `Added Lecture ${nextLectureNum}`,
       description: `${defaultTitle} added to Module ${moduleNum}.`,
       type: 'success'
     });
@@ -703,8 +726,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             Curriculum Builder (Modules &amp; Lessons)
           </h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Organize your course into Modules and Lessons. Add Video, PDF resources, Reading Notes, and Practice Quizzes to each lecture.
+            Organize your course into Modules, continuous Lectures, and Quizzes.
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
+              📁 {sections.length} {sections.length === 1 ? 'Module' : 'Modules'}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-full border border-slate-300">
+              🎬 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Lecture' : 'Lectures'} (Continuous)
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
+              ❓ {itemNumbering.totalQuizzes} {itemNumbering.totalQuizzes === 1 ? 'Quiz' : 'Quizzes'}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -820,29 +854,422 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
                         className="font-bold text-[#2d2f31] underline cursor-pointer hover:text-primary"
                       >
-                        + Add Lecture 1
+                        + Add Lecture {itemNumbering.totalLectures + 1}
                       </button>
                     </div>
                   ) : (
                     section.lessons.map((les, lIdx) => {
-                      const lessonCode = `${lIdx + 1}`;
+                      const isQuizItem = les.type === 'QUIZ';
+                      const itemMeta = itemNumbering.map[les.id] || {
+                        type: isQuizItem ? 'QUIZ' : 'LECTURE',
+                        num: lIdx + 1,
+                        label: isQuizItem ? `Quiz ${lIdx + 1}` : `Lecture ${lIdx + 1}`
+                      };
                       const qConf = parseQuizConfig(les.quizData);
                       const qCount = qConf.questions.length;
-                      const hasContent = !!(les.videoUrl || les.content || les.pdfUrl || qCount > 0);
+                      const hasContent = isQuizItem
+                        ? qCount > 0
+                        : !!(les.videoUrl || les.content || les.pdfUrl);
                       const isDrawerOpen = openContentDrawerId === les.id;
                       const currentTab =
                         activeContentTab[les.id] ||
-                        (les.type === 'QUIZ'
-                          ? 'QUIZ'
-                          : les.type === 'TEXT'
-                          ? 'TEXT'
-                          : les.type === 'PDF'
-                          ? 'PDF'
-                          : 'VIDEO');
+                        (les.type === 'TEXT' ? 'TEXT' : les.type === 'PDF' ? 'PDF' : 'VIDEO');
 
+                      // 1. DEDICATED QUIZ ROW & EDITOR (Purple Theme, Clear "Edit Quiz" Button)
+                      if (isQuizItem) {
+                        return (
+                          <div key={les.id} className="space-y-2">
+                            <div className="border border-purple-200 bg-purple-50/25 hover:border-purple-300 rounded-md transition-all shadow-2xs overflow-hidden">
+                              {/* Quiz Top Bar */}
+                              <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {/* Up/Down buttons */}
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={lIdx === 0}
+                                      onClick={() => moveLesson(section.id, lIdx, 'up')}
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      title="Move Quiz Up"
+                                    >
+                                      <Icon name="arrow_upward" size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={lIdx === section.lessons.length - 1}
+                                      onClick={() => moveLesson(section.id, lIdx, 'down')}
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      title="Move Quiz Down"
+                                    >
+                                      <Icon name="arrow_downward" size={13} />
+                                    </button>
+                                  </div>
+
+                                  {/* Quiz Status Badge */}
+                                  {qCount > 0 ? (
+                                    <span
+                                      className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
+                                      title={`${qCount} question(s) attached`}
+                                    >
+                                      ✓
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="w-5 h-5 rounded-full border-2 border-dashed border-purple-300 flex items-center justify-center text-[10px] text-purple-500 font-bold shrink-0"
+                                      title="No questions added yet. Click Edit Quiz."
+                                    >
+                                      !
+                                    </span>
+                                  )}
+
+                                  {/* Quiz Badge Label */}
+                                  <span className="font-extrabold text-xs text-purple-800 bg-purple-100 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide">
+                                    Quiz {itemMeta.num}:
+                                  </span>
+
+                                  {/* Inline Title Input */}
+                                  <div className="flex-1 min-w-[160px]">
+                                    <input
+                                      type="text"
+                                      value={les.title}
+                                      onChange={(e) =>
+                                        handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                      }
+                                      placeholder={`Quiz ${itemMeta.num} Title (e.g. Module ${moduleNum} Knowledge Test)`}
+                                      className="w-full bg-white hover:bg-purple-50/50 focus:bg-white border border-purple-200 focus:border-purple-600 rounded px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none transition-colors"
+                                    />
+                                  </div>
+
+                                  {/* Quiz Info Badges */}
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded border border-purple-200">
+                                      <Icon name="quiz" size={12} />
+                                      <span>
+                                        {qCount} {qCount === 1 ? 'Question' : 'Questions'}
+                                      </span>
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-white text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                                      Passing: {qConf.passingScore || 70}%
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons: Edit Quiz & Delete */}
+                                <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleContentDrawer(les.id, 'QUIZ')}
+                                    className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
+                                      isDrawerOpen
+                                        ? 'bg-purple-900 text-white'
+                                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                    }`}
+                                    title="Edit Quiz Questions and Passing Score"
+                                  >
+                                    <Icon name={isDrawerOpen ? 'close' : 'edit'} size={13} />
+                                    <span>{isDrawerOpen ? 'Close Editor' : 'Edit Quiz'}</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteLesson(section.id, les.id)}
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                    title="Delete Quiz"
+                                  >
+                                    <Icon name="delete" size={15} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* INLINE QUIZ QUESTIONS EDITOR DRAWER */}
+                              {isDrawerOpen && (
+                                <div className="border-t border-purple-200 bg-white p-4 sm:p-5 space-y-4 animate-in fade-in duration-150">
+                                  {/* Drawer Top Bar */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-100">
+                                    <div className="space-y-0.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded bg-purple-600 text-white text-[11px] font-black uppercase tracking-wider">
+                                          Quiz {itemMeta.num}
+                                        </span>
+                                        <h4 className="text-xs font-bold text-slate-800">
+                                          {les.title || `Quiz ${itemMeta.num}`} Question Editor
+                                        </h4>
+                                      </div>
+                                      <p className="text-[11px] text-slate-500">
+                                        Add multiple-choice questions, choose correct options, and configure the passing threshold.
+                                      </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                      {/* Passing Score Input */}
+                                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2.5 py-1">
+                                        <span className="text-[11px] font-bold text-slate-600">Passing Score:</span>
+                                        <input
+                                          type="number"
+                                          min={10}
+                                          max={100}
+                                          value={qConf.passingScore || 70}
+                                          onChange={(e) => {
+                                            const val = Math.min(100, Math.max(10, Number(e.target.value) || 70));
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              quizData: { ...qConf, passingScore: val }
+                                            });
+                                          }}
+                                          className="w-12 px-1 py-0.5 bg-white border border-slate-300 rounded text-center text-xs font-bold text-slate-800 focus:outline-none"
+                                        />
+                                        <span className="text-[11px] font-bold text-slate-600">%</span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setOpenContentDrawerId(null)}
+                                        className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 rounded bg-white cursor-pointer"
+                                      >
+                                        ✕ Close
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Questions List */}
+                                  {qConf.questions.length === 0 ? (
+                                    <div className="p-8 text-center bg-purple-50/40 border border-dashed border-purple-200 rounded-lg space-y-2">
+                                      <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mx-auto">
+                                        <Icon name="quiz" size={20} />
+                                      </div>
+                                      <p className="text-xs font-bold text-slate-700">
+                                        No questions added yet to Quiz {itemMeta.num}
+                                      </p>
+                                      <p className="text-[11px] text-slate-500">
+                                        Add questions to test student mastery after completing Module {moduleNum}.
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextQ: QuizConfig = {
+                                            ...qConf,
+                                            questions: [
+                                              {
+                                                id: `q-${Date.now()}-1`,
+                                                question: '',
+                                                options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                correctIndex: 0,
+                                                explanation: '',
+                                                points: 10
+                                              }
+                                            ]
+                                          };
+                                          handleUpdateLessonInline(section.id, les.id, {
+                                            quizData: nextQ,
+                                            type: 'QUIZ'
+                                          });
+                                        }}
+                                        className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                      >
+                                        <Icon name="add" size={14} />
+                                        <span>+ Add Question 1</span>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-4">
+                                      {qConf.questions.map((q, qIdx) => (
+                                        <div
+                                          key={q.id || qIdx}
+                                          className="p-3.5 bg-slate-50 border border-slate-200 rounded-md space-y-3"
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-[11px] font-black flex items-center justify-center">
+                                                {qIdx + 1}
+                                              </span>
+                                              <span className="text-xs font-extrabold text-slate-800">
+                                                Question {qIdx + 1}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                                                <span>Points:</span>
+                                                <input
+                                                  type="number"
+                                                  min={1}
+                                                  value={q.points || 10}
+                                                  onChange={(e) => {
+                                                    const nextQ = [...qConf.questions];
+                                                    nextQ[qIdx] = { ...q, points: Number(e.target.value) || 10 };
+                                                    handleUpdateLessonInline(section.id, les.id, {
+                                                      quizData: { ...qConf, questions: nextQ }
+                                                    });
+                                                  }}
+                                                  className="w-12 px-1.5 py-0.5 bg-white border border-slate-300 rounded text-center text-xs font-bold text-slate-800"
+                                                />
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const nextQuestions = qConf.questions.filter(
+                                                    (_, idx) => idx !== qIdx
+                                                  );
+                                                  handleUpdateLessonInline(section.id, les.id, {
+                                                    quizData: { ...qConf, questions: nextQuestions }
+                                                  });
+                                                }}
+                                                className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                                                title="Delete Question"
+                                              >
+                                                <Icon name="delete" size={15} />
+                                              </button>
+                                            </div>
+                                          </div>
+
+                                          {/* Question Text */}
+                                          <input
+                                            type="text"
+                                            value={q.question}
+                                            onChange={(e) => {
+                                              const nextQ = [...qConf.questions];
+                                              nextQ[qIdx] = { ...q, question: e.target.value };
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                quizData: { ...qConf, questions: nextQ }
+                                              });
+                                            }}
+                                            placeholder={`Enter question ${qIdx + 1} prompt here...`}
+                                            className="w-full bg-white border border-[#d1d7dc] focus:border-purple-600 rounded px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none"
+                                          />
+
+                                          {/* 4 Choices */}
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {q.options.map((opt, oIdx) => {
+                                              const isCorrect = q.correctIndex === oIdx;
+                                              return (
+                                                <div
+                                                  key={oIdx}
+                                                  className={`flex items-center gap-2 p-2 rounded border transition-colors ${
+                                                    isCorrect
+                                                      ? 'bg-purple-50/80 border-purple-400 ring-1 ring-purple-300'
+                                                      : 'bg-white border-[#d1d7dc] hover:border-slate-400'
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="radio"
+                                                    name={`les-q-${les.id}-${qIdx}`}
+                                                    checked={isCorrect}
+                                                    onChange={() => {
+                                                      const nextQ = [...qConf.questions];
+                                                      nextQ[qIdx] = { ...q, correctIndex: oIdx };
+                                                      handleUpdateLessonInline(section.id, les.id, {
+                                                        quizData: { ...qConf, questions: nextQ }
+                                                      });
+                                                    }}
+                                                    className="text-purple-600 cursor-pointer accent-purple-600"
+                                                    title="Mark as correct answer"
+                                                  />
+                                                  <input
+                                                    type="text"
+                                                    value={opt}
+                                                    onChange={(e) => {
+                                                      const nextOpts = [...q.options];
+                                                      nextOpts[oIdx] = e.target.value;
+                                                      const nextQ = [...qConf.questions];
+                                                      nextQ[qIdx] = { ...q, options: nextOpts };
+                                                      handleUpdateLessonInline(section.id, les.id, {
+                                                        quizData: { ...qConf, questions: nextQ }
+                                                      });
+                                                    }}
+                                                    className="flex-1 bg-transparent border-0 text-xs text-slate-800 focus:outline-none"
+                                                  />
+                                                  {isCorrect && (
+                                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
+                                                      ✓ Correct
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+
+                                          {/* Explanation */}
+                                          <input
+                                            type="text"
+                                            value={q.explanation || ''}
+                                            onChange={(e) => {
+                                              const nextQ = [...qConf.questions];
+                                              nextQ[qIdx] = { ...q, explanation: e.target.value };
+                                              handleUpdateLessonInline(section.id, les.id, {
+                                                quizData: { ...qConf, questions: nextQ }
+                                              });
+                                            }}
+                                            placeholder="Explanation of correct answer (optional)..."
+                                            className="w-full bg-white border border-[#d1d7dc] focus:border-purple-600 rounded px-2.5 py-1 text-[11px] text-slate-600 focus:outline-none"
+                                          />
+                                        </div>
+                                      ))}
+
+                                      {/* Quiz Actions Footer */}
+                                      <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-purple-100">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const nextQ: QuizConfig = {
+                                              ...qConf,
+                                              questions: [
+                                                ...qConf.questions,
+                                                {
+                                                  id: `q-${Date.now()}-${qConf.questions.length + 1}`,
+                                                  question: '',
+                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                  correctIndex: 0,
+                                                  explanation: '',
+                                                  points: 10
+                                                }
+                                              ]
+                                            };
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              quizData: nextQ,
+                                              type: 'QUIZ'
+                                            });
+                                            showToast({
+                                              title: 'Question Added',
+                                              description: `Question ${nextQ.questions.length} added to ${les.title || `Quiz ${itemMeta.num}`}.`,
+                                              type: 'info'
+                                            });
+                                          }}
+                                          className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-200"
+                                        >
+                                          <Icon name="add" size={14} />
+                                          <span>+ Add Another Question</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              quizData: qConf,
+                                              type: 'QUIZ'
+                                            });
+                                            setOpenContentDrawerId(null);
+                                            showToast({
+                                              title: 'Quiz Saved Successfully! ✓',
+                                              description: `"${les.title || `Quiz ${itemMeta.num}`}" saved with ${qConf.questions.length} questions.`,
+                                              type: 'success'
+                                            });
+                                          }}
+                                          className="px-4 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                        >
+                                          <Icon name="check_circle" size={14} />
+                                          <span>Save &amp; Close Quiz</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // 2. STANDARD LECTURE ROW & DRAWER (Continuous Lecture Numbering across modules)
                       return (
                         <div key={les.id} className="space-y-2">
-                          {/* Udemy Lecture Card */}
                           <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
                             {/* Lecture Top Bar */}
                             <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -869,7 +1296,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   </button>
                                 </div>
 
-                                {/* Checkmark Status Circle (Udemy Style) */}
+                                {/* Checkmark Status Circle */}
                                 {hasContent ? (
                                   <span
                                     className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
@@ -880,13 +1307,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 ) : (
                                   <span
                                     className="w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0"
-                                    title="No content attached yet - click + Content below"
+                                    title="No content attached yet - click + Content to attach video or resources"
                                   />
                                 )}
 
-                                {/* Item Number Label */}
+                                {/* Continuous Lecture Number Label across modules */}
                                 <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
-                                  {lessonCode}.
+                                  Lecture {itemMeta.num}.
                                 </span>
 
                                 {/* Inline Title Input */}
@@ -897,7 +1324,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     onChange={(e) =>
                                       handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                     }
-                                    placeholder={`Lesson ${lessonCode} Title`}
+                                    placeholder={`Lecture ${itemMeta.num} Title`}
                                     className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                   />
                                 </div>
@@ -919,11 +1346,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       📝 Notes
                                     </span>
                                   )}
-                                  {qCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
-                                      ❓ Quiz ({qCount})
-                                    </span>
-                                  )}
                                 </div>
 
                                 {/* Free Preview Checkbox */}
@@ -942,8 +1364,22 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </label>
                               </div>
 
-                              {/* Action Buttons on Lecture: Delete */}
+                              {/* Action Buttons on Lecture: + Content & Delete */}
                               <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleContentDrawer(les.id)}
+                                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs ${
+                                    isDrawerOpen
+                                      ? 'bg-[#2d2f31] text-white'
+                                      : 'bg-white hover:bg-slate-100 text-slate-800 border border-[#d1d7dc]'
+                                  }`}
+                                  title="Attach Video, Notes, or PDF resources"
+                                >
+                                  <Icon name={isDrawerOpen ? 'expand_less' : 'expand_more'} size={14} />
+                                  <span>{isDrawerOpen ? 'Close' : '+ Content'}</span>
+                                </button>
+
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteLesson(section.id, les.id)}
@@ -955,17 +1391,17 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                               </div>
                             </div>
 
-                            {/* UDEMY + CONTENT ⌄ INLINE DRAWER (for Lecture 1.1) */}
+                            {/* LECTURE CONTENT DRAWER (Video, Notes, PDF) */}
                             {isDrawerOpen && (
                               <div className="border-t border-[#d1d7dc] bg-[#f7f9fa] p-4 sm:p-5 space-y-4 animate-in fade-in duration-150">
                                 {/* Drawer Top Bar */}
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#d1d7dc]">
                                   <div>
                                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                                      Lecture {lessonCode} Content Manager
+                                      Lecture {itemMeta.num} Content Manager
                                     </h4>
                                     <p className="text-[11px] text-slate-500">
-                                      Select content type to attach to this lecture. Video, PDF resources, study notes, and quiz questions can all be included.
+                                      Attach video lesson, study notes, or downloadable PDF resources to Lecture {itemMeta.num}.
                                     </p>
                                   </div>
                                   <button
@@ -977,7 +1413,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   </button>
                                 </div>
 
-                                {/* Udemy-style 4 Content Tabs */}
+                                {/* 3 Content Tabs: Video, Notes, PDF */}
                                 <div className="flex flex-wrap items-center gap-2">
                                   {/* Tab 1: Video */}
                                   <button
@@ -1038,26 +1474,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5" />
                                     )}
                                   </button>
-
-                                  {/* Tab 4: Quick Quiz */}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveContentTab((prev) => ({ ...prev, [les.id]: 'QUIZ' }));
-                                      handleUpdateLessonInline(section.id, les.id, { type: 'QUIZ' });
-                                    }}
-                                    className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                                      currentTab === 'QUIZ'
-                                        ? 'bg-[#2d2f31] text-white shadow-2xs'
-                                        : 'bg-white text-slate-700 border border-[#d1d7dc] hover:bg-slate-100'
-                                    }`}
-                                  >
-                                    <Icon name="quiz" size={14} />
-                                    <span>❓ Quick Quiz Questions ({qCount})</span>
-                                  </button>
                                 </div>
 
-                                {/* TAB 1 CONTENT: VIDEO (Upload PC/Phone + URL + Duration) */}
+                                {/* TAB 1 CONTENT: VIDEO */}
                                 {currentTab === 'VIDEO' && (
                                   <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
                                     <div className="flex flex-col md:flex-row gap-4 items-start">
@@ -1354,254 +1773,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     )}
                                   </div>
                                 )}
-
-                                {/* TAB 4 CONTENT: QUICK QUIZ QUESTIONS */}
-                                {currentTab === 'QUIZ' && (
-                                  <div className="p-4 bg-white border border-[#d1d7dc] rounded-md space-y-4">
-                                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#d1d7dc]/60">
-                                      <div>
-                                        <h5 className="text-xs font-bold text-slate-800">
-                                          {les.title || `Practice Quiz / Quick Questions for Lecture ${lessonCode}`}
-                                        </h5>
-                                        <p className="text-[11px] text-slate-500">
-                                          Students test their comprehension after completing this module item.
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const nextQ: QuizConfig = {
-                                              ...qConf,
-                                              questions: [
-                                                ...qConf.questions,
-                                                {
-                                                  id: `q-${Date.now()}-${qConf.questions.length}`,
-                                                  question: '',
-                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                  correctIndex: 0,
-                                                  explanation: '',
-                                                  points: 10
-                                                }
-                                              ]
-                                            };
-                                            handleUpdateLessonInline(section.id, les.id, {
-                                              quizData: nextQ,
-                                              type: 'QUIZ'
-                                            });
-                                            showToast({
-                                              title: 'Question Added',
-                                              description: `Question ${nextQ.questions.length} added to ${les.title || 'Quiz'}.`,
-                                              type: 'info'
-                                            });
-                                          }}
-                                          className="px-3 py-1.5 bg-[#2d2f31] hover:bg-black text-white text-xs font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                        >
-                                          <Icon name="add" size={14} />
-                                          <span>Add Question</span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            handleUpdateLessonInline(section.id, les.id, {
-                                              quizData: qConf,
-                                              type: 'QUIZ'
-                                            });
-                                            setOpenContentDrawerId(null);
-                                            showToast({
-                                              title: 'Quiz Saved Successfully! ✓',
-                                              description: `"${les.title || 'Quiz'}" saved with ${qConf.questions.length} questions. You can now add the next quiz!`,
-                                              type: 'success'
-                                            });
-                                          }}
-                                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                                          title="Save quiz questions and close editor"
-                                        >
-                                          <Icon name="check_circle" size={14} />
-                                          <span>Save Quiz</span>
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {qConf.questions.length === 0 ? (
-                                      <div className="p-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] rounded bg-slate-50">
-                                        No questions added yet. Click &ldquo;Add Question&rdquo; above to create practice questions for this lecture.
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-3">
-                                        {qConf.questions.map((q, qIdx) => (
-                                          <div
-                                            key={q.id || qIdx}
-                                            className="p-3.5 bg-slate-50 border border-[#d1d7dc] rounded-md space-y-3"
-                                          >
-                                            <div className="flex items-center justify-between gap-2">
-                                              <span className="text-xs font-extrabold text-slate-800 font-mono">
-                                                Question {qIdx + 1}
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  const nextQuestions = qConf.questions.filter(
-                                                    (_, idx) => idx !== qIdx
-                                                  );
-                                                  handleUpdateLessonInline(section.id, les.id, {
-                                                    quizData: { ...qConf, questions: nextQuestions }
-                                                  });
-                                                }}
-                                                className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
-                                                title="Delete Question"
-                                              >
-                                                <Icon name="delete" size={15} />
-                                              </button>
-                                            </div>
-
-                                            <input
-                                              type="text"
-                                              value={q.question}
-                                              onChange={(e) => {
-                                                const nextQ = [...qConf.questions];
-                                                nextQ[qIdx] = { ...q, question: e.target.value };
-                                                handleUpdateLessonInline(section.id, les.id, {
-                                                  quizData: { ...qConf, questions: nextQ }
-                                                });
-                                              }}
-                                              placeholder="Enter the question prompt here..."
-                                              className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none"
-                                            />
-
-                                            {/* 4 Choices */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                              {q.options.map((opt, oIdx) => {
-                                                const isCorrect = q.correctIndex === oIdx;
-                                                return (
-                                                  <div
-                                                    key={oIdx}
-                                                    className={`flex items-center gap-2 p-2 rounded border transition-colors ${
-                                                      isCorrect
-                                                        ? 'bg-emerald-50 border-emerald-400'
-                                                        : 'bg-white border-[#d1d7dc]'
-                                                    }`}
-                                                  >
-                                                    <input
-                                                      type="radio"
-                                                      name={`les-q-${les.id}-${qIdx}`}
-                                                      checked={isCorrect}
-                                                      onChange={() => {
-                                                        const nextQ = [...qConf.questions];
-                                                        nextQ[qIdx] = { ...q, correctIndex: oIdx };
-                                                        handleUpdateLessonInline(section.id, les.id, {
-                                                          quizData: { ...qConf, questions: nextQ }
-                                                        });
-                                                      }}
-                                                      className="text-emerald-600 cursor-pointer"
-                                                      title="Mark as correct answer"
-                                                    />
-                                                    <input
-                                                      type="text"
-                                                      value={opt}
-                                                      onChange={(e) => {
-                                                        const nextOpts = [...q.options];
-                                                        nextOpts[oIdx] = e.target.value;
-                                                        const nextQ = [...qConf.questions];
-                                                        nextQ[qIdx] = { ...q, options: nextOpts };
-                                                        handleUpdateLessonInline(section.id, les.id, {
-                                                          quizData: { ...qConf, questions: nextQ }
-                                                        });
-                                                      }}
-                                                      className="flex-1 bg-transparent border-0 text-xs text-slate-800 focus:outline-none"
-                                                    />
-                                                    {isCorrect && (
-                                                      <span className="text-[10px] font-bold text-emerald-700">
-                                                        ✓ Correct
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-
-                                            <input
-                                              type="text"
-                                              value={q.explanation || ''}
-                                              onChange={(e) => {
-                                                const nextQ = [...qConf.questions];
-                                                nextQ[qIdx] = { ...q, explanation: e.target.value };
-                                                handleUpdateLessonInline(section.id, les.id, {
-                                                  quizData: { ...qConf, questions: nextQ }
-                                                });
-                                              }}
-                                              placeholder="Explanation of correct answer (optional)..."
-                                              className="w-full bg-white border border-[#d1d7dc] rounded px-2.5 py-1 text-[11px] text-slate-600 focus:outline-none"
-                                            />
-                                          </div>
-                                        ))}
-
-                                        {/* Bottom Action Bar for Quiz Questions */}
-                                        <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d1d7dc]/60">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const nextQ: QuizConfig = {
-                                                ...qConf,
-                                                questions: [
-                                                  ...qConf.questions,
-                                                  {
-                                                    id: `q-${Date.now()}-${qConf.questions.length}`,
-                                                    question: '',
-                                                    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                    correctIndex: 0,
-                                                    explanation: '',
-                                                    points: 10
-                                                  }
-                                                ]
-                                              };
-                                              handleUpdateLessonInline(section.id, les.id, {
-                                                quizData: nextQ,
-                                                type: 'QUIZ'
-                                              });
-                                              showToast({
-                                                title: 'Question Added',
-                                                description: `Question ${nextQ.questions.length} added.`,
-                                                type: 'info'
-                                              });
-                                            }}
-                                            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-300"
-                                          >
-                                            <Icon name="add" size={14} />
-                                            <span>Add Another Question</span>
-                                          </button>
-
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              handleUpdateLessonInline(section.id, les.id, {
-                                                quizData: qConf,
-                                                type: 'QUIZ'
-                                              });
-                                              setOpenContentDrawerId(null);
-                                              showToast({
-                                                title: 'Quiz Saved Successfully! ✓',
-                                                description: `"${les.title || 'Quiz'}" saved with ${qConf.questions.length} questions. You can now add the next quiz!`,
-                                                type: 'success'
-                                              });
-                                            }}
-                                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                                            title="Save all questions and close quiz editor"
-                                          >
-                                            <Icon name="check_circle" size={14} />
-                                            <span>Save &amp; Close Quiz</span>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
                               </div>
                             )}
                           </div>
-
-                          
                         </div>
                       );
                     })
@@ -1623,7 +1797,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     <button
                       type="button"
                       onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
-                      className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-1.5 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                       <Icon name="quiz" size={14} />
                       <span>Quiz</span>
