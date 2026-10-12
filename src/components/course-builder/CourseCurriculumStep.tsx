@@ -186,18 +186,23 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   // Continuous global item numbering across all modules:
-  // - Lectures: Lecture 1, Lecture 2, Lecture 3, Lecture 4, ...
+  // - Lectures: Lecture 1, Lecture 2, ...
+  // - Articles: Article 1, Article 2, ...
   // - Quizzes: Quiz 1, Quiz 2, ...
   const itemNumbering = useMemo(() => {
     let lectureCount = 0;
+    let articleCount = 0;
     let quizCount = 0;
-    const map: Record<string, { type: 'LECTURE' | 'QUIZ'; num: number; label: string }> = {};
+    const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string }> = {};
 
     (sections || []).forEach((sec) => {
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           quizCount += 1;
           map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
+        } else if (les.type === 'TEXT') {
+          articleCount += 1;
+          map[les.id] = { type: 'ARTICLE', num: articleCount, label: `Article ${articleCount}` };
         } else {
           lectureCount += 1;
           map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
@@ -205,7 +210,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       });
     });
 
-    return { map, totalLectures: lectureCount, totalQuizzes: quizCount };
+    return { map, totalLectures: lectureCount, totalArticles: articleCount, totalQuizzes: quizCount };
   }, [sections]);
 
   // Direct 1-Click PDF File Upload from System (PC/Laptop) or Mobile Phone
@@ -456,9 +461,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
 
-    // Count existing non-quiz lectures across the entire course
+    // Count existing non-quiz, non-text lectures across the entire course
     const totalLecturesCount = sections.reduce(
-      (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ').length,
+      (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT').length,
+      0
+    );
+    // Count existing written articles across the entire course
+    const totalArticlesCount = sections.reduce(
+      (acc, s) => acc + (s.lessons || []).filter((l) => l.type === 'TEXT').length,
       0
     );
     // Count existing quizzes across the entire course
@@ -468,8 +478,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     );
 
     const nextLectureNum = totalLecturesCount + 1;
+    const nextArticleNum = totalArticlesCount + 1;
     const nextQuizNum = totalQuizzesCount + 1;
     const quizTitle = `Quiz ${nextQuizNum}`;
+    const articleTitle = `Article ${nextArticleNum}`;
+    const lectureTitle = `Lecture ${nextLectureNum}`;
 
     const defaultTitle = '';
 
@@ -500,7 +513,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       durationSeconds: type === 'VIDEO' ? 600 : 300,
       content:
         type === 'TEXT'
-          ? `# Lesson Overview\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.`
+          ? `# ${articleTitle}\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.`
           : undefined,
       quizData: defaultQuiz,
       subLessons: [],
@@ -520,9 +533,17 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       setOpenContentDrawerId(newLesson.id);
       setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
     }
+
+    const itemLabel =
+      type === 'QUIZ'
+        ? quizTitle
+        : type === 'TEXT'
+        ? articleTitle
+        : lectureTitle;
+
     showToast({
-      title: type === 'QUIZ' ? `Added ${quizTitle}` : `Added Lecture ${nextLectureNum}`,
-      description: `${defaultTitle || (type === 'QUIZ' ? quizTitle : `Lecture ${nextLectureNum}`)} added to Module ${moduleNum}.`,
+      title: `Added ${itemLabel}`,
+      description: `${defaultTitle || itemLabel} added to Module ${moduleNum}.`,
       type: 'success'
     });
   };
@@ -737,8 +758,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
               📁 {sections.length} {sections.length === 1 ? 'Module' : 'Modules'}
             </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-100 text-blue-900 px-2.5 py-0.5 rounded-full border border-blue-200">
+              🎥 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Lecture' : 'Lectures'}
+            </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-200">
-              📝 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Lecture' : 'Lectures'}
+              📝 {itemNumbering.totalArticles} {itemNumbering.totalArticles === 1 ? 'Article' : 'Articles'}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
               ❓ {itemNumbering.totalQuizzes} {itemNumbering.totalQuizzes === 1 ? 'Quiz' : 'Quizzes'}
@@ -858,16 +882,24 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
                         <button
                           type="button"
-                          onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
-                          className="px-4 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                          onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
+                          className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <Icon name="article" size={15} />
+                          <Icon name="videocam" size={15} />
                           <span>+ Add Lecture</span>
                         </button>
                         <button
                           type="button"
+                          onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
+                          className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <Icon name="article" size={15} />
+                          <span>+ Add Article</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
-                          className="px-4 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                          className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                         >
                           <Icon name="quiz" size={15} />
                           <span>+ Add Quiz</span>
@@ -877,10 +909,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                   ) : (
                     section.lessons.map((les, lIdx) => {
                       const isQuizItem = les.type === 'QUIZ';
+                      const isArticleItem = les.type === 'TEXT';
+                      const isLectureItem = !isQuizItem && !isArticleItem;
                       const itemMeta = itemNumbering.map[les.id] || {
-                        type: isQuizItem ? 'QUIZ' : 'LECTURE',
+                        type: isQuizItem ? 'QUIZ' : isArticleItem ? 'ARTICLE' : 'LECTURE',
                         num: lIdx + 1,
-                        label: isQuizItem ? `Quiz ${lIdx + 1}` : `Lecture ${lIdx + 1}`
+                        label: isQuizItem ? `Quiz ${lIdx + 1}` : isArticleItem ? `Article ${lIdx + 1}` : `Lecture ${lIdx + 1}`
                       };
                       const qConf = parseQuizConfig(les.quizData);
                       const qCount = qConf.questions.length;
@@ -1287,11 +1321,110 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         );
                       }
 
-                      // 2. STANDARD LECTURE ROW & DRAWER (Continuous Lecture Numbering across modules)
+                      // 2. STANDARD LECTURE ROW (Lecture {num}, Title input, Free Preview, Delete - No Edit button!)
+                      if (isLectureItem) {
+                        return (
+                          <div key={les.id} className="space-y-2">
+                            <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
+                              {/* Lecture Top Bar */}
+                              <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {/* Up/Down buttons */}
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={lIdx === 0}
+                                      onClick={() => moveLesson(section.id, lIdx, 'up')}
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      title="Move Lecture Up"
+                                    >
+                                      <Icon name="arrow_upward" size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={lIdx === section.lessons.length - 1}
+                                      onClick={() => moveLesson(section.id, lIdx, 'down')}
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      title="Move Lecture Down"
+                                    >
+                                      <Icon name="arrow_downward" size={13} />
+                                    </button>
+                                  </div>
+
+                                  {/* Checkmark Status Circle */}
+                                  {hasContent ? (
+                                    <span
+                                      className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
+                                      title="Media or content attached"
+                                    >
+                                      ✓
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0"
+                                      title="Lecture item"
+                                    />
+                                  )}
+
+                                  {/* Continuous Lecture Number Label across modules */}
+                                  <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
+                                    Lecture {itemMeta.num}.
+                                  </span>
+
+                                  {/* Inline Title Input */}
+                                  <div className="flex-1 min-w-[160px]">
+                                    <input
+                                      type="text"
+                                      value={les.title}
+                                      onChange={(e) =>
+                                        handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                      }
+                                      onBlur={() =>
+                                        handleUpdateLessonInline(section.id, les.id, { title: cleanLectureTitle(les.title) })
+                                      }
+                                      placeholder="Lecture Title (e.g. Overview & Deep Dive)"
+                                      className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
+                                    />
+                                  </div>
+
+                                  {/* Free Preview Checkbox */}
+                                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!les.isFree}
+                                      onChange={(e) =>
+                                        handleUpdateLessonInline(section.id, les.id, {
+                                          isFree: e.target.checked
+                                        })
+                                      }
+                                      className="rounded border-slate-300 text-[#2d2f31] focus:ring-0"
+                                    />
+                                    <span>Free Preview</span>
+                                  </label>
+                                </div>
+
+                                {/* Delete button on Lecture (No edit button) */}
+                                <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteLesson(section.id, les.id)}
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                    title="Delete Lecture"
+                                  >
+                                    <Icon name="delete" size={15} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // 3. WRITTEN ARTICLE ROW (Article {num}, Title input, Badge, Free Preview, Edit Article button & Delete)
                       return (
                         <div key={les.id} className="space-y-2">
                           <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
-                            {/* Lecture Top Bar */}
+                            {/* Article Top Bar */}
                             <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 {/* Up/Down buttons */}
@@ -1301,7 +1434,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     disabled={lIdx === 0}
                                     onClick={() => moveLesson(section.id, lIdx, 'up')}
                                     className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                                    title="Move Lecture Up"
+                                    title="Move Article Up"
                                   >
                                     <Icon name="arrow_upward" size={13} />
                                   </button>
@@ -1310,7 +1443,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     disabled={lIdx === section.lessons.length - 1}
                                     onClick={() => moveLesson(section.id, lIdx, 'down')}
                                     className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                                    title="Move Lecture Down"
+                                    title="Move Article Down"
                                   >
                                     <Icon name="arrow_downward" size={13} />
                                   </button>
@@ -1320,18 +1453,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 {hasContent ? (
                                   <span
                                     className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
-                                    title="Content is attached to this lecture"
+                                    title="Content is written for this article"
                                   >
                                     ✓
                                   </span>
                                 ) : (
                                   <span
                                     className="w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0"
-                                    title="No content attached yet - click + Content to attach video or resources"
+                                    title="Article content"
                                   />
                                 )}
 
-                                {/* Continuous Lecture Number Label across modules */}
+                                {/* Continuous Article Number Label across modules */}
                                 <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
                                   Article {itemMeta.num}.
                                 </span>
@@ -1354,9 +1487,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                 {/* Attached Content Badges */}
                                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-950 px-2 py-0.5 rounded border border-amber-300 cursor-pointer transition-colors"
+                                    title="Click to edit article headings & text"
+                                  >
                                     📝 Written Article {les.duration ? `(${les.duration})` : ''}
-                                  </span>
+                                  </button>
                                   {les.pdfUrl && (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
                                       📑 PDF Handout
@@ -1365,7 +1503,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </div>
 
                                 {/* Free Preview Checkbox */}
-                                <label className="hidden md:inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
+                                <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
                                   <input
                                     type="checkbox"
                                     checked={!!les.isFree}
@@ -1380,7 +1518,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </label>
                               </div>
 
-                              {/* Action Buttons on Article: Edit & Delete */}
+                              {/* Action Buttons on Article: Edit Article & Delete */}
                               <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                 <button
                                   type="button"
@@ -1414,21 +1552,30 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
-                      className="px-4 py-2 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Add a written article / reading lecture with headings and paragraphs"
+                      onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
+                      className="px-3.5 py-2 bg-blue-50 border border-blue-400 hover:bg-blue-100 text-blue-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Add a lecture"
                     >
-                      <Icon name="article" size={15} />
+                      <Icon name="videocam" size={15} />
                       <span>+ Add Lecture</span>
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
+                      className="px-3.5 py-2 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Add a written article with headings and paragraphs"
+                    >
+                      <Icon name="article" size={15} />
+                      <span>+ Add Article</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
-                      className="px-4 py-2 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      className="px-3.5 py-2 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                       title="Add a knowledge quiz"
                     >
                       <Icon name="quiz" size={15} />
-                      <span>+ Quiz</span>
+                      <span>+ Add Quiz</span>
                     </button>
                   </div>
                 </div>

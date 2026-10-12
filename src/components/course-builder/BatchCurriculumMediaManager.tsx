@@ -739,17 +739,21 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     return 0;
   };
 
-  // Global continuous numbering for lectures and quizzes across all modules
+  // Global continuous numbering for lectures, articles, and quizzes across all modules
   const itemNumbering = useMemo(() => {
     let lectureCount = 0;
+    let articleCount = 0;
     let quizCount = 0;
-    const map: Record<string, { type: 'LECTURE' | 'QUIZ'; num: number; label: string }> = {};
+    const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string }> = {};
 
     (sections || []).forEach((sec) => {
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           quizCount += 1;
           map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
+        } else if (les.type === 'TEXT') {
+          articleCount += 1;
+          map[les.id] = { type: 'ARTICLE', num: articleCount, label: `Article ${articleCount}` };
         } else {
           lectureCount += 1;
           map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
@@ -757,7 +761,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
     });
 
-    return { map, totalLectures: lectureCount, totalQuizzes: quizCount };
+    return { map, totalLectures: lectureCount, totalArticles: articleCount, totalQuizzes: quizCount };
   }, [sections]);
 
   // Stats calculation
@@ -1079,9 +1083,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isText = lesson.type === 'TEXT';
                         const isVideoLesson = !isQuiz && !isText && (lesson.type === 'VIDEO' || !lesson.type);
                         const itemMeta = itemNumbering.map[lesson.id] || {
-                          type: isQuiz ? 'QUIZ' : 'LECTURE',
+                          type: isQuiz ? 'QUIZ' : isText ? 'ARTICLE' : 'LECTURE',
                           num: lIdx + 1,
-                          label: isQuiz ? `Quiz ${lIdx + 1}` : `Lecture ${lIdx + 1}`
+                          label: isQuiz ? `Quiz ${lIdx + 1}` : isText ? `Article ${lIdx + 1}` : `Lecture ${lIdx + 1}`
                         };
 
                         return (
