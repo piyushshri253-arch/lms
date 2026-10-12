@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { ArticleContentRenderer } from './ArticleContentRenderer';
 
 interface ArticlePlayerProps {
   title: string;
@@ -207,16 +208,8 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
 
       {/* Rich Text / Article Content */}
       {type === 'TEXT' && (
-        <div className="prose prose-slate dark:prose-invert max-w-none space-y-4 text-xs sm:text-sm leading-relaxed text-on-surface relative">
-          {content ? (
-            <div className="whitespace-pre-wrap font-sans text-on-surface leading-7">
-              {content}
-            </div>
-          ) : (
-            <div className="py-12 text-center text-on-surface-variant text-xs">
-              This reading guide is being prepared by the course instructor.
-            </div>
-          )}
+        <div className="max-w-none space-y-4 text-xs sm:text-sm leading-relaxed text-on-surface relative">
+          <ArticleContentRenderer content={content} />
           {watermark.enabled && (
             <div className="pt-4 border-t border-outline-variant/40 text-[10px] font-mono text-on-surface-variant/60 flex items-center justify-between">
               <span>Licensed to: {watermark.text}</span>
