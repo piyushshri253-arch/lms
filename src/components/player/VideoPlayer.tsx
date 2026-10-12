@@ -58,9 +58,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Reset player error and playback state when switching lectures
+  useEffect(() => {
+    setVideoError(null);
+    setIsBuffering(false);
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, [lessonId, videoUrl]);
+
   // Fetch authorized & signed stream URL if lessonId is provided
   useEffect(() => {
     let isMounted = true;
+    setVideoError(null);
     const checkStreamAuth = async () => {
       if (!lessonId || lessonId === 'placeholder' || lessonId.startsWith('placeholder') || lessonId.length < 5) {
         setResolvedVideoUrl(videoUrl || null);

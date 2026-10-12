@@ -250,8 +250,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Only store base64 data for tiny files (< 512 KB) to prevent database timeouts or payload bloat
-      const base64Data = buffer.length <= 512 * 1024 ? buffer.toString('base64') : null;
+      // Store base64 data for files up to 50 MB to guarantee cross-instance persistence across serverless environments like Vercel
+      const base64Data = buffer.length <= 50 * 1024 * 1024 ? buffer.toString('base64') : null;
       let mediaAsset: any = null;
       try {
         mediaAsset = await prisma.mediaAsset.create({

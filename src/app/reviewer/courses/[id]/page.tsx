@@ -655,6 +655,7 @@ export default function AuditorCourseReviewPage() {
                     <div className="space-y-4">
                       {selectedLesson.videoUrl ? (
                         <VideoPlayer
+                          key={selectedLesson.id}
                           title={selectedLesson.title}
                           videoUrl={selectedLesson.videoUrl}
                           lessonId={selectedLesson.id}

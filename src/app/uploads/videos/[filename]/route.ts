@@ -50,8 +50,10 @@ export async function GET(
     // 3. Fallback to database MediaAsset table (guarantees cross-instance persistence on Vercel)
     if (!fileExists) {
       try {
-        const asset = await prisma.mediaAsset.findFirst({
+        const cleanName = safeFilename.replace(/^\d+_/, '').replace(/^media-\d+-[a-z0-9]+-?/, '');
+        let asset = await prisma.mediaAsset.findFirst({
           where: {
+            data: { not: null },
             OR: [
               { url: { endsWith: safeFilename } },
               { url: `/uploads/videos/${safeFilename}` }
@@ -59,6 +61,19 @@ export async function GET(
           },
           select: { data: true }
         });
+
+        if (!asset && cleanName && cleanName.length > 3) {
+          asset = await prisma.mediaAsset.findFirst({
+            where: {
+              data: { not: null },
+              OR: [
+                { url: { contains: cleanName } },
+                { name: { contains: cleanName } }
+              ]
+            },
+            select: { data: true }
+          });
+        }
 
         if (asset?.data) {
           const buf = Buffer.from(asset.data, 'base64');
