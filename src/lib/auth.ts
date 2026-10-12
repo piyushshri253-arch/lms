@@ -285,7 +285,7 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
       dbUser.status === 'REJECTED' ||
       dbUser.status === 'PENDING_VERIFICATION' ||
       dbUser.status === 'PENDING_APPROVAL' ||
-      ((dbUser.role === 'INSTRUCTOR' || dbUser.role === 'REVIEWER') && dbUser.emailVerified === false)
+      ((dbUser.role === 'INSTRUCTOR' || dbUser.role === 'REVIEWER' || dbUser.role === 'AUDITOR') && dbUser.emailVerified === false)
     ) {
       return null;
     }
@@ -364,7 +364,7 @@ export async function getReviewerCurrentUser(): Promise<AuthSessionUser | null> 
     if (!token) {
       // Fallback to LMS user if they have reviewer/admin role
       const lmsUser = await getLmsCurrentUser();
-      if (lmsUser && ['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(lmsUser.role)) {
+      if (lmsUser && ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(lmsUser.role)) {
         return lmsUser;
       }
       return null;
@@ -411,7 +411,7 @@ export async function getReviewerCurrentUser(): Promise<AuthSessionUser | null> 
       dbUser.status === 'DISABLED' ||
       dbUser.status === 'REJECTED' ||
       dbUser.status === 'PENDING_VERIFICATION' ||
-      (dbUser.role === 'REVIEWER' && dbUser.emailVerified === false)
+      ((dbUser.role === 'REVIEWER' || dbUser.role === 'AUDITOR') && dbUser.emailVerified === false)
     ) {
       return null;
     }
@@ -459,7 +459,7 @@ export async function requireReviewerAuth(): Promise<AuthSessionUser> {
   if (!user) {
     throw new Error('UNAUTHORIZED');
   }
-  const allowed = ['REVIEWER', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'];
+  const allowed = ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'];
   if (!allowed.includes(user.role)) {
     throw new Error('FORBIDDEN');
   }
@@ -473,7 +473,7 @@ export async function requireReviewerAuth(): Promise<AuthSessionUser> {
 export async function setSessionCookie(user: AuthSessionUser) {
   if (user.platform === 'SALES') {
     await setSalesSessionCookie(user);
-  } else if (user.role === 'REVIEWER') {
+  } else if (user.role === 'REVIEWER' || user.role === 'AUDITOR') {
     await setReviewerSessionCookie(user);
   } else {
     await setLmsSessionCookie(user);
@@ -481,7 +481,7 @@ export async function setSessionCookie(user: AuthSessionUser) {
 }
 
 export async function clearSessionCookie(portal?: string) {
-  if (portal === 'REVIEWER') {
+  if (portal === 'REVIEWER' || portal === 'AUDITOR') {
     await clearReviewerSessionCookie();
     return;
   }

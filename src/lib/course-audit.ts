@@ -26,6 +26,7 @@ export interface ReviewHistoryEntry {
     | 'REVIEW_STARTED'
     | 'VIDEO_REVIEWED'
     | 'PDF_REVIEWED'
+    | 'QUIZ_REVIEWED'
     | 'REQUEST_CHANGES'
     | 'CHANGES_REQUESTED'
     | 'COURSE_REJECTED'

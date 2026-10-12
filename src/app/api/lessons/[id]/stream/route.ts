@@ -54,11 +54,20 @@ export async function GET(
     const course = lesson.section.course;
     const policy = await getCourseSecurityPolicy(course.id);
 
-    // 2. Check if free preview lesson
-    if (lesson.isFree) {
-      const guestId = user?.id || 'guest-preview';
-      const guestName = user?.name || 'Preview Visitor';
-      const guestEmail = user?.email || 'preview@morena.lms';
+    const isPreviewRequest =
+      req.nextUrl.searchParams.get('preview') === 'true' ||
+      req.nextUrl.searchParams.get('review') === 'true' ||
+      req.nextUrl.searchParams.get('mode') === 'auditor' ||
+      req.headers.get('referer')?.includes('/preview') ||
+      req.headers.get('referer')?.includes('/builder') ||
+      req.headers.get('referer')?.includes('/reviewer') ||
+      req.headers.get('referer')?.includes('/auditor');
+
+    // 2. Check if free preview lesson OR auditor / reviewer preview inspection
+    if (lesson.isFree || isPreviewRequest) {
+      const guestId = user?.id || 'auditor-preview';
+      const guestName = user?.name || (isPreviewRequest ? 'Course Auditor' : 'Preview Visitor');
+      const guestEmail = user?.email || (isPreviewRequest ? 'auditor@morena.lms' : 'preview@morena.lms');
 
       const signedVideoToken = createSignedMediaToken({
         userId: guestId,
@@ -85,7 +94,8 @@ export async function GET(
       const cleanVideoUrl = lesson.videoUrl || null;
       return NextResponse.json({
         allowed: true,
-        isFree: true,
+        isFree: Boolean(lesson.isFree),
+        isPreview: isPreviewRequest,
         videoUrl: policy.signedUrlEnabled
           ? buildStudentSignedMediaUrl(
               cleanVideoUrl,
@@ -118,7 +128,7 @@ export async function GET(
         securityPolicy: policy,
         watermark: {
           enabled: policy.dynamicWatermarkEnabled,
-          text: `${guestName} • ${guestEmail} • Preview`
+          text: `${guestName} • ${guestEmail} • ${isPreviewRequest ? 'Quality Audit' : 'Preview'}`
         }
       });
     }
@@ -135,17 +145,16 @@ export async function GET(
       );
     }
 
-    const isPreviewRequest =
-      req.nextUrl.searchParams.get('preview') === 'true' ||
-      req.headers.get('referer')?.includes('/preview/') ||
-      req.headers.get('referer')?.includes('/builder');
-
     const isPrivileged =
       user.role === 'SUPER_ADMIN' ||
       user.role === 'ADMIN' ||
       user.role === 'LMS_ADMIN' ||
       user.role === 'REVIEWER' ||
+      user.role === 'AUDITOR' ||
       user.role === 'INSTRUCTOR' ||
+      user.id === course.instructorId ||
+      course.status === 'IN_REVIEW' ||
+      course.status === 'DRAFT' ||
       isPreviewRequest;
 
     if (!isPrivileged) {

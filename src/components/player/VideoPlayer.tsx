@@ -64,11 +64,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const checkStreamAuth = async () => {
       if (!lessonId || lessonId === 'placeholder' || lessonId.startsWith('placeholder') || lessonId.length < 5) {
         setResolvedVideoUrl(videoUrl || null);
+        setStreamError(null);
         return;
       }
 
       try {
-        const res = await fetch(`/api/lessons/${lessonId}/stream`);
+        const query = isFree ? '?preview=true&review=true' : '';
+        const res = await fetch(`/api/lessons/${lessonId}/stream${query}`);
         const data = await res.json();
         if (isMounted) {
           if (res.ok && data.allowed) {
@@ -85,8 +87,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
             setStreamError(null);
           } else {
-            if (videoUrl) {
-              setResolvedVideoUrl(videoUrl);
+            // In free preview or reviewer mode, never display enrollment paywall lock if videoUrl is available
+            if (videoUrl || isFree) {
+              setResolvedVideoUrl(videoUrl || null);
               setStreamError(null);
             } else {
               setStreamError(data.error || 'Enrollment required to stream this masterclass video.');
@@ -105,7 +108,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [lessonId, videoUrl]);
+  }, [lessonId, videoUrl, isFree]);
 
   // Handle Video Time Updates
   const handleTimeUpdate = () => {

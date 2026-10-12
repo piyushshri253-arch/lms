@@ -167,7 +167,7 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
-    const isAuditorOrAdmin = ['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role);
+    const isAuditorOrAdmin = ['REVIEWER', 'AUDITOR', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role);
     const isCourseInstructor = user.id === course.instructorId;
 
     if (!isAuditorOrAdmin && !isCourseInstructor) {
@@ -399,17 +399,17 @@ export async function POST(
         : auditMeta.internalNotes;
 
       const nextHistory = [...auditMeta.reviewHistory];
-      if (mediaReviewedType === 'VIDEO' || mediaReviewedType === 'PDF') {
+      if (mediaReviewedType === 'VIDEO' || mediaReviewedType === 'PDF' || mediaReviewedType === 'QUIZ') {
         nextHistory.unshift({
           id: `hist_${Date.now()}`,
           timestamp: new Date().toISOString(),
           actorId: auditor.id,
           actorName: auditor.name,
           actorRole: auditor.role,
-          action: mediaReviewedType === 'VIDEO' ? 'VIDEO_REVIEWED' : 'PDF_REVIEWED',
+          action: mediaReviewedType === 'VIDEO' ? 'VIDEO_REVIEWED' : mediaReviewedType === 'PDF' ? 'PDF_REVIEWED' : 'QUIZ_REVIEWED',
           versionLabel: versionState.pendingVersionLabel || versionState.liveVersionLabel || 'v1.0',
           submissionType: auditMeta.submissionType,
-          feedback: `${mediaReviewedType} stream & DRM protection verified by Auditor.`
+          feedback: `${mediaReviewedType} verified by Auditor.`
         });
       }
 
@@ -425,7 +425,7 @@ export async function POST(
         organizationId: course.organizationId || undefined,
         actorId: auditor.id,
         actorEmail: auditor.email,
-        action: mediaReviewedType === 'VIDEO' ? 'VIDEO_REVIEWED' : mediaReviewedType === 'PDF' ? 'PDF_REVIEWED' : 'REVIEW_STARTED',
+        action: mediaReviewedType === 'VIDEO' ? 'VIDEO_REVIEWED' : mediaReviewedType === 'PDF' ? 'PDF_REVIEWED' : mediaReviewedType === 'QUIZ' ? 'QUIZ_REVIEWED' : 'REVIEW_STARTED',
         entity: 'Course',
         entityId: course.id,
         description: `Auditor "${auditor.name}" updated audit notes/checklist for "${course.title}".`

@@ -16,6 +16,50 @@ interface SectionIssue {
   createdAt: string;
 }
 
+function getLessonResources(lesson: any): Array<{ id: string; name: string; url: string; type: string }> {
+  if (!lesson) return [];
+  const list: Array<{ id: string; name: string; url: string; type: string }> = [];
+
+  if (Array.isArray(lesson.resourcesList) && lesson.resourcesList.length > 0) {
+    lesson.resourcesList.forEach((r: any, idx: number) => {
+      if (r?.url) list.push({ id: r.id || `res_${idx}`, name: r.name || 'Resource', url: r.url, type: r.type || 'DOC' });
+    });
+  }
+
+  if (lesson.resources) {
+    try {
+      const parsed = typeof lesson.resources === 'string' ? JSON.parse(lesson.resources) : lesson.resources;
+      if (Array.isArray(parsed)) {
+        parsed.forEach((r: any, idx: number) => {
+          if (r?.url && !list.some((existing) => existing.url === r.url)) {
+            list.push({ id: r.id || `db_res_${idx}`, name: r.name || 'Resource', url: r.url, type: r.type || 'DOC' });
+          }
+        });
+      }
+    } catch {}
+  }
+
+  if (lesson.pdfUrl && !list.some((existing) => existing.url === lesson.pdfUrl)) {
+    const isDoc = lesson.pdfUrl.toLowerCase().endsWith('.doc') || lesson.pdfUrl.toLowerCase().endsWith('.docx');
+    list.push({
+      id: `pdf_${lesson.id || '1'}`,
+      name: lesson.resourceFileName || (isDoc ? 'Attached Document.doc' : 'Attached Document.pdf'),
+      url: lesson.pdfUrl,
+      type: isDoc ? 'DOC' : 'PDF'
+    });
+  }
+  if (lesson.fileUrl && !list.some((existing) => existing.url === lesson.fileUrl)) {
+    list.push({
+      id: `file_${lesson.id || '1'}`,
+      name: lesson.resourceFileName || 'Study Resource',
+      url: lesson.fileUrl,
+      type: 'DOC'
+    });
+  }
+
+  return list;
+}
+
 export default function AuditorCourseReviewPage() {
   const params = useParams();
   const router = useRouter();
@@ -202,7 +246,7 @@ export default function AuditorCourseReviewPage() {
     setSectionIssues(sectionIssues.filter((i) => i.id !== id));
   };
 
-  const handleSaveAuditDraft = async (mediaReviewedType?: 'VIDEO' | 'PDF') => {
+  const handleSaveAuditDraft = async (mediaReviewedType?: 'VIDEO' | 'PDF' | 'QUIZ') => {
     try {
       setSavingDraft(true);
       const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`, {
@@ -606,17 +650,43 @@ export default function AuditorCourseReviewPage() {
                     </button>
                   </div>
 
-                  {/* Protected Video Stream Inspector (Requirement #5) */}
-                  {(selectedLesson.type === 'VIDEO' || selectedLesson.videoUrl) && (
+                  {/* 1. Protected Video Stream Inspector (Requirement #5) */}
+                  {(selectedLesson.type === 'VIDEO' || selectedLesson.videoUrl || (!selectedLesson.type && !selectedLesson.pdfUrl && !selectedLesson.quiz)) && (
                     <div className="space-y-4">
-                      <VideoPlayer
-                        title={selectedLesson.title}
-                        videoUrl={selectedLesson.videoUrl}
-                        lessonId={selectedLesson.id}
-                        thumbnail={course.thumbnail}
-                        duration={selectedLesson.duration}
-                        isFree={Boolean(selectedLesson.isFree)}
-                      />
+                      {selectedLesson.videoUrl ? (
+                        <VideoPlayer
+                          title={selectedLesson.title}
+                          videoUrl={selectedLesson.videoUrl}
+                          lessonId={selectedLesson.id}
+                          thumbnail={course.thumbnail}
+                          duration={selectedLesson.duration}
+                          isFree={true}
+                        />
+                      ) : (
+                        <div className="p-8 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 space-y-3">
+                          <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                            <Icon name="movie" size={28} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white">No Video Asset Uploaded Yet</h4>
+                            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                              The instructor has created this lecture slot but has not uploaded or linked a video stream yet.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setNewIssueSection('Video');
+                              setNewIssueLessonRef(`${selectedLesson.moduleTitle} → ${selectedLesson.title}`);
+                              setNewIssueTitle('Missing Video Lecture Asset');
+                              setNewIssueComment('Please upload or attach the video lecture for this topic.');
+                              setActiveTab('ISSUES_HISTORY');
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            ⚠️ Flag Missing Video
+                          </button>
+                        </div>
+                      )}
 
                       <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                         <div className="flex items-center justify-between">
@@ -626,7 +696,7 @@ export default function AuditorCourseReviewPage() {
                           <button
                             onClick={() => handleSaveAuditDraft('VIDEO')}
                             disabled={savingDraft}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold cursor-pointer hover:bg-emerald-700 transition-colors"
                           >
                             Log Video Reviewed ✓
                           </button>
@@ -642,7 +712,7 @@ export default function AuditorCourseReviewPage() {
                           ].map((chk) => (
                             <label
                               key={chk.key}
-                              className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 cursor-pointer"
+                              className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 cursor-pointer hover:border-slate-300"
                             >
                               <input
                                 type="checkbox"
@@ -663,13 +733,119 @@ export default function AuditorCourseReviewPage() {
                     </div>
                   )}
 
-                  {/* PDF / Document Inspector (Requirement #6) */}
+                  {/* 2. Quiz / Assessment Inspector (if lecture is Quiz or has Quiz attached) */}
+                  {(selectedLesson.type === 'QUIZ' || selectedLesson.quiz || selectedLesson.quizData) && (() => {
+                    let questions: any[] = [];
+                    if (selectedLesson.quiz?.questions && Array.isArray(selectedLesson.quiz.questions)) {
+                      questions = selectedLesson.quiz.questions;
+                    } else if (selectedLesson.quizData) {
+                      try {
+                        const parsed = typeof selectedLesson.quizData === 'string' ? JSON.parse(selectedLesson.quizData) : selectedLesson.quizData;
+                        questions = parsed?.questions || [];
+                      } catch {}
+                    }
+                    const qPassing = selectedLesson.quiz?.passingScore || 70;
+                    const qTime = selectedLesson.quiz?.timeLimit || 15;
+
+                    return (
+                      <div className="space-y-4 p-5 rounded-2xl bg-indigo-50/50 border border-indigo-200/80">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+                          <div>
+                            <span className="text-[10px] font-mono font-bold uppercase text-indigo-700">
+                              Quiz Assessment Verification
+                            </span>
+                            <h4 className="text-sm font-extrabold text-slate-900 mt-0.5">
+                              {selectedLesson.quiz?.title || selectedLesson.title} ({questions.length} Questions)
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-white border border-indigo-200 text-indigo-800">
+                              Pass: {qPassing}% • Limit: {qTime}m
+                            </span>
+                            <button
+                              onClick={() => handleSaveAuditDraft('QUIZ')}
+                              disabled={savingDraft}
+                              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer"
+                            >
+                              Log Quiz Reviewed ✓
+                            </button>
+                          </div>
+                        </div>
+
+                        {questions.length === 0 ? (
+                          <p className="text-xs text-slate-500 py-3 text-center">
+                            No quiz questions configured for this assessment yet.
+                          </p>
+                        ) : (
+                          <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                            {questions.map((q: any, qIdx: number) => {
+                              let opts: string[] = [];
+                              try {
+                                opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options || [];
+                              } catch {
+                                opts = [];
+                              }
+                              return (
+                                <div key={q.id || qIdx} className="p-3.5 rounded-xl bg-white border border-indigo-100 space-y-2 text-xs">
+                                  <div className="font-bold text-slate-900">
+                                    Q{qIdx + 1}: {q.question}
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {opts.map((opt: string, oIdx: number) => {
+                                      const isCorrect = String(q.correctAnswer) === String(opt) || String(q.correctAnswer) === String(oIdx);
+                                      return (
+                                        <div
+                                          key={oIdx}
+                                          className={`p-2 rounded-lg border flex items-center justify-between text-xs ${
+                                            isCorrect
+                                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
+                                              : 'bg-slate-50 border-slate-200 text-slate-700'
+                                          }`}
+                                        >
+                                          <span>{opt}</span>
+                                          {isCorrect && (
+                                            <span className="text-[10px] font-mono text-emerald-700 font-bold">
+                                              Correct ✓
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {q.explanation && (
+                                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                                      <strong>Explanation:</strong> {q.explanation}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 3. Text Article / Lecture Content Inspector */}
+                  {(selectedLesson.type === 'TEXT' || (selectedLesson.content && selectedLesson.type !== 'VIDEO')) && (
+                    <div className="space-y-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <span className="text-xs font-bold text-slate-900">Lecture Text Notes &amp; Reading Material</span>
+                        <span className="text-[10px] font-mono text-slate-500">Student Classroom View</span>
+                      </div>
+                      <div className="bg-white p-4 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap max-h-[380px] overflow-y-auto">
+                        {selectedLesson.content || 'No text notes provided for this lecture.'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4. PDF Document Verification */}
                   {(selectedLesson.type === 'PDF' || selectedLesson.pdfUrl) && (
                     <div className="space-y-4">
                       <div className="p-4 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center justify-between">
                         <div>
                           <div className="text-xs font-bold text-rose-900">
-                            PDF Document Verification & DRM Policy
+                            PDF Document Verification &amp; DRM Policy
                           </div>
                           <div className="text-[11px] text-rose-700">
                             Download Permission:{' '}
@@ -680,7 +856,7 @@ export default function AuditorCourseReviewPage() {
                         </div>
                         <button
                           onClick={() => handleSaveAuditDraft('PDF')}
-                          className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors"
                         >
                           Log PDF Reviewed ✓
                         </button>
@@ -701,6 +877,62 @@ export default function AuditorCourseReviewPage() {
                       )}
                     </div>
                   )}
+
+                  {/* 5. Attached Multi-Format Study Resources (PDF, Doc, Image, External Links) */}
+                  {(() => {
+                    const attachedResources = getLessonResources(selectedLesson);
+                    if (attachedResources.length === 0) return null;
+
+                    return (
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">📁</span>
+                            <span className="text-xs font-extrabold text-slate-900">
+                              Attached Study Resources ({attachedResources.length})
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            Multi-Format Lecture Downloads &amp; Reference Docs
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {attachedResources.map((res, rIdx) => (
+                            <div
+                              key={res.id || rIdx}
+                              className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-2xs hover:border-indigo-300 transition-colors"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-base shrink-0">
+                                  {res.type === 'PDF' ? '📄' : res.type === 'DOC' ? '📝' : res.type === 'IMAGE' ? '🖼️' : res.type === 'ZIP' ? '📦' : '🔗'}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold text-slate-800 truncate" title={res.name}>
+                                    {res.name}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 uppercase font-mono">
+                                    {res.type} Document
+                                  </div>
+                                </div>
+                              </div>
+
+                              <a
+                                href={res.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={res.type !== 'LINK'}
+                                className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold border border-indigo-200 shrink-0 transition-colors flex items-center gap-1"
+                              >
+                                <span>Inspect</span>
+                                <span>↗</span>
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

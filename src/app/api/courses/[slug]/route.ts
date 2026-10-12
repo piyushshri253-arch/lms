@@ -84,7 +84,7 @@ export async function GET(
     const isPrivilegedViewer = Boolean(
       currentUser &&
         (currentUser.id === course.instructorId ||
-          ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'REVIEWER'].includes(currentUser.role))
+          ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'REVIEWER', 'AUDITOR'].includes(currentUser.role))
     );
 
     // Tenant Isolation Check for Draft / In-Review / Approved (Unpublished) Courses
