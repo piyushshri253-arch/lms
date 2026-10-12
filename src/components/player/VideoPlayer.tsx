@@ -25,6 +25,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onProgressUpdate
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(720);
@@ -49,6 +50,95 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     disablePictureInPicture: true
   });
   const [watermarkPosIndex, setWatermarkPosIndex] = useState(0);
+
+  // Helper to check whether browser is in native fullscreen mode
+  const isBrowserFullscreen = (): boolean => {
+    if (typeof document === 'undefined') return false;
+    return Boolean(
+      document.fullscreenElement ||
+      (document as any).webkitFullscreenElement ||
+      (document as any).mozFullScreenElement ||
+      (document as any).msFullscreenElement
+    );
+  };
+
+  // Toggle true native browser fullscreen with smooth CSS viewport fallback
+  const toggleFullscreen = async () => {
+    try {
+      const isCurrentlyFs = isBrowserFullscreen() || isFullscreen;
+
+      if (!isCurrentlyFs) {
+        const elem = containerRef.current;
+        if (elem) {
+          if (elem.requestFullscreen) {
+            await elem.requestFullscreen();
+          } else if ((elem as any).webkitRequestFullscreen) {
+            await (elem as any).webkitRequestFullscreen();
+          } else if ((elem as any).mozRequestFullScreen) {
+            await (elem as any).mozRequestFullScreen();
+          } else if ((elem as any).msRequestFullscreen) {
+            await (elem as any).msRequestFullscreen();
+          } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
+            (videoRef.current as any).webkitEnterFullscreen();
+          }
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch {
+      // Fallback: If native fullscreen is blocked by security context/iframe, toggle CSS fullscreen
+      setIsFullscreen((prev) => !prev);
+    }
+  };
+
+  // Listen to browser fullscreen change events (e.g. user presses Esc key or F11)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = isBrowserFullscreen();
+      setIsFullscreen(isFs);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Global keyboard shortcuts (F for fullscreen, Space for play/pause, M for mute)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)) return;
+      if (activeEl && activeEl.isContentEditable) return;
+
+      if (e.key === 'f' || e.key === 'F') {
+        if (containerRef.current) {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isFullscreen]);
 
   // Rotate anti-piracy watermark position every 18 seconds
   useEffect(() => {
@@ -251,13 +341,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={0}
       onContextMenu={(e) => {
         if (securityPolicy.preventRightClick) {
           e.preventDefault();
         }
       }}
-      className={`w-full h-full aspect-video max-h-[78vh] bg-black relative flex items-center justify-center group select-none transition-all ${
-        isFullscreen ? 'fixed inset-0 z-50 max-w-none rounded-none aspect-auto h-screen' : ''
+      className={`w-full bg-black relative flex items-center justify-center group select-none transition-all outline-none ${
+        isFullscreen
+          ? 'fixed inset-0 z-[999999] w-screen h-screen max-w-none max-h-none rounded-none aspect-auto m-0 p-0 overflow-hidden'
+          : 'h-full aspect-video max-h-[78vh] rounded-2xl overflow-hidden'
       }`}
     >
       {/* 1. YouTube Stream Embed */}
@@ -267,7 +361,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&autoplay=0`}
             title={title}
             className="w-full h-full aspect-video border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
           />
         </div>
@@ -289,13 +383,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             src={`https://drive.google.com/file/d/${googleDriveId}/preview`}
             title={title}
             className="w-full h-full aspect-video border-0"
-            allow="autoplay"
+            allow="autoplay; fullscreen"
             allowFullScreen
           />
         </div>
       ) : resolvedVideoUrl ? (
         /* 4. Direct HTML5 MP4 / WebM / Base64 Data Stream */
-        <div className="w-full h-full relative flex items-center justify-center bg-black">
+        <div className={`w-full h-full relative flex items-center justify-center bg-black ${isFullscreen ? 'w-screen h-screen max-w-none max-h-none' : ''}`}>
           <video
             ref={videoRef}
             src={resolvedVideoUrl}
@@ -322,8 +416,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               setIsPlaying(false);
               onLessonComplete?.();
             }}
-            className="w-full h-full aspect-video max-h-[78vh] object-contain cursor-pointer"
+            className={`w-full object-contain cursor-pointer transition-all ${
+              isFullscreen
+                ? 'h-full max-h-screen aspect-auto'
+                : 'h-full aspect-video max-h-[78vh]'
+            }`}
             onClick={togglePlay}
+            onDoubleClick={toggleFullscreen}
             playsInline
             preload="metadata"
           />
@@ -461,15 +560,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
 
               <button
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className="text-white hover:text-primary transition-colors cursor-pointer"
-                title="Fullscreen"
+                type="button"
+                onClick={toggleFullscreen}
+                className="text-white hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-white/10"
+                title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
+                aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
               >
-                <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={18} />
+                <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={20} />
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Exit Fullscreen Button */}
+      {isFullscreen && (
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="absolute top-5 right-5 z-40 px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black/95 text-white/90 hover:text-white border border-white/20 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-2xl flex items-center gap-1.5 backdrop-blur-md"
+          title="Exit Fullscreen (Esc or F)"
+        >
+          <Icon name="fullscreen_exit" size={18} />
+          <span className="text-[11px] font-medium font-mono">Exit (Esc)</span>
+        </button>
       )}
     </div>
   );

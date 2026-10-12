@@ -657,6 +657,7 @@ export default function LearnPlayerPage() {
                   </div>
                 )}
                 <VideoPlayer
+                  key={activeLesson?.id}
                   title={activeLesson?.title || course?.title || 'Lecture Video'}
                   videoUrl={hasValidVideo ? activeLesson?.videoUrl : null}
                   lessonId={activeLesson?.id || undefined}

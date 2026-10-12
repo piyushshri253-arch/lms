@@ -903,6 +903,7 @@ function CourseStudentPreviewInner() {
                     />
                   ) : (
                     <VideoPlayer
+                      key={activeLesson.id}
                       title={activeLesson.title}
                       videoUrl={activeLesson.videoUrl}
                       lessonId={activeLesson.id}
