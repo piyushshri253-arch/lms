@@ -200,7 +200,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
         } else {
           lectureCount += 1;
-          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Article ${lectureCount}` };
+          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
         }
       });
     });
@@ -521,8 +521,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
     }
     showToast({
-      title: type === 'QUIZ' ? `Added ${quizTitle}` : `Added Article ${nextLectureNum}`,
-      description: `${defaultTitle || (type === 'QUIZ' ? quizTitle : `Article ${nextLectureNum}`)} added to Module ${moduleNum}.`,
+      title: type === 'QUIZ' ? `Added ${quizTitle}` : `Added Lecture ${nextLectureNum}`,
+      description: `${defaultTitle || (type === 'QUIZ' ? quizTitle : `Lecture ${nextLectureNum}`)} added to Module ${moduleNum}.`,
       type: 'success'
     });
   };
@@ -738,7 +738,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
               📁 {sections.length} {sections.length === 1 ? 'Module' : 'Modules'}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-200">
-              📝 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Written Article' : 'Written Articles'}
+              📝 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Lecture' : 'Lectures'}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
               ❓ {itemNumbering.totalQuizzes} {itemNumbering.totalQuizzes === 1 ? 'Quiz' : 'Quizzes'}
@@ -862,7 +862,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           className="px-4 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                         >
                           <Icon name="article" size={15} />
-                          <span>+ Add Written Article</span>
+                          <span>+ Add Lecture</span>
                         </button>
                         <button
                           type="button"
@@ -1419,7 +1419,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       title="Add a written article / reading lecture with headings and paragraphs"
                     >
                       <Icon name="article" size={15} />
-                      <span>+ Written Article</span>
+                      <span>+ Add Lecture</span>
                     </button>
                     <button
                       type="button"
@@ -1582,93 +1582,15 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
         : lesson.quizData || { questions: [], passingScore: 70, attemptLimit: 0 }
   });
 
-  const parsedQuiz = (formData.quizData as QuizConfig) || { questions: [], passingScore: 70, attemptLimit: 0 };
-
-  const handleAddQuizQuestion = () => {
-    const newQ: QuizQuestion = {
-      id: `q-${Date.now()}`,
-      question: 'Enter question text here...',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctIndex: 0,
-      explanation: 'Explanation of why this answer is correct.',
-      points: 1
-    };
-
-    setFormData({
-      ...formData,
-      quizData: {
-        ...parsedQuiz,
-        questions: [...parsedQuiz.questions, newQ]
-      }
-    });
-  };
-
-  const handleUpdateQuizQuestion = (qIndex: number, field: string, val: any) => {
-    const questions = [...parsedQuiz.questions];
-    questions[qIndex] = { ...questions[qIndex], [field]: val };
-    setFormData({
-      ...formData,
-      quizData: {
-        ...parsedQuiz,
-        questions
-      }
-    });
-  };
-
-  const handleRemoveQuizQuestion = (qIndex: number) => {
-    const questions = [...parsedQuiz.questions];
-    questions.splice(qIndex, 1);
-    setFormData({
-      ...formData,
-      quizData: {
-        ...parsedQuiz,
-        questions
-      }
-    });
-  };
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="lg"
       title={`Edit Article: "${formData.title || 'Untitled'}"`}
-      subtitle={`Type: ${formData.type === 'QUIZ' ? 'Knowledge Quiz' : 'Written Article'} • Order: ${formData.order}`}
+      subtitle={`Lecture Order: ${formData.order} • Written Content & Resources`}
     >
       <div className="space-y-6">
-        {/* Lesson Type Selector */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { type: 'TEXT', icon: 'article', label: 'Written Article' },
-            { type: 'QUIZ', icon: 'quiz', label: 'Knowledge Quiz' }
-          ].map((t) => (
-            <button
-              key={t.type}
-              type="button"
-              onClick={() => {
-                setFormData((prev) => {
-                  let nextContent = prev.content;
-                  if (t.type === 'TEXT' && (!nextContent || nextContent.trim().length === 0)) {
-                    nextContent = `# ${prev.title || 'Article Overview'}\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.`;
-                  }
-                  return { ...prev, type: t.type as any, content: nextContent };
-                });
-              }}
-              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                formData.type === t.type
-                  ? 'bg-primary/10 border-primary shadow-xs'
-                  : 'bg-surface border-outline-variant hover:bg-surface-container-low'
-              }`}
-            >
-              <Icon
-                name={t.icon}
-                size={20}
-                className={formData.type === t.type ? 'text-primary mb-1' : 'text-outline mb-1'}
-              />
-              <p className="text-xs font-bold text-on-surface">{t.label}</p>
-            </button>
-          ))}
-        </div>
 
         {/* Title & Duration */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1814,99 +1736,6 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
           />
         </div>
 
-        {/* 4. QUICK QUESTIONS / QUIZ BUILDER SECTION (Always Available) */}
-        <div className="space-y-4 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-                ❓ 4. Quick Questions / Practice Quiz ({parsedQuiz.questions.length})
-              </label>
-              <p className="text-[11px] text-on-surface-variant">
-                Add quick multiple-choice check questions for this lesson.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleAddQuizQuestion}
-              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <Icon name="add" size={14} />
-              <span>+ Add Quick Question</span>
-            </button>
-          </div>
-
-          {/* Questions List */}
-          <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-            {parsedQuiz.questions.map((q, qIdx) => (
-              <div
-                key={q.id || qIdx}
-                className="p-4 bg-surface rounded-2xl border border-outline-variant space-y-3"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-primary font-mono">
-                    Question {qIdx + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveQuizQuestion(qIdx)}
-                    className="text-outline hover:text-rose-600 p-1 cursor-pointer"
-                  >
-                    <Icon name="delete" size={16} />
-                  </button>
-                </div>
-
-                <input
-                  type="text"
-                  value={q.question}
-                  onChange={(e) => handleUpdateQuizQuestion(qIdx, 'question', e.target.value)}
-                  placeholder="Enter question prompt..."
-                  className="w-full bg-surface-container-low border border-outline-variant rounded-xl p-2.5 text-xs text-on-surface font-semibold focus:outline-none focus:border-primary"
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {q.options.map((opt, oIdx) => {
-                    const isCorrect = q.correctIndex === oIdx;
-                    return (
-                      <div
-                        key={oIdx}
-                        className={`flex items-center gap-2 p-2 rounded-xl border ${
-                          isCorrect ? 'border-emerald-500 bg-emerald-50/50' : 'border-outline-variant bg-surface'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`correct-${q.id || qIdx}`}
-                          checked={isCorrect}
-                          onChange={() => handleUpdateQuizQuestion(qIdx, 'correctIndex', oIdx)}
-                          className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={opt}
-                          onChange={(e) => {
-                            const newOpts = [...q.options];
-                            newOpts[oIdx] = e.target.value;
-                            handleUpdateQuizQuestion(qIdx, 'options', newOpts);
-                          }}
-                          className="flex-1 bg-transparent border-0 text-xs text-on-surface focus:outline-none"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <input
-                  type="text"
-                  value={q.explanation || ''}
-                  onChange={(e) => handleUpdateQuizQuestion(qIdx, 'explanation', e.target.value)}
-                  placeholder="Rationale / explanation shown after answer submission..."
-                  className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl p-2 text-[11px] text-on-surface-variant focus:outline-none"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Free Preview Toggle */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container-low rounded-2xl border border-outline-variant/60">
