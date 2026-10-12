@@ -1241,16 +1241,16 @@ function CourseBuilderContent() {
             onChange={handleUpdateField}
           />
 
-          {/* Curriculum Video Lectures & Resources Studio */}
+          {/* Curriculum Media & Resources Studio */}
           <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
-                <Icon name="video_settings" size={24} />
+                <Icon name="folder_zip" size={24} />
               </div>
               <div>
-                <h3 className="text-lg font-black text-on-surface">Curriculum Videos &amp; Study Resources Studio</h3>
+                <h3 className="text-lg font-black text-on-surface">Curriculum Resources &amp; Media Studio</h3>
                 <p className="text-xs text-on-surface-variant">
-                  Upload video lectures directly to each module, attach study PDFs &amp; files, and auto-detect duration.
+                  Attach study resources, PDFs &amp; files to your written articles and quizzes, and manage course media.
                 </p>
               </div>
             </div>

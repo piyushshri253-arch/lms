@@ -375,21 +375,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     }[] = [];
 
     (sections || []).forEach((s) => {
-      (s.lessons || []).filter((l) => l.type !== 'QUIZ').forEach((l) => {
-        allLessonsList.push({
-          sectionId: s.id,
-          lessonId: l.id,
-          moduleTitle: s.title,
-          lessonTitle: l.title,
-          hasVideo: !!l.videoUrl
+      (s.lessons || [])
+        .filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT')
+        .forEach((l) => {
+          allLessonsList.push({
+            sectionId: s.id,
+            lessonId: l.id,
+            moduleTitle: s.title,
+            lessonTitle: l.title,
+            hasVideo: !!l.videoUrl
+          });
         });
-      });
     });
 
     if (allLessonsList.length === 0) {
       showToast({
-        title: 'No Lectures Found',
-        description: 'Please add modules and lectures in Step 2 before selecting videos.',
+        title: 'No Video Lectures Found',
+        description: 'This curriculum uses Written Articles and Quizzes. You can attach study resources below.',
         type: 'info'
       });
       e.target.value = '';
@@ -724,35 +726,66 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     return 'Attached Resource';
   };
 
-  // Global continuous lecture numbering map across all modules (excluding quizzes)
-  const globalLectureNumberMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    let count = 0;
+  // Helper to parse quiz question count safely
+  const getQuizQuestionCount = (quizData: any): number => {
+    if (!quizData) return 0;
+    if (typeof quizData === 'object' && Array.isArray(quizData.questions)) return quizData.questions.length;
+    if (typeof quizData === 'string') {
+      try {
+        const p = JSON.parse(quizData);
+        if (p && Array.isArray(p.questions)) return p.questions.length;
+      } catch {}
+    }
+    return 0;
+  };
+
+  // Global continuous numbering for lectures and quizzes across all modules
+  const itemNumbering = useMemo(() => {
+    let lectureCount = 0;
+    let quizCount = 0;
+    const map: Record<string, { type: 'LECTURE' | 'QUIZ'; num: number; label: string }> = {};
+
     (sections || []).forEach((sec) => {
       (sec.lessons || []).forEach((les) => {
-        if (les.type !== 'QUIZ') {
-          count += 1;
-          map[les.id] = count;
+        if (les.type === 'QUIZ') {
+          quizCount += 1;
+          map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
+        } else {
+          lectureCount += 1;
+          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
         }
       });
     });
-    return map;
+
+    return { map, totalLectures: lectureCount, totalQuizzes: quizCount };
   }, [sections]);
 
-  // Stats calculation (Excludes quizzes - quizzes are created and edited strictly in Course Curriculum)
+  // Stats calculation
   const totalLessons = (sections || []).reduce(
-    (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ').length,
+    (acc, s) => acc + (s.lessons || []).length,
+    0
+  );
+  const totalArticles = (sections || []).reduce(
+    (acc, s) => acc + (s.lessons || []).filter((l) => l.type === 'TEXT').length,
+    0
+  );
+  const totalQuizzes = (sections || []).reduce(
+    (acc, s) => acc + (s.lessons || []).filter((l) => l.type === 'QUIZ').length,
+    0
+  );
+  const totalVideoLessons = (sections || []).reduce(
+    (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT').length,
     0
   );
   const totalWithVideo = (sections || []).reduce(
-    (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ' && !!l.videoUrl).length,
+    (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT' && !!l.videoUrl).length,
     0
   );
   const totalWithPdf = (sections || []).reduce(
     (acc, s) =>
       acc +
       (s.lessons || []).filter(
-        (l) => l.type !== 'QUIZ' && ((l.resourcesList && l.resourcesList.length > 0) || !!(l.pdfUrl || l.fileUrl))
+        (l) => (l.resourcesList && l.resourcesList.length > 0) || !!(l.pdfUrl || l.fileUrl)
       ).length,
     0
   );
@@ -796,12 +829,30 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-4 mt-2 text-xs font-medium text-slate-300">
-              <div className="flex items-center gap-1.5">
-                <Icon name="video_library" size={15} className="text-emerald-400" />
-                <span>
-                  Videos: <strong>{totalWithVideo}</strong> / {totalLessons}
-                </span>
-              </div>
+              {totalVideoLessons > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Icon name="video_library" size={15} className="text-emerald-400" />
+                  <span>
+                    Videos: <strong>{totalWithVideo}</strong> / {totalVideoLessons}
+                  </span>
+                </div>
+              )}
+              {totalArticles > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Icon name="article" size={15} className="text-blue-400" />
+                  <span>
+                    Articles: <strong>{totalArticles}</strong>
+                  </span>
+                </div>
+              )}
+              {totalQuizzes > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Icon name="quiz" size={15} className="text-purple-400" />
+                  <span>
+                    Quizzes: <strong>{totalQuizzes}</strong>
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1.5">
                 <Icon name="description" size={15} className="text-amber-400" />
                 <span>
@@ -817,22 +868,29 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             </div>
           </div>
 
-          {/* Bulk File Selection Button */}
+          {/* Bulk File Selection Button (Only when course has video lessons) */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <label
-              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all"
-              title="Select multiple video files from your device to queue"
-            >
-              <Icon name="cloud_upload" size={18} />
-              <span>Bulk Select Multiple Videos</span>
-              <input
-                type="file"
-                multiple
-                accept="video/*"
-                onChange={handleBulkSelectVideos}
-                className="hidden"
-              />
-            </label>
+            {totalVideoLessons > 0 ? (
+              <label
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all"
+                title="Select multiple video files from your device to queue"
+              >
+                <Icon name="cloud_upload" size={18} />
+                <span>Bulk Select Multiple Videos</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="video/*"
+                  onChange={handleBulkSelectVideos}
+                  className="hidden"
+                />
+              </label>
+            ) : (
+              <div className="px-3.5 py-2 bg-indigo-900/60 border border-indigo-400/30 rounded-xl text-xs font-bold text-indigo-200 flex items-center gap-2">
+                <Icon name="verified" size={16} className="text-indigo-400" />
+                <span>Articles &amp; Quizzes Studio</span>
+              </div>
+            )}
 
             {tasks.length > 0 && (
               <button
@@ -937,9 +995,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         <div className="space-y-4 pb-36">
           {(sections || []).map((section, sIdx) => {
             const isCollapsed = collapsedSections[section.id];
-            // Quizzes are strictly created and edited in Course Curriculum; exclude from media studio
-            const secLessons = (section.lessons || []).filter((l) => l.type !== 'QUIZ');
-            const secWithVideos = secLessons.filter((l) => !!l.videoUrl).length;
+            const secLessons = section.lessons || [];
+            const secVideoLessons = secLessons.filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT');
+            const secArticles = secLessons.filter((l) => l.type === 'TEXT');
+            const secQuizzes = secLessons.filter((l) => l.type === 'QUIZ');
+            const secWithVideos = secVideoLessons.filter((l) => !!l.videoUrl).length;
             const hasActiveDropdown = secLessons.some(
               (l) => l.id === activeResourceDropdownLessonId
             );
@@ -963,16 +1023,28 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                       {sIdx + 1}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-extrabold text-sm text-on-surface">
                           Module {sIdx + 1}: {cleanModuleTitle(section.title) || `Module ${sIdx + 1}`}
                         </h3>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant font-bold">
-                          {secLessons.length} Lectures
+                          {secLessons.length} Items
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                          {secWithVideos}/{secLessons.length} Videos
-                        </span>
+                        {secVideoLessons.length > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            {secWithVideos}/{secVideoLessons.length} Videos
+                          </span>
+                        )}
+                        {secArticles.length > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                            {secArticles.length} Articles
+                          </span>
+                        )}
+                        {secQuizzes.length > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                            {secQuizzes.length} Quizzes
+                          </span>
+                        )}
                       </div>
                       {section.description && (
                         <p className="text-xs text-on-surface-variant line-clamp-1 mt-0.5">
@@ -1003,7 +1075,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isTaskQueued = task?.status === 'QUEUED';
                         const isLastLesson = lIdx === secLessons.length - 1;
                         const isDropdownActive = activeResourceDropdownLessonId === lesson.id;
-                        const globalLectureNum = globalLectureNumberMap[lesson.id] || (lIdx + 1);
+                        const isQuiz = lesson.type === 'QUIZ';
+                        const isText = lesson.type === 'TEXT';
+                        const isVideoLesson = !isQuiz && !isText && (lesson.type === 'VIDEO' || !lesson.type);
+                        const itemMeta = itemNumbering.map[lesson.id] || {
+                          type: isQuiz ? 'QUIZ' : 'LECTURE',
+                          num: lIdx + 1,
+                          label: isQuiz ? `Quiz ${lIdx + 1}` : `Lecture ${lIdx + 1}`
+                        };
 
                         return (
                           <div
@@ -1016,25 +1095,36 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                               {/* Left: Lecture Details & Editable Description */}
                               <div className="space-y-1.5 flex-1 min-w-0 max-w-xl">
                                 <div className="flex flex-wrap items-center gap-2 min-w-0">
-                                  <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10 shrink-0">
-                                    Lecture {globalLectureNum}
+                                  <span
+                                    className={`font-mono text-xs font-bold px-2 py-0.5 rounded shrink-0 ${
+                                      isQuiz
+                                        ? 'text-purple-700 dark:text-purple-300 bg-purple-500/10'
+                                        : 'text-primary bg-primary/10'
+                                    }`}
+                                  >
+                                    {itemMeta.label}
                                   </span>
                                   <input
                                     type="text"
                                     value={lesson.title}
                                     onChange={(e) => updateLesson(section.id, lesson.id, { title: e.target.value })}
                                     onBlur={() => updateLesson(section.id, lesson.id, { title: cleanLectureTitle(lesson.title) })}
-                                    placeholder="Lecture Title (e.g. Course Orientation & Roadmap)"
+                                    placeholder={isQuiz ? "Quiz Title (e.g. Module Knowledge Check)" : "Article Title (e.g. Overview & Deep Dive)"}
                                     className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1 min-w-[120px]"
                                   />
                                   <span
-                                    className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 ${
-                                      lesson.type === 'PDF'
+                                    className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1 ${
+                                      isQuiz
+                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                                        : isText
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                        : lesson.type === 'PDF'
                                         ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                                     }`}
                                   >
-                                    {lesson.type}
+                                    <Icon name={isQuiz ? 'quiz' : isText ? 'article' : 'videocam'} size={11} />
+                                    {isQuiz ? 'QUIZ' : isText ? 'WRITTEN ARTICLE' : lesson.type || 'VIDEO'}
                                   </span>
                                   {lesson.isFree && (
                                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
@@ -1042,103 +1132,109 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     </span>
                                   )}
                                   <span className="flex items-center gap-1 text-[11px] text-outline font-medium ml-1 shrink-0">
-                                    <Icon name="schedule" size={13} />
-                                    {lesson.duration || '10:00'}
+                                    <Icon name={isQuiz ? 'help_outline' : 'schedule'} size={13} />
+                                    {isQuiz
+                                      ? `${getQuizQuestionCount(lesson.quizData)} Qs`
+                                      : lesson.duration || (isText ? '5 min read' : '10:00')}
                                   </span>
                                 </div>
                               </div>
 
                               {/* Right: Action Controls (Video, PDF, Quiz) */}
                               <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full justify-start lg:justify-end">
-                                {/* 1. VIDEO ACTION */}
-                                {isTaskUploading ? (
-                                  <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-800 rounded-xl flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-200 shrink-0">
-                                    <Icon name="sync" size={14} className="animate-spin text-blue-600" />
-                                    <span>Uploading {task.progress}%</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => cancelTask(task.id)}
-                                      className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
-                                    >
-                                      <Icon name="close" size={13} />
-                                    </button>
-                                  </div>
-                                ) : isTaskQueued ? (
-                                  <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-xl flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200 shrink-0">
-                                    <Icon name="hourglass_top" size={14} className="text-amber-600" />
-                                    <span>Queued in Slot #{tasks.findIndex((t) => t.id === task.id) + 1}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => cancelTask(task.id)}
-                                      className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
-                                    >
-                                      <Icon name="close" size={13} />
-                                    </button>
-                                  </div>
-                                ) : lesson.videoUrl ? (
-                                  <div className="flex items-center gap-1.5 shrink-0 max-w-full">
-                                    {(() => {
-                                      const vidName = getVideoFileName(lesson.videoUrl, lesson.videoFileName);
-                                      return (
+                                {/* 1. VIDEO ACTION (Strictly hidden for Written Articles and Quizzes) */}
+                                {isVideoLesson && (
+                                  <>
+                                    {isTaskUploading ? (
+                                      <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-800 rounded-xl flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-200 shrink-0">
+                                        <Icon name="sync" size={14} className="animate-spin text-blue-600" />
+                                        <span>Uploading {task.progress}%</span>
                                         <button
                                           type="button"
-                                          onClick={() => setPreviewVideoUrl(lesson.videoUrl || '')}
-                                          className="max-w-[160px] sm:max-w-[200px] px-2.5 sm:px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
-                                          title={`Video File: ${vidName}\nClick to preview video`}
+                                          onClick={() => cancelTask(task.id)}
+                                          className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
                                         >
-                                          <Icon name="play_circle" size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                          <span className="truncate max-w-[90px] sm:max-w-[125px] text-left" title={vidName}>
-                                            {vidName || 'Video Attached'}
-                                          </span>
-                                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
+                                          <Icon name="close" size={13} />
                                         </button>
-                                      );
-                                    })()}
+                                      </div>
+                                    ) : isTaskQueued ? (
+                                      <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-xl flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200 shrink-0">
+                                        <Icon name="hourglass_top" size={14} className="text-amber-600" />
+                                        <span>Queued in Slot #{tasks.findIndex((t) => t.id === task.id) + 1}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => cancelTask(task.id)}
+                                          className="text-rose-500 hover:text-rose-700 ml-1 font-semibold"
+                                        >
+                                          <Icon name="close" size={13} />
+                                        </button>
+                                      </div>
+                                    ) : lesson.videoUrl ? (
+                                      <div className="flex items-center gap-1.5 shrink-0 max-w-full">
+                                        {(() => {
+                                          const vidName = getVideoFileName(lesson.videoUrl, lesson.videoFileName);
+                                          return (
+                                            <button
+                                              type="button"
+                                              onClick={() => setPreviewVideoUrl(lesson.videoUrl || '')}
+                                              className="max-w-[160px] sm:max-w-[200px] px-2.5 sm:px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
+                                              title={`Video File: ${vidName}\nClick to preview video`}
+                                            >
+                                              <Icon name="play_circle" size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                              <span className="truncate max-w-[90px] sm:max-w-[125px] text-left" title={vidName}>
+                                                {vidName || 'Video Attached'}
+                                              </span>
+                                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
+                                            </button>
+                                          );
+                                        })()}
 
-                                    <label
-                                      className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs cursor-pointer shrink-0"
-                                      title="Replace video"
-                                    >
-                                      <Icon name="swap_horiz" size={15} />
-                                      <input
-                                        type="file"
-                                        accept="video/*"
-                                        onChange={(e) => {
-                                          const f = e.target.files?.[0];
-                                          if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
-                                          e.target.value = '';
-                                        }}
-                                        className="hidden"
-                                      />
-                                    </label>
+                                        <label
+                                          className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs cursor-pointer shrink-0"
+                                          title="Replace video"
+                                        >
+                                          <Icon name="swap_horiz" size={15} />
+                                          <input
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                              e.target.value = '';
+                                            }}
+                                            className="hidden"
+                                          />
+                                        </label>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
-                                      className="p-1.5 bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-xl text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
-                                      title={`Remove video from "${lesson.title}" so you can upload a new one`}
-                                    >
-                                      <Icon name="close" size={15} />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <label
-                                    className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
-                                    title="Upload video from PC or mobile"
-                                  >
-                                    <Icon name="videocam" size={15} />
-                                    <span>Upload Video</span>
-                                    <input
-                                      type="file"
-                                      accept="video/*"
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
-                                        e.target.value = '';
-                                      }}
-                                      className="hidden"
-                                    />
-                                  </label>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
+                                          className="p-1.5 bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-xl text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
+                                          title={`Remove video from "${lesson.title}" so you can upload a new one`}
+                                        >
+                                          <Icon name="close" size={15} />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <label
+                                        className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
+                                        title="Upload video from PC or mobile"
+                                      >
+                                        <Icon name="videocam" size={15} />
+                                        <span>Upload Video</span>
+                                        <input
+                                          type="file"
+                                          accept="video/*"
+                                          onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                            e.target.value = '';
+                                          }}
+                                          className="hidden"
+                                        />
+                                      </label>
+                                    )}
+                                  </>
                                 )}
 
                                 {/* 2. MULTI-RESOURCE BADGES & ATTACH DROPDOWN */}
@@ -1188,18 +1284,18 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             prev === lesson.id ? null : lesson.id
                                           )
                                         }
-                                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all shrink-0 ${
+                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all shrink-0 ${
                                           activeResourceDropdownLessonId === lesson.id
                                             ? 'bg-primary text-on-primary border-primary'
                                             : getLessonResourcesList(lesson).length > 0
                                             ? 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
-                                            : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
+                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30'
                                         }`}
                                         title="Add PDF, Document, Image, or External Web Link"
                                       >
                                         <Icon name="attach_file" size={15} />
                                         <span>
-                                          {getLessonResourcesList(lesson).length > 0 ? '+ Resource' : 'Resource'}
+                                          {getLessonResourcesList(lesson).length > 0 ? '+ Resource' : '+ Attach Resource'}
                                         </span>
                                         <Icon
                                           name={activeResourceDropdownLessonId === lesson.id ? 'expand_less' : 'arrow_drop_down'}
