@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { BuilderSection, BuilderLesson } from '@/components/course-builder/CourseCurriculumStep';
 
 export interface ParsedCourseData {
@@ -73,288 +73,491 @@ export function cleanQuizTitle(raw?: string | null): string {
 
 /**
  * Generates and downloads the official Course Upload Template (.xlsx)
+ * Fully styled with bold topics, header backgrounds, status badges, and crystal clear instructions.
  */
 export function downloadCourseExcelTemplate() {
   const wb = XLSX.utils.book_new();
 
-  // 1. Course Details Sheet Data
-  const courseDetailsRows = [
-    {
-      'Field Name': 'Course Title',
-      'Your Value': 'Mastering Modern AI & Full-Stack Web Development 2026',
-      'Required / Optional': 'Required',
-      'Instructions': 'Full title of the masterclass.'
+  // Reusable cell styles for professional presentation & visual clarity
+  const styles = {
+    headerDark: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1E293B' } }, // Slate 800
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
-    {
-      'Field Name': 'Course Slug',
-      'Your Value': 'mastering-modern-ai-fullstack-2026',
-      'Required / Optional': 'Optional',
-      'Instructions': 'URL slug for the course. Leave blank to auto-generate from title.'
+    headerBlue: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1E40AF' } }, // Blue 800
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
-    {
-      'Field Name': 'Category',
-      'Your Value': 'Web Development',
-      'Required / Optional': 'Required',
-      'Instructions': 'e.g., Web Development, Artificial Intelligence, Teacher Development, Data Science, Business, Design'
+    headerPurple: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '581C87' } }, // Purple 800
+      fill: { fgColor: { rgb: '581C87' } },
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
-    {
-      'Field Name': 'Skill Level',
-      'Your Value': 'Foundational',
-      'Required / Optional': 'Required',
-      'Instructions': 'Choose one: Foundational, Intermediate, Advanced, or All Levels'
+    sectionBanner: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '1E3A8A' } },
+      fill: { fgColor: { rgb: 'DBEAFE' } }, // Light blue
+      alignment: { vertical: 'center', horizontal: 'left' }
     },
-    {
-      'Field Name': 'Language',
-      'Your Value': 'English',
-      'Required / Optional': 'Required',
-      'Instructions': 'Primary language of instruction (e.g., English, Hindi, Hinglish)'
+    boldTopic: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '0F172A' } },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true }
     },
-    {
-      'Field Name': 'Short Description',
-      'Your Value': 'Build production-ready generative AI web applications with Next.js, React 19, and Node.js.',
-      'Required / Optional': 'Required',
-      'Instructions': 'Catchy 1-2 sentence summary for course catalog and cards.'
+    boldCenter: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '0F172A' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
     },
-    {
-      'Field Name': 'Full Course Description',
-      'Your Value': 'This comprehensive masterclass takes you from core web principles to building scalable, production-grade AI-powered applications. Learn modern component architecture, state management, database schemas, secure authentication, and end-to-end deployment.',
-      'Required / Optional': 'Required',
-      'Instructions': 'In-depth description of the course curriculum and learning outcomes.'
+    requiredBadge: {
+      font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'B91C1C' } },
+      fill: { fgColor: { rgb: 'FEE2E2' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
     },
-    {
-      'Field Name': 'What Students Will Learn',
-      'Your Value': 'Build modern full-stack web applications with Next.js & React 19; Integrate generative AI APIs and vector search pipelines; Design robust PostgreSQL database schemas and migrations; Deploy high-performance web applications with CI/CD',
-      'Required / Optional': 'Required',
-      'Instructions': 'Separate each learning outcome with a semicolon (;) or new lines.'
+    optionalBadge: {
+      font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '475569' } },
+      fill: { fgColor: { rgb: 'F1F5F9' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
     },
-    {
-      'Field Name': 'Prerequisites & Setup',
-      'Your Value': 'Basic computer literacy and internet access; Fundamental curiosity about programming (no prior advanced experience required)',
-      'Required / Optional': 'Required',
-      'Instructions': 'Separate each prerequisite with a semicolon (;) or new lines.'
+    cellNormal: {
+      font: { name: 'Calibri', sz: 11, color: { rgb: '1E293B' } },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true }
     },
-    {
-      'Field Name': 'Target Audience',
-      'Your Value': 'Aspiring software developers and web designers; Computer science students building portfolio master projects; Working professionals upskilling in modern AI and full-stack frameworks',
-      'Required / Optional': 'Required',
-      'Instructions': 'Separate each target audience group with a semicolon (;) or new lines.'
+    centerNormal: {
+      font: { name: 'Calibri', sz: 11, color: { rgb: '1E293B' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
     },
-    {
-      'Field Name': 'Course Price (INR)',
-      'Your Value': 2999,
-      'Required / Optional': 'Required',
-      'Instructions': 'Regular price in INR (numbers only, e.g. 2999).'
-    },
-    {
-      'Field Name': 'Discount Price (INR)',
-      'Your Value': 999,
-      'Required / Optional': 'Optional',
-      'Instructions': 'Sale price in INR (e.g. 999). Must be lower than regular price.'
-    },
-    {
-      'Field Name': 'Currency',
-      'Your Value': 'INR',
-      'Required / Optional': 'Required',
-      'Instructions': 'Currency code (Default: INR).'
-    },
-    {
-      'Field Name': 'Access Type',
-      'Your Value': 'LIFETIME',
-      'Required / Optional': 'Required',
-      'Instructions': 'Choose: LIFETIME or LIMITED_DAYS'
-    },
-    {
-      'Field Name': 'Access Days',
-      'Your Value': '',
-      'Required / Optional': 'Optional',
-      'Instructions': 'If Access Type is LIMITED_DAYS, enter number of days (e.g. 365). Otherwise leave blank.'
+    cellInstruction: {
+      font: { name: 'Calibri', sz: 10, color: { rgb: '475569' }, italic: true },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true }
     }
+  };
+
+  // 1. Course Details Sheet Data
+  const detailsAOA: any[][] = [
+    [
+      'Field Name (Topic)',
+      'Your Value / Enter Value Here',
+      'Status',
+      'Clear Instructions & Examples (Hinglish + English)'
+    ],
+    ['📌 SECTION 1: BASIC COURSE INFORMATION', '', '', ''],
+    [
+      'Course Title *',
+      'Mastering Modern AI & Full-Stack Web Development 2026',
+      'REQUIRED',
+      'Course ka poora title yahan likhein (e.g. Complete Web Development Bootcamp 2026)'
+    ],
+    [
+      'Course Slug',
+      'mastering-modern-ai-fullstack-2026',
+      'OPTIONAL',
+      'Course ka URL slug. Khali chhodne par title se automatically ban jayega'
+    ],
+    [
+      'Category *',
+      'Web Development',
+      'REQUIRED',
+      'Category chunein: Web Development, Artificial Intelligence, Business, Design, Teacher Training, etc.'
+    ],
+    [
+      'Skill Level *',
+      'Foundational',
+      'REQUIRED',
+      'Level chunein: Foundational, Intermediate, Advanced, ya All Levels'
+    ],
+    [
+      'Language *',
+      'English',
+      'REQUIRED',
+      'Course ki primary bhasha (e.g. English, Hindi, Hinglish)'
+    ],
+    ['📝 SECTION 2: DESCRIPTIONS & LEARNING GOALS', '', '', ''],
+    [
+      'Short Description *',
+      'Build production-ready generative AI web applications with Next.js, React 19, and Node.js.',
+      'REQUIRED',
+      'Course preview cards ke liye catchy 1-2 sentence ki summary'
+    ],
+    [
+      'Full Course Description *',
+      'This comprehensive masterclass takes you from core web principles to building scalable, production-grade AI-powered applications. Learn modern component architecture, state management, database schemas, secure authentication, and end-to-end deployment.',
+      'REQUIRED',
+      'Course ka poora detailed description jisme syllabus aur course ke baare me sab kuch explain ho'
+    ],
+    [
+      'What Students Will Learn *',
+      'Build modern full-stack web applications with Next.js & React 19; Integrate generative AI APIs and vector search pipelines; Design robust PostgreSQL database schemas and migrations; Deploy high-performance web applications with CI/CD',
+      'REQUIRED',
+      'Har learning outcome ko semicolon (;) se alag karein. Jaise: Point 1; Point 2; Point 3'
+    ],
+    [
+      'Prerequisites & Setup *',
+      'Basic computer literacy and internet access; Fundamental curiosity about programming (no prior advanced experience required)',
+      'REQUIRED',
+      'Course shuru karne se pehle student ko kya aana chahiye (semicolon ; se alag karein)'
+    ],
+    [
+      'Target Audience *',
+      'Aspiring software developers and web designers; Computer science students building portfolio master projects; Working professionals upskilling in modern AI and full-stack frameworks',
+      'REQUIRED',
+      'Yeh course kin students/professionals ke liye suitable hai (semicolon ; se alag karein)'
+    ],
+    ['💰 SECTION 3: PRICING & ACCESS SETTINGS', '', '', ''],
+    [
+      'Course Price (INR) *',
+      2999,
+      'REQUIRED',
+      'Regular course fees INR mein (sirf number likhein, jaise 2999)'
+    ],
+    [
+      'Discount Price (INR)',
+      999,
+      'OPTIONAL',
+      'Sale / offer price in INR (regular price se kam hona chahiye, jaise 999). Agar discount nahi hai toh blank chhod dein'
+    ],
+    [
+      'Currency *',
+      'INR',
+      'REQUIRED',
+      'Default currency code: INR'
+    ],
+    [
+      'Access Type *',
+      'LIFETIME',
+      'REQUIRED',
+      'Choose: LIFETIME ya LIMITED_DAYS'
+    ],
+    [
+      'Access Days',
+      '',
+      'OPTIONAL',
+      'Agar Access Type LIMITED_DAYS hai toh days likhein (jaise 365). LIFETIME ke liye blank chhod dein'
+    ]
   ];
 
-  const wsDetails = XLSX.utils.json_to_sheet(courseDetailsRows);
+  const wsDetails = XLSX.utils.aoa_to_sheet(detailsAOA);
+  detailsAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    const isBanner = String(row[0] || '').startsWith('📌') || String(row[0] || '').startsWith('📝') || String(row[0] || '').startsWith('💰');
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsDetails[cellRef]) wsDetails[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsDetails[cellRef].s = styles.headerDark;
+      } else if (isBanner) {
+        wsDetails[cellRef].s = styles.sectionBanner;
+      } else {
+        if (cIdx === 0) wsDetails[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1) wsDetails[cellRef].s = styles.cellNormal;
+        else if (cIdx === 2) wsDetails[cellRef].s = row[2] === 'REQUIRED' ? styles.requiredBadge : styles.optionalBadge;
+        else if (cIdx === 3) wsDetails[cellRef].s = styles.cellInstruction;
+      }
+    }
+  });
+
   wsDetails['!cols'] = [
-    { wch: 28 }, // Field Name
+    { wch: 32 }, // Field Name
     { wch: 65 }, // Your Value
-    { wch: 20 }, // Required / Optional
-    { wch: 70 }  // Instructions
+    { wch: 18 }, // Status
+    { wch: 80 }  // Instructions
   ];
   XLSX.utils.book_append_sheet(wb, wsDetails, 'Course Details');
 
-  // 2. Curriculum Syllabus Sheet Data (Module 1 with lectures under it without repeating module columns or descriptions)
-  const curriculumRows = [
-    {
-      'Module Title': 'Foundations of Web Architecture & Modern AI',
-      'Lecture Title': 'Course Orientation & Modern Tech Stack Roadmap',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '08:30',
-      'Is Preview Free (Yes/No)': 'Yes'
-    },
-    {
-      'Module Title': '', // Left blank on purpose - automatically grouped under Module 1
-      'Lecture Title': 'Setting Up VS Code, Git, and Modern Terminal Workflow',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '14:15',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': '',
-      'Lecture Title': 'Understanding Modern JavaScript & DOM Architecture',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '12:00',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': 'Frontend Engineering with Next.js & React 19',
-      'Lecture Title': 'Server Components & Dynamic Routing in Next.js',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '18:45',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': '',
-      'Lecture Title': 'Building Responsive Master Layouts with Tailwind CSS',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '22:10',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': 'Backend APIs & Database Architecture',
-      'Lecture Title': 'Relational Database Modeling with PostgreSQL & Prisma',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '25:30',
-      'Is Preview Free (Yes/No)': 'No'
-    },
-    {
-      'Module Title': '',
-      'Lecture Title': 'Building Secure Authentication & Role Permissions',
-      'Lecture Type (VIDEO/PDF/QUIZ)': 'VIDEO',
-      'Duration (mm:ss)': '28:15',
-      'Is Preview Free (Yes/No)': 'No'
-    }
+  // 2. Curriculum Syllabus Sheet Data
+  const curriculumAOA: any[][] = [
+    [
+      'Module Title (Write once per module)',
+      'Topic / Lesson Title *',
+      'Content Type (LECTURE / ARTICLE / QUIZ) *',
+      'Duration (mm:ss)',
+      'Free Preview (Yes / No)',
+      'Written Article Content / Notes (Markdown for Written Articles)'
+    ],
+    [
+      'Foundations of Modern Web Architecture',
+      'Course Orientation & Tech Stack Roadmap',
+      'LECTURE',
+      '08:30',
+      'Yes',
+      ''
+    ],
+    [
+      '',
+      'Setting Up Developer Workspace & Tools',
+      'LECTURE',
+      '14:15',
+      'No',
+      ''
+    ],
+    [
+      '',
+      'Core Architectural Principles & System Design',
+      'ARTICLE',
+      '05:00',
+      'No',
+      '# Core Architectural Principles\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.'
+    ],
+    [
+      '',
+      'Module 1 Knowledge Assessment',
+      'QUIZ',
+      '10:00',
+      'No',
+      ''
+    ],
+    [
+      'Frontend Engineering with React 19',
+      'Server Components & Dynamic Routing in Next.js',
+      'LECTURE',
+      '18:45',
+      'No',
+      ''
+    ],
+    [
+      '',
+      'Building Responsive Master Layouts with Tailwind CSS',
+      'LECTURE',
+      '22:10',
+      'No',
+      ''
+    ],
+    [
+      '',
+      'State Management & Custom Hooks Guide',
+      'ARTICLE',
+      '05:00',
+      'No',
+      '# State Management Guide\nDetailed explanation of modern React 19 state patterns with practical code examples and edge cases.'
+    ],
+    [
+      'Backend APIs & Database Architecture',
+      'Relational Database Modeling with PostgreSQL & Prisma',
+      'LECTURE',
+      '25:30',
+      'No',
+      ''
+    ],
+    [
+      '',
+      'Database Schema Reference Cheatsheet',
+      'ARTICLE',
+      '05:00',
+      'No',
+      '# Database Schema Cheatsheet\nPostgreSQL table schemas, relationships, indexing rules, and migration best practices.'
+    ]
   ];
 
-  const wsCurriculum = XLSX.utils.json_to_sheet(curriculumRows);
+  const wsCurriculum = XLSX.utils.aoa_to_sheet(curriculumAOA);
+  curriculumAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsCurriculum[cellRef]) wsCurriculum[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsCurriculum[cellRef].s = styles.headerBlue;
+      } else {
+        if (cIdx === 0) wsCurriculum[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1) wsCurriculum[cellRef].s = styles.boldTopic; // Topic in BOLD
+        else if (cIdx === 2) wsCurriculum[cellRef].s = styles.boldCenter;
+        else if (cIdx === 3) wsCurriculum[cellRef].s = styles.centerNormal;
+        else if (cIdx === 4) wsCurriculum[cellRef].s = styles.centerNormal;
+        else if (cIdx === 5) wsCurriculum[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
   wsCurriculum['!cols'] = [
-    { wch: 45 }, // Module Title
-    { wch: 45 }, // Lecture Title
-    { wch: 28 }, // Lecture Type
+    { wch: 42 }, // Module Title
+    { wch: 48 }, // Topic / Lesson Title
+    { wch: 36 }, // Content Type
     { wch: 20 }, // Duration
-    { wch: 24 }  // Is Preview Free
+    { wch: 24 }, // Free Preview
+    { wch: 65 }  // Article Content
   ];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum');
 
-  // 3. Quizzes & MCQs Sheet Data (Write Module & Quiz Title once; subsequent questions leave them blank)
-  const quizRows = [
-    {
-      'Module (e.g. Module 1)': 'Module 1',
-      'Quiz Title': 'Web Architecture & Modern AI Assessment',
-      'Question Text': 'What protocol provides encrypted communication over the World Wide Web?',
-      'Option A': 'HTTP',
-      'Option B': 'HTTPS',
-      'Option C': 'FTP',
-      'Option D': 'SMTP',
-      'Correct Option (A/B/C/D)': 'B',
-      'Explanation': 'HTTPS encrypts communication between the client browser and web server using TLS/SSL.',
-      'Passing Score (%)': 70
-    },
-    {
-      'Module (e.g. Module 1)': '', // Left blank on purpose - automatically belongs to Module 1 Quiz 1!
-      'Quiz Title': '', // Left blank on purpose - automatically belongs to Module 1 Quiz 1!
-      'Question Text': 'Which JavaScript engine powers Google Chrome and Node.js runtime?',
-      'Option A': 'SpiderMonkey',
-      'Option B': 'JavaScriptCore',
-      'Option C': 'V8 Engine',
-      'Option D': 'Chakra',
-      'Correct Option (A/B/C/D)': 'C',
-      'Explanation': 'Google’s open-source V8 engine compiles JavaScript directly to native machine code.',
-      'Passing Score (%)': 70
-    },
-    {
-      'Module (e.g. Module 1)': 'Module 2',
-      'Quiz Title': 'Next.js & React 19 Component Test',
-      'Question Text': 'In React, which built-in hook is used to declare and manage local component state?',
-      'Option A': 'useEffect',
-      'Option B': 'useState',
-      'Option C': 'useRef',
-      'Option D': 'useContext',
-      'Correct Option (A/B/C/D)': 'B',
-      'Explanation': 'useState is the standard React hook for managing stateful values in functional components.',
-      'Passing Score (%)': 70
-    },
-    {
-      'Module (e.g. Module 1)': '', // Left blank on purpose - automatically belongs to Module 2 Quiz 2!
-      'Quiz Title': '', // Left blank on purpose - automatically belongs to Module 2 Quiz 2!
-      'Question Text': 'Which hook is used for executing side effects like API fetching or subscriptions?',
-      'Option A': 'useEffect',
-      'Option B': 'useMemo',
-      'Option C': 'useCallback',
-      'Option D': 'useReducer',
-      'Correct Option (A/B/C/D)': 'A',
-      'Explanation': 'useEffect manages lifecycle side effects in React function components.',
-      'Passing Score (%)': 70
-    },
-    {
-      'Module (e.g. Module 1)': 'Module 3',
-      'Quiz Title': 'Database & API Architecture Quiz',
-      'Question Text': 'Which database language is primarily used for defining and querying relational databases?',
-      'Option A': 'HTML',
-      'Option B': 'CSS',
-      'Option C': 'SQL',
-      'Option D': 'JSON',
-      'Correct Option (A/B/C/D)': 'C',
-      'Explanation': 'SQL (Structured Query Language) is the standard query language for relational databases like PostgreSQL.',
-      'Passing Score (%)': 70
-    },
-    {
-      'Module (e.g. Module 1)': '', // Left blank on purpose - automatically belongs to Module 3 Quiz 3!
-      'Quiz Title': '', // Left blank on purpose - automatically belongs to Module 3 Quiz 3!
-      'Question Text': 'Which SQL clause is used to filter records based on a specific condition?',
-      'Option A': 'WHERE',
-      'Option B': 'ORDER BY',
-      'Option C': 'GROUP BY',
-      'Option D': 'SELECT',
-      'Correct Option (A/B/C/D)': 'A',
-      'Explanation': 'The WHERE clause filters rows satisfying given Boolean conditions.',
-      'Passing Score (%)': 70
-    }
+  // 3. Quizzes & MCQs Sheet Data
+  const quizzesAOA: any[][] = [
+    [
+      'Module (e.g. Module 1)',
+      'Quiz Title (Write once per quiz)',
+      'Q#',
+      'Question Text *',
+      'Option A *',
+      'Option B *',
+      'Option C *',
+      'Option D *',
+      'Correct Option (A/B/C/D) *',
+      'Explanation (Why this option is correct)',
+      'Passing Score (%)'
+    ],
+    [
+      'Module 1',
+      'Web Architecture & Modern AI Assessment',
+      1,
+      'What protocol provides encrypted communication over the World Wide Web?',
+      'HTTP',
+      'HTTPS',
+      'FTP',
+      'SMTP',
+      'B',
+      'HTTPS encrypts communication between the client browser and web server using TLS/SSL.',
+      70
+    ],
+    [
+      '',
+      '',
+      2,
+      'Which JavaScript engine powers Google Chrome and Node.js runtime?',
+      'SpiderMonkey',
+      'JavaScriptCore',
+      'V8 Engine',
+      'Chakra',
+      'C',
+      'Google open-source V8 engine compiles JavaScript directly to native machine code.',
+      70
+    ],
+    [
+      'Module 2',
+      'Next.js & React 19 Component Test',
+      1,
+      'In React, which built-in hook is used to declare and manage local component state?',
+      'useEffect',
+      'useState',
+      'useRef',
+      'useContext',
+      'B',
+      'useState is the standard React hook for managing stateful values in functional components.',
+      70
+    ],
+    [
+      '',
+      '',
+      2,
+      'Which hook is used for executing side effects like API fetching or subscriptions?',
+      'useEffect',
+      'useMemo',
+      'useCallback',
+      'useReducer',
+      'A',
+      'useEffect manages lifecycle side effects in React function components.',
+      70
+    ],
+    [
+      'Module 3',
+      'Database & API Architecture Quiz',
+      1,
+      'Which database language is primarily used for defining and querying relational databases?',
+      'HTML',
+      'CSS',
+      'SQL',
+      'JSON',
+      'C',
+      'SQL (Structured Query Language) is the standard query language for relational databases like PostgreSQL.',
+      70
+    ],
+    [
+      '',
+      '',
+      2,
+      'Which SQL clause is used to filter records based on a specific condition?',
+      'WHERE',
+      'ORDER BY',
+      'GROUP BY',
+      'SELECT',
+      'A',
+      'The WHERE clause filters rows satisfying given Boolean conditions.',
+      70
+    ]
   ];
 
-  const wsQuizzes = XLSX.utils.json_to_sheet(quizRows);
+  const wsQuizzes = XLSX.utils.aoa_to_sheet(quizzesAOA);
+  quizzesAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsQuizzes[cellRef]) wsQuizzes[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsQuizzes[cellRef].s = styles.headerPurple;
+      } else {
+        if (cIdx === 0) wsQuizzes[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1) wsQuizzes[cellRef].s = styles.boldTopic; // Quiz Title in BOLD
+        else if (cIdx === 2) wsQuizzes[cellRef].s = styles.boldCenter;
+        else if (cIdx === 3) wsQuizzes[cellRef].s = styles.boldTopic; // Question in BOLD
+        else if (cIdx >= 4 && cIdx <= 7) wsQuizzes[cellRef].s = styles.cellNormal;
+        else if (cIdx === 8) wsQuizzes[cellRef].s = styles.boldCenter;
+        else if (cIdx === 9) wsQuizzes[cellRef].s = styles.cellNormal;
+        else if (cIdx === 10) wsQuizzes[cellRef].s = styles.centerNormal;
+      }
+    }
+  });
+
   wsQuizzes['!cols'] = [
-    { wch: 24 }, // Module
-    { wch: 28 }, // Quiz Title
+    { wch: 22 }, // Module
+    { wch: 35 }, // Quiz Title
+    { wch: 8 },  // Q#
     { wch: 75 }, // Question Text
-    { wch: 28 }, // Option A
-    { wch: 28 }, // Option B
-    { wch: 28 }, // Option C
-    { wch: 28 }, // Option D
+    { wch: 26 }, // Option A
+    { wch: 26 }, // Option B
+    { wch: 26 }, // Option C
+    { wch: 26 }, // Option D
     { wch: 26 }, // Correct Option
     { wch: 65 }, // Explanation
-    { wch: 20 }  // Passing Score (%)
+    { wch: 18 }  // Passing Score (%)
   ];
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
 
   // 4. User Guide & Format Instructions Sheet
-  const instructionsRows = [
-    {
-      'Section': 'How to Fill Course Details',
-      'Instructions': 'Fill your Masterclass title, category, level (Foundational, Intermediate, Advanced, All Levels), pricing, and descriptions in the "Course Details" tab.'
-    },
-    {
-      'Section': 'How to Fill Curriculum Modules & Lectures',
-      'Instructions': 'Type clean Module Title (e.g. Foundations of Web Architecture) and clean Lecture Title (e.g. Course Orientation). Do not add "Module 1:" or "Lecture 1:" numbering - the platform automatically labels "Module 1", "Module 2" and "Lecture 1", "Lecture 2" continuous numbering! All subsequent lecture rows left blank under a module automatically belong to that module.'
-    },
-    {
-      'Section': 'How to Fill Quizzes & MCQs',
-      'Instructions': 'In "Quizzes & MCQs" tab, enter Module (e.g. Module 1) and Quiz Title (e.g. Web Architecture Assessment) ONCE on the first row of that quiz. Do not add "Quiz 1:" prefix - the platform automatically numbers "Quiz 1", "Quiz 2"! For all following questions in that quiz, leave Module and Quiz Title BLANK! They will automatically group inside that same quiz. Provide Question Text, Options A-D, Correct Option (A/B/C/D), Explanation, and Passing Score.'
-    },
-    {
-      'Section': 'Videos, Resources & Thumbnails',
-      'Instructions': 'Spreadsheet auto-fills entire course structure, syllabus, text, and quizzes. Once uploaded, upload video files and PDF resources using the batch uploader (2 parallel uploads queue) in Instructor Studio.'
-    }
+  const guideAOA: any[][] = [
+    [
+      'Step / Important Topic',
+      'Kaise Update Karein (Easy Step-by-Step Instructions in Hinglish & English)'
+    ],
+    [
+      '📌 STEP 1: Course Details Fill Karna',
+      '1. "Course Details" tab me jayein.\n2. Apne course ka Title, Category, Language, Skill Level aur Price fill karein.\n3. Sabhi important topics BOLD me diye gaye hain aur zaroori fields ke aage "REQUIRED" status likha hai.\n4. "What Students Will Learn", "Prerequisites", aur "Target Audience" me har point ko semicolon (;) se separate karein.'
+    ],
+    [
+      '🎥 STEP 2: Curriculum (LECTURE vs ARTICLE vs QUIZ)',
+      'Curriculum tab me har topic ka "Content Type" chunein:\n• LECTURE: Video lectures ke liye. (Isme sirf title likhein; video file upload agle step me Studio me hoga).\n• ARTICLE: Written notes / reading content ke liye. (Aap column F me seedha markdown content headings ke sath likh sakte hain).\n• QUIZ: Objective MCQs ke liye. (Questions "Quizzes & MCQs" tab me likhein).'
+    ],
+    [
+      '📁 STEP 3: Module Name Baar-Baar Likhne Ki Zaroorat Nahi',
+      'Module Title sirf pehli row par likhein. Uske neeche jitne bhi lectures/articles/quizzes aayenge, unka Module Title BLANK chhod dein! System unhe automatically usi module ke andar group kar dega. Jab naya module shuru ho, tabhi naya Module Title likhein.'
+    ],
+    [
+      '🚫 STEP 4: Titles Me "Lecture 1:" Ya "Module 1:" Prefix Na Likhein',
+      'Title me "Module 1:" ya "Lecture 1:" prefix na likhein. LMS system automatically sabhi modules (Module 1, Module 2) aur lectures/articles (Lecture 1, Lecture 2, Article 1, Article 2) ko continuous numbering de deta hai!'
+    ],
+    [
+      '❓ STEP 5: Quizzes & MCQs Aasaani Se Add Karna',
+      '"Quizzes & MCQs" tab me ek quiz ke pehle question par Module Name aur Quiz Title likhein. Usi quiz ke baaki questions ke liye Module aur Quiz Title BLANK chhod dein. Vo automatically usi quiz me add ho jayenge. Correct Option me sirf A, B, C, ya D likhein.'
+    ],
+    [
+      '🚀 STEP 6: Excel File Save Karke Upload Karein',
+      'Apni details fill karne ke baad Excel file (.xlsx) ko save karein. Fir LMS Course Builder me "Upload Excel" button par click karke upload karein. Aapka poora course, syllabus, articles aur quizzes instant create ho jayenge!'
+    ]
   ];
-  const wsGuide = XLSX.utils.json_to_sheet(instructionsRows);
-  wsGuide['!cols'] = [{ wch: 36 }, { wch: 95 }];
+
+  const wsGuide = XLSX.utils.aoa_to_sheet(guideAOA);
+  guideAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsGuide[cellRef]) wsGuide[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsGuide[cellRef].s = styles.headerDark;
+      } else {
+        if (cIdx === 0) wsGuide[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1) wsGuide[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
+  wsGuide['!cols'] = [
+    { wch: 38 }, // Step / Topic
+    { wch: 100 } // Easy Instructions
+  ];
   XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
   // Trigger browser download
@@ -565,18 +768,57 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           return '';
         };
 
-        const rawModTitle = findField(['module title', 'module name', 'module', 'section title', 'section name']);
+        const rawModTitle = findField([
+          'module title (write once per module)',
+          'module title',
+          'module name',
+          'module',
+          'section title',
+          'section name'
+        ]);
         const rawModDesc = findField(['module description', 'module desc', 'section description', 'section desc'], 'module desc');
-        const rawLessonTitle = findField(['lecture title', 'lesson title', 'lecture name', 'lesson name', 'lecture', 'lesson'], 'title', 'module');
+        const rawLessonTitle = findField([
+          'topic / lesson title *',
+          'topic / lesson title',
+          'topic title',
+          'lecture title',
+          'lesson title',
+          'lecture name',
+          'lesson name',
+          'topic',
+          'lecture',
+          'lesson'
+        ], 'title', 'module');
         const lessonDesc = findField(
           ['lecture description', 'lesson description', 'lecture desc', 'lesson desc', 'lecture summary', 'lesson summary'],
           'desc',
           'module'
         );
-        const lessonTypeRaw = findField(['lecture type (video/pdf/quiz)', 'lecture type', 'lesson type', 'type', 'format'], 'type') || 'VIDEO';
+        const lessonTypeRaw = findField([
+          'content type (lecture / article / quiz) *',
+          'content type (lecture / article / quiz)',
+          'content type',
+          'lesson type (lecture / article / quiz)',
+          'lesson type',
+          'lecture type (video/pdf/quiz)',
+          'lecture type',
+          'type',
+          'format'
+        ], 'type') || 'LECTURE';
         const durationStr = findField(['duration (mm:ss)', 'lesson duration', 'duration', 'time', 'length'], 'duration') || '10:00';
-        const isFreeRaw = findField(['is preview free (yes/no)', 'is preview free', 'is free', 'preview free', 'free preview', 'preview']);
+        const isFreeRaw = findField(['free preview (yes / no)', 'free preview (yes/no)', 'is preview free (yes/no)', 'is preview free', 'is free', 'preview free', 'free preview', 'preview']);
         const isFree = /yes|true|1|free/i.test(isFreeRaw);
+        const articleContentRaw = findField([
+          'written article content / notes (markdown for written articles)',
+          'written article content / notes (markdown)',
+          'written article content / notes',
+          'article content / notes',
+          'written article content',
+          'article content',
+          'content',
+          'notes',
+          'markdown'
+        ]);
 
         // Skip completely empty rows
         if (!rawModTitle && !rawModDesc && !rawLessonTitle && !lessonDesc) return;
@@ -628,13 +870,18 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         // 2. Lecture / Lesson Creation:
         if (rawLessonTitle || lessonDesc || durationStr) {
           const isQuiz = /quiz/i.test(lessonTypeRaw) || /quiz/i.test(rawLessonTitle);
+          const isText = /article|text|written|reading|note/i.test(lessonTypeRaw);
+          const isPdf = /pdf|doc|file|handout/i.test(lessonTypeRaw);
+
           const finalLessonTitle = isQuiz
             ? (cleanQuizTitle(rawLessonTitle) || '')
             : cleanedLessonTitle;
           const durationSeconds = parseDurationToSeconds(durationStr);
           const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' = isQuiz
             ? 'QUIZ'
-            : /pdf|doc|file|reading/i.test(lessonTypeRaw)
+            : isText
+            ? 'TEXT'
+            : isPdf
             ? 'PDF'
             : 'VIDEO';
 
@@ -645,6 +892,11 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             type: normalizedType,
             duration: durationStr,
             durationSeconds,
+            content:
+              normalizedType === 'TEXT'
+                ? articleContentRaw ||
+                  `# ${finalLessonTitle || 'Article Overview'}\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.`
+                : undefined,
             isFree,
             isPublished: true,
             order: currentSection.lessons.length + 1,
