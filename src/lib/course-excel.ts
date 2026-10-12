@@ -138,100 +138,100 @@ export function downloadCourseExcelTemplate() {
       'Field Name (Topic)',
       'Your Value / Enter Value Here',
       'Status',
-      'Clear Instructions & Examples (Hinglish + English)'
+      'Field Instructions & Guidelines (English)'
     ],
     ['📌 SECTION 1: BASIC COURSE INFORMATION', '', '', ''],
     [
       'Course Title *',
       'Mastering Modern AI & Full-Stack Web Development 2026',
       'REQUIRED',
-      'Course ka poora title yahan likhein (e.g. Complete Web Development Bootcamp 2026)'
+      'Enter the official title of your course (e.g., Complete Web Development Bootcamp 2026)'
     ],
     [
       'Course Slug',
       'mastering-modern-ai-fullstack-2026',
       'OPTIONAL',
-      'Course ka URL slug. Khali chhodne par title se automatically ban jayega'
+      'URL slug for the course. Leave empty to auto-generate from the title'
     ],
     [
       'Category *',
       'Web Development',
       'REQUIRED',
-      'Category chunein: Web Development, Artificial Intelligence, Business, Design, Teacher Training, etc.'
+      'Select category: Web Development, Artificial Intelligence, Business, Design, Teacher Training, etc.'
     ],
     [
       'Skill Level *',
       'Foundational',
       'REQUIRED',
-      'Level chunein: Foundational, Intermediate, Advanced, ya All Levels'
+      'Select difficulty level: Foundational, Intermediate, Advanced, or All Levels'
     ],
     [
       'Language *',
       'English',
       'REQUIRED',
-      'Course ki primary bhasha (e.g. English, Hindi, Hinglish)'
+      'Primary language of instruction (e.g., English, Hindi, Spanish)'
     ],
-    ['📝 SECTION 2: DESCRIPTIONS & LEARNING GOALS', '', '', ''],
+    ['📝 SECTION 2: DESCRIPTIONS & LEARNING OBJECTIVES', '', '', ''],
     [
       'Short Description *',
       'Build production-ready generative AI web applications with Next.js, React 19, and Node.js.',
       'REQUIRED',
-      'Course preview cards ke liye catchy 1-2 sentence ki summary'
+      'Compelling 1-2 sentence summary for course preview cards and search results'
     ],
     [
       'Full Course Description *',
       'This comprehensive masterclass takes you from core web principles to building scalable, production-grade AI-powered applications. Learn modern component architecture, state management, database schemas, secure authentication, and end-to-end deployment.',
       'REQUIRED',
-      'Course ka poora detailed description jisme syllabus aur course ke baare me sab kuch explain ho'
+      'Comprehensive course overview explaining curriculum scope, target skills, and instructor value'
     ],
     [
       'What Students Will Learn *',
       'Build modern full-stack web applications with Next.js & React 19; Integrate generative AI APIs and vector search pipelines; Design robust PostgreSQL database schemas and migrations; Deploy high-performance web applications with CI/CD',
       'REQUIRED',
-      'Har learning outcome ko semicolon (;) se alag karein. Jaise: Point 1; Point 2; Point 3'
+      'Separate each learning outcome with a semicolon (;). Example: Outcome 1; Outcome 2; Outcome 3'
     ],
     [
       'Prerequisites & Setup *',
       'Basic computer literacy and internet access; Fundamental curiosity about programming (no prior advanced experience required)',
       'REQUIRED',
-      'Course shuru karne se pehle student ko kya aana chahiye (semicolon ; se alag karein)'
+      'Prerequisites or required software separated by semicolons (;)'
     ],
     [
       'Target Audience *',
       'Aspiring software developers and web designers; Computer science students building portfolio master projects; Working professionals upskilling in modern AI and full-stack frameworks',
       'REQUIRED',
-      'Yeh course kin students/professionals ke liye suitable hai (semicolon ; se alag karein)'
+      'Target learner profiles separated by semicolons (;)'
     ],
-    ['💰 SECTION 3: PRICING & ACCESS SETTINGS', '', '', ''],
+    ['💰 SECTION 3: PRICING & ENROLLMENT SETTINGS', '', '', ''],
     [
       'Course Price (INR) *',
       2999,
       'REQUIRED',
-      'Regular course fees INR mein (sirf number likhein, jaise 2999)'
+      'Standard enrollment price in INR (numeric only, e.g., 2999). Enter 0 for Free courses'
     ],
     [
       'Discount Price (INR)',
       999,
       'OPTIONAL',
-      'Sale / offer price in INR (regular price se kam hona chahiye, jaise 999). Agar discount nahi hai toh blank chhod dein'
+      'Optional discounted offer price in INR (must be lower than regular price, e.g., 999). Leave blank if no discount'
     ],
     [
       'Currency *',
       'INR',
       'REQUIRED',
-      'Default currency code: INR'
+      'Standard ISO currency code: INR'
     ],
     [
       'Access Type *',
       'LIFETIME',
       'REQUIRED',
-      'Choose: LIFETIME ya LIMITED_DAYS'
+      'Choose access duration: LIFETIME or LIMITED_DAYS'
     ],
     [
       'Access Days',
       '',
       'OPTIONAL',
-      'Agar Access Type LIMITED_DAYS hai toh days likhein (jaise 365). LIFETIME ke liye blank chhod dein'
+      'Enter number of validity days if Access Type is LIMITED_DAYS (e.g., 365). Leave blank for LIFETIME'
     ]
   ];
 
@@ -510,32 +510,32 @@ export function downloadCourseExcelTemplate() {
   // 4. User Guide & Format Instructions Sheet
   const guideAOA: any[][] = [
     [
-      'Step / Important Topic',
-      'Kaise Update Karein (Easy Step-by-Step Instructions in Hinglish & English)'
+      'Step / Key Topic',
+      'Step-by-Step Instructions & Best Practices (English Guide)'
     ],
     [
-      '📌 STEP 1: Course Details Fill Karna',
-      '1. "Course Details" tab me jayein.\n2. Apne course ka Title, Category, Language, Skill Level aur Price fill karein.\n3. Sabhi important topics BOLD me diye gaye hain aur zaroori fields ke aage "REQUIRED" status likha hai.\n4. "What Students Will Learn", "Prerequisites", aur "Target Audience" me har point ko semicolon (;) se separate karein.'
+      '📌 STEP 1: Complete the "Course Details" Sheet',
+      '1. Navigate to the "Course Details" tab.\n2. Enter your course Title, Category, Language, Skill Level, and Pricing.\n3. All core topic fields are highlighted in BOLD font, and essential fields are marked with "REQUIRED" status.\n4. For "What Students Will Learn", "Prerequisites", and "Target Audience", separate each bullet point with a semicolon (;).'
     ],
     [
-      '🎥 STEP 2: Curriculum (LECTURE vs ARTICLE vs QUIZ)',
-      'Curriculum tab me har topic ka "Content Type" chunein:\n• LECTURE: Video lectures ke liye. (Isme sirf title likhein; video file upload agle step me Studio me hoga).\n• ARTICLE: Written notes / reading content ke liye. (Aap column F me seedha markdown content headings ke sath likh sakte hain).\n• QUIZ: Objective MCQs ke liye. (Questions "Quizzes & MCQs" tab me likhein).'
+      '🎥 STEP 2: Curriculum Structure (LECTURE vs ARTICLE vs QUIZ)',
+      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can upload video media in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for interactive MCQ assessments. (Questions are linked from the "Quizzes & MCQs" tab).'
     ],
     [
-      '📁 STEP 3: Module Name Baar-Baar Likhne Ki Zaroorat Nahi',
-      'Module Title sirf pehli row par likhein. Uske neeche jitne bhi lectures/articles/quizzes aayenge, unka Module Title BLANK chhod dein! System unhe automatically usi module ke andar group kar dega. Jab naya module shuru ho, tabhi naya Module Title likhein.'
+      '📁 STEP 3: Do Not Repeat Module Names on Every Row',
+      'Write the Module Title only on the first lesson row of that module. For all subsequent lessons within the same module, leave the Module Title column BLANK! The system will automatically group all consecutive lessons under that module until a new Module Title is specified.'
     ],
     [
-      '🚫 STEP 4: Titles Me "Lecture 1:" Ya "Module 1:" Prefix Na Likhein',
-      'Title me "Module 1:" ya "Lecture 1:" prefix na likhein. LMS system automatically sabhi modules (Module 1, Module 2) aur lectures/articles (Lecture 1, Lecture 2, Article 1, Article 2) ko continuous numbering de deta hai!'
+      '🚫 STEP 4: Avoid Redundant Numbering Prefixes in Titles',
+      'Do not manually type prefixes like "Module 1:" or "Lecture 1:" in the title cells. The LMS platform automatically numbers and formats all modules (Module 1, Module 2) and lessons (Lecture 1, Article 1, Quiz 1) dynamically!'
     ],
     [
-      '❓ STEP 5: Quizzes & MCQs Aasaani Se Add Karna',
-      '"Quizzes & MCQs" tab me ek quiz ke pehle question par Module Name aur Quiz Title likhein. Usi quiz ke baaki questions ke liye Module aur Quiz Title BLANK chhod dein. Vo automatically usi quiz me add ho jayenge. Correct Option me sirf A, B, C, ya D likhein.'
+      '❓ STEP 5: Add Quizzes & MCQs Effortlessly',
+      'In the "Quizzes & MCQs" tab, write the Module and Quiz Title on the first question row. For subsequent questions belonging to the same quiz, leave the Module and Quiz Title BLANK. Enter options A through D, and specify the exact uppercase letter (A, B, C, or D) in the Correct Option column.'
     ],
     [
-      '🚀 STEP 6: Excel File Save Karke Upload Karein',
-      'Apni details fill karne ke baad Excel file (.xlsx) ko save karein. Fir LMS Course Builder me "Upload Excel" button par click karke upload karein. Aapka poora course, syllabus, articles aur quizzes instant create ho jayenge!'
+      '🚀 STEP 6: Save & Upload Spreadsheet into Course Builder',
+      'After filling in your details, save your Excel spreadsheet (.xlsx). In the LMS Course Builder, click the "Upload Excel (.xlsx)" button and select your file. Your entire curriculum, articles, and quizzes will be generated automatically in seconds!'
     ]
   ];
 
