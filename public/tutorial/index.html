@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MORENA LMS - Course Excel Upload Video Tutorial</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .logo-badge {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 16px;
+            letter-spacing: -0.5px;
+        }
+        .title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-top: 8px;
+            background: linear-gradient(135deg, #ffffff, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: #94a3b8;
+            font-size: 15px;
+            margin-top: 4px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2.2fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+        .video-card {
+            background: #111827;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #1f2937;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        video {
+            width: 100%;
+            display: block;
+            background: black;
+            aspect-ratio: 16 / 9;
+        }
+        .video-meta {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #1f2937;
+        }
+        .btn-download {
+            background: #10b981;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-download:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        .sidebar-card {
+            background: #111827;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #1f2937;
+            height: fit-content;
+        }
+        .chapters-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chapter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chapter-item {
+            padding: 12px 14px;
+            background: #1e293b;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chapter-item:hover {
+            background: #334155;
+            border-color: #6366f1;
+            transform: translateX(4px);
+        }
+        .chapter-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: #f1f5f9;
+        }
+        .chapter-time {
+            font-size: 12px;
+            color: #94a3b8;
+            font-family: monospace;
+            background: #0f172a;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .highlights {
+            margin-top: 24px;
+            background: #111827;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #1f2937;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <span class="logo-badge">MORENA TEACH LMS</span>
+                <h1 class="title">Course Excel Bulk Upload Video Tutorial</h1>
+                <p class="subtitle">Complete Step-by-Step Guide with Voiceover (Hindi / Hinglish)</p>
+            </div>
+            <div>
+                <a href="MORENA_Course_Excel_Upload_Tutorial.mp4" download class="btn-download">
+                    📥 Download Video MP4 (3.5 MB)
+                </a>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="video-card">
+                <video id="player" controls autoplay poster="../video_generator/frames/frame_1_1.png">
+                    <source src="MORENA_Course_Excel_Upload_Tutorial.mp4" type="video/mp4">
+                    Your browser does not support HTML5 video.
+                </video>
+                <div class="video-meta">
+                    <div>
+                        <div style="font-weight: 800; font-size: 16px;">Full HD 1080p • 30 FPS • Neural Voice Narration</div>
+                        <div style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Duration: 2 Minutes 51 Seconds</div>
+                    </div>
+                    <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">OFFICIAL LMS GUIDE</span>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <div class="chapters-title">
+                    <span>📑</span> Video Chapters
+                </div>
+                <div class="chapter-list">
+                    <div class="chapter-item" onclick="seekTo(0)">
+                        <div class="chapter-name">1. Introduction & Overview</div>
+                        <div class="chapter-time">0:00</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(18)">
+                        <div class="chapter-name">2. Download Template (.xlsx)</div>
+                        <div class="chapter-time">0:18</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(38)">
+                        <div class="chapter-name">3. Sheet 1: Course Details (Bold Topics)</div>
+                        <div class="chapter-time">0:38</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(61)">
+                        <div class="chapter-name">4. Sheet 2: Curriculum (Lecture / Article)</div>
+                        <div class="chapter-time">1:01</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(93)">
+                        <div class="chapter-name">5. Sheet 3: Quizzes & MCQs</div>
+                        <div class="chapter-time">1:33</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(117)">
+                        <div class="chapter-name">6. Upload Excel into LMS</div>
+                        <div class="chapter-time">1:57</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(138)">
+                        <div class="chapter-name">7. Review, Free Preview & Submit</div>
+                        <div class="chapter-time">2:18</div>
+                    </div>
+                    <div class="chapter-item" onclick="seekTo(158)">
+                        <div class="chapter-name">8. Outro & Summary</div>
+                        <div class="chapter-time">2:38</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlights">
+            <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: #f8fafc;">Key Takeaways from Video:</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px;">
+                <div style="background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155;">
+                    <div style="font-weight: 800; color: #38bdf8; margin-bottom: 4px;">1. BOLD Headings & Topics</div>
+                    <div style="font-size: 13px; color: #cbd5e1;">Excel sheet me sabhi topics bold hain jisse samajhna aasan hai. Red star (*) wale required hain.</div>
+                </div>
+                <div style="background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155;">
+                    <div style="font-weight: 800; color: #34d399; margin-bottom: 4px;">2. LECTURE vs ARTICLE vs QUIZ</div>
+                    <div style="font-size: 13px; color: #cbd5e1;">LECTURE video ke liye hai, ARTICLE written notes ke liye, aur QUIZ mcqs ke liye.</div>
+                </div>
+                <div style="background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155;">
+                    <div style="font-weight: 800; color: #c084fc; margin-bottom: 4px;">3. Instant Auto-Import</div>
+                    <div style="font-size: 13px; color: #cbd5e1;">Course Builder me Upload Excel karte hi modules, lectures aur quizzes turant load ho jate hain.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function seekTo(seconds) {
+            const player = document.getElementById('player');
+            player.currentTime = seconds;
+            player.play();
+        }
+    </script>
+</body>
+</html>
