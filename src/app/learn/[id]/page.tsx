@@ -12,6 +12,7 @@ import { AiLessonTutorDrawer } from '@/components/player/AiLessonTutorDrawer';
 import { CertificateModal } from '@/components/student/CertificateModal';
 import { useApp } from '@/context/AppContext';
 import confetti from 'canvas-confetti';
+import { cleanSectionTitle, cleanLessonTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 
 export default function LearnPlayerPage() {
   const params = useParams();
@@ -201,6 +202,7 @@ export default function LearnPlayerPage() {
 
   const allSections = course?.sections || [];
   const allLessons = allSections.flatMap((s: any) => s.lessons) || [];
+  const lessonDisplayMap = useMemo(() => generateCurriculumDisplayMap(allSections), [allSections]);
   const activeLesson = allLessons.find((l: any) => l.id === activeLessonId) || allLessons[0] || null;
   const activeSection = allSections.find((s: any) => s.lessons?.some((l: any) => l.id === activeLesson?.id)) || allSections[0] || null;
 
@@ -301,13 +303,19 @@ export default function LearnPlayerPage() {
     const q = searchQuery.toLowerCase().trim();
     return allSections
       .map((sec: any) => {
-        const matchedLessons = (sec.lessons || []).filter((l: any) =>
-          l.title.toLowerCase().includes(q) || sec.title.toLowerCase().includes(q)
-        );
+        const matchedLessons = (sec.lessons || []).filter((l: any) => {
+          const itemInfo = lessonDisplayMap.get(l.id);
+          const sTitle = itemInfo?.sidebarTitle || l.title || '';
+          return (
+            (l.title && l.title.toLowerCase().includes(q)) ||
+            sTitle.toLowerCase().includes(q) ||
+            (sec.title && sec.title.toLowerCase().includes(q))
+          );
+        });
         return { ...sec, lessons: matchedLessons };
       })
       .filter((sec: any) => sec.lessons && sec.lessons.length > 0);
-  }, [allSections, searchQuery]);
+  }, [allSections, searchQuery, lessonDisplayMap]);
 
   const toggleSection = (id: string) => {
     setExpandedSectionIds((prev) =>
@@ -549,7 +557,7 @@ export default function LearnPlayerPage() {
           {/* AI Tutor Drawer Button */}
           <AiLessonTutorDrawer
             lessonId={activeLesson?.id}
-            lessonTitle={activeLesson?.title}
+            lessonTitle={lessonDisplayMap.get(activeLesson?.id)?.underPlayerTitle || activeLesson?.title}
             courseSlug={courseSlug}
           />
 
@@ -686,10 +694,10 @@ export default function LearnPlayerPage() {
             {/* Current Lecture Title & Module */}
             <div className="text-center min-w-0 flex-1 px-2">
               <span className="text-xs sm:text-sm font-extrabold text-[#2d2f31] truncate block">
-                {activeLesson?.title || 'Lecture'}
+                {lessonDisplayMap.get(activeLesson?.id)?.underPlayerTitle || activeLesson?.title || 'Lecture'}
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
-                {activeLesson?.duration || '10:00'} • {activeSection ? `Module ${(allSections.indexOf(activeSection) + 1)}: ${activeSection.title}` : 'Curriculum'}
+                {activeLesson?.duration || '10:00'} • {activeSection ? `Module ${(allSections.indexOf(activeSection) + 1)}: ${cleanSectionTitle(activeSection.title, allSections.indexOf(activeSection) + 1)}` : 'Curriculum'}
               </span>
             </div>
 
@@ -881,7 +889,7 @@ export default function LearnPlayerPage() {
               totalLectures={allLessons.length}
               totalDuration={totalCourseDurationFormatted}
               lessonId={activeLesson?.id}
-              lessonTitle={activeLesson?.title || course?.title || 'Lecture Details'}
+              lessonTitle={lessonDisplayMap.get(activeLesson?.id)?.underPlayerTitle || activeLesson?.title || course?.title || 'Lecture Details'}
               lessonDescription={activeLesson?.description}
               lessonContent={activeLesson?.content}
               instructorName={course?.instructor?.name || 'Dr. Neha Kapoor'}
@@ -988,7 +996,7 @@ export default function LearnPlayerPage() {
                           Module {sIdx + 1}
                         </span>
                         <span className="text-xs font-bold text-[#2d2f31] block leading-snug">
-                          {sec.title}
+                          {cleanSectionTitle(sec.title, sIdx + 1)}
                         </span>
                         <span className="text-[11px] text-slate-500 mt-1 block font-medium">
                           {secCompletedCount} / {secLessons.length} completed
@@ -1057,7 +1065,7 @@ export default function LearnPlayerPage() {
                                       : 'text-slate-800 hover:text-black font-semibold'
                                   }`}
                                 >
-                                  {lIdx + 1}. {les.title}
+                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
                                 </span>
 
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
@@ -1305,7 +1313,7 @@ export default function LearnPlayerPage() {
                         <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">
                           Module {sIdx + 1}
                         </span>
-                        <span className="text-xs font-bold text-[#2d2f31]">{sec.title}</span>
+                        <span className="text-xs font-bold text-[#2d2f31]">{cleanSectionTitle(sec.title, sIdx + 1)}</span>
                       </div>
                       <Icon
                         name={isExpanded ? 'expand_less' : 'expand_more'}
@@ -1359,7 +1367,7 @@ export default function LearnPlayerPage() {
                                     isActive ? 'font-bold text-[#2d2f31]' : 'text-slate-800'
                                   }`}
                                 >
-                                  {lIdx + 1}. {les.title}
+                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
                                 </span>
                                 <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
                                   <span className="flex items-center gap-1">

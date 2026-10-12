@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { CourseModule } from '@/types';
 import { Icon } from '../ui/Icon';
+import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 
 interface CurriculumAccordionProps {
   modules: CourseModule[];
@@ -25,6 +26,7 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
   };
 
   const totalLessons = modules.reduce((sum, m) => sum + m.lessons.length, 0);
+  const lessonDisplayMap = React.useMemo(() => generateCurriculumDisplayMap(modules), [modules]);
 
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
@@ -69,7 +71,7 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
                     <span className="text-xs font-bold text-secondary block uppercase tracking-wider">
                       Module {mod.moduleNumber}
                     </span>
-                    <span className="text-sm font-bold text-on-surface">{mod.title}</span>
+                    <span className="text-sm font-bold text-on-surface">{cleanSectionTitle(mod.title, mod.moduleNumber)}</span>
                   </div>
                 </div>
                 <span className="text-xs text-on-surface-variant font-medium">
@@ -108,7 +110,7 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
                             lesson.locked ? 'text-on-surface-variant' : 'text-on-surface'
                           }`}
                         >
-                          {lesson.title}
+                          {lessonDisplayMap.get(lesson.id)?.sidebarTitle || lesson.title}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">

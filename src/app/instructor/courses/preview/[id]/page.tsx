@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import { useParams, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
@@ -12,6 +12,7 @@ import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
 import { QuizPlayer } from '@/components/player/QuizPlayer';
 import { getLessonResourcesList, LessonResourceItem } from '@/components/course-builder/CourseCurriculumStep';
+import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 
 function CourseStudentPreviewInner() {
   const params = useParams();
@@ -199,13 +200,15 @@ function CourseStudentPreviewInner() {
   const requirementsList = course ? parseList(course.requirements) : [];
   const targetAudienceList = course ? parseList(course.targetAudience) : [];
 
+  const lessonDisplayMap = useMemo(() => generateCurriculumDisplayMap(course?.sections || []), [course?.sections]);
+
   const modules = (course?.sections || []).map((sec: any, idx: number) => ({
     id: sec.id,
     moduleNumber: idx + 1,
-    title: sec.title,
+    title: cleanSectionTitle(sec.title, idx + 1),
     lessons: (sec.lessons || []).map((l: any) => ({
       id: l.id,
-      title: l.title,
+      title: lessonDisplayMap.get(l.id)?.sidebarTitle || l.title,
       duration: l.duration || '10:00',
       type: (l.type === 'QUIZ' || l.type === 'quiz' ? 'quiz' : l.type === 'ARTICLE' || l.type === 'reading' ? 'reading' : 'video') as 'video' | 'reading' | 'quiz',
       completed: false,
@@ -814,7 +817,7 @@ function CourseStudentPreviewInner() {
               {(course.sections || []).map((sec: any, sIdx: number) => (
                 <div key={sec.id} className="p-3 space-y-1.5">
                   <div className="text-[10px] font-mono font-bold uppercase text-slate-400 px-2">
-                    Module {sIdx + 1}: {sec.title}
+                    Module {sIdx + 1}: {cleanSectionTitle(sec.title, sIdx + 1)}
                   </div>
                   {(sec.lessons || []).map((les: any) => {
                     const isCurrent = activeLesson?.id === les.id;
@@ -840,7 +843,7 @@ function CourseStudentPreviewInner() {
                             }
                             size={16}
                           />
-                          <span className="text-xs truncate">{les.title}</span>
+                          <span className="text-xs truncate">{lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {lessonResources.length > 0 && (

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AuditorPortalShell } from '@/components/reviewer/AuditorPortalShell';
 import { Icon } from '@/components/ui/Icon';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
+import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 
 interface SectionIssue {
   id: string;
@@ -371,6 +372,8 @@ export default function AuditorCourseReviewPage() {
   const { course, submissionType, versionLabel, versionState, versionDiff, securityPolicy, auditMeta } =
     data;
 
+  const lessonDisplayMap = generateCurriculumDisplayMap(course.sections || []);
+
   const isStagedVersionReview =
     course.status === 'PUBLISHED' && Boolean(versionState?.stagedSnapshot);
 
@@ -568,7 +571,7 @@ export default function AuditorCourseReviewPage() {
                         <span className="text-[10px] font-mono font-bold uppercase text-emerald-600 block">
                           Module {sIdx + 1}
                         </span>
-                        <span className="text-xs font-bold text-slate-900">{sec.title}</span>
+                        <span className="text-xs font-bold text-slate-900">{cleanSectionTitle(sec.title, sIdx + 1)}</span>
                       </div>
                       <span className="text-[10px] font-mono text-slate-500">
                         {(sec.lessons || []).length} items
@@ -584,8 +587,8 @@ export default function AuditorCourseReviewPage() {
                             onClick={() =>
                               setSelectedLesson({
                                 ...les,
-                                moduleTitle: `Module ${sIdx + 1}: ${sec.title}`,
-                                lessonNumber: lIdx + 1
+                                moduleTitle: `Module ${sIdx + 1}: ${cleanSectionTitle(sec.title, sIdx + 1)}`,
+                                lessonNumber: lessonDisplayMap.get(les.id)?.itemNumber || lIdx + 1
                               })
                             }
                             className={`w-full p-3 text-left flex items-center justify-between gap-2 cursor-pointer transition-all ${
@@ -595,10 +598,10 @@ export default function AuditorCourseReviewPage() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
-                                  {les.type || 'VIDEO'}
+                                  {lessonDisplayMap.get(les.id)?.typeLabel || les.type || 'VIDEO'}
                                 </span>
                                 <span className="text-xs font-bold text-slate-800 truncate">
-                                  {les.title}
+                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
                                 </span>
                               </div>
                               <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-500 font-mono">

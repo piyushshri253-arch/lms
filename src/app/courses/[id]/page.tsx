@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useApp } from '@/context/AppContext';
+import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 
 export default function CourseDetailsPage() {
   const params = useParams();
@@ -274,13 +275,15 @@ export default function CourseDetailsPage() {
   const discountAmount = Number(((subtotal * appliedDiscount) / 100).toFixed(2));
   const finalTotal = Math.max(0, Number((subtotal - discountAmount).toFixed(2)));
 
+  const lessonDisplayMap = useMemo(() => generateCurriculumDisplayMap(course.sections || []), [course.sections]);
+
   const modules = (course.sections || []).map((sec: any, idx: number) => ({
     id: sec.id,
     moduleNumber: idx + 1,
-    title: sec.title,
+    title: cleanSectionTitle(sec.title, idx + 1),
     lessons: (sec.lessons || []).map((l: any, lIdx: number) => ({
       id: l.id,
-      title: l.title,
+      title: lessonDisplayMap.get(l.id)?.sidebarTitle || l.title,
       duration: l.duration || '10:00',
       completed: false,
       locked: !isEnrolled && !l.isFree
