@@ -8,7 +8,6 @@ import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Modal } from '@/components/ui/Modal';
 import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
-import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
 
 interface CourseAuthored {
   id: string;
@@ -64,9 +63,6 @@ function InstructorCoursesStudioInner() {
   const [newPrice, setNewPrice] = useState('4999');
   const [newCategory, setNewCategory] = useState('Engineering');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Tutorial Video Modal State
-  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
 
   const sidebarTab = searchParams?.get('tab') || '';
   const createParam = searchParams?.get('create');
@@ -466,19 +462,6 @@ function InstructorCoursesStudioInner() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsTutorialModalOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs px-4 py-3 rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
-              title="Watch step-by-step video tutorial in English or Hindi"
-            >
-              <Icon name="smart_display" size={18} className="text-violet-600" />
-              <span>Tutorial Video</span>
-              <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-black">
-                EN / HI
-              </span>
-            </button>
-
             <Link
               href="/instructor/courses/builder"
               className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md shadow-violet-600/20 transition-all cursor-pointer shrink-0"
@@ -1308,13 +1291,6 @@ function InstructorCoursesStudioInner() {
           </div>
         </form>
       </Modal>
-
-      {/* Course Creation & Excel Bulk Upload Video Tutorial Modal (Dual-Language) */}
-      <CourseTutorialModal
-        isOpen={isTutorialModalOpen}
-        onClose={() => setIsTutorialModalOpen(false)}
-        defaultLang="en"
-      />
     </InstructorPortalShell>
   );
 }

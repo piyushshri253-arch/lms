@@ -19,6 +19,7 @@ import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
 import { downloadCourseExcelTemplate, parseCourseExcelFile } from '@/lib/course-excel';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
+import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
 
 const getDefaultCourseState = () => ({
   title: '',
@@ -104,6 +105,10 @@ function CourseBuilderContent() {
   const [isLivePreviewOpen, setIsLivePreviewOpen] = useState<boolean>(false);
   const [previewTab, setPreviewTab] = useState<'LANDING' | 'PLAYER'>('LANDING');
   const [activePreviewItem, setActivePreviewItem] = useState<any>(null);
+
+  // Video Tutorial Modal State (Dual English & Hindi walkthrough)
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState<boolean>(false);
+  const [tutorialModalLang, setTutorialModalLang] = useState<'en' | 'hi'>('en');
 
   // Full Course Form State
   const [courseState, setCourseState] = useState<{
@@ -1122,9 +1127,32 @@ function CourseBuilderContent() {
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant">
                 One-Click Auto-Fill
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setTutorialModalLang('en');
+                  setIsTutorialModalOpen(true);
+                }}
+                className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-300 dark:border-violet-800 hover:bg-violet-200 dark:hover:bg-violet-900 cursor-pointer flex items-center gap-1 transition-all"
+                title="Watch complete video walkthrough in English or Hindi"
+              >
+                <Icon name="smart_display" size={12} className="text-violet-600 dark:text-violet-400" />
+                <span>Video Tutorial (Hindi &amp; EN)</span>
+              </button>
             </div>
             <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-              Download the official template, fill in course details, modules, lectures, quizzes &amp; pricing in Excel, and upload to auto-fill all instantly! You can then upload video lectures and resources directly below.
+              Download the official template, fill in course details, modules, lectures, quizzes &amp; pricing in Excel, and upload to auto-fill all instantly! You can then upload video lectures and resources directly below.{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setTutorialModalLang('en');
+                  setIsTutorialModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-500 hover:underline cursor-pointer ml-1"
+              >
+                <Icon name="play_circle" size={14} />
+                <span>Need help? Watch 3-min video guide (Hindi &amp; English)</span>
+              </button>
             </p>
           </div>
         </div>
@@ -1161,6 +1189,23 @@ function CourseBuilderContent() {
               className="hidden"
             />
           </label>
+
+          {/* Watch Tutorial Video Button (Dual-Language Hindi & English) */}
+          <button
+            type="button"
+            onClick={() => {
+              setTutorialModalLang('en');
+              setIsTutorialModalOpen(true);
+            }}
+            className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-md shadow-violet-600/20 transition-all hover:scale-[1.02]"
+            title="Watch step-by-step video tutorial in English or Hindi"
+          >
+            <Icon name="smart_display" size={17} />
+            <span>Watch Tutorial Video</span>
+            <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-black">
+              HINDI / EN
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1966,6 +2011,13 @@ function CourseBuilderContent() {
           </div>
         </div>
       )}
+
+      {/* Course Creation & Excel Bulk Upload Video Tutorial Modal (Dual-Language) */}
+      <CourseTutorialModal
+        isOpen={isTutorialModalOpen}
+        onClose={() => setIsTutorialModalOpen(false)}
+        defaultLang={tutorialModalLang}
+      />
 
       {/* Bottom of Course Builder Form */}
     </div>
