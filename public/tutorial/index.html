@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MORENA TEACH LMS - Course Bulk Upload Video Tutorial</title>
+    <title>MORENA TEACH LMS - Course Bulk Upload Video Tutorial (Hindi & English)</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -17,7 +17,7 @@
             padding: 30px 20px;
         }
         .container {
-            max-width: 1250px;
+            max-width: 1280px;
             width: 100%;
         }
         .header {
@@ -27,6 +27,8 @@
             margin-bottom: 24px;
             padding-bottom: 16px;
             border-bottom: 1px solid #1e293b;
+            flex-wrap: wrap;
+            gap: 16px;
         }
         .logo-badge {
             background: linear-gradient(135deg, #7c3aed, #4f46e5);
@@ -34,8 +36,9 @@
             padding: 6px 14px;
             border-radius: 8px;
             font-weight: 800;
-            font-size: 15px;
+            font-size: 14px;
             letter-spacing: -0.5px;
+            display: inline-block;
         }
         .title {
             font-size: 28px;
@@ -49,6 +52,77 @@
             color: #94a3b8;
             font-size: 14.5px;
             margin-top: 4px;
+        }
+        .lang-switcher-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            background: #111827;
+            padding: 8px 14px;
+            border-radius: 14px;
+            border: 1px solid #1f2937;
+            width: fit-content;
+        }
+        .lang-label {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+        .lang-btn {
+            background: #1f2937;
+            color: #cbd5e1;
+            border: 1px solid #374151;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .lang-btn:hover {
+            background: #374151;
+            color: white;
+        }
+        .lang-btn.active {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            color: white;
+            border-color: #818cf8;
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+        }
+        .download-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-download {
+            background: #059669;
+            color: white;
+            text-decoration: none;
+            padding: 9px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-download:hover {
+            background: #047857;
+            transform: translateY(-1px);
+        }
+        .btn-download.secondary {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+        }
+        .btn-download.secondary:hover {
+            background: #334155;
+            color: white;
         }
         .main-grid {
             display: grid;
@@ -77,23 +151,8 @@
             justify-content: space-between;
             align-items: center;
             border-top: 1px solid #1f2937;
-        }
-        .btn-download {
-            background: #059669;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-        }
-        .btn-download:hover {
-            background: #047857;
-            transform: translateY(-1px);
+            flex-wrap: wrap;
+            gap: 12px;
         }
         .sidebar-card {
             background: #111827;
@@ -160,25 +219,39 @@
             <div>
                 <span class="logo-badge">MORENA TEACH INSTRUCTOR STUDIO</span>
                 <h1 class="title">Course Bulk Excel Upload Video Tutorial</h1>
-                <p class="subtitle">Complete Real Walkthrough with Voiceover (Hindi / English)</p>
+                <p class="subtitle">Complete Real LMS UI Walkthrough with Voiceover</p>
             </div>
-            <div>
-                <a href="MORENA_Course_Excel_Upload_Tutorial.mp4" download class="btn-download">
-                    📥 Download Video MP4 (4.2 MB)
+            <div class="download-actions">
+                <a id="btnDownloadPrimary" href="MORENA_Course_Excel_Upload_Tutorial_EN.mp4" download class="btn-download">
+                    📥 Download English Video (4.7 MB)
+                </a>
+                <a href="MORENA_Course_Excel_Upload_Tutorial.mp4" download class="btn-download secondary">
+                    📥 Download Hindi Video (4.2 MB)
                 </a>
             </div>
+        </div>
+
+        <!-- Language Switcher Bar -->
+        <div class="lang-switcher-container">
+            <span class="lang-label">Voiceover Language:</span>
+            <button id="btnLangEN" class="lang-btn active" onclick="switchLanguage('en')">
+                🌐 English Narration
+            </button>
+            <button id="btnLangHI" class="lang-btn" onclick="switchLanguage('hi')">
+                🇮🇳 Hindi (हिन्दी आवाज़)
+            </button>
         </div>
 
         <div class="main-grid">
             <div class="video-card">
                 <video id="player" controls autoplay poster="poster.png">
-                    <source src="MORENA_Course_Excel_Upload_Tutorial.mp4" type="video/mp4">
+                    <source id="videoSource" src="MORENA_Course_Excel_Upload_Tutorial_EN.mp4" type="video/mp4">
                     Your browser does not support HTML5 video.
                 </video>
                 <div class="video-meta">
                     <div>
-                        <div style="font-weight: 800; font-size: 16px;">1080p Full HD • Real LMS UI Screens • Neural Voice Narration</div>
-                        <div style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Duration: 3 Minutes 15 Seconds</div>
+                        <div id="videoMetaTitle" style="font-weight: 800; font-size: 16px;">1080p Full HD • Real LMS UI Screens • English Voiceover</div>
+                        <div id="videoMetaDuration" style="font-size: 13px; color: #94a3b8; margin-top: 2px;">Duration: 3 Minutes 42 Seconds</div>
                     </div>
                     <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">OFFICIAL INSTRUCTOR GUIDE</span>
                 </div>
@@ -188,76 +261,117 @@
                 <div class="chapters-title">
                     <span>📑</span> Video Chapters
                 </div>
-                <div class="chapter-list">
-                    <div class="chapter-item" onclick="seekTo(0)">
-                        <div class="chapter-name">1. Intro & Studio Tour</div>
-                        <div class="chapter-time">0:00</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(17)">
-                        <div class="chapter-name">2. Download Template (.xlsx)</div>
-                        <div class="chapter-time">0:17</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(35)">
-                        <div class="chapter-name">3. Sheet 1: Course Details</div>
-                        <div class="chapter-time">0:35</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(59)">
-                        <div class="chapter-name">4. Sheet 2: Curriculum Structure</div>
-                        <div class="chapter-time">0:59</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(85)">
-                        <div class="chapter-name">5. Sheet 3: Quizzes & MCQs</div>
-                        <div class="chapter-time">1:25</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(107)">
-                        <div class="chapter-name">6. Step 1: Upload & Auto-Fill</div>
-                        <div class="chapter-time">1:47</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(127)">
-                        <div class="chapter-name">7. Step 2: Curriculum Builder</div>
-                        <div class="chapter-time">2:07</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(148)">
-                        <div class="chapter-name">8. Step 3 & 4: Media & Pricing</div>
-                        <div class="chapter-time">2:28</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(164)">
-                        <div class="chapter-name">9. Step 5: Review & Submit</div>
-                        <div class="chapter-time">2:44</div>
-                    </div>
-                    <div class="chapter-item" onclick="seekTo(180)">
-                        <div class="chapter-name">10. Outro & Publishing Summary</div>
-                        <div class="chapter-time">3:00</div>
-                    </div>
+                <div class="chapter-list" id="chapterList">
+                    <!-- Populated dynamically based on language -->
                 </div>
             </div>
         </div>
 
         <div class="highlights">
-            <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: #f8fafc;">Key Takeaways:</h3>
+            <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: #f8fafc;">Key Takeaways & Capabilities:</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px;">
                 <div style="background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155;">
                     <div style="font-weight: 800; color: #38bdf8; margin-bottom: 4px;">1. Real LMS Studio Design</div>
-                    <div style="font-size: 13px; color: #cbd5e1;">Aapke actual LMS studio UI, buttons, tabs aur forms ke exact flow ke sath video banaya gaya hai.</div>
+                    <div style="font-size: 13px; color: #cbd5e1;">Matches your real MORENA LMS design, tabs, buttons, forms, and step-by-step navigation flow.</div>
                 </div>
                 <div style="background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155;">
                     <div style="font-weight: 800; color: #34d399; margin-bottom: 4px;">2. Bold Topics & English Instructions</div>
-                    <div style="font-size: 13px; color: #cbd5e1;">Excel sheet me sabhi topics bold hain aur instructions clear English me structured hain.</div>
+                    <div style="font-size: 13px; color: #cbd5e1;">All key rows and columns in the Excel template are bold, with clear English examples and instructions.</div>
                 </div>
                 <div style="background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155;">
-                    <div style="font-weight: 800; color: #c084fc; margin-bottom: 4px;">3. Step-by-Step Voiceover</div>
-                    <div style="font-size: 13px; color: #cbd5e1;">Download ➔ Excel Fill ➔ Upload ➔ Curriculum Review ➔ Media ➔ Pricing ➔ Submit for Approval.</div>
+                    <div style="font-weight: 800; color: #c084fc; margin-bottom: 4px;">3. Complete Dual Voiceover</div>
+                    <div style="font-size: 13px; color: #cbd5e1;">Available in both English and Hindi neural voices, explaining the entire download-to-submission lifecycle.</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        const CHAPTERS = {
+            en: [
+                { title: "1. Intro & Studio Tour", time: "0:00", seconds: 0 },
+                { title: "2. Download Template (.xlsx)", time: "0:16", seconds: 16.2 },
+                { title: "3. Sheet 1: Course Details", time: "0:35", seconds: 35.5 },
+                { title: "4. Sheet 2: Curriculum Structure", time: "1:06", seconds: 66.2 },
+                { title: "5. Sheet 3: Quizzes & MCQs", time: "1:38", seconds: 98.1 },
+                { title: "6. Step 1: Upload & Auto-Fill", time: "2:02", seconds: 122.6 },
+                { title: "7. Step 2: Curriculum Builder", time: "2:23", seconds: 144.0 },
+                { title: "8. Step 3 & 4: Media & Pricing", time: "2:49", seconds: 169.2 },
+                { title: "9. Step 5: Review & Submit", time: "3:10", seconds: 190.1 },
+                { title: "10. Outro & Publishing Summary", time: "3:30", seconds: 210.4 }
+            ],
+            hi: [
+                { title: "1. Intro & Studio Tour", time: "0:00", seconds: 0 },
+                { title: "2. Download Template (.xlsx)", time: "0:17", seconds: 17 },
+                { title: "3. Sheet 1: Course Details", time: "0:35", seconds: 35 },
+                { title: "4. Sheet 2: Curriculum Structure", time: "0:59", seconds: 59 },
+                { title: "5. Sheet 3: Quizzes & MCQs", time: "1:25", seconds: 85 },
+                { title: "6. Step 1: Upload & Auto-Fill", time: "1:47", seconds: 107 },
+                { title: "7. Step 2: Curriculum Builder", time: "2:07", seconds: 127 },
+                { title: "8. Step 3 & 4: Media & Pricing", time: "2:28", seconds: 148 },
+                { title: "9. Step 5: Review & Submit", time: "2:44", seconds: 164 },
+                { title: "10. Outro & Publishing Summary", time: "3:00", seconds: 180 }
+            ]
+        };
+
+        let currentLang = 'en';
+
+        function renderChapters() {
+            const list = document.getElementById('chapterList');
+            list.innerHTML = '';
+            CHAPTERS[currentLang].forEach(ch => {
+                const item = document.createElement('div');
+                item.className = 'chapter-item';
+                item.onclick = () => seekTo(ch.seconds);
+                item.innerHTML = `
+                    <div class="chapter-name">${ch.title}</div>
+                    <div class="chapter-time">${ch.time}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function switchLanguage(lang) {
+            currentLang = lang;
+            const player = document.getElementById('player');
+            const source = document.getElementById('videoSource');
+            const btnEN = document.getElementById('btnLangEN');
+            const btnHI = document.getElementById('btnLangHI');
+            const metaTitle = document.getElementById('videoMetaTitle');
+            const metaDuration = document.getElementById('videoMetaDuration');
+            const btnDownload = document.getElementById('btnDownloadPrimary');
+
+            if (lang === 'en') {
+                btnEN.classList.add('active');
+                btnHI.classList.remove('active');
+                source.src = 'MORENA_Course_Excel_Upload_Tutorial_EN.mp4';
+                metaTitle.innerText = '1080p Full HD • Real LMS UI Screens • English Voiceover';
+                metaDuration.innerText = 'Duration: 3 Minutes 42 Seconds';
+                btnDownload.href = 'MORENA_Course_Excel_Upload_Tutorial_EN.mp4';
+                btnDownload.innerText = '📥 Download English Video (4.7 MB)';
+            } else {
+                btnHI.classList.add('active');
+                btnEN.classList.remove('active');
+                source.src = 'MORENA_Course_Excel_Upload_Tutorial.mp4';
+                metaTitle.innerText = '1080p Full HD • Real LMS UI Screens • Hindi Voiceover';
+                metaDuration.innerText = 'Duration: 3 Minutes 15 Seconds';
+                btnDownload.href = 'MORENA_Course_Excel_Upload_Tutorial.mp4';
+                btnDownload.innerText = '📥 Download Hindi Video (4.2 MB)';
+            }
+
+            renderChapters();
+            player.load();
+            player.play();
+        }
+
         function seekTo(seconds) {
             const player = document.getElementById('player');
             player.currentTime = seconds;
             player.play();
         }
+
+        // Initialize on page load
+        renderChapters();
     </script>
 </body>
 </html>
