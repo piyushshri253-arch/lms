@@ -200,7 +200,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
         } else {
           lectureCount += 1;
-          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
+          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Article ${lectureCount}` };
         }
       });
     });
@@ -412,9 +412,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             id: `les-${Date.now()}-1`,
             title: 'Welcome & Course Orientation',
             description: '',
-            type: 'VIDEO',
-            duration: '10:00',
-            durationSeconds: 600,
+            type: 'TEXT',
+            duration: '05:00',
+            durationSeconds: 300,
+            content: `# Welcome & Course Orientation\n\nWelcome to this course! Here is an overview of what you will learn in this module:\n\n## 1. Module Overview\n- Key concepts and learning objectives\n- Structured exercises and guides\n\n> 💡 **Tip:** Review each article carefully and take the quiz at the end to assess your understanding.\n\n---\n\n## Next Steps\nContinue to the next article to dive deeper!`,
             subLessons: [],
             isFree: false,
             isPublished: true,
@@ -520,8 +521,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
     }
     showToast({
-      title: type === 'QUIZ' ? `Added ${quizTitle}` : `Added Lecture ${nextLectureNum}`,
-      description: `${defaultTitle} added to Module ${moduleNum}.`,
+      title: type === 'QUIZ' ? `Added ${quizTitle}` : `Added Article ${nextLectureNum}`,
+      description: `${defaultTitle || (type === 'QUIZ' ? quizTitle : `Article ${nextLectureNum}`)} added to Module ${moduleNum}.`,
       type: 'success'
     });
   };
@@ -558,7 +559,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       code: subCode,
       title: `${subCode} Sub-Topic Title`,
       description: '',
-      type: 'VIDEO',
+      type: 'TEXT',
       duration: '05:00',
       videoUrl: '',
       content: '',
@@ -736,8 +737,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
               📁 {sections.length} {sections.length === 1 ? 'Module' : 'Modules'}
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-full border border-slate-300">
-              🎬 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Lecture' : 'Lectures'} (Continuous)
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-200">
+              📝 {itemNumbering.totalLectures} {itemNumbering.totalLectures === 1 ? 'Written Article' : 'Written Articles'}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
               ❓ {itemNumbering.totalQuizzes} {itemNumbering.totalQuizzes === 1 ? 'Quiz' : 'Quizzes'}
@@ -854,29 +855,21 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                   {section.lessons.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] bg-white rounded-md space-y-2">
                       <p>No curriculum items in Module {moduleNum} yet.</p>
-                      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'VIDEO', true)}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        >
-                          <Icon name="movie" size={13} />
-                          <span>+ Add Video Lecture</span>
-                        </button>
+                      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
                         <button
                           type="button"
                           onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
-                          className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          className="px-4 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <Icon name="article" size={13} />
-                          <span>+ Add Written Article (No Video)</span>
+                          <Icon name="article" size={15} />
+                          <span>+ Add Written Article</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
-                          className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          className="px-4 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                         >
-                          <Icon name="quiz" size={13} />
+                          <Icon name="quiz" size={15} />
                           <span>+ Add Quiz</span>
                         </button>
                       </div>
@@ -1340,7 +1333,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                 {/* Continuous Lecture Number Label across modules */}
                                 <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
-                                  Lecture {itemMeta.num}.
+                                  Article {itemMeta.num}.
                                 </span>
 
                                 {/* Inline Title Input */}
@@ -1354,31 +1347,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     onBlur={() =>
                                       handleUpdateLessonInline(section.id, les.id, { title: cleanLectureTitle(les.title) })
                                     }
-                                    placeholder="Lecture Title (e.g. Introduction & Roadmap)"
+                                    placeholder="Article Title (e.g. Introduction & Key Concepts)"
                                     className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                   />
                                 </div>
 
                                 {/* Attached Content Badges */}
                                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                  {les.type === 'TEXT' && (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
-                                      📝 Written Article {les.duration ? `(${les.duration})` : ''}
-                                    </span>
-                                  )}
-                                  {les.videoUrl && les.type !== 'TEXT' && (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                                      🎬 Video {les.duration ? `(${les.duration})` : ''}
-                                    </span>
-                                  )}
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                    📝 Written Article {les.duration ? `(${les.duration})` : ''}
+                                  </span>
                                   {les.pdfUrl && (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
-                                      📑 PDF
-                                    </span>
-                                  )}
-                                  {les.content && les.type !== 'TEXT' && (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
-                                      📝 Notes
+                                      📑 PDF Handout
                                     </span>
                                   )}
                                 </div>
@@ -1399,22 +1380,22 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </label>
                               </div>
 
-                              {/* Action Buttons on Lecture: Edit & Delete */}
+                              {/* Action Buttons on Article: Edit & Delete */}
                               <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
                                   className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                  title="Edit lecture title, video, written article notes, or resources"
+                                  title="Edit article headings, formatted content, or attached handouts"
                                 >
                                   <Icon name="edit" size={13} />
-                                  <span>{les.type === 'TEXT' ? 'Edit Article' : 'Edit'}</span>
+                                  <span>Edit Article</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteLesson(section.id, les.id)}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                                  title="Delete Lecture"
+                                  title="Delete Article"
                                 >
                                   <Icon name="delete" size={15} />
                                 </button>
@@ -1433,29 +1414,20 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCreateLesson(section.id, 'VIDEO', true)}
-                      className="px-3.5 py-1.5 bg-white border border-[#2d2f31] hover:bg-slate-100 text-[#2d2f31] font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Add a video lecture (upload MP4 or paste video link)"
-                    >
-                      <Icon name="movie" size={14} />
-                      <span>+ Video Lecture</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
-                      className="px-3.5 py-1.5 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Add a written article / reading lecture with headings and paragraphs (no video required)"
+                      className="px-4 py-2 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Add a written article / reading lecture with headings and paragraphs"
                     >
-                      <Icon name="article" size={14} />
-                      <span>+ Written Article (No Video)</span>
+                      <Icon name="article" size={15} />
+                      <span>+ Written Article</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
-                      className="px-3.5 py-1.5 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      className="px-4 py-2 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                       title="Add a knowledge quiz"
                     >
-                      <Icon name="quiz" size={14} />
+                      <Icon name="quiz" size={15} />
                       <span>+ Quiz</span>
                     </button>
                   </div>
@@ -1595,7 +1567,6 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
   onSave
 }) => {
   const { showToast } = useApp();
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [formData, setFormData] = useState<BuilderLesson>({
     ...lesson,
@@ -1661,16 +1632,14 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="lg"
-      title={`Edit Lecture: "${formData.title}"`}
-      subtitle={`Type: ${formData.type} • Order: ${formData.order}`}
+      title={`Edit Article: "${formData.title || 'Untitled'}"`}
+      subtitle={`Type: ${formData.type === 'QUIZ' ? 'Knowledge Quiz' : 'Written Article'} • Order: ${formData.order}`}
     >
       <div className="space-y-6">
         {/* Lesson Type Selector */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5">
           {[
-            { type: 'VIDEO', icon: 'movie', label: 'Video Lesson' },
-            { type: 'TEXT', icon: 'article', label: 'Rich Text Article' },
-            { type: 'PDF', icon: 'picture_as_pdf', label: 'PDF Document' },
+            { type: 'TEXT', icon: 'article', label: 'Written Article' },
             { type: 'QUIZ', icon: 'quiz', label: 'Knowledge Quiz' }
           ].map((t) => (
             <button
@@ -1680,7 +1649,7 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
                 setFormData((prev) => {
                   let nextContent = prev.content;
                   if (t.type === 'TEXT' && (!nextContent || nextContent.trim().length === 0)) {
-                    nextContent = `# ${prev.title || 'Lecture Overview'}\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.`;
+                    nextContent = `# ${prev.title || 'Article Overview'}\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.`;
                   }
                   return { ...prev, type: t.type as any, content: nextContent };
                 });
@@ -1705,26 +1674,26 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2 space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Lesson Title *
+              Article Title *
             </label>
             <input
               type="text"
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary"
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold"
             />
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Duration (mm:ss)
+              Estimated Duration (mm:ss)
             </label>
             <input
               type="text"
-              value={formData.duration || '10:00'}
+              value={formData.duration || '05:00'}
               onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-              placeholder="12:00"
+              placeholder="05:00"
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
             />
           </div>
@@ -1733,323 +1702,48 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
         {/* Lesson Description */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-            Lesson Description / Overview
+            Article Description / Overview
           </label>
           <textarea
             rows={2}
             value={formData.description || ''}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Summarize what this lesson covers..."
+            placeholder="Summarize what this article covers..."
             className="w-full bg-surface border border-outline-variant rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary"
           />
         </div>
 
-        {/* Banner if Written Lecture */}
-        {formData.type === 'TEXT' && (
-          <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-                <Icon name="article" size={20} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-on-surface">Written Lecture Mode Active (No Video Required)</p>
-                <p className="text-[11px] text-on-surface-variant">
-                  Craft your lecture below with headings, paragraphs, bullet points, callout cards, and code blocks. Students will read this directly in the classroom player.
-                </p>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 shrink-0">
-              Article Mode
-            </span>
-          </div>
-        )}
-
-        {/* 1. PRIMARY ARTICLE EDITOR (When Type is TEXT) */}
-        {formData.type === 'TEXT' && (
-          <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface flex items-center gap-1.5">
-                  <span>📝</span>
-                  <span>1. Written Lecture Article &amp; Formatted Content</span>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-200 font-bold px-2 py-0.5 rounded-full">
-                    Primary Content
-                  </span>
-                </label>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">
-                  Format your written lecture with Headings (H1, H2, H3), paragraphs, bullet points, callout tips, and code blocks.
-                </p>
-              </div>
-            </div>
-
-            <RichArticleEditor
-              content={formData.content || ''}
-              onChange={(newContent) => setFormData((prev) => ({ ...prev, content: newContent }))}
-              onSetDuration={(dur) => setFormData((prev) => ({ ...prev, duration: dur }))}
-              placeholder="# Key Concepts &amp; Lecture Guide&#10;&#10;Welcome to this lecture. Write your headings, detailed explanations, bullet points, callout notes, and code walkthrough here..."
-              minHeight="380px"
-            />
-          </div>
-        )}
-
-        {/* 1. VIDEO LECTURE SECTION (When Type is NOT TEXT, or inside collapsible when TEXT) */}
-        {formData.type !== 'TEXT' ? (
-          <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-                🎬 1. Lesson Video (Upload from System / Phone OR Paste URL)
+        {/* 1. PRIMARY ARTICLE EDITOR */}
+        <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+                <span>📝</span>
+                <span>Written Article Content &amp; Formatting</span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-200 font-bold px-2 py-0.5 rounded-full">
+                  Primary Content
+                </span>
               </label>
-              <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
-                isUploadingVideo ? 'bg-primary/70 text-on-primary cursor-not-allowed' : 'bg-primary text-on-primary hover:bg-primary/90'
-              }`}>
-                <Icon name={isUploadingVideo ? 'sync' : 'upload_file'} size={16} className={isUploadingVideo ? 'animate-spin' : ''} />
-                <span>{isUploadingVideo ? 'Uploading Video...' : 'Upload Video (PC / Mobile Phone)'}</span>
-                <input
-                  type="file"
-                  disabled={isUploadingVideo}
-                  accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    e.target.value = '';
-
-                    if (f.size > 4.5 * 1024 * 1024) {
-                      showToast({
-                        title: 'Large Video Notice (> 4.5MB)',
-                        description: 'For longer HD lectures, please paste a YouTube, Vimeo, or Cloud MP4 link below, or upload a compressed video clip.',
-                        type: 'info'
-                      });
-                    }
-
-                    let detectedDur = '10:00';
-                    try {
-                      const tempPreview = URL.createObjectURL(f);
-                      const tempVideo = document.createElement('video');
-                      tempVideo.preload = 'metadata';
-                      tempVideo.src = tempPreview;
-                      await new Promise<void>((resolve) => {
-                        tempVideo.onloadedmetadata = () => {
-                          if (tempVideo.duration && isFinite(tempVideo.duration)) {
-                            const mins = Math.floor(tempVideo.duration / 60);
-                            const secs = Math.floor(tempVideo.duration % 60);
-                            detectedDur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                          }
-                          URL.revokeObjectURL(tempPreview);
-                          resolve();
-                        };
-                        tempVideo.onerror = () => {
-                          URL.revokeObjectURL(tempPreview);
-                          resolve();
-                        };
-                      });
-                    } catch {}
-
-                    setIsUploadingVideo(true);
-                    try {
-                      const fd = new FormData();
-                      fd.append('file', f);
-                      const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
-                      const data = await res.json();
-                      if (res.ok && (data?.videoUrl || data?.media?.url)) {
-                        const permanentUrl = data.videoUrl || data.media.url;
-                        setFormData((prev) => ({
-                          ...prev,
-                          videoUrl: permanentUrl,
-                          duration: detectedDur
-                        }));
-                        showToast({
-                          title: 'Video Uploaded Successfully 🎉',
-                          description: `"${f.name}" (${detectedDur}) is ready for student playback.`,
-                          type: 'success'
-                        });
-                      } else {
-                        setFormData((prev) => ({
-                          ...prev,
-                          videoUrl: prev.videoUrl?.startsWith('blob:') ? '' : prev.videoUrl
-                        }));
-                        showToast({
-                          title: 'Video Upload Failed',
-                          description: data?.error || 'Direct upload could not be saved to server. Please paste a direct YouTube / Vimeo / Cloud link.',
-                          type: 'error'
-                        });
-                      }
-                    } catch (err: any) {
-                      setFormData((prev) => ({
-                        ...prev,
-                        videoUrl: prev.videoUrl?.startsWith('blob:') ? '' : prev.videoUrl
-                      }));
-                      showToast({
-                        title: 'Upload Error',
-                        description: err?.message || 'Network error during video upload. Please paste a video link.',
-                        type: 'error'
-                      });
-                    } finally {
-                      setIsUploadingVideo(false);
-                    }
-                  }}
-                />
-              </label>
+              <p className="text-[11px] text-on-surface-variant mt-0.5">
+                Format your written article with Headings (H1, H2, H3), paragraphs, bullet points, callout tips, and code blocks.
+              </p>
             </div>
-
-            <input
-              type="text"
-              value={formData.videoUrl || ''}
-              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-              placeholder="Paste YouTube / Vimeo / MP4 URL or click 'Upload Video (PC / Mobile Phone)' above..."
-              className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
-            />
-
-            {formData.videoUrl && !formData.videoUrl.startsWith('blob:') && (
-              <div className="pt-1">
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                    <Icon name="check_circle" size={14} />
-                    <span>Video Ready for Playback</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, videoUrl: '', videoFileName: '', clearVideo: true }))}
-                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 hover:underline cursor-pointer"
-                    title="Remove video"
-                  >
-                    <Icon name="close" size={13} />
-                    <span>Remove Video</span>
-                  </button>
-                </div>
-                {(formData.videoUrl.startsWith('data:') ||
-                  formData.videoUrl.startsWith('/uploads/') ||
-                  formData.videoUrl.endsWith('.mp4') ||
-                  formData.videoUrl.endsWith('.webm') ||
-                  formData.videoUrl.endsWith('.mov')) && (
-                  <video
-                    src={formData.videoUrl}
-                    controls
-                    className="w-full max-h-48 rounded-xl bg-black border border-outline-variant"
-                  />
-                )}
-              </div>
-            )}
           </div>
-        ) : (
-          /* Collapsible Optional Video when TEXT */
-          <details className="group p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <summary className="text-xs font-bold uppercase tracking-wider text-on-surface cursor-pointer flex items-center justify-between select-none">
-              <span className="flex items-center gap-2">
-                <span>🎬</span>
-                <span>Optional Video Attachment (Not required for written articles)</span>
-                {formData.videoUrl && (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
-                    Video Attached
-                  </span>
-                )}
-              </span>
-              <Icon name="expand_more" size={18} className="text-outline group-open:rotate-180 transition-transform" />
-            </summary>
-            <div className="mt-4 pt-3 border-t border-outline-variant/40 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] text-on-surface-variant">
-                  You can optionally attach an MP4 clip or external video URL to supplement this written lecture:
-                </p>
-                <label className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
-                  isUploadingVideo ? 'bg-primary/70 text-on-primary cursor-not-allowed' : 'bg-primary text-on-primary hover:bg-primary/90'
-                }`}>
-                  <Icon name={isUploadingVideo ? 'sync' : 'upload_file'} size={14} className={isUploadingVideo ? 'animate-spin' : ''} />
-                  <span>{isUploadingVideo ? 'Uploading...' : 'Upload Video'}</span>
-                  <input
-                    type="file"
-                    disabled={isUploadingVideo}
-                    accept="video/*,.mp4,.mov,.webm,.mkv,.m4v,.3gp"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      e.target.value = '';
 
-                      let detectedDur = '10:00';
-                      try {
-                        const tempPreview = URL.createObjectURL(f);
-                        const tempVideo = document.createElement('video');
-                        tempVideo.preload = 'metadata';
-                        tempVideo.src = tempPreview;
-                        await new Promise<void>((resolve) => {
-                          tempVideo.onloadedmetadata = () => {
-                            if (tempVideo.duration && isFinite(tempVideo.duration)) {
-                              const mins = Math.floor(tempVideo.duration / 60);
-                              const secs = Math.floor(tempVideo.duration % 60);
-                              detectedDur = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                            }
-                            URL.revokeObjectURL(tempPreview);
-                            resolve();
-                          };
-                          tempVideo.onerror = () => {
-                            URL.revokeObjectURL(tempPreview);
-                            resolve();
-                          };
-                        });
-                      } catch {}
+          <RichArticleEditor
+            content={formData.content || ''}
+            onChange={(newContent) => setFormData((prev) => ({ ...prev, content: newContent }))}
+            onSetDuration={(dur) => setFormData((prev) => ({ ...prev, duration: dur }))}
+            placeholder="# Key Concepts &amp; Lecture Guide&#10;&#10;Welcome to this article. Write your headings, detailed explanations, bullet points, callout notes, and code walkthrough here..."
+            minHeight="380px"
+          />
+        </div>
 
-                      setIsUploadingVideo(true);
-                      try {
-                        const fd = new FormData();
-                        fd.append('file', f);
-                        const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
-                        const data = await res.json();
-                        if (res.ok && (data?.videoUrl || data?.media?.url)) {
-                          const permanentUrl = data.videoUrl || data.media.url;
-                          setFormData((prev) => ({
-                            ...prev,
-                            videoUrl: permanentUrl
-                          }));
-                          showToast({
-                            title: 'Video Uploaded 🎉',
-                            description: `"${f.name}" attached to article.`,
-                            type: 'success'
-                          });
-                        }
-                      } finally {
-                        setIsUploadingVideo(false);
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-
-              <input
-                type="text"
-                value={formData.videoUrl || ''}
-                onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                placeholder="Paste YouTube / Vimeo / MP4 URL or click 'Upload Video'..."
-                className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
-              />
-
-              {formData.videoUrl && !formData.videoUrl.startsWith('blob:') && (
-                <div className="pt-1">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                      <Icon name="check_circle" size={14} />
-                      <span>Video Ready</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, videoUrl: '', videoFileName: '', clearVideo: true }))}
-                      className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 hover:underline cursor-pointer"
-                    >
-                      <Icon name="close" size={13} />
-                      <span>Remove Video</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </details>
-        )}
-
-        {/* 2. PDF / RESOURCE DOCUMENT SECTION (Always Available) */}
+        {/* 2. PDF / RESOURCE DOCUMENT SECTION */}
         <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              📑 2. Study Resource / Handout (PDF, Doc, Image, or External Link)
+              📑 Study Resource / Handout (PDF, Doc, Image, or External Link)
             </label>
             <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
               isUploadingPdf ? 'bg-rose-400 text-white cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'
@@ -2119,26 +1813,6 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
           />
         </div>
-
-        {/* 3. TEXT / STUDY NOTES SECTION (When Type is NOT TEXT) */}
-        {formData.type !== 'TEXT' && (
-          <div className="space-y-3 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-                📝 3. Text / Study Notes &amp; Supplementary Article Content
-              </label>
-              <p className="text-[11px] text-on-surface-variant mt-0.5">
-                Add formatted study notes, formulas, or summaries to accompany this video lecture.
-              </p>
-            </div>
-            <RichArticleEditor
-              content={formData.content || ''}
-              onChange={(newContent) => setFormData((prev) => ({ ...prev, content: newContent }))}
-              placeholder="# Lesson Study Notes&#10;&#10;Write detailed study notes, key takeaways, formulas, or article content here..."
-              minHeight="260px"
-            />
-          </div>
-        )}
 
         {/* 4. QUICK QUESTIONS / QUIZ BUILDER SECTION (Always Available) */}
         <div className="space-y-4 p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60">
@@ -2261,29 +1935,13 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
           </button>
           <button
             type="button"
-            disabled={isUploadingVideo || isUploadingPdf}
+            disabled={isUploadingPdf}
             onClick={() => {
-              if (isUploadingVideo) {
-                showToast({
-                  title: 'Upload in Progress',
-                  description: 'Please wait for your video to finish uploading before saving.',
-                  type: 'info'
-                });
-                return;
-              }
               if (isUploadingPdf) {
                 showToast({
                   title: 'Upload in Progress',
                   description: 'Please wait for your PDF to finish uploading before saving.',
                   type: 'info'
-                });
-                return;
-              }
-              if (formData.videoUrl?.startsWith('blob:')) {
-                showToast({
-                  title: 'Unsaved Video Asset',
-                  description: 'Please re-upload your video or paste a YouTube / Vimeo / Cloud link before saving.',
-                  type: 'error'
                 });
                 return;
               }
@@ -2299,7 +1957,7 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             }}
             className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs cursor-pointer disabled:opacity-50"
           >
-            {isUploadingVideo ? 'Uploading Video...' : isUploadingPdf ? 'Uploading PDF...' : 'Save Lecture Content'}
+            {isUploadingPdf ? 'Uploading PDF...' : 'Save Article Content'}
           </button>
         </div>
       </div>
