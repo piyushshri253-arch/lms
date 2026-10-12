@@ -138,7 +138,7 @@ export function downloadCourseExcelTemplate() {
       'Field Name (Topic)',
       'Your Value / Enter Value Here',
       'Status',
-      'Field Instructions & Guidelines (English)'
+      'Instructions & Examples'
     ],
     ['📌 SECTION 1: BASIC COURSE INFORMATION', '', '', ''],
     [
@@ -511,7 +511,7 @@ export function downloadCourseExcelTemplate() {
   const guideAOA: any[][] = [
     [
       'Step / Key Topic',
-      'Step-by-Step Instructions & Best Practices (English Guide)'
+      'Step-by-Step Instructions & Guidelines'
     ],
     [
       '📌 STEP 1: Complete the "Course Details" Sheet',
