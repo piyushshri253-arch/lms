@@ -20,6 +20,117 @@ const MIME_MAP: Record<string, string> = {
   '.svg': 'image/svg+xml'
 };
 
+async function resolveMediaFile(safeFilename: string): Promise<{
+  filePath: string;
+  contentType: string;
+  fileSize: number;
+} | null> {
+  const ext = path.extname(safeFilename).toLowerCase();
+  const contentType = MIME_MAP[ext] || 'application/octet-stream';
+
+  // 1. Check local public uploads directory
+  let filePath = path.join(process.cwd(), 'public', 'uploads', 'videos', safeFilename);
+  let fileExists = fs.existsSync(filePath);
+
+  // 2. Fallback to os.tmpdir() (for serverless environments like Vercel)
+  if (!fileExists) {
+    const tmpPath = path.join(os.tmpdir(), safeFilename);
+    if (fs.existsSync(tmpPath)) {
+      filePath = tmpPath;
+      fileExists = true;
+    }
+  }
+
+  // 3. Fallback to database MediaAsset table (guarantees cross-instance persistence on Vercel)
+  if (!fileExists) {
+    try {
+      const cleanName = safeFilename.replace(/^\d+_/, '').replace(/^media-\d+-[a-z0-9]+-?/, '');
+      let asset = await prisma.mediaAsset.findFirst({
+        where: {
+          data: { not: null },
+          OR: [
+            { url: { endsWith: safeFilename } },
+            { url: `/uploads/videos/${safeFilename}` }
+          ]
+        },
+        select: { data: true }
+      });
+
+      if (!asset && cleanName && cleanName.length > 3) {
+        asset = await prisma.mediaAsset.findFirst({
+          where: {
+            data: { not: null },
+            OR: [
+              { url: { contains: cleanName } },
+              { name: { contains: cleanName } }
+            ]
+          },
+          select: { data: true }
+        });
+      }
+
+      if (asset?.data) {
+        const buf = Buffer.from(asset.data, 'base64');
+        const tmpPath = path.join(os.tmpdir(), safeFilename);
+        const tempWritePath = `${tmpPath}.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
+        await fs.promises.writeFile(tempWritePath, buf).catch(() => {});
+        try {
+          await fs.promises.rename(tempWritePath, tmpPath);
+        } catch {
+          await fs.promises.unlink(tempWritePath).catch(() => {});
+        }
+        filePath = tmpPath;
+        fileExists = true;
+      }
+    } catch {}
+  }
+
+  if (!fileExists || !fs.existsSync(filePath)) {
+    return null;
+  }
+
+  const stat = fs.statSync(filePath);
+  return {
+    filePath,
+    contentType,
+    fileSize: stat.size
+  };
+}
+
+export async function HEAD(
+  req: NextRequest,
+  { params }: { params: Promise<{ filename: string }> }
+) {
+  try {
+    const { filename } = await params;
+    if (!filename) {
+      return new NextResponse(null, { status: 400 });
+    }
+
+    const safeFilename = path.basename(filename);
+    const media = await resolveMediaFile(safeFilename);
+
+    if (!media) {
+      return new NextResponse(null, { status: 404 });
+    }
+
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(media.fileSize),
+        'Content-Type': media.contentType,
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range, Content-Type, Accept'
+      }
+    });
+  } catch {
+    return new NextResponse(null, { status: 500 });
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ filename: string }> }
@@ -31,69 +142,25 @@ export async function GET(
     }
 
     const safeFilename = path.basename(filename);
-    const ext = path.extname(safeFilename).toLowerCase();
-    const contentType = MIME_MAP[ext] || 'application/octet-stream';
+    const media = await resolveMediaFile(safeFilename);
 
-    // 1. Check local public uploads directory
-    let filePath = path.join(process.cwd(), 'public', 'uploads', 'videos', safeFilename);
-    let fileExists = fs.existsSync(filePath);
-
-    // 2. Fallback to os.tmpdir() (for serverless environments like Vercel)
-    if (!fileExists) {
-      const tmpPath = path.join(os.tmpdir(), safeFilename);
-      if (fs.existsSync(tmpPath)) {
-        filePath = tmpPath;
-        fileExists = true;
-      }
-    }
-
-    // 3. Fallback to database MediaAsset table (guarantees cross-instance persistence on Vercel)
-    if (!fileExists) {
-      try {
-        const cleanName = safeFilename.replace(/^\d+_/, '').replace(/^media-\d+-[a-z0-9]+-?/, '');
-        let asset = await prisma.mediaAsset.findFirst({
-          where: {
-            data: { not: null },
-            OR: [
-              { url: { endsWith: safeFilename } },
-              { url: `/uploads/videos/${safeFilename}` }
-            ]
-          },
-          select: { data: true }
-        });
-
-        if (!asset && cleanName && cleanName.length > 3) {
-          asset = await prisma.mediaAsset.findFirst({
-            where: {
-              data: { not: null },
-              OR: [
-                { url: { contains: cleanName } },
-                { name: { contains: cleanName } }
-              ]
-            },
-            select: { data: true }
-          });
-        }
-
-        if (asset?.data) {
-          const buf = Buffer.from(asset.data, 'base64');
-          const tmpPath = path.join(os.tmpdir(), safeFilename);
-          await fs.promises.writeFile(tmpPath, buf).catch(() => {});
-          filePath = tmpPath;
-          fileExists = true;
-        }
-      } catch {}
-    }
-
-    if (!fileExists) {
+    if (!media) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    const stat = fs.statSync(filePath);
-    const fileSize = stat.size;
+    const { filePath, contentType, fileSize } = media;
     const rangeHeader = req.headers.get('range');
 
-    // Handle HTTP Range Requests (essential for HTML5 video seeking)
+    const commonHeaders: Record<string, string> = {
+      'Accept-Ranges': 'bytes',
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Content-Type, Accept'
+    };
+
+    // Handle HTTP Range Requests (essential for HTML5 video seeking & buffering)
     if (rangeHeader && rangeHeader.startsWith('bytes=')) {
       const parts = rangeHeader.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
@@ -102,30 +169,33 @@ export async function GET(
       if (start >= fileSize || end >= fileSize || start > end) {
         return new NextResponse(null, {
           status: 416,
-          headers: { 'Content-Range': `bytes */${fileSize}` }
+          headers: {
+            ...commonHeaders,
+            'Content-Range': `bytes */${fileSize}`
+          }
         });
       }
 
       const chunkSize = end - start + 1;
       const fileStream = fs.createReadStream(filePath, { start, end });
 
-      // Convert Node.js readable stream to Web ReadableStream
       const webStream = new ReadableStream({
         start(controller) {
           fileStream.on('data', (chunk) => controller.enqueue(chunk));
           fileStream.on('end', () => controller.close());
           fileStream.on('error', (err) => controller.error(err));
+        },
+        cancel() {
+          fileStream.destroy();
         }
       });
 
       return new NextResponse(webStream as any, {
         status: 206,
         headers: {
+          ...commonHeaders,
           'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': String(chunkSize),
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200'
+          'Content-Length': String(chunkSize)
         }
       });
     }
@@ -137,16 +207,17 @@ export async function GET(
         fileStream.on('data', (chunk) => controller.enqueue(chunk));
         fileStream.on('end', () => controller.close());
         fileStream.on('error', (err) => controller.error(err));
+      },
+      cancel() {
+        fileStream.destroy();
       }
     });
 
     return new NextResponse(webStream as any, {
       status: 200,
       headers: {
-        'Accept-Ranges': 'bytes',
-        'Content-Length': String(fileSize),
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200'
+        ...commonHeaders,
+        'Content-Length': String(fileSize)
       }
     });
   } catch (err: any) {

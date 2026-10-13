@@ -92,11 +92,12 @@ export async function GET(
       });
 
       const cleanVideoUrl = lesson.videoUrl || null;
+      const isLocalUpload = cleanVideoUrl?.startsWith('/uploads/');
       return NextResponse.json({
         allowed: true,
         isFree: Boolean(lesson.isFree),
         isPreview: isPreviewRequest,
-        videoUrl: policy.signedUrlEnabled
+        videoUrl: (policy.signedUrlEnabled && !(isPreviewRequest && isLocalUpload))
           ? buildStudentSignedMediaUrl(
               cleanVideoUrl,
               signedVideoToken.token,

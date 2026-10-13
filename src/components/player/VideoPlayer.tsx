@@ -14,6 +14,11 @@ interface VideoPlayerProps {
   onProgressUpdate?: (watchedSeconds: number, percent: number) => void;
 }
 
+const getBaseMediaUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  return url.split('?')[0].split('#')[0].trim();
+};
+
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   title,
   videoUrl,
@@ -26,6 +31,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isPlayPendingRef = useRef(false);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(720);
@@ -34,6 +41,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(videoUrl || null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [isBuffering, setIsBuffering] = useState(false);
+
   const [watermark, setWatermark] = useState<{ enabled: boolean; text: string }>({
     enabled: true,
     text: 'Protected Stream • Morena LMS DRM'
@@ -63,7 +73,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   // Toggle true native browser fullscreen with smooth CSS viewport fallback
-  const toggleFullscreen = async () => {
+  const toggleFullscreen = async (e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     try {
       const isCurrentlyFs = isBrowserFullscreen() || isFullscreen;
 
@@ -101,7 +112,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Listen to browser fullscreen change events (e.g. user presses Esc key or F11)
+  // Listen to browser fullscreen change events
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFs = isBrowserFullscreen();
@@ -121,7 +132,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, []);
 
-  // Global keyboard shortcuts (F for fullscreen, Space for play/pause, M for mute)
+  // Global keyboard shortcuts (F for fullscreen, Space / K for play/pause, M for mute)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement as HTMLElement | null;
@@ -133,12 +144,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           e.preventDefault();
           toggleFullscreen();
         }
+      } else if (e.key === ' ' || e.key === 'k' || e.key === 'K') {
+        if (
+          containerRef.current &&
+          (containerRef.current.contains(activeEl) || activeEl === containerRef.current || !activeEl || activeEl === document.body)
+        ) {
+          e.preventDefault();
+          togglePlay();
+        }
+      } else if (e.key === 'm' || e.key === 'M') {
+        if (
+          containerRef.current &&
+          (containerRef.current.contains(activeEl) || activeEl === containerRef.current)
+        ) {
+          e.preventDefault();
+          toggleMute();
+        }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isFullscreen]);
+  }, [isFullscreen, isMuted, playbackRate]);
 
   // Rotate anti-piracy watermark position every 18 seconds
   useEffect(() => {
@@ -154,6 +181,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIsBuffering(false);
     setIsPlaying(false);
     setCurrentTime(0);
+    setResolvedVideoUrl(videoUrl || null);
   }, [lessonId, videoUrl]);
 
   // Fetch authorized & signed stream URL if lessonId is provided
@@ -173,7 +201,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const data = await res.json();
         if (isMounted) {
           if (res.ok && data.allowed) {
-            setResolvedVideoUrl(data.videoUrl || videoUrl || null);
+            if (data.videoUrl) {
+              setResolvedVideoUrl((current) => {
+                if (!current) return data.videoUrl;
+                // If current points to the exact same underlying file, DO NOT reset src attribute
+                // to avoid canceling active playback or destroying HTML5 video buffer
+                if (getBaseMediaUrl(current) === getBaseMediaUrl(data.videoUrl)) {
+                  return current;
+                }
+                return data.videoUrl;
+              });
+            }
             if (data.durationSeconds) setDurationSeconds(data.durationSeconds);
             if (data.watermark) setWatermark(data.watermark);
             if (data.securityPolicy) {
@@ -228,23 +266,46 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        videoRef.current.play();
+  // Safe and idempotent play/pause toggle with in-flight Promise protection
+  const togglePlay = async (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    const v = videoRef.current;
+    if (!v) {
+      setIsPlaying((prev) => !prev);
+      return;
+    }
+
+    // Guard against race condition: don't interrupt a pending play() promise with pause()
+    if (isPlayPendingRef.current) {
+      return;
+    }
+
+    if (v.paused || v.ended) {
+      try {
+        isPlayPendingRef.current = true;
+        setIsBuffering(true);
+        await v.play();
         setIsPlaying(true);
+        setIsBuffering(false);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.warn('Playback request error:', err);
+        }
+      } finally {
+        isPlayPendingRef.current = false;
       }
     } else {
-      setIsPlaying(!isPlaying);
+      v.pause();
+      setIsPlaying(false);
     }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = Math.floor(pos * durationSeconds);
     if (videoRef.current) {
       videoRef.current.currentTime = newTime;
@@ -252,14 +313,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setCurrentTime(newTime);
   };
 
-  const toggleMute = () => {
+  const toggleMute = (e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
     }
     setIsMuted(!isMuted);
   };
 
-  const cycleSpeed = () => {
+  const cycleSpeed = (e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     const rates = [1, 1.25, 1.5, 2];
     const nextRate = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
     if (videoRef.current) {
@@ -275,9 +338,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const progressPercent = durationSeconds > 0 ? (currentTime / durationSeconds) * 100 : 0;
-
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const [isBuffering, setIsBuffering] = useState(false);
 
   // Reset states when video source changes
   useEffect(() => {
@@ -388,7 +448,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           />
         </div>
       ) : resolvedVideoUrl ? (
-        /* 4. Direct HTML5 MP4 / WebM / Base64 Data Stream */
+        /* 4. Direct HTML5 MP4 / WebM / Stream */
         <div className={`w-full h-full relative flex items-center justify-center bg-black ${isFullscreen ? 'w-screen h-screen max-w-none max-h-none' : ''}`}>
           <video
             ref={videoRef}
@@ -404,9 +464,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               setIsBuffering(false);
               setVideoError(null);
             }}
+            onCanPlay={() => {
+              setIsBuffering(false);
+              setVideoError(null);
+            }}
             onTimeUpdate={handleTimeUpdate}
             onError={() => {
-              if (videoUrl && resolvedVideoUrl !== videoUrl) {
+              const mediaErr = videoRef.current?.error;
+              // Ignore MEDIA_ERR_ABORTED (code 1)
+              if (mediaErr?.code === 1) return;
+
+              const curBase = getBaseMediaUrl(resolvedVideoUrl);
+              const origBase = getBaseMediaUrl(videoUrl);
+              if (videoUrl && curBase !== origBase) {
                 setResolvedVideoUrl(videoUrl);
               } else {
                 setVideoError('Video format or stream could not be loaded. Please ensure video source is valid.');
@@ -421,22 +491,40 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 ? 'h-full max-h-screen aspect-auto'
                 : 'h-full aspect-video max-h-[78vh]'
             }`}
-            onClick={togglePlay}
-            onDoubleClick={toggleFullscreen}
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlay(e);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              toggleFullscreen(e);
+            }}
             playsInline
-            preload="metadata"
+            preload="auto"
           />
 
           {/* Central Play Button Overlay when paused */}
-          {!isPlaying && !videoError && (
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="absolute inset-0 m-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 hover:bg-primary text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-110 z-20 cursor-pointer pointer-events-auto"
-              aria-label="Play video"
+          {!videoError && (
+            <div
+              className={`absolute inset-0 flex items-center justify-center transition-all duration-200 z-20 pointer-events-none ${
+                isPlaying ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              }`}
             >
-              <Icon name="play_arrow" size={38} fill />
-            </button>
+              {!isBuffering && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    togglePlay(e);
+                  }}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 hover:bg-primary text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-110 cursor-pointer pointer-events-auto"
+                  aria-label="Play video"
+                >
+                  <Icon name="play_arrow" size={38} fill />
+                </button>
+              )}
+            </div>
           )}
 
           {/* Buffering Spinner */}
@@ -501,7 +589,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Dynamic Student Anti-Piracy Watermark */}
+      {/* Dynamic Anti-Piracy Watermark */}
       {watermark.enabled && watermark.text && (
         <div
           className={`absolute ${watermarkPositionClasses} z-20 pointer-events-none transition-all duration-1000 px-3 py-1 rounded-lg bg-black/25 backdrop-blur-[2px] border border-white/5 text-[10px] font-mono font-semibold text-white/45 tracking-wide select-none`}
@@ -512,7 +600,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Custom Overlay Controls (for direct video / audio files) */}
       {!isEmbed && resolvedVideoUrl && !resolvedVideoUrl.startsWith('blob:') && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col justify-end px-5 pb-3 pt-4 gap-2 z-20 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col justify-end px-5 pb-3 pt-4 gap-2 z-20 transition-opacity duration-200 opacity-0 group-hover:opacity-100"
+        >
           {/* Scrubber */}
           <div
             onClick={handleSeek}
@@ -530,7 +621,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="flex items-center justify-between text-white text-xs">
             <div className="flex items-center gap-4">
               <button
-                onClick={togglePlay}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePlay(e);
+                }}
                 className="text-white hover:text-primary transition-colors focus:outline-none cursor-pointer"
                 title={isPlaying ? 'Pause' : 'Play'}
               >
@@ -542,7 +637,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </span>
 
               <button
-                onClick={toggleMute}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute(e);
+                }}
                 className="text-white hover:text-primary transition-colors focus:outline-none cursor-pointer"
                 title={isMuted ? 'Unmute' : 'Mute'}
               >
@@ -552,7 +651,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             <div className="flex items-center gap-3">
               <button
-                onClick={cycleSpeed}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cycleSpeed(e);
+                }}
                 className="hover:text-primary transition-colors text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-white/10 cursor-pointer"
                 title="Playback Speed"
               >
@@ -561,7 +664,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
               <button
                 type="button"
-                onClick={toggleFullscreen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen(e);
+                }}
                 className="text-white hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-white/10"
                 title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
                 aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
@@ -577,7 +683,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {isFullscreen && (
         <button
           type="button"
-          onClick={toggleFullscreen}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFullscreen(e);
+          }}
           className="absolute top-5 right-5 z-40 px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black/95 text-white/90 hover:text-white border border-white/20 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-2xl flex items-center gap-1.5 backdrop-blur-md"
           title="Exit Fullscreen (Esc or F)"
         >
