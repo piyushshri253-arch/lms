@@ -13,6 +13,13 @@ import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 import { Course } from '@/types';
 
+function getCategoryName(cat: any): string {
+  if (!cat) return 'General';
+  if (typeof cat === 'string') return cat;
+  if (typeof cat === 'object' && cat.name) return cat.name;
+  return 'General';
+}
+
 function CoursesCatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -22,13 +29,15 @@ function CoursesCatalogContent() {
   const urlSearch = searchParams.get('search') || '';
   const urlPrice = searchParams.get('price') || 'all';
   const urlRating = Number(searchParams.get('rating')) || 0;
+  const urlLevel = searchParams.get('level') || 'all';
+  const urlDuration = searchParams.get('duration') || 'all';
 
   // Local filter states
   const [filters, setFilters] = useState<FilterState>({
     category: urlCategory,
-    level: 'all',
+    level: urlLevel,
     rating: urlRating,
-    duration: 'all',
+    duration: urlDuration,
     price: urlPrice,
     features: []
   });
@@ -41,67 +50,83 @@ function CoursesCatalogContent() {
   // Dynamic categories from database
   const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; slug: string }[]>([]);
 
-  // Update category and price when URL search parameters change
+  // Synchronize state whenever searchParams changes from outside/back-forward navigation
   useEffect(() => {
     setFilters((prev) => {
-      const updated = { ...prev };
-      let changed = false;
-      if (urlCategory && urlCategory !== prev.category) {
-        updated.category = urlCategory;
-        changed = true;
+      const curCat = searchParams.get('category') || 'all';
+      const curPrice = searchParams.get('price') || 'all';
+      const curRating = Number(searchParams.get('rating')) || 0;
+      const curLevel = searchParams.get('level') || 'all';
+      const curDuration = searchParams.get('duration') || 'all';
+
+      if (
+        prev.category === curCat &&
+        prev.price === curPrice &&
+        prev.rating === curRating &&
+        prev.level === curLevel &&
+        prev.duration === curDuration
+      ) {
+        return prev;
       }
-      if (urlPrice && urlPrice !== prev.price) {
-        updated.price = urlPrice;
-        changed = true;
-      }
-      if (urlRating !== undefined && !isNaN(urlRating) && urlRating !== prev.rating) {
-        updated.rating = urlRating;
-        changed = true;
-      }
-      return changed ? updated : prev;
+
+      return {
+        ...prev,
+        category: curCat,
+        price: curPrice,
+        rating: curRating,
+        level: curLevel,
+        duration: curDuration
+      };
     });
-  }, [urlCategory, urlPrice, urlRating]);
+  }, [searchParams]);
 
   // Sync search input if provided via URL
   useEffect(() => {
     if (urlSearch && urlSearch !== contextSearch) {
       setSearchQuery(urlSearch);
     }
-  }, [urlSearch]);
+  }, [urlSearch, contextSearch, setSearchQuery]);
 
   // Fetch categories from API
   useEffect(() => {
+    let isMounted = true;
     async function loadCategories() {
       try {
         const res = await fetch('/api/categories');
         if (res.ok) {
           const data = await res.json();
-          if (data.categories) {
+          if (isMounted && Array.isArray(data.categories)) {
             setCategoriesList(
               data.categories.map((c: any) => ({
-                id: c.id,
-                name: c.name,
-                slug: c.slug
+                id: String(c.id),
+                name: String(c.name || ''),
+                slug: String(c.slug || '')
               }))
             );
           }
         }
       } catch {
-        setCategoriesList([
-          { id: '1', name: 'Early Childhood Education', slug: 'early-childhood-education' },
-          { id: '2', name: 'Pedagogy & Teaching Methods', slug: 'pedagogy-teaching-methods' },
-          { id: '3', name: 'Engineering', slug: 'engineering' }
-        ]);
+        if (isMounted) {
+          setCategoriesList([
+            { id: '1', name: 'Early Childhood Education', slug: 'early-childhood-education' },
+            { id: '2', name: 'Pedagogy & Teaching Methods', slug: 'pedagogy-teaching-methods' },
+            { id: '3', name: 'Engineering', slug: 'engineering' }
+          ]);
+        }
       }
     }
     loadCategories();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
+    if (!Array.isArray(contextCourses)) return counts;
     contextCourses.forEach((c) => {
-      const cat = c.category || 'General';
+      const cat = getCategoryName(c.category);
       counts[cat] = (counts[cat] || 0) + 1;
     });
     return counts;
@@ -111,8 +136,9 @@ function CoursesCatalogContent() {
   const priceCounts = useMemo(() => {
     let paid = 0;
     let free = 0;
+    if (!Array.isArray(contextCourses)) return { paid: 0, free: 0 };
     contextCourses.forEach((c) => {
-      if (c.price === 0) free++;
+      if ((c.price || 0) === 0) free++;
       else paid++;
     });
     return { paid, free };
@@ -121,84 +147,101 @@ function CoursesCatalogContent() {
   // Calculate active filter count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (filters.category !== 'all') count++;
-    if (filters.level !== 'all') count++;
+    if (filters.category && filters.category !== 'all') count++;
+    if (filters.level && filters.level !== 'all') count++;
     if (filters.rating > 0) count++;
-    if (filters.duration !== 'all') count++;
-    if (filters.price !== 'all') count++;
-    count += filters.features.length;
+    if (filters.duration && filters.duration !== 'all') count++;
+    if (filters.price && filters.price !== 'all') count++;
+    count += (filters.features?.length || 0);
     return count;
   }, [filters]);
 
-  // Handle category pill clicks
-  const handleSelectCategory = (catName: string) => {
-    setFilters((prev) => ({ ...prev, category: catName }));
-    const params = new URLSearchParams(window.location.search);
-    if (catName === 'all') {
-      params.delete('category');
-    } else {
-      params.set('category', catName);
+  // Unified filter updater using Next.js router.replace to avoid history desync
+  const updateUrlWithFilters = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    const params = new URLSearchParams();
+    if (newFilters.category && newFilters.category !== 'all') {
+      params.set('category', newFilters.category);
+    }
+    if (newFilters.price && newFilters.price !== 'all') {
+      params.set('price', newFilters.price);
+    }
+    if (newFilters.rating && newFilters.rating > 0) {
+      params.set('rating', String(newFilters.rating));
+    }
+    if (newFilters.level && newFilters.level !== 'all') {
+      params.set('level', newFilters.level);
+    }
+    if (newFilters.duration && newFilters.duration !== 'all') {
+      params.set('duration', newFilters.duration);
+    }
+    const currentSearch = (searchParams.get('search') || '').trim();
+    if (currentSearch) {
+      params.set('search', currentSearch);
     }
     const query = params.toString();
-    router.push(query ? `/courses?${query}` : '/courses');
+    router.replace(query ? `/courses?${query}` : '/courses', { scroll: false });
+  };
+
+  // Handle category pill clicks
+  const handleSelectCategory = (catName: string) => {
+    updateUrlWithFilters({
+      ...filters,
+      category: catName
+    });
   };
 
   // Handle price toggle (All vs Free vs Paid)
   const handleSelectPrice = (priceVal: string) => {
-    setFilters((prev) => ({ ...prev, price: priceVal }));
-    const params = new URLSearchParams(window.location.search);
-    if (priceVal === 'all') {
-      params.delete('price');
-    } else {
-      params.set('price', priceVal);
-    }
-    const query = params.toString();
-    router.push(query ? `/courses?${query}` : '/courses');
+    updateUrlWithFilters({
+      ...filters,
+      price: priceVal
+    });
   };
 
   const handleResetFilters = () => {
-    setFilters({
+    const cleared: FilterState = {
       category: 'all',
       level: 'all',
       rating: 0,
       duration: 'all',
       price: 'all',
       features: []
-    });
+    };
+    setFilters(cleared);
     setSearchQuery('');
-    router.push('/courses');
+    router.replace('/courses', { scroll: false });
   };
 
   // Filter and Sort Courses
   const filteredCourses = useMemo(() => {
+    if (!Array.isArray(contextCourses)) return [];
+
     return contextCourses
       .filter((course) => {
+        if (!course) return false;
+
         // 1. Search Query
         const activeSearch = (contextSearch || urlSearch).trim().toLowerCase();
         if (activeSearch) {
-          const matchTitle = course.title.toLowerCase().includes(activeSearch);
+          const matchTitle = (course.title || '').toLowerCase().includes(activeSearch);
           const matchDesc = (course.description || '').toLowerCase().includes(activeSearch);
-          const matchCat = (course.category || '').toLowerCase().includes(activeSearch);
+          const matchCat = getCategoryName(course.category).toLowerCase().includes(activeSearch);
           const matchInst = (course.instructor?.name || '').toLowerCase().includes(activeSearch);
           if (!matchTitle && !matchDesc && !matchCat && !matchInst) return false;
         }
 
         // 2. Category Filter
-        if (filters.category !== 'all') {
+        if (filters.category && filters.category !== 'all') {
           const catLower = filters.category.toLowerCase().trim();
           if (catLower === 'free' || catLower === 'free courses') {
-            if (course.price > 0) return false;
+            if ((course.price || 0) > 0) return false;
           } else {
-            const courseCat = (
-              typeof course.category === 'string'
-                ? course.category
-                : (course as any).category?.name || ''
-            ).toLowerCase().trim();
-
+            const courseCat = getCategoryName(course.category).toLowerCase().trim();
             const matchExact = courseCat === catLower;
             const matchSub = courseCat && (courseCat.includes(catLower) || catLower.includes(courseCat));
-            const cWords = courseCat.split(/[\s&,/_-]+/).filter((w: string) => w.length > 3);
-            const fWords = catLower.split(/[\s&,/_-]+/).filter((w: string) => w.length > 3);
+            const cWords = courseCat.split(/[\s&,/_-]+/).filter((w: string) => w.length > 2);
+            const fWords = catLower.split(/[\s&,/_-]+/).filter((w: string) => w.length > 2);
             const matchKeywords = cWords.some((w: string) => fWords.includes(w));
             const matchId = (course as any).categoryId === filters.category;
 
@@ -212,18 +255,18 @@ function CoursesCatalogContent() {
         }
 
         // 4. Level Filter
-        if (filters.level !== 'all') {
+        if (filters.level && filters.level !== 'all') {
           const lvl = (course.level || '').toLowerCase().replace(/_/g, ' ');
           const target = filters.level.toLowerCase().replace(/_/g, ' ');
           if (lvl !== target && lvl !== 'all levels') return false;
         }
 
         // 5. Price Filter
-        if (filters.price === 'free' && course.price > 0) return false;
-        if (filters.price === 'paid' && course.price === 0) return false;
+        if (filters.price === 'free' && (course.price || 0) > 0) return false;
+        if (filters.price === 'paid' && (course.price || 0) === 0) return false;
 
         // 6. Duration Filter
-        if (filters.duration !== 'all') {
+        if (filters.duration && filters.duration !== 'all') {
           const dur = course.durationHours || 0;
           if (filters.duration === '0-1' && dur > 1) return false;
           if (filters.duration === '1-3' && (dur < 1 || dur > 3)) return false;
@@ -238,8 +281,8 @@ function CoursesCatalogContent() {
         if (sortBy === 'popular') return (b.reviewsCount || 0) - (a.reviewsCount || 0);
         if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
         if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
-        if (sortBy === 'price-low') return a.price - b.price;
-        if (sortBy === 'price-high') return b.price - a.price;
+        if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
+        if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
         return 0;
       });
   }, [contextCourses, contextSearch, urlSearch, filters, sortBy]);
@@ -250,7 +293,7 @@ function CoursesCatalogContent() {
     return filteredCourses.find((c) => c.bestseller) || filteredCourses[0];
   }, [filteredCourses]);
 
-  const categoryDisplayName = filters.category === 'all' ? 'All' : filters.category;
+  const categoryDisplayName = (!filters.category || filters.category === 'all') ? 'All' : filters.category;
 
   return (
     <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
@@ -375,18 +418,7 @@ function CoursesCatalogContent() {
 
               <UdemyFilterSidebar
                 filters={filters}
-                onChange={(newFilters) => {
-                  setFilters(newFilters);
-                  if (typeof window !== 'undefined') {
-                    const params = new URLSearchParams(window.location.search);
-                    if (newFilters.price === 'all') params.delete('price');
-                    else params.set('price', newFilters.price);
-                    if (newFilters.category === 'all') params.delete('category');
-                    else params.set('category', newFilters.category);
-                    const query = params.toString();
-                    window.history.replaceState(null, '', query ? `/courses?${query}` : '/courses');
-                  }
-                }}
+                onChange={updateUrlWithFilters}
                 onReset={handleResetFilters}
                 categoryCounts={categoryCounts}
                 availableCategories={categoriesList}
@@ -412,18 +444,7 @@ function CoursesCatalogContent() {
             <div className="hidden md:block">
               <UdemyFilterSidebar
                 filters={filters}
-                onChange={(newFilters) => {
-                  setFilters(newFilters);
-                  if (typeof window !== 'undefined') {
-                    const params = new URLSearchParams(window.location.search);
-                    if (newFilters.price === 'all') params.delete('price');
-                    else params.set('price', newFilters.price);
-                    if (newFilters.category === 'all') params.delete('category');
-                    else params.set('category', newFilters.category);
-                    const query = params.toString();
-                    window.history.replaceState(null, '', query ? `/courses?${query}` : '/courses');
-                  }
-                }}
+                onChange={updateUrlWithFilters}
                 onReset={handleResetFilters}
                 categoryCounts={categoryCounts}
                 availableCategories={categoriesList}
@@ -438,13 +459,13 @@ function CoursesCatalogContent() {
               viewMode === 'list' ? (
                 <div className="divide-y divide-[#d1d7dc]">
                   {filteredCourses.map((course) => (
-                    <UdemyCourseRow key={course.id} course={course} />
+                    <UdemyCourseRow key={course.id || course.slug} course={course} />
                   ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {filteredCourses.map((course, idx) => (
-                    <UdemyCourseCard key={course.id} course={course} cardIndex={idx} />
+                    <UdemyCourseCard key={course.id || course.slug} course={course} cardIndex={idx} />
                   ))}
                 </div>
               )

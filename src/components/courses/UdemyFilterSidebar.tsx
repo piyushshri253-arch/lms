@@ -44,12 +44,12 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
   };
 
   const hasActiveFilters =
-    filters.category !== 'all' ||
-    filters.level !== 'all' ||
-    filters.rating > 0 ||
-    filters.duration !== 'all' ||
-    filters.price !== 'all' ||
-    filters.features.length > 0;
+    (Boolean(filters.category) && filters.category !== 'all') ||
+    (Boolean(filters.level) && filters.level !== 'all') ||
+    (filters.rating > 0) ||
+    (Boolean(filters.duration) && filters.duration !== 'all') ||
+    (Boolean(filters.price) && filters.price !== 'all') ||
+    ((filters.features?.length || 0) > 0);
 
   const handleRatingSelect = (rating: number) => {
     onChange({ ...filters, rating: filters.rating === rating ? 0 : rating });
@@ -72,10 +72,11 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
   };
 
   const handleFeatureToggle = (feature: string) => {
-    const exists = filters.features.includes(feature);
+    const currentFeatures = Array.isArray(filters.features) ? filters.features : [];
+    const exists = currentFeatures.includes(feature);
     const updated = exists
-      ? filters.features.filter((f) => f !== feature)
-      : [...filters.features, feature];
+      ? currentFeatures.filter((f) => f !== feature)
+      : [...currentFeatures, feature];
     onChange({ ...filters, features: updated });
   };
 
@@ -209,9 +210,9 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
 
         {openSections.category && (
           <div className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1">
-            {availableCategories.map((cat) => {
-              const isChecked = filters.category.toLowerCase() === cat.name.toLowerCase();
-              const count = categoryCounts[cat.name] || 0;
+            {(availableCategories || []).map((cat) => {
+              const isChecked = (filters.category || '').toLowerCase() === (cat?.name || '').toLowerCase();
+              const count = (categoryCounts && categoryCounts[cat.name]) || 0;
               return (
                 <label
                   key={cat.id}
@@ -253,7 +254,7 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
         {openSections.level && (
           <div className="mt-3 space-y-2.5">
             {['All Levels', 'Foundational', 'Intermediate', 'Expert'].map((lvl) => {
-              const isChecked = filters.level.toLowerCase() === lvl.toLowerCase();
+              const isChecked = (filters.level || '').toLowerCase() === (lvl || '').toLowerCase();
               return (
                 <label
                   key={lvl}

@@ -91,8 +91,8 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
               <span>Free Courses {freeCount !== undefined && freeCount > 0 ? `(${freeCount})` : ''}</span>
             </button>
           )}
-          {availableCategories.map((cat) => {
-            const isSelected = categoryName.toLowerCase() === cat.name.toLowerCase();
+          {(availableCategories || []).map((cat) => {
+            const isSelected = (categoryName || '').toLowerCase() === (cat?.name || '').toLowerCase();
             return (
               <button
                 key={cat.id}

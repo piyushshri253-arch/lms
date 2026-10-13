@@ -105,7 +105,7 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
     >
       {/* 1. Main Course Card */}
       <Link
-        href={`/courses/${course.slug}`}
+        href={`/courses/${course.slug || course.id}`}
         className="flex flex-col h-full bg-white cursor-pointer group"
       >
         {/* Thumbnail (Crisp 16:9 with Udemy 1px border) */}

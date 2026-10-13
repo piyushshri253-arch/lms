@@ -24,7 +24,7 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
       </h2>
 
       <Link
-        href={`/courses/${course.slug}`}
+        href={`/courses/${course.slug || course.id}`}
         className="block border border-[#d1d7dc] p-6 bg-white hover:bg-[#f7f9fa]/60 transition-colors group cursor-pointer"
       >
         <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -39,7 +39,11 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-[#6a6f73]">
                 <Icon name="school" size={40} />
-                <span className="text-xs mt-1">{course.category}</span>
+                <span className="text-xs mt-1">
+                  {typeof (course.category as any) === 'object' && (course.category as any) !== null
+                    ? ((course.category as any).name || 'General')
+                    : (course.category || 'General')}
+                </span>
               </div>
             )}
           </div>
