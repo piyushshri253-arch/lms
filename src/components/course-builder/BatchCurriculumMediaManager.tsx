@@ -1204,19 +1204,19 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         </button>
                                       </div>
                                     ) : lesson.videoUrl ? (
-                                      <div className="flex items-center gap-1.5 shrink-0 max-w-full">
+                                      <div className="flex items-center gap-1 shrink-0 max-w-full">
                                         {(() => {
                                           const vidName = getVideoFileName(lesson.videoUrl, lesson.videoFileName);
                                           return (
                                             <button
                                               type="button"
                                               onClick={() => setPreviewVideoUrl(lesson.videoUrl || '')}
-                                              className="max-w-[160px] sm:max-w-[200px] px-2.5 sm:px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
+                                              className="max-w-[110px] sm:max-w-[130px] px-2 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs transition-all shrink-0"
                                               title={`Video File: ${vidName}\nClick to preview video`}
                                             >
-                                              <Icon name="play_circle" size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                              <span className="truncate max-w-[90px] sm:max-w-[125px] text-left" title={vidName}>
-                                                {vidName || 'Video Attached'}
+                                              <Icon name="play_circle" size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                              <span className="truncate max-w-[60px] sm:max-w-[75px] text-left" title={vidName}>
+                                                {vidName || 'Video'}
                                               </span>
                                               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0">✓</span>
                                             </button>
@@ -1224,10 +1224,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         })()}
 
                                         <label
-                                          className="p-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs cursor-pointer shrink-0"
+                                          className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-lg text-xs cursor-pointer shrink-0 transition-colors"
                                           title="Replace video"
                                         >
-                                          <Icon name="swap_horiz" size={15} />
+                                          <Icon name="swap_horiz" size={14} />
                                           <input
                                             type="file"
                                             accept="video/*"
@@ -1243,10 +1243,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         <button
                                           type="button"
                                           onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
-                                          className="p-1.5 bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-xl text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
+                                          className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-lg text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
                                           title={`Delete video from "${lesson.title}"`}
                                         >
-                                          <Icon name="delete" size={14} />
+                                          <Icon name="delete" size={13} />
                                         </button>
                                       </div>
                                     ) : (
