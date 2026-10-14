@@ -132,6 +132,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(DEFAULT_SETTINGS);
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // 1. Fetch current logged-in user from /api/auth/me
   const refreshUser = async () => {
@@ -551,8 +552,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       type: 'success'
     });
   };
-
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // Get active storage key based on authentication state
   const getActiveCartKey = (user: UserSession | null = currentUser) => {
