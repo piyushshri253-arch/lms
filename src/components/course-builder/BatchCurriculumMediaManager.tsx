@@ -73,14 +73,6 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
   const [externalLinkTitle, setExternalLinkTitle] = useState<string>('');
 
-  // External video link modal state (YouTube, Vimeo, MP4, Google Drive)
-  const [externalVideoModalTarget, setExternalVideoModalTarget] = useState<{
-    sectionId: string;
-    lessonId: string;
-    lessonTitle: string;
-    currentUrl?: string;
-  } | null>(null);
-  const [externalVideoUrl, setExternalVideoUrl] = useState<string>('');
 
   // Video preview modal
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
@@ -1374,43 +1366,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="flex items-center gap-1.5 shrink-0">
-                                        <label
-                                          className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
-                                          title="Upload video from PC or mobile (chunked & fast)"
-                                        >
-                                          <Icon name="videocam" size={15} />
-                                          <span>Upload Video</span>
-                                          <input
-                                            type="file"
-                                            accept="video/*"
-                                            onChange={(e) => {
-                                              const f = e.target.files?.[0];
-                                              if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
-                                              e.target.value = '';
-                                            }}
-                                            className="hidden"
-                                          />
-                                        </label>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setExternalVideoModalTarget({
-                                              sectionId: section.id,
-                                              lessonId: lesson.id,
-                                              lessonTitle: lesson.title,
-                                              currentUrl: lesson.videoUrl || ''
-                                            });
-                                            setExternalVideoUrl(lesson.videoUrl || '');
+                                      <label
+                                        className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
+                                        title="Upload video from PC or mobile"
+                                      >
+                                        <Icon name="videocam" size={15} />
+                                        <span>Upload Video</span>
+                                        <input
+                                          type="file"
+                                          accept="video/*"
+                                          onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                            e.target.value = '';
                                           }}
-                                          className="px-2.5 py-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs transition-all shrink-0"
-                                          title="Link external video stream (YouTube, Vimeo, Google Drive, or MP4 link)"
-                                        >
-                                          <Icon name="link" size={14} />
-                                          <span>Link URL</span>
-                                        </button>
-                                      </div>
+                                          className="hidden"
+                                        />
+                                      </label>
                                     )}
                                   </>
                                 )}
@@ -2036,88 +2008,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         </Modal>
       )}
 
-      {/* 4. External Video Stream Link Modal (YouTube, Vimeo, MP4, Drive) */}
-      {externalVideoModalTarget && (
-        <Modal
-          isOpen={true}
-          onClose={() => setExternalVideoModalTarget(null)}
-          title={`Link Video Stream`}
-          subtitle={`Attach video to lecture "${externalVideoModalTarget.lessonTitle}"`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const urlToSave = externalVideoUrl.trim();
-              if (!urlToSave) return;
 
-              updateLesson(
-                externalVideoModalTarget.sectionId,
-                externalVideoModalTarget.lessonId,
-                {
-                  videoUrl: urlToSave,
-                  videoFileName: 'External Video Stream',
-                  type: 'VIDEO',
-                  duration: '15:00',
-                  durationSeconds: 900,
-                  clearVideo: false,
-                  removeVideo: false
-                }
-              );
-
-              showToast({
-                title: 'Video Linked 🎬',
-                description: `Video stream attached to "${externalVideoModalTarget.lessonTitle}".`,
-                type: 'success'
-              });
-              setExternalVideoModalTarget(null);
-              setExternalVideoUrl('');
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-on-surface">
-                Lecture: <span className="text-primary">{externalVideoModalTarget.lessonTitle}</span>
-              </label>
-              <p className="text-xs text-on-surface-variant leading-relaxed">
-                Paste any video link: <b>YouTube</b>, <b>Vimeo</b>, <b>Google Drive</b>, or a <b>direct .mp4 / CDN</b> stream URL.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-on-surface">
-                Video Stream URL *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/... or https://..."
-                value={externalVideoUrl}
-                onChange={(e) => setExternalVideoUrl(e.target.value)}
-                className="w-full bg-surface border border-outline-variant rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-mono"
-                autoFocus
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-outline-variant/60">
-              <button
-                type="button"
-                onClick={() => setExternalVideoModalTarget(null)}
-                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-container border border-outline-variant font-bold text-xs text-on-surface cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!externalVideoUrl.trim()}
-                className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <Icon name="link" size={15} />
-                <span>Attach Video 🎬</span>
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
     </div>
   );
 };
