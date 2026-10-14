@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireTenantAuth } from '@/lib/auth';
 import { sendMultiChannelNotification } from '@/lib/notifications';
 import crypto from 'crypto';
+import { getCourseVersionState, getStudentEnrolledVersion, setStudentEnrolledVersion } from '@/lib/course-versioning';
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     const org = course.organization;
     const orgId = course.organizationId || user.organizationId || null;
 
-    // Check if already enrolled
+    // Check if already enrolled in latest version
     const existing = await prisma.enrollment.findUnique({
       where: {
         userId_courseId: {
@@ -36,8 +37,13 @@ export async function POST(req: Request) {
       }
     });
 
-    if (existing) {
-      return NextResponse.json({ error: 'You are already enrolled in this course.' }, { status: 400 });
+    const verState = await getCourseVersionState(course.id);
+    const liveVersion = verState.liveVersionNumber || 1;
+    const studentVer = await getStudentEnrolledVersion(user.id, course.id);
+    const hasUpgrade = studentVer !== null && studentVer < liveVersion;
+
+    if (existing && !hasUpgrade) {
+      return NextResponse.json({ error: 'You are already enrolled in the latest version of this course.' }, { status: 400 });
     }
 
     // Coupon calculation
@@ -85,15 +91,27 @@ export async function POST(req: Request) {
 
     // If 100% discount or free course, activate enrollment directly
     if (finalAmount === 0) {
-      await prisma.enrollment.create({
-        data: {
+      await prisma.enrollment.upsert({
+        where: {
+          userId_courseId: {
+            userId: user.id,
+            courseId: course.id
+          }
+        },
+        create: {
           organizationId: orgId,
           userId: user.id,
           courseId: course.id,
           paymentId: order.id,
           status: 'ACTIVE'
+        },
+        update: {
+          status: 'ACTIVE',
+          paymentId: order.id
         }
       });
+
+      await setStudentEnrolledVersion(user.id, course.id, liveVersion);
 
       await sendMultiChannelNotification({
         userId: user.id,

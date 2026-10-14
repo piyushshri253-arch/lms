@@ -90,7 +90,8 @@ function CourseDetailsContent() {
   }, [courseData]);
 
   const course = courseData;
-  const isEnrolled = !!course?.isEnrolled || (enrolledCourseIds && course ? enrolledCourseIds.includes(course.id) : false);
+  const hasUpdateAvailable = Boolean(course?.userVersionInfo?.hasUpdateAvailable);
+  const isEnrolled = !!course?.isEnrolled || (enrolledCourseIds && course ? enrolledCourseIds.includes(course.id) && !hasUpdateAvailable : false);
 
   const courseSections = courseData?.sections || [];
   const lessonDisplayMap = useMemo(() => {
@@ -443,7 +444,45 @@ function CourseDetailsContent() {
                 )}
               </div>
 
-              {isEnrolled ? (
+              {hasUpdateAvailable ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-left">
+                    <div className="flex items-center gap-1.5 text-amber-800 font-extrabold text-xs">
+                      <Icon name="bolt" size={14} className="text-amber-600" />
+                      <span>{course.userVersionInfo.liveVersionLabel} Upgrade Available</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 mt-1 leading-snug">
+                      You own <strong>{course.userVersionInfo.enrolledVersionLabel}</strong>. Purchase this updated version to unlock newly added lectures & materials.
+                    </p>
+                  </div>
+
+                  {isInCart(course.id) ? (
+                    <Link
+                      href="/student/cart"
+                      className="w-full bg-[#a435f0] text-white font-bold py-3 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 text-center text-sm shadow-sm"
+                    >
+                      <Icon name="shopping_cart" size={16} />
+                      <span>Go to cart</span>
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => addToCart(course)}
+                      className="w-full bg-[#a435f0] text-white font-bold py-3 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm"
+                    >
+                      <Icon name="bolt" size={16} />
+                      <span>Upgrade to {course.userVersionInfo.liveVersionLabel}</span>
+                    </button>
+                  )}
+
+                  <Link
+                    href={`/learn/${course.slug || course.id}`}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-center py-2.5 rounded transition-all flex items-center justify-center gap-1.5 text-xs border border-slate-300"
+                  >
+                    <Icon name="play_circle" size={15} />
+                    <span>Continue Learning ({course.userVersionInfo.enrolledVersionLabel})</span>
+                  </Link>
+                </div>
+              ) : isEnrolled ? (
                 <Link
                   href={`/learn/${course.slug || course.id}`}
                   className="w-full bg-[#a435f0] text-white font-bold text-center py-3 rounded hover:bg-[#8710d8] transition-all shadow-sm flex items-center justify-center gap-2 text-sm"
@@ -826,7 +865,45 @@ function CourseDetailsContent() {
                 )}
               </div>
 
-              {isEnrolled ? (
+              {hasUpdateAvailable ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-left">
+                    <div className="flex items-center gap-1.5 text-amber-800 font-extrabold text-xs">
+                      <Icon name="bolt" size={14} className="text-amber-600" />
+                      <span>{course.userVersionInfo.liveVersionLabel} Upgrade Available</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 mt-1 leading-snug">
+                      You own <strong>{course.userVersionInfo.enrolledVersionLabel}</strong>. Purchase this updated version to unlock newly added lectures & materials.
+                    </p>
+                  </div>
+
+                  {isInCart(course.id) ? (
+                    <Link
+                      href="/student/cart"
+                      className="w-full bg-[#a435f0] text-white font-bold py-3.5 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 text-center shadow-md text-sm"
+                    >
+                      <Icon name="shopping_cart" size={18} />
+                      <span>Go to cart</span>
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => addToCart(course)}
+                      className="w-full bg-[#a435f0] text-white font-bold py-3.5 rounded hover:bg-[#8710d8] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md text-sm"
+                    >
+                      <Icon name="bolt" size={18} />
+                      <span>Upgrade to {course.userVersionInfo.liveVersionLabel}</span>
+                    </button>
+                  )}
+
+                  <Link
+                    href={`/learn/${course.slug || course.id}`}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-center py-2.5 rounded transition-all flex items-center justify-center gap-1.5 text-xs border border-slate-300"
+                  >
+                    <Icon name="play_circle" size={15} />
+                    <span>Continue Learning ({course.userVersionInfo.enrolledVersionLabel})</span>
+                  </Link>
+                </div>
+              ) : isEnrolled ? (
                 <Link
                   href={`/learn/${course.slug || course.id}`}
                   className="w-full bg-[#a435f0] text-white font-bold text-center py-3.5 rounded hover:bg-[#8710d8] transition-all shadow-md flex items-center justify-center gap-2"
@@ -1038,7 +1115,30 @@ function CourseDetailsContent() {
           )}
         </div>
         <div className="flex-1 max-w-[220px]">
-          {isEnrolled ? (
+          {hasUpdateAvailable ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  if (isInCart(course.id)) {
+                    router.push('/student/cart');
+                  } else {
+                    addToCart(course);
+                  }
+                }}
+                className="flex-1 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs py-2.5 px-2 rounded flex items-center justify-center gap-1 shadow-sm cursor-pointer truncate"
+              >
+                <Icon name="bolt" size={14} />
+                <span>Upgrade</span>
+              </button>
+              <Link
+                href={`/learn/${course.slug || course.id}`}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-2.5 px-2.5 rounded flex items-center justify-center border border-slate-300 shrink-0"
+                title={`Continue ${course.userVersionInfo?.enrolledVersionLabel || 'v1.0'}`}
+              >
+                <Icon name="play_arrow" size={14} />
+              </Link>
+            </div>
+          ) : isEnrolled ? (
             <Link
               href={`/learn/${course.slug || course.id}`}
               className="w-full bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs py-2.5 px-3 rounded flex items-center justify-center gap-1.5 shadow-sm"

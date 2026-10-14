@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
+import { getCourseVersionState, setStudentEnrolledVersion } from '@/lib/course-versioning';
 
 export async function GET(request: Request) {
   try {
@@ -137,6 +138,13 @@ export async function POST(request: Request) {
         status: 'ACTIVE'
       }
     });
+
+    try {
+      const verState = await getCourseVersionState(course.id);
+      await setStudentEnrolledVersion(user.id, course.id, verState.liveVersionNumber || 1);
+    } catch (e) {
+      console.warn('[setStudentEnrolledVersion error]:', e);
+    }
 
     // Create In-App Notification
     await prisma.notification.create({

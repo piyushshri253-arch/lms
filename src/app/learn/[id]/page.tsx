@@ -168,7 +168,8 @@ export default function LearnPlayerPage() {
             const firstFree = allLessonsList.find((l: any) => l.isFree);
             setActiveLessonId(firstFree ? firstFree.id : allLessonsList[0].id);
           } else {
-            setActiveLessonId(allLessonsList[0].id);
+            const firstAccessible = allLessonsList.find((l: any) => !l.versionLocked);
+            setActiveLessonId(firstAccessible ? firstAccessible.id : allLessonsList[0].id);
           }
         }
 
@@ -270,7 +271,7 @@ export default function LearnPlayerPage() {
   const isCurrentCompleted = activeLesson?.id ? completedLessonIds.includes(activeLesson.id) : false;
 
   // Is current lesson locked for this student?
-  const isCurrentLocked = Boolean(!isEnrolled && !activeLesson?.isFree);
+  const isCurrentLocked = Boolean((!isEnrolled && !activeLesson?.isFree) || activeLesson?.versionLocked);
 
   // Calculate total course duration string
   const totalCourseDurationFormatted = useMemo(() => {
@@ -594,44 +595,72 @@ export default function LearnPlayerPage() {
                 : 'min-h-[260px] sm:min-h-[380px] md:min-h-[460px] lg:min-h-[520px] max-h-[78vh]'
             }`}
           >
-            {/* If lesson is LOCKED (unenrolled & !isFree) */}
+            {/* If lesson is LOCKED (version locked or unenrolled & !isFree) */}
             {isCurrentLocked ? (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
-                <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-lg">
-                  <Icon name="lock" size={32} />
-                </div>
-                <div className="space-y-2 max-w-lg">
-                  <h3 className="text-xl font-extrabold text-white tracking-tight">
-                    This lecture is part of the full curriculum
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    Enroll in <strong>{course?.title}</strong> to unlock all {allSections.length} modules, {allLessons.length} lectures, downloadable resources, and your verified certificate of completion.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  <Link
-                    href={`/courses/${courseSlug}`}
-                    className="px-6 py-2.5 bg-[#a435f0] hover:bg-[#8710d8] text-white rounded font-extrabold text-sm transition-colors shadow-md flex items-center gap-2 cursor-pointer"
-                  >
-                    <Icon name="shopping_cart" size={16} />
-                    <span>Enroll Now — ₹{course?.price ? Number(course.price).toLocaleString('en-IN') : 'Free'}</span>
-                  </Link>
-
-                  {allLessons.some((l: any) => l.isFree) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const freeLes = allLessons.find((l: any) => l.isFree);
-                        if (freeLes) handleSelectLesson(freeLes.id);
-                      }}
-                      className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded font-bold text-xs transition-colors border border-white/20 flex items-center gap-1.5 cursor-pointer"
+              activeLesson?.versionLocked ? (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shadow-lg">
+                    <Icon name="lock" size={32} />
+                  </div>
+                  <div className="space-y-2 max-w-lg">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-wider">
+                      <span>Version Update • {activeLesson.requiredVersionLabel || 'v2.0'}</span>
+                    </div>
+                    <h3 className="text-xl font-extrabold text-white tracking-tight">
+                      This lecture is exclusive to {activeLesson.requiredVersionLabel || 'Version 2.0'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                      You are currently enrolled in <strong>{course?.userVersionInfo?.enrolledVersionLabel || 'Version 1.0'}</strong> of {course?.title}. To access newly added lectures, videos, and materials, upgrade your course access to {activeLesson.requiredVersionLabel || 'Version 2.0'}.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <Link
+                      href={`/courses/${courseSlug}`}
+                      className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-[#a435f0] hover:opacity-90 text-white rounded font-extrabold text-sm transition-opacity shadow-md flex items-center gap-2 cursor-pointer"
                     >
-                      <Icon name="play_arrow" size={16} />
-                      <span>Watch Free Preview (Lecture 1.1)</span>
-                    </button>
-                  )}
+                      <Icon name="bolt" size={16} />
+                      <span>Upgrade to {activeLesson.requiredVersionLabel || 'Version 2.0'} (₹{course?.price ? Number(course.price).toLocaleString('en-IN') : '0'})</span>
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-5 bg-gradient-to-b from-[#1c1d1f] to-black z-20 select-none">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-lg">
+                    <Icon name="lock" size={32} />
+                  </div>
+                  <div className="space-y-2 max-w-lg">
+                    <h3 className="text-xl font-extrabold text-white tracking-tight">
+                      This lecture is part of the full curriculum
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                      Enroll in <strong>{course?.title}</strong> to unlock all {allSections.length} modules, {allLessons.length} lectures, downloadable resources, and your verified certificate of completion.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <Link
+                      href={`/courses/${courseSlug}`}
+                      className="px-6 py-2.5 bg-[#a435f0] hover:bg-[#8710d8] text-white rounded font-extrabold text-sm transition-colors shadow-md flex items-center gap-2 cursor-pointer"
+                    >
+                      <Icon name="shopping_cart" size={16} />
+                      <span>Enroll Now — ₹{course?.price ? Number(course.price).toLocaleString('en-IN') : 'Free'}</span>
+                    </Link>
+
+                    {allLessons.some((l: any) => l.isFree) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const freeLes = allLessons.find((l: any) => l.isFree);
+                          if (freeLes) handleSelectLesson(freeLes.id);
+                        }}
+                        className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded font-bold text-xs transition-colors border border-white/20 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Icon name="play_arrow" size={16} />
+                        <span>Watch Free Preview (Lecture 1.1)</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
             ) : effectiveLessonType === 'QUIZ' ? (
               <div className="w-full max-w-4xl p-2 sm:p-4 my-2">
                 <QuizPlayer
@@ -976,6 +1005,30 @@ export default function LearnPlayerPage() {
               <span>{totalCourseDurationFormatted}</span>
             </div>
 
+            {/* Version Update Notice Banner */}
+            {course?.userVersionInfo?.hasUpdateAvailable && (
+              <div className="p-3 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-purple-500/10 border-b border-amber-300">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold text-sm">✨</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-slate-900 leading-snug">
+                      New {course.userVersionInfo.liveVersionLabel} Available!
+                    </p>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      You own {course.userVersionInfo.enrolledVersionLabel}. New lectures require upgrade.
+                    </p>
+                    <Link
+                      href={`/courses/${courseSlug}`}
+                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-black text-[#a435f0] hover:text-[#8710d8]"
+                    >
+                      <span>Upgrade Course Access</span>
+                      <Icon name="arrow_forward" size={12} />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Accordion of Modules */}
             <div className="overflow-y-auto flex-1 divide-y divide-[#d1d7dc]">
               {filteredSections.map((sec: any, sIdx: number) => {
@@ -1020,7 +1073,8 @@ export default function LearnPlayerPage() {
                           const hasArticleDoc = Boolean(les.content && les.content.trim().length > 0);
                           const customResources: any[] = Array.isArray(les.resourcesList) ? les.resourcesList : [];
                           const hasResources = hasPdf || hasFile || hasArticleDoc || customResources.length > 0;
-                          const isLessonLocked = !isEnrolled && !les.isFree;
+                          const isVersionLocked = Boolean(les.versionLocked);
+                          const isLessonLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
 
                           const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
                           const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
@@ -1038,7 +1092,7 @@ export default function LearnPlayerPage() {
                               {/* Left: Square Checkbox or Lock Icon */}
                               {isLessonLocked ? (
                                 <div className="mt-0.5 w-4 h-4 flex items-center justify-center text-slate-400 shrink-0">
-                                  <Icon name="lock" size={13} />
+                                  <Icon name="lock" size={13} className={isVersionLocked ? 'text-amber-500' : 'text-slate-400'} />
                                 </div>
                               ) : (
                                 <input
@@ -1086,7 +1140,14 @@ export default function LearnPlayerPage() {
                                     <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
                                   </span>
 
-                                  {les.isFree && !isEnrolled && (
+                                  {isVersionLocked && (
+                                    <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5">
+                                      <span>🔒</span>
+                                      <span>{les.requiredVersionLabel || 'v2.0'}</span>
+                                    </span>
+                                  )}
+
+                                  {les.isFree && !isEnrolled && !isVersionLocked && (
                                     <span className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 font-extrabold text-[9px] uppercase tracking-wide">
                                       Preview
                                     </span>
@@ -1332,6 +1393,8 @@ export default function LearnPlayerPage() {
                           const hasArticleDoc = Boolean(les.content && les.content.trim().length > 0);
                           const customResources: any[] = Array.isArray(les.resourcesList) ? les.resourcesList : [];
                           const hasResources = hasPdf || hasFile || hasArticleDoc || customResources.length > 0;
+                          const isVersionLocked = Boolean(les.versionLocked);
+                          const isLessonLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
 
                           const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
                           const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
@@ -1346,15 +1409,21 @@ export default function LearnPlayerPage() {
                                   : 'hover:bg-[#f7f9fa]'
                               }`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={isCompleted}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleLessonComplete(les.id);
-                                }}
-                                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#2d2f31] focus:ring-0 cursor-pointer shrink-0"
-                              />
+                              {isLessonLocked ? (
+                                <div className="mt-0.5 w-4 h-4 flex items-center justify-center text-slate-400 shrink-0">
+                                  <Icon name="lock" size={13} className={isVersionLocked ? 'text-amber-500' : 'text-slate-400'} />
+                                </div>
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={isCompleted}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleLessonComplete(les.id);
+                                  }}
+                                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#2d2f31] focus:ring-0 cursor-pointer shrink-0"
+                                />
+                              )}
                               <div
                                 className="flex-1 min-w-0"
                                 onClick={() => {
@@ -1385,6 +1454,12 @@ export default function LearnPlayerPage() {
                                     />
                                     <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
                                   </span>
+                                  {isVersionLocked && (
+                                    <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5">
+                                      <span>🔒</span>
+                                      <span>{les.requiredVersionLabel || 'v2.0'}</span>
+                                    </span>
+                                  )}
                                   {hasResources && (
                                     <span className="text-amber-700 font-bold text-[10px]">
                                       • 📁 Resources

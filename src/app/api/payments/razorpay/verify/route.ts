@@ -6,6 +6,7 @@ import {
   dispatchOrderPaymentFailedNotifications
 } from '@/lib/order-notifications';
 import crypto from 'crypto';
+import { getCourseVersionState, setStudentEnrolledVersion } from '@/lib/course-versioning';
 
 export async function POST(req: Request) {
   try {
@@ -116,6 +117,13 @@ export async function POST(req: Request) {
         },
         update: { status: 'ACTIVE' }
       });
+
+      try {
+        const verState = await getCourseVersionState(cId);
+        await setStudentEnrolledVersion(order.userId, cId, verState.liveVersionNumber || 1);
+      } catch (e) {
+        console.warn('[Razorpay Verify] setStudentEnrolledVersion error:', e);
+      }
     }
 
     const title = order.items[0]?.productTitle || order.course?.title || 'Course Access';

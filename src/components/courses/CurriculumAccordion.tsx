@@ -112,6 +112,12 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
                         >
                           {lessonDisplayMap.get(lesson.id)?.sidebarTitle || lesson.title}
                         </span>
+                        {(lesson as any).versionLocked && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5 shrink-0">
+                            <span>🔒</span>
+                            <span>{(lesson as any).requiredVersionLabel || 'v2.0'}</span>
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-xs text-on-surface-variant font-mono">

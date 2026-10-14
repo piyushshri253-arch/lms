@@ -209,6 +209,18 @@ export async function POST(
       data: updatePayload
     });
 
+    if (targetStatus === 'PUBLISHED') {
+      try {
+        const { getCourseVersionState, applyApprovedVersionToLiveCourse } = await import('@/lib/course-versioning');
+        const verState = await getCourseVersionState(course.id);
+        if (verState.stagedSnapshot && (course.status === 'APPROVED' || verState.status === 'PENDING_REVIEW')) {
+          await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
+        }
+      } catch (verErr) {
+        console.error('[Publish Version Sync Error]:', verErr);
+      }
+    }
+
     // Notify Instructor by Email if course status was set to APPROVED or REJECTED
     if ((targetStatus === 'APPROVED' || targetStatus === 'REJECTED') && course.instructor?.email) {
       try {

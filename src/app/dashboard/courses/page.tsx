@@ -181,6 +181,17 @@ function MyCoursesContent() {
                     <span className="font-bold text-on-surface">{c.instructor?.name}</span>
                   </p>
 
+                  {/* Version Update Notice if newer version is live */}
+                  {c.versionInfo?.hasUpdateAvailable && (
+                    <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                      <span className="font-extrabold flex items-center gap-1">
+                        <span>✨</span>
+                        <span>{c.versionInfo.liveVersionLabel} Available</span>
+                      </span>
+                      <span className="text-[10px] text-amber-700 font-semibold">(You own {c.versionInfo.enrolledVersionLabel})</span>
+                    </div>
+                  )}
+
                   {/* Progress Info */}
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between items-center text-xs font-mono font-bold">
@@ -218,6 +229,17 @@ function MyCoursesContent() {
                   <Icon name="play_arrow" size={16} />
                   <span>{c.progressPercent === 100 ? 'Review Lectures' : 'Continue Course'}</span>
                 </Link>
+
+                {c.versionInfo?.hasUpdateAvailable && (
+                  <Link
+                    href={`/courses/${c.slug || c.id}`}
+                    className="py-2.5 px-3 bg-gradient-to-r from-amber-500 to-purple-600 hover:opacity-90 text-white rounded-xl font-bold text-xs shadow-xs flex items-center justify-center gap-1 transition-opacity shrink-0"
+                    title={`Upgrade to ${c.versionInfo.liveVersionLabel}`}
+                  >
+                    <Icon name="bolt" size={14} />
+                    <span>Upgrade</span>
+                  </Link>
+                )}
 
                 {c.certificateNumber && (
                   <Link

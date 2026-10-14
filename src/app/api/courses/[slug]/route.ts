@@ -11,7 +11,8 @@ import {
   getCourseVersionState,
   saveCourseVersionState,
   classifyCourseChanges,
-  StagedCourseSnapshot
+  StagedCourseSnapshot,
+  getStudentEnrolledVersion
 } from '@/lib/course-versioning';
 import { getCourseSecurityPolicy } from '@/lib/content-security';
 import { createNotification } from '@/lib/notification';
@@ -172,6 +173,34 @@ export async function GET(
     try { requirements = JSON.parse((course as any).requirements || '[]'); } catch { requirements = []; }
     try { targetAudience = JSON.parse((course as any).targetAudience || '[]'); } catch { targetAudience = []; }
 
+    const versionState = await getCourseVersionState(course.id);
+    const liveVersionNumber = versionState.liveVersionNumber || 1;
+    let studentEnrolledVersion: number | null = null;
+    let hasNewerVersion = false;
+    const allowedLessonIds = new Set<string>();
+
+    if (currentUser && isEnrolled && !isPrivilegedViewer) {
+      studentEnrolledVersion = await getStudentEnrolledVersion(currentUser.id, course.id);
+      if (studentEnrolledVersion !== null && studentEnrolledVersion < liveVersionNumber) {
+        hasNewerVersion = true;
+        const targetHistory = versionState.history?.find((h) => h.versionNumber === studentEnrolledVersion);
+        if (targetHistory?.lessonIds && targetHistory.lessonIds.length > 0) {
+          targetHistory.lessonIds.forEach((id) => allowedLessonIds.add(id));
+        } else {
+          // If no explicit lessonIds recorded for student's version, allow lessons published in initial version
+          const v1History = versionState.history?.find((h) => h.versionNumber === studentEnrolledVersion);
+          const v1Cutoff = v1History?.publishedAt ? new Date(v1History.publishedAt).getTime() : Infinity;
+          course.sections.forEach((s) => {
+            s.lessons.forEach((l) => {
+              if (new Date(l.createdAt).getTime() <= v1Cutoff) {
+                allowedLessonIds.add(l.id);
+              }
+            });
+          });
+        }
+      }
+    }
+
     const formattedCourse = {
       id: course.id,
       slug: course.slug,
@@ -203,6 +232,14 @@ export async function GET(
       whatYouWillLearn,
       requirements,
       targetAudience,
+      userVersionInfo: {
+        enrolledVersion: studentEnrolledVersion,
+        enrolledVersionLabel: studentEnrolledVersion ? `v${studentEnrolledVersion}.0` : null,
+        liveVersion: liveVersionNumber,
+        liveVersionLabel: versionState.liveVersionLabel || `v${liveVersionNumber}.0`,
+        hasUpdateAvailable: hasNewerVersion,
+        upgradePrice: course.price
+      },
       instructor: {
         id: course.instructor.id,
         name: course.instructor.name,
@@ -216,8 +253,10 @@ export async function GET(
         order: sec.order,
         moduleNumber: secIdx + 1,
         lessons: sec.lessons.map((les) => {
-          const isLocked = !isEnrolled && !les.isFree;
-          const canSeeMediaUrls = isPrivilegedViewer || !isLocked;
+          const isBelongsToStudentVersion = !hasNewerVersion || allowedLessonIds.has(les.id);
+          const isVersionLocked = isEnrolled && !isPrivilegedViewer && hasNewerVersion && !isBelongsToStudentVersion;
+          const isLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
+          const canSeeMediaUrls = isPrivilegedViewer || (!isLocked && !isVersionLocked);
           const rawVideo = les.videoUrl && !les.videoUrl.startsWith('blob:') ? les.videoUrl : null;
           let effectiveType = (les as any).type || 'VIDEO';
 
@@ -298,6 +337,9 @@ export async function GET(
             })(),
             completed: completedLessonIds.includes(les.id),
             locked: isLocked,
+            versionLocked: isVersionLocked,
+            requiredVersion: isVersionLocked ? liveVersionNumber : undefined,
+            requiredVersionLabel: isVersionLocked ? (versionState.liveVersionLabel || `v${liveVersionNumber}.0`) : undefined,
             isFree: les.isFree,
             isPublished: (les as any).isPublished ?? true,
             order: les.order
@@ -318,13 +360,13 @@ export async function GET(
       }))
     };
 
-    const versionState = await getCourseVersionState(course.id);
     const { searchParams } = new URL(request.url);
     const wantStaged = searchParams.get('version') === 'staged';
 
     let finalFormattedCourse: any = {
       ...formattedCourse,
-      isEnrolled,
+      isEnrolled: isEnrolled && !hasNewerVersion,
+      hasEnrolledPreviousVersion: hasNewerVersion,
       securityPolicy,
       versionState
     };
@@ -354,7 +396,8 @@ export async function GET(
     return NextResponse.json({
       course: finalFormattedCourse,
       versionState,
-      isEnrolled,
+      isEnrolled: isEnrolled && !hasNewerVersion,
+      hasEnrolledPreviousVersion: hasNewerVersion,
       completedLessonIds
     });
   } catch (err: any) {

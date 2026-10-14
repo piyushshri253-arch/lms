@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createAuditLog } from '@/lib/audit';
+import { getCourseVersionState, setStudentEnrolledVersion } from '@/lib/course-versioning';
 
 export async function POST(request: Request) {
   try {
@@ -51,6 +52,16 @@ export async function POST(request: Request) {
     }
 
     if (eventType === 'checkout.session.completed' || eventType === 'payment_intent.succeeded') {
+      // Enroll in all linked courses
+      const courseIds = new Set<string>();
+      if (order.courseId) courseIds.add(order.courseId);
+      for (const item of order.items) {
+        if (item.courseId) courseIds.add(item.courseId);
+        if (item.product?.courses) {
+          for (const pc of item.product.courses) courseIds.add(pc.courseId);
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
         await tx.payment.upsert({
           where: { providerPaymentId },
@@ -73,16 +84,6 @@ export async function POST(request: Request) {
           data: { status: 'PAID', providerPaymentId }
         });
 
-        // Enroll in all linked courses
-        const courseIds = new Set<string>();
-        if (order.courseId) courseIds.add(order.courseId);
-        for (const item of order.items) {
-          if (item.courseId) courseIds.add(item.courseId);
-          if (item.product?.courses) {
-            for (const pc of item.product.courses) courseIds.add(pc.courseId);
-          }
-        }
-
         for (const cId of courseIds) {
           await tx.enrollment.upsert({
             where: {
@@ -101,6 +102,15 @@ export async function POST(request: Request) {
           });
         }
       });
+
+      for (const cId of courseIds) {
+        try {
+          const verState = await getCourseVersionState(cId);
+          await setStudentEnrolledVersion(order.userId, cId, verState.liveVersionNumber || 1);
+        } catch (e) {
+          console.warn('[Stripe Webhook] setStudentEnrolledVersion error:', e);
+        }
+      }
 
       await createAuditLog({
         organizationId: order.organizationId,

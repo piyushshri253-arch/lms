@@ -63,6 +63,7 @@ export interface CourseVersionHistoryEntry {
   price: number;
   modulesCount: number;
   lessonsCount: number;
+  lessonIds?: string[];
 }
 
 export interface CourseVersionState {
@@ -142,6 +143,72 @@ export async function saveCourseVersionState(
     create: { key, value: JSON.stringify(merged) }
   });
   return merged;
+}
+
+/**
+ * Returns the version number of the course that a student purchased/enrolled in.
+ * If the student enrolled when Version 1 was active, they own Version 1.
+ * If Version 2 is now live, they will not have access to Version 2 updates unless they purchase Version 2.
+ */
+export async function getStudentEnrolledVersion(
+  userId: string,
+  courseId: string
+): Promise<number | null> {
+  const key = `student_version_${userId}_${courseId}`;
+  try {
+    const row = await prisma.platformSetting.findUnique({ where: { key } });
+    if (row?.value) {
+      const parsed = JSON.parse(row.value);
+      if (typeof parsed.versionNumber === 'number') {
+        return parsed.versionNumber;
+      }
+    }
+  } catch {}
+
+  // Fallback to checking student's active enrollment timestamp against version publication history
+  try {
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId } }
+    });
+    if (!enrollment) return null;
+
+    const verState = await getCourseVersionState(courseId);
+    if (verState.history && verState.history.length > 1) {
+      const sortedHistory = [...verState.history].sort((a, b) => a.versionNumber - b.versionNumber);
+      let matchedVersion = 1;
+      const enrolledTime = new Date(enrollment.enrolledAt).getTime();
+      for (const h of sortedHistory) {
+        if (enrolledTime >= new Date(h.publishedAt).getTime()) {
+          matchedVersion = h.versionNumber;
+        }
+      }
+      return matchedVersion;
+    }
+  } catch {}
+
+  return 1;
+}
+
+/**
+ * Saves/upgrades the version number of the course owned by the student (e.g. upon purchasing Version 2).
+ */
+export async function setStudentEnrolledVersion(
+  userId: string,
+  courseId: string,
+  versionNumber: number
+): Promise<void> {
+  const key = `student_version_${userId}_${courseId}`;
+  const payload = {
+    userId,
+    courseId,
+    versionNumber,
+    enrolledAt: new Date().toISOString()
+  };
+  await prisma.platformSetting.upsert({
+    where: { key },
+    update: { value: JSON.stringify(payload) },
+    create: { key, value: JSON.stringify(payload) }
+  });
 }
 
 /**
@@ -396,6 +463,8 @@ export async function applyApprovedVersionToLiveCourse(
   const snap = versionState.stagedSnapshot;
   const nextVersionNumber = (versionState.liveVersionNumber || 1) + 1;
   const nextVersionLabel = `v${nextVersionNumber}.0`;
+  const previousLiveLessonIds = course.sections.flatMap((s) => s.lessons).map((l) => l.id);
+  const allAppliedLessonIds: string[] = [];
 
   if (snap) {
     await prisma.course.update({
@@ -483,6 +552,7 @@ export async function applyApprovedVersionToLiveCourse(
                 }
               });
               incomingLessonIds.push(updatedLesson.id);
+              allAppliedLessonIds.push(updatedLesson.id);
             } else {
               const newLesson = await prisma.lesson.create({
                 data: {
@@ -502,6 +572,7 @@ export async function applyApprovedVersionToLiveCourse(
                 }
               });
               incomingLessonIds.push(newLesson.id);
+              allAppliedLessonIds.push(newLesson.id);
             }
           }
           const lessonsToDelete = (section.lessons || []).filter((l) => !incomingLessonIds.includes(l.id));
@@ -516,6 +587,13 @@ export async function applyApprovedVersionToLiveCourse(
       }
     }
   }
+
+  const existingHistory = (versionState.history || []).map((h) => {
+    if (h.versionNumber === (versionState.liveVersionNumber || 1) && (!h.lessonIds || h.lessonIds.length === 0)) {
+      return { ...h, lessonIds: previousLiveLessonIds };
+    }
+    return h;
+  });
 
   const totalModules = snap?.sections?.length || course.sections.length;
   const totalLessons =
@@ -533,7 +611,8 @@ export async function applyApprovedVersionToLiveCourse(
         : ['Approved course version update'],
     price: snap?.price !== undefined ? Number(snap.price) : course.price,
     modulesCount: totalModules,
-    lessonsCount: totalLessons
+    lessonsCount: totalLessons,
+    lessonIds: snap?.sections ? allAppliedLessonIds : previousLiveLessonIds
   };
 
   const updatedState = await saveCourseVersionState(course.id, {
@@ -547,7 +626,7 @@ export async function applyApprovedVersionToLiveCourse(
     reviewedAt: new Date().toISOString(),
     reviewedBy: `${reviewer.name} (${reviewer.role})`,
     reviewerFeedback: reviewerNote || null,
-    history: [newHistoryEntry, ...(versionState.history || [])]
+    history: [newHistoryEntry, ...existingHistory]
   });
 
   if (course.instructorId) {

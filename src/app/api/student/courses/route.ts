@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { getCourseVersionState, getStudentEnrolledVersion } from '@/lib/course-versioning';
 
 export async function GET(request: Request) {
   try {
@@ -43,67 +44,88 @@ export async function GET(request: Request) {
       progressMap.set(lp.lessonId, { completed: lp.completed, updatedAt: lp.updatedAt });
     });
 
-    let coursesList = enrollments.map((enr) => {
-      const course = enr.course;
-      const allLessons = course.sections.flatMap((s) => s.lessons);
-      const totalLessons = allLessons.length;
-      let completedLessons = 0;
-      let firstUncompletedLesson = allLessons[0] || null;
-      let lastAccessedLesson = null;
-      let latestAccessTime = 0;
+    let coursesList = await Promise.all(
+      enrollments.map(async (enr) => {
+        const course = enr.course;
+        const allLessons = course.sections.flatMap((s) => s.lessons);
+        const totalLessons = allLessons.length;
+        let completedLessons = 0;
+        let firstUncompletedLesson = allLessons[0] || null;
+        let lastAccessedLesson = null;
+        let latestAccessTime = 0;
 
-      for (const lesson of allLessons) {
-        const prog = progressMap.get(lesson.id);
-        if (prog) {
-          if (prog.completed) completedLessons++;
-          const accessTime = new Date(prog.updatedAt).getTime();
-          if (accessTime > latestAccessTime) {
-            latestAccessTime = accessTime;
-            lastAccessedLesson = lesson;
+        for (const lesson of allLessons) {
+          const prog = progressMap.get(lesson.id);
+          if (prog) {
+            if (prog.completed) completedLessons++;
+            const accessTime = new Date(prog.updatedAt).getTime();
+            if (accessTime > latestAccessTime) {
+              latestAccessTime = accessTime;
+              lastAccessedLesson = lesson;
+            }
           }
         }
-      }
 
-      for (const lesson of allLessons) {
-        const prog = progressMap.get(lesson.id);
-        if (!prog || !prog.completed) {
-          firstUncompletedLesson = lesson;
-          break;
+        for (const lesson of allLessons) {
+          const prog = progressMap.get(lesson.id);
+          if (!prog || !prog.completed) {
+            firstUncompletedLesson = lesson;
+            break;
+          }
         }
-      }
 
-      const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-      const status = progressPercent === 100 ? 'COMPLETED' : progressPercent > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
-      const certificate = course.certificates[0] || null;
-      const nextLesson = lastAccessedLesson || firstUncompletedLesson || allLessons[0] || null;
+        const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+        const status = progressPercent === 100 ? 'COMPLETED' : progressPercent > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
+        const certificate = course.certificates[0] || null;
+        const nextLesson = lastAccessedLesson || firstUncompletedLesson || allLessons[0] || null;
 
-      return {
-        id: course.id,
-        slug: course.slug,
-        title: course.title,
-        description: course.description,
-        thumbnail: course.thumbnail && course.thumbnail.trim() ? course.thumbnail.trim() : null,
-        category: course.category.name,
-        instructor: {
-          ...course.instructor,
-          avatar: course.instructor.avatar && course.instructor.avatar.trim() ? course.instructor.avatar.trim() : null
-        },
-        durationHours: course.durationHours,
-        totalLessons,
-        completedLessons,
-        progressPercent,
-        status,
-        enrolledAt: enr.enrolledAt,
-        certificateNumber: certificate?.certificateNumber || null,
-        nextLesson: nextLesson
-          ? {
-              id: nextLesson.id,
-              title: nextLesson.title,
-              duration: nextLesson.duration
-            }
-          : null
-      };
-    });
+        let versionInfo: any = null;
+        try {
+          const verState = await getCourseVersionState(course.id);
+          const liveVersion = verState.liveVersionNumber || 1;
+          const studentVer = await getStudentEnrolledVersion(user.id, course.id);
+          const hasUpdateAvailable = studentVer !== null && studentVer < liveVersion;
+
+          versionInfo = {
+            enrolledVersion: studentVer || 1,
+            enrolledVersionLabel: `v${studentVer || 1}.0`,
+            liveVersion,
+            liveVersionLabel: verState.liveVersionLabel || `v${liveVersion}.0`,
+            hasUpdateAvailable,
+            upgradePrice: course.price
+          };
+        } catch {}
+
+        return {
+          id: course.id,
+          slug: course.slug,
+          title: course.title,
+          description: course.description,
+          price: course.price,
+          thumbnail: course.thumbnail && course.thumbnail.trim() ? course.thumbnail.trim() : null,
+          category: course.category.name,
+          instructor: {
+            ...course.instructor,
+            avatar: course.instructor.avatar && course.instructor.avatar.trim() ? course.instructor.avatar.trim() : null
+          },
+          durationHours: course.durationHours,
+          totalLessons,
+          completedLessons,
+          progressPercent,
+          status,
+          enrolledAt: enr.enrolledAt,
+          certificateNumber: certificate?.certificateNumber || null,
+          versionInfo,
+          nextLesson: nextLesson
+            ? {
+                id: nextLesson.id,
+                title: nextLesson.title,
+                duration: nextLesson.duration
+              }
+            : null
+        };
+      })
+    );
 
     // Filter by search
     if (search) {
