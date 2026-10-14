@@ -19,20 +19,18 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
   const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
-  const formattedDateTime = React.useMemo(() => {
-    const rawDate = course.createdAt || (course as any).updatedAt;
+  // Format Updated Date (e.g. "Updated 14 Oct 2026")
+  const formattedUpdateDate = React.useMemo(() => {
+    const rawDate = (course as any).updatedAt || course.createdAt;
     if (!rawDate) return null;
     const d = new Date(rawDate);
     if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+      year: 'numeric'
     });
-  }, [course.createdAt, (course as any).updatedAt]);
+  }, [(course as any).updatedAt, course.createdAt]);
 
   if (variant === 'featured') {
     return (
@@ -182,11 +180,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
           {course.title}
         </h3>
 
-        {/* Published Date & Time */}
-        {formattedDateTime && (
+        {/* Updated Date */}
+        {formattedUpdateDate && (
           <div className="flex items-center gap-1 text-[11px] text-primary font-medium mb-2 bg-primary/5 border border-primary/10 px-2 py-0.5 rounded w-fit">
-            <Icon name="schedule" size={12} className="text-primary shrink-0" />
-            <span>Published: {formattedDateTime}</span>
+            <Icon name="update" size={12} className="text-primary shrink-0" />
+            <span>Updated {formattedUpdateDate}</span>
           </div>
         )}
 

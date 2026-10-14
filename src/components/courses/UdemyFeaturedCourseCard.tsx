@@ -17,6 +17,19 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
   const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
+  // Format Updated Date (e.g. "Updated 14 Oct 2026")
+  const formattedUpdateDate = React.useMemo(() => {
+    const rawDate = (course as any).updatedAt || course.createdAt;
+    if (!rawDate) return null;
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  }, [(course as any).updatedAt, course.createdAt]);
+
   return (
     <div className="mb-10">
       <h2 className="text-xl font-bold text-[#2d2f31] tracking-tight mb-3">
@@ -63,7 +76,7 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
 
               {/* Meta & Duration */}
               <div className="text-xs text-[#6a6f73] flex items-center gap-2 mb-2">
-                <span>Updated September 2026</span>
+                <span>Updated {formattedUpdateDate || 'Recently'}</span>
                 <span>·</span>
                 <span>{course.durationHours || 24} total hours</span>
                 <span>·</span>

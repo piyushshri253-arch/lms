@@ -14,7 +14,21 @@ interface UdemyCourseRowProps {
 export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
   const router = useRouter();
   const { addToCart, isInCart, currentUser, showToast } = useApp();
+  const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
+
+  // Format Updated Date (e.g. "Updated 14 Oct 2026")
+  const formattedUpdateDate = React.useMemo(() => {
+    const rawDate = (course as any).updatedAt || course.createdAt;
+    if (!rawDate) return null;
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  }, [(course as any).updatedAt, course.createdAt]);
 
   return (
     <div className="border-b border-[#d1d7dc] py-4 flex flex-col sm:flex-row gap-4 items-start group">
@@ -88,8 +102,14 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
           </span>
         </div>
 
-        {/* Metadata (Hours, Level, Badges) */}
+        {/* Metadata (Updated date, Hours, Level, Badges) */}
         <div className="flex flex-wrap items-center gap-2 text-xs text-[#6a6f73] mb-1.5">
+          {formattedUpdateDate && (
+            <>
+              <span className="font-medium text-[#5022c3]">Updated {formattedUpdateDate}</span>
+              <span>·</span>
+            </>
+          )}
           <span>{course.durationHours || 24} total hours</span>
           <span>·</span>
           <span>{course.level || 'All Levels'}</span>

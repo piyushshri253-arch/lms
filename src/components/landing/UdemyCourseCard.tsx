@@ -26,21 +26,18 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
   const inCart = isInCart(course.id) || (course.slug ? isInCart(course.slug) : false);
   const discountPrice = course.originalPrice || (course as any).discountPrice;
 
-  // Format exact published date & time
-  const formattedDateTime = React.useMemo(() => {
-    const rawDate = course.createdAt || (course as any).updatedAt;
+  // Format Updated Date (e.g. "Updated 14 Oct 2026")
+  const formattedUpdateDate = React.useMemo(() => {
+    const rawDate = (course as any).updatedAt || course.createdAt;
     if (!rawDate) return null;
     const d = new Date(rawDate);
     if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+      year: 'numeric'
     });
-  }, [course.createdAt, (course as any).updatedAt]);
+  }, [(course as any).updatedAt, course.createdAt]);
 
   const isRecentlyAdded = React.useMemo(() => {
     if (!course.createdAt) return false;
@@ -143,11 +140,11 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
             {course.instructor?.name || 'Faculty of Teacher Excellence'}
           </p>
 
-          {/* Published Date & Time */}
-          {formattedDateTime && (
+          {/* Updated Date */}
+          {formattedUpdateDate && (
             <div className="flex items-center gap-1 text-[11px] text-[#5022c3] font-medium mb-1 bg-purple-50/80 px-1.5 py-0.5 rounded w-fit">
-              <Icon name="schedule" size={12} className="text-[#5022c3] shrink-0" />
-              <span>Published: {formattedDateTime}</span>
+              <Icon name="update" size={12} className="text-[#5022c3] shrink-0" />
+              <span>Updated {formattedUpdateDate}</span>
             </div>
           )}
 
@@ -270,8 +267,8 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
             {course.title}
           </h4>
           <p className="text-xs text-emerald-800 font-semibold mb-2 flex items-center gap-1">
-            <Icon name="schedule" size={13} />
-            <span>Published: {formattedDateTime || 'Recently Added'}</span>
+            <Icon name="update" size={13} />
+            <span>Updated {formattedUpdateDate || 'Recently'}</span>
           </p>
           <p className="text-xs text-[#6a6f73] mb-3">
             {course.durationHours || 24} total hours · {course.level || 'All Levels'} · English
