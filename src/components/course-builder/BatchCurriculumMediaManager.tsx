@@ -55,6 +55,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   // Single lecture upload states
   const [uploadingPdfLessonId, setUploadingPdfLessonId] = useState<string | null>(null);
   const [activeResourceDropdownLessonId, setActiveResourceDropdownLessonId] = useState<string | null>(null);
+  const [activeViewResourcesLessonId, setActiveViewResourcesLessonId] = useState<string | null>(null);
+  const [hoveredResourcesLessonId, setHoveredResourcesLessonId] = useState<string | null>(null);
 
   // External resource link modal state
   const [externalLinkModalTarget, setExternalLinkModalTarget] = useState<{
@@ -1005,7 +1007,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             const secQuizzes = secLessons.filter((l) => l.type === 'QUIZ');
             const secWithVideos = secVideoLessons.filter((l) => !!l.videoUrl).length;
             const hasActiveDropdown = secLessons.some(
-              (l) => l.id === activeResourceDropdownLessonId
+              (l) =>
+                l.id === activeResourceDropdownLessonId ||
+                l.id === activeViewResourcesLessonId ||
+                l.id === hoveredResourcesLessonId
             );
 
             return (
@@ -1078,7 +1083,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isTaskUploading = task?.status === 'UPLOADING';
                         const isTaskQueued = task?.status === 'QUEUED';
                         const isLastLesson = lIdx === secLessons.length - 1;
-                        const isDropdownActive = activeResourceDropdownLessonId === lesson.id;
+                        const isDropdownActive =
+                          activeResourceDropdownLessonId === lesson.id ||
+                          activeViewResourcesLessonId === lesson.id ||
+                          hoveredResourcesLessonId === lesson.id;
                         const isQuiz = lesson.type === 'QUIZ';
                         const isText = lesson.type === 'TEXT';
                         const isVideoLesson = !isQuiz && !isText && (lesson.type === 'VIDEO' || !lesson.type);
@@ -1116,20 +1124,20 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     placeholder={isQuiz ? "Quiz Title (e.g. Module Knowledge Check)" : "Article Title (e.g. Overview & Deep Dive)"}
                                     className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1 min-w-[120px]"
                                   />
-                                  <span
-                                    className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1 ${
-                                      isQuiz
-                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                                        : isText
-                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                                        : lesson.type === 'PDF'
-                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                    }`}
-                                  >
-                                    <Icon name={isQuiz ? 'quiz' : isText ? 'article' : 'videocam'} size={11} />
-                                    {isQuiz ? 'QUIZ' : isText ? 'WRITTEN ARTICLE' : lesson.type || 'VIDEO'}
-                                  </span>
+                                  {(isQuiz || isText || (lesson.type && lesson.type !== 'VIDEO')) && (
+                                    <span
+                                      className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1 ${
+                                        isQuiz
+                                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                                          : isText
+                                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                      }`}
+                                    >
+                                      <Icon name={isQuiz ? 'quiz' : isText ? 'article' : 'description'} size={11} />
+                                      {isQuiz ? 'QUIZ' : isText ? 'WRITTEN ARTICLE' : lesson.type}
+                                    </span>
+                                  )}
                                   {lesson.isFree && (
                                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
                                       FREE PREVIEW
@@ -1241,45 +1249,138 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </>
                                 )}
 
-                                {/* 2. MULTI-RESOURCE BADGES & ATTACH DROPDOWN */}
+                                {/* 2. MULTI-RESOURCE MANAGEMENT (DROPDOWN + ADD RESOURCE) */}
                                 {uploadingPdfLessonId === lesson.id ? (
                                   <div className="px-2.5 py-1.5 bg-surface-container border border-outline-variant rounded-xl flex items-center gap-1.5 text-xs text-on-surface-variant shrink-0">
                                     <Icon name="sync" size={14} className="animate-spin text-primary" />
-                                    <span>Attaching Resource...</span>
+                                    <span>Adding Resource...</span>
                                   </div>
                                 ) : (
-                                  <div className="flex flex-wrap items-center gap-1.5 shrink-0 max-w-full">
-                                    {/* Badges for each attached resource */}
-                                    {getLessonResourcesList(lesson).map((res) => {
-                                      const resMeta = getResourceMeta(res.url, res.type);
+                                  <div className="flex items-center gap-1.5 shrink-0 max-w-full">
+                                    {/* A. If uploaded resources exist: Show sleek dropdown trigger showing file count that reveals full file list on hover or click */}
+                                    {(() => {
+                                      const resourcesList = getLessonResourcesList(lesson);
+                                      if (resourcesList.length === 0) return null;
+
+                                      const isViewOpen =
+                                        hoveredResourcesLessonId === lesson.id ||
+                                        activeViewResourcesLessonId === lesson.id;
+
                                       return (
-                                        <div key={res.id} className="relative group/res flex items-center">
-                                          <a
-                                            href={res.url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className={`max-w-[140px] sm:max-w-[170px] pl-2 pr-1.5 py-1 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all hover:opacity-90 shadow-2xs ${resMeta.color}`}
-                                            title={`Resource: ${res.name}\nType: ${resMeta.label}\nClick to view / download`}
-                                          >
-                                            <Icon name={resMeta.icon} size={14} className="shrink-0" />
-                                            <span className="truncate max-w-[70px] sm:max-w-[95px] text-left" title={res.name}>
-                                              {res.name}
-                                            </span>
-                                            <span className="text-[10px] opacity-75 shrink-0">✓</span>
-                                          </a>
+                                        <div
+                                          className="relative shrink-0 group/resview"
+                                          onMouseEnter={() => setHoveredResourcesLessonId(lesson.id)}
+                                          onMouseLeave={() => setHoveredResourcesLessonId(null)}
+                                        >
                                           <button
                                             type="button"
-                                            onClick={() => handleRemoveResource(section.id, lesson.id, res.id)}
-                                            className="ml-1 p-1 rounded-lg bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant cursor-pointer transition-colors shadow-2xs"
-                                            title={`Remove "${res.name}"`}
+                                            onClick={() =>
+                                              setActiveViewResourcesLessonId((prev) => (prev === lesson.id ? null : lesson.id))
+                                            }
+                                            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all ${
+                                              isViewOpen
+                                                ? 'bg-primary/15 text-primary border-primary/50'
+                                                : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
+                                            }`}
+                                            title={`${resourcesList.length} resource(s) uploaded. Hover or click to view files.`}
                                           >
-                                            <Icon name="close" size={13} />
+                                            <Icon name="folder_open" size={15} className="text-primary shrink-0" />
+                                            <span>Resources ({resourcesList.length})</span>
+                                            <Icon
+                                              name={isViewOpen ? 'expand_less' : 'arrow_drop_down'}
+                                              size={16}
+                                              className="-ml-1 opacity-70"
+                                            />
                                           </button>
+
+                                          {/* Floating Dropdown showing all uploaded resources */}
+                                          {isViewOpen && (
+                                            <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-32px)] bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1.5">
+                                              <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
+                                                <span className="flex items-center gap-1.5">
+                                                  <Icon name="attachment" size={13} className="text-primary" />
+                                                  <span>Uploaded Resources ({resourcesList.length})</span>
+                                                </span>
+                                                <span className="text-[9px] font-normal text-on-surface-variant">Hover to view</span>
+                                              </div>
+
+                                              <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                                                {resourcesList.map((res) => {
+                                                  const resMeta = getResourceMeta(res.url, res.type);
+                                                  return (
+                                                    <div
+                                                      key={res.id}
+                                                      className="flex items-center justify-between gap-2 p-2 rounded-xl bg-surface hover:bg-surface-container border border-outline-variant/60 transition-colors group/item"
+                                                    >
+                                                      <a
+                                                        href={res.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="flex items-center gap-2 min-w-0 flex-1 hover:text-primary transition-colors cursor-pointer"
+                                                        title={`File: ${res.name}\nType: ${resMeta.label}\nClick to preview or download`}
+                                                      >
+                                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${resMeta.color}`}>
+                                                          <Icon name={resMeta.icon} size={15} />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1 text-left">
+                                                          <p className="text-xs font-bold text-on-surface truncate leading-tight group-hover/item:text-primary" title={res.name}>
+                                                            {res.name}
+                                                          </p>
+                                                          <p className="text-[10px] text-on-surface-variant font-normal">
+                                                            {resMeta.label}
+                                                          </p>
+                                                        </div>
+                                                      </a>
+
+                                                      <div className="flex items-center gap-1 shrink-0">
+                                                        <a
+                                                          href={res.url}
+                                                          target="_blank"
+                                                          rel="noreferrer"
+                                                          className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors"
+                                                          title="Open in new tab"
+                                                        >
+                                                          <Icon name="open_in_new" size={14} />
+                                                        </a>
+                                                        <button
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRemoveResource(section.id, lesson.id, res.id);
+                                                          }}
+                                                          className="p-1 rounded-lg text-on-surface-variant hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                                          title={`Delete "${res.name}"`}
+                                                        >
+                                                          <Icon name="delete" size={14} />
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+
+                                              {/* Quick option to add more files directly inside this dropdown */}
+                                              <div className="pt-1.5 border-t border-outline-variant/60">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setHoveredResourcesLessonId(null);
+                                                    setActiveViewResourcesLessonId(null);
+                                                    setActiveResourceDropdownLessonId(lesson.id);
+                                                  }}
+                                                  className="w-full py-1.5 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                                >
+                                                  <Icon name="add" size={15} />
+                                                  <span>+ Add More Files</span>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       );
-                                    })}
+                                    })()}
 
-                                    {/* Dropdown Menu Trigger (+ Resource) */}
+                                    {/* B. Dropdown Menu Trigger (+ Add Resource) */}
                                     <div className="relative shrink-0">
                                       <button
                                         type="button"
@@ -1291,16 +1392,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all shrink-0 ${
                                           activeResourceDropdownLessonId === lesson.id
                                             ? 'bg-primary text-on-primary border-primary'
-                                            : getLessonResourcesList(lesson).length > 0
-                                            ? 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
                                             : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30'
                                         }`}
                                         title="Add PDF, Document, Image, or External Web Link"
                                       >
-                                        <Icon name="attach_file" size={15} />
-                                        <span>
-                                          {getLessonResourcesList(lesson).length > 0 ? '+ Resource' : '+ Attach Resource'}
-                                        </span>
+                                        <Icon name="add" size={15} />
+                                        <span>+ Add Resource</span>
                                         <Icon
                                           name={activeResourceDropdownLessonId === lesson.id ? 'expand_less' : 'arrow_drop_down'}
                                           size={16}
@@ -1317,7 +1414,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           />
                                           <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
                                             <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
-                                              <span>Attach Resource</span>
+                                              <span>Add Resource</span>
                                               <span className="text-[9px] font-normal text-on-surface-variant">Multiple allowed</span>
                                             </div>
 
@@ -1481,7 +1578,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         <Modal
           isOpen={true}
           onClose={() => setExternalLinkModalTarget(null)}
-          title="Attach External Resource Link"
+          title="Add External Resource Link"
           maxWidth="md"
         >
           <form
@@ -1520,8 +1617,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               );
 
               showToast({
-                title: 'Resource Link Attached! 🔗',
-                description: `"${linkName}" attached to "${externalLinkModalTarget.lessonTitle}" (${updatedList.length} total).`,
+                title: 'Resource Link Added! 🔗',
+                description: `"${linkName}" added to "${externalLinkModalTarget.lessonTitle}" (${updatedList.length} total).`,
                 type: 'success'
               });
               setExternalLinkModalTarget(null);
@@ -1535,7 +1632,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 Lecture: <span className="text-primary">{externalLinkModalTarget.lessonTitle}</span>
               </label>
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                Attach any web link for students (e.g. Google Drive, GitHub repository, Figma design, Notion doc, or reference website).
+                Add any web link for students (e.g. Google Drive, GitHub repository, Figma design, Notion doc, or reference website).
               </p>
             </div>
 
@@ -1581,7 +1678,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Icon name="link" size={15} />
-                <span>Attach Link 🚀</span>
+                <span>Add Link 🚀</span>
               </button>
             </div>
           </form>
