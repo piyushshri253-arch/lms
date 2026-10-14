@@ -15,15 +15,51 @@ import { Course } from '@/types';
 
 function getCategoryName(cat: any): string {
   if (!cat) return 'General';
-  if (typeof cat === 'string') return cat;
-  if (typeof cat === 'object' && cat.name) return cat.name;
-  return 'General';
+  if (typeof cat === 'string') return cat.trim() || 'General';
+  if (typeof cat === 'object') {
+    if (typeof cat.name === 'string') return cat.name.trim() || 'General';
+    if (typeof cat.title === 'string') return cat.title.trim() || 'General';
+  }
+  return String(cat || 'General');
 }
 
 function CoursesCatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { courses: contextCourses, searchQuery: contextSearch, setSearchQuery } = useApp();
+  const { courses: contextCourses, isLoadingCourses, searchQuery: contextSearch, setSearchQuery } = useApp();
+
+  const [directCourses, setDirectCourses] = useState<Course[] | null>(null);
+  const [isDirectLoading, setIsDirectLoading] = useState(false);
+
+  // Resilient direct fallback: if context courses are empty or delayed, fetch directly from /api/courses
+  useEffect(() => {
+    if (!contextCourses || contextCourses.length === 0) {
+      let isSubscribed = true;
+      setIsDirectLoading(true);
+      fetch('/api/courses')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (isSubscribed && data && Array.isArray(data.courses)) {
+            setDirectCourses(data.courses);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (isSubscribed) setIsDirectLoading(false);
+        });
+      return () => {
+        isSubscribed = false;
+      };
+    }
+  }, [contextCourses]);
+
+  const allCourses = useMemo(() => {
+    if (Array.isArray(contextCourses) && contextCourses.length > 0) return contextCourses;
+    if (Array.isArray(directCourses) && directCourses.length > 0) return directCourses;
+    return [];
+  }, [contextCourses, directCourses]);
+
+  const isLoading = (isLoadingCourses && allCourses.length === 0) || (isDirectLoading && allCourses.length === 0);
 
   const urlCategory = searchParams.get('category') || 'all';
   const urlSearch = searchParams.get('search') || '';
@@ -124,25 +160,27 @@ function CoursesCatalogContent() {
   // Category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    if (!Array.isArray(contextCourses)) return counts;
-    contextCourses.forEach((c) => {
+    if (!Array.isArray(allCourses)) return counts;
+    allCourses.forEach((c) => {
+      if (!c) return;
       const cat = getCategoryName(c.category);
       counts[cat] = (counts[cat] || 0) + 1;
     });
     return counts;
-  }, [contextCourses]);
+  }, [allCourses]);
 
   // Price counts (Paid vs Free)
   const priceCounts = useMemo(() => {
     let paid = 0;
     let free = 0;
-    if (!Array.isArray(contextCourses)) return { paid: 0, free: 0 };
-    contextCourses.forEach((c) => {
-      if ((c.price || 0) === 0) free++;
+    if (!Array.isArray(allCourses)) return { paid: 0, free: 0 };
+    allCourses.forEach((c) => {
+      if (!c) return;
+      if (Number(c.price || 0) === 0) free++;
       else paid++;
     });
     return { paid, free };
-  }, [contextCourses]);
+  }, [allCourses]);
 
   // Calculate active filter count
   const activeFiltersCount = useMemo(() => {
@@ -215,77 +253,81 @@ function CoursesCatalogContent() {
 
   // Filter and Sort Courses
   const filteredCourses = useMemo(() => {
-    if (!Array.isArray(contextCourses)) return [];
+    if (!Array.isArray(allCourses)) return [];
 
-    return contextCourses
+    return allCourses
       .filter((course) => {
         if (!course) return false;
 
-        // 1. Search Query
-        const activeSearch = (contextSearch || urlSearch).trim().toLowerCase();
-        if (activeSearch) {
-          const matchTitle = (course.title || '').toLowerCase().includes(activeSearch);
-          const matchDesc = (course.description || '').toLowerCase().includes(activeSearch);
-          const matchCat = getCategoryName(course.category).toLowerCase().includes(activeSearch);
-          const matchInst = (course.instructor?.name || '').toLowerCase().includes(activeSearch);
-          if (!matchTitle && !matchDesc && !matchCat && !matchInst) return false;
-        }
-
-        // 2. Category Filter
-        if (filters.category && filters.category !== 'all') {
-          const catLower = filters.category.toLowerCase().trim();
-          if (catLower === 'free' || catLower === 'free courses') {
-            if ((course.price || 0) > 0) return false;
-          } else {
-            const courseCat = getCategoryName(course.category).toLowerCase().trim();
-            const matchExact = courseCat === catLower;
-            const matchSub = courseCat && (courseCat.includes(catLower) || catLower.includes(courseCat));
-            const cWords = courseCat.split(/[\s&,/_-]+/).filter((w: string) => w.length > 2);
-            const fWords = catLower.split(/[\s&,/_-]+/).filter((w: string) => w.length > 2);
-            const matchKeywords = cWords.some((w: string) => fWords.includes(w));
-            const matchId = (course as any).categoryId === filters.category;
-
-            if (!matchExact && !matchSub && !matchKeywords && !matchId) return false;
+        try {
+          // 1. Search Query
+          const activeSearch = (contextSearch || urlSearch || '').trim().toLowerCase();
+          if (activeSearch) {
+            const matchTitle = (course.title || '').toLowerCase().includes(activeSearch);
+            const matchDesc = (course.description || '').toLowerCase().includes(activeSearch);
+            const matchCat = getCategoryName(course.category).toLowerCase().includes(activeSearch);
+            const matchInst = (course.instructor?.name || '').toLowerCase().includes(activeSearch);
+            if (!matchTitle && !matchDesc && !matchCat && !matchInst) return false;
           }
+
+          // 2. Category Filter
+          if (filters.category && filters.category !== 'all') {
+            const catLower = String(filters.category).toLowerCase().trim();
+            if (catLower === 'free' || catLower === 'free courses') {
+              if (Number(course.price || 0) > 0) return false;
+            } else {
+              const courseCat = getCategoryName(course.category).toLowerCase().trim();
+              const matchExact = courseCat === catLower;
+              const matchSlug = courseCat.replace(/\s+/g, '-') === catLower.replace(/\s+/g, '-');
+              const matchSub = courseCat && (courseCat.includes(catLower) || catLower.includes(courseCat));
+              const matchId = String((course as any).categoryId || '') === filters.category;
+
+              if (!matchExact && !matchSlug && !matchSub && !matchId) return false;
+            }
+          }
+
+          // 3. Rating Filter
+          if (filters.rating > 0) {
+            if ((Number(course.rating) || 0) < filters.rating) return false;
+          }
+
+          // 4. Level Filter
+          if (filters.level && filters.level !== 'all') {
+            const lvl = String(course.level || '').toLowerCase().replace(/_/g, ' ');
+            const target = String(filters.level).toLowerCase().replace(/_/g, ' ');
+            if (lvl !== target && lvl !== 'all levels') return false;
+          }
+
+          // 5. Price Filter
+          if (filters.price === 'free' && Number(course.price || 0) > 0) return false;
+          if (filters.price === 'paid' && Number(course.price || 0) === 0) return false;
+
+          // 6. Duration Filter
+          if (filters.duration && filters.duration !== 'all') {
+            const dur = Number(course.durationHours || 0);
+            if (filters.duration === '0-1' && dur > 1) return false;
+            if (filters.duration === '1-3' && (dur < 1 || dur > 3)) return false;
+            if (filters.duration === '3-6' && (dur < 3 || dur > 6)) return false;
+            if (filters.duration === '6-17' && (dur < 6 || dur > 17)) return false;
+            if (filters.duration === '17+' && dur < 17) return false;
+          }
+
+          return true;
+        } catch {
+          return false;
         }
-
-        // 3. Rating Filter
-        if (filters.rating > 0) {
-          if ((course.rating || 0) < filters.rating) return false;
-        }
-
-        // 4. Level Filter
-        if (filters.level && filters.level !== 'all') {
-          const lvl = (course.level || '').toLowerCase().replace(/_/g, ' ');
-          const target = filters.level.toLowerCase().replace(/_/g, ' ');
-          if (lvl !== target && lvl !== 'all levels') return false;
-        }
-
-        // 5. Price Filter
-        if (filters.price === 'free' && (course.price || 0) > 0) return false;
-        if (filters.price === 'paid' && (course.price || 0) === 0) return false;
-
-        // 6. Duration Filter
-        if (filters.duration && filters.duration !== 'all') {
-          const dur = course.durationHours || 0;
-          if (filters.duration === '0-1' && dur > 1) return false;
-          if (filters.duration === '1-3' && (dur < 1 || dur > 3)) return false;
-          if (filters.duration === '3-6' && (dur < 3 || dur > 6)) return false;
-          if (filters.duration === '6-17' && (dur < 6 || dur > 17)) return false;
-          if (filters.duration === '17+' && dur < 17) return false;
-        }
-
-        return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'popular') return (b.reviewsCount || 0) - (a.reviewsCount || 0);
-        if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-        if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
-        if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
-        if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
+        try {
+          if (sortBy === 'popular') return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
+          if (sortBy === 'rating') return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+          if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+          if (sortBy === 'price-low') return (Number(a.price) || 0) - (Number(b.price) || 0);
+          if (sortBy === 'price-high') return (Number(b.price) || 0) - (Number(a.price) || 0);
+        } catch {}
         return 0;
       });
-  }, [contextCourses, contextSearch, urlSearch, filters, sortBy]);
+  }, [allCourses, contextSearch, urlSearch, filters, sortBy]);
 
   // Pick top featured course for the header if available
   const featuredCourse = useMemo(() => {
@@ -455,7 +497,12 @@ function CoursesCatalogContent() {
 
           {/* Right Courses Listing Area */}
           <div className="flex-1 min-w-0">
-            {filteredCourses.length > 0 ? (
+            {isLoading ? (
+              <div className="py-24 text-center">
+                <div className="w-10 h-10 border-4 border-[#5022c3] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-sm text-[#6a6f73] font-medium">Loading courses...</p>
+              </div>
+            ) : filteredCourses.length > 0 ? (
               viewMode === 'list' ? (
                 <div className="divide-y divide-[#d1d7dc]">
                   {filteredCourses.map((course) => (

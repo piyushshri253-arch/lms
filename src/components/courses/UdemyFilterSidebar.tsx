@@ -210,22 +210,26 @@ export const UdemyFilterSidebar: React.FC<UdemyFilterSidebarProps> = ({
 
         {openSections.category && (
           <div className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1">
-            {(availableCategories || []).map((cat) => {
-              const isChecked = (filters.category || '').toLowerCase() === (cat?.name || '').toLowerCase();
-              const count = (categoryCounts && categoryCounts[cat.name]) || 0;
+            {(availableCategories || []).map((cat, idx) => {
+              if (!cat) return null;
+              const catName = cat.name || '';
+              const catSlug = cat.slug || '';
+              const curLower = (filters.category || '').toLowerCase().trim();
+              const isChecked = curLower === catName.toLowerCase().trim() || curLower === catSlug.toLowerCase().trim();
+              const count = (categoryCounts && (categoryCounts[catName] || categoryCounts[catSlug])) || 0;
               return (
                 <label
-                  key={cat.id}
+                  key={cat.id || catSlug || idx}
                   className="flex items-center justify-between cursor-pointer group select-none text-sm text-[#2d2f31]"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => handleCategorySelect(cat.name)}
+                      onChange={() => handleCategorySelect(catName || catSlug)}
                       className="w-4 h-4 rounded text-[#2d2f31] border-gray-400 focus:ring-0 cursor-pointer"
                     />
-                    <span className="font-normal truncate">{cat.name}</span>
+                    <span className="font-normal truncate">{catName || catSlug}</span>
                   </div>
                   {count > 0 && (
                     <span className="text-xs text-[#6a6f73] ml-2 shrink-0">({count})</span>

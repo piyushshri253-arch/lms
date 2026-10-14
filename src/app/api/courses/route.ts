@@ -97,7 +97,7 @@ export async function GET(request: Request) {
         price: course.price,
         originalPrice: course.discountPrice || undefined,
         currency: (course as any).currency || 'INR',
-        category: course.category.name,
+        category: course.category?.name || 'General',
         categoryId: course.categoryId,
         level: course.level,
         thumbnail: course.thumbnail && course.thumbnail.trim() ? course.thumbnail.trim() : null,

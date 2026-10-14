@@ -70,7 +70,7 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
           title="Click to view student reviews & feedback"
         >
           <span className="font-extrabold text-[#b4690e] text-sm group-hover/rating:underline">
-            {(course.rating || 4.8).toFixed(1)}
+            {(Number(course.rating) || 4.8).toFixed(1)}
           </span>
           <div className="flex items-center text-[#b4690e]">
             {[...Array(5)].map((_, i) => (
@@ -78,13 +78,13 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
                 key={i}
                 name="star"
                 size={13}
-                fill={i < Math.floor(course.rating || 5)}
-                className={i < Math.floor(course.rating || 5) ? 'text-[#b4690e]' : 'text-gray-300'}
+                fill={i < Math.floor(Number(course.rating) || 5)}
+                className={i < Math.floor(Number(course.rating) || 5) ? 'text-[#b4690e]' : 'text-gray-300'}
               />
             ))}
           </div>
           <span className="text-[#6a6f73] group-hover/rating:text-[#5022c3] group-hover/rating:underline">
-            ({course.reviewsCount >= 1000 ? `${(course.reviewsCount / 1000).toFixed(1)}k` : course.reviewsCount || 420})
+            ({Number(course.reviewsCount) >= 1000 ? `${(Number(course.reviewsCount) / 1000).toFixed(1)}k` : Number(course.reviewsCount) || 0})
           </span>
         </div>
 
@@ -97,7 +97,7 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
 
         {/* Badges */}
         <div className="flex items-center gap-1.5">
-          {course.price === 0 && (
+          {Number(course.price || 0) === 0 && (
             <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
               Free Course
             </span>
@@ -112,7 +112,7 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
               New
             </span>
           )}
-          {!course.bestseller && !course.isNew && (course.rating || 0) >= 4.8 && (
+          {!course.bestseller && !course.isNew && (Number(course.rating) || 0) >= 4.8 && (
             <span className="bg-purple-100 text-[#5022c3] text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
               Highest Rated
             </span>
@@ -123,16 +123,16 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
       {/* 3. Right Price Column */}
       <div className="shrink-0 flex sm:flex-col items-baseline sm:items-end gap-1.5 pt-1 sm:pt-0">
         <div className="flex flex-col sm:items-end">
-          <span className={`text-base sm:text-lg font-extrabold ${course.price === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
-            {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
+          <span className={`text-base sm:text-lg font-extrabold ${Number(course.price || 0) === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
+            {Number(course.price || 0) === 0 ? 'Free' : `₹${Number(course.price || 0).toLocaleString('en-IN')}`}
           </span>
-          {discountPrice && discountPrice > course.price && (
+          {discountPrice && Number(discountPrice) > Number(course.price || 0) && (
             <span className="text-xs text-[#6a6f73] line-through">
-              ₹{discountPrice.toLocaleString('en-IN')}
+              ₹{Number(discountPrice).toLocaleString('en-IN')}
             </span>
           )}
         </div>
-        {course.price === 0 ? (
+        {Number(course.price || 0) === 0 ? (
           <button
             type="button"
             onClick={() => {

@@ -60,12 +60,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
           <div>
             <div className="flex justify-between items-start mb-2">
               <span className="text-xs font-bold text-secondary uppercase tracking-wider">
-                {course.category}
+                {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
               </span>
               <div className="flex items-center gap-1 text-on-surface">
                 <Icon name="star" fill size={16} className="text-amber-500" />
-                <span className="text-sm font-bold">{course.rating.toFixed(1)}</span>
-                <span className="text-on-surface-variant text-xs">({course.reviewsCount >= 1000 ? `${(course.reviewsCount / 1000).toFixed(1)}k` : course.reviewsCount})</span>
+                <span className="text-sm font-bold">{(Number(course.rating) || 5.0).toFixed(1)}</span>
+                <span className="text-on-surface-variant text-xs">({Number(course.reviewsCount) >= 1000 ? `${(Number(course.reviewsCount) / 1000).toFixed(1)}k` : Number(course.reviewsCount) || 0})</span>
               </div>
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-on-surface mb-2.5 group-hover:text-primary transition-colors leading-tight">
@@ -117,11 +117,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="bg-surface-container text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
-              {course.category}
+              {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
             </span>
             <span className="flex items-center text-xs text-on-surface-variant">
               <Icon name="star" fill size={14} className="text-amber-500 mr-1" />
-              {course.rating.toFixed(1)}
+              {(Number(course.rating) || 5.0).toFixed(1)}
             </span>
           </div>
           <h4 className="font-bold text-sm text-on-surface mb-1 group-hover:text-primary transition-colors truncate">
@@ -167,13 +167,13 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
       <div className="p-4 flex flex-col flex-1">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-            {course.category}
+            {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
           </span>
           <div className="flex items-center gap-1">
             <Icon name="star" fill size={14} className="text-amber-500" />
-            <span className="text-xs font-bold text-on-surface">{course.rating.toFixed(1)}</span>
+            <span className="text-xs font-bold text-on-surface">{(Number(course.rating) || 5.0).toFixed(1)}</span>
             <span className="text-[11px] text-on-surface-variant">
-              ({course.reviewsCount >= 1000 ? `${(course.reviewsCount / 1000).toFixed(1)}k` : course.reviewsCount})
+              ({Number(course.reviewsCount) >= 1000 ? `${(Number(course.reviewsCount) / 1000).toFixed(1)}k` : Number(course.reviewsCount) || 0})
             </span>
           </div>
         </div>

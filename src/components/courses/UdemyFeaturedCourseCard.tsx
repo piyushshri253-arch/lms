@@ -81,7 +81,7 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
                 title="Click to view student reviews & feedback"
               >
                 <span className="font-extrabold text-[#b4690e] text-sm group-hover/rating:underline">
-                  {(course.rating || 4.8).toFixed(1)}
+                  {(Number(course.rating) || 4.8).toFixed(1)}
                 </span>
                 <div className="flex items-center text-[#b4690e]">
                   {[...Array(5)].map((_, i) => (
@@ -89,13 +89,13 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
                       key={i}
                       name="star"
                       size={14}
-                      fill={i < Math.floor(course.rating || 5)}
-                      className={i < Math.floor(course.rating || 5) ? 'text-[#b4690e]' : 'text-gray-300'}
+                      fill={i < Math.floor(Number(course.rating) || 5)}
+                      className={i < Math.floor(Number(course.rating) || 5) ? 'text-[#b4690e]' : 'text-gray-300'}
                     />
                   ))}
                 </div>
                 <span className="text-[#6a6f73] group-hover/rating:text-[#5022c3] group-hover/rating:underline">
-                  ({course.reviewsCount >= 1000 ? `${(course.reviewsCount / 1000).toFixed(1)}k` : course.reviewsCount || 420})
+                  ({Number(course.reviewsCount) >= 1000 ? `${(Number(course.reviewsCount) / 1000).toFixed(1)}k` : Number(course.reviewsCount) || 0})
                 </span>
               </div>
             </div>
@@ -117,11 +117,11 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
 
               <div className="flex items-baseline gap-2">
                 <span className="text-lg font-bold text-[#2d2f31]">
-                  {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
+                  {Number(course.price || 0) === 0 ? 'Free' : `₹${Number(course.price || 0).toLocaleString('en-IN')}`}
                 </span>
-                {discountPrice && discountPrice > course.price && (
+                {discountPrice && Number(discountPrice) > Number(course.price || 0) && (
                   <span className="text-xs text-[#6a6f73] line-through">
-                    ₹{discountPrice.toLocaleString('en-IN')}
+                    ₹{Number(discountPrice).toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
@@ -129,7 +129,7 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
 
             {/* Quick Actions */}
             <div className="flex items-center gap-3 mt-4 pt-3 border-t border-gray-100">
-              {course.price === 0 ? (
+              {Number(course.price || 0) === 0 ? (
                 <button
                   type="button"
                   onClick={(e) => {

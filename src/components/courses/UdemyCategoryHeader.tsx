@@ -91,19 +91,23 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
               <span>Free Courses {freeCount !== undefined && freeCount > 0 ? `(${freeCount})` : ''}</span>
             </button>
           )}
-          {(availableCategories || []).map((cat) => {
-            const isSelected = (categoryName || '').toLowerCase() === (cat?.name || '').toLowerCase();
+          {(availableCategories || []).map((cat, idx) => {
+            if (!cat) return null;
+            const catName = cat.name || '';
+            const catSlug = cat.slug || '';
+            const curLower = (categoryName || '').toLowerCase().trim();
+            const isSelected = curLower === catName.toLowerCase().trim() || curLower === catSlug.toLowerCase().trim();
             return (
               <button
-                key={cat.id}
-                onClick={() => onSelectCategory(cat.name)}
+                key={cat.id || catSlug || idx}
+                onClick={() => onSelectCategory(catName || catSlug)}
                 className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${
                   isSelected
                     ? 'bg-[#2d2f31] text-white border-[#2d2f31]'
                     : 'bg-white text-[#2d2f31] border-[#2d2f31] hover:bg-[#f7f9fa]'
                 }`}
               >
-                {cat.name}
+                {catName || catSlug}
               </button>
             );
           })}
