@@ -1437,7 +1437,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                   className="w-full py-1.5 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                                                 >
                                                   <Icon name="add" size={15} />
-                                                  <span>+ Add More Files</span>
+                                                  <span>Add More Files</span>
                                                 </button>
                                               </div>
                                             </div>
@@ -1446,7 +1446,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       );
                                     })()}
 
-                                    {/* B. Dropdown Menu Trigger (+ Add Resource) */}
+                                    {/* B. Dropdown Menu Trigger (Compact '+' icon button to save space) */}
                                     <div className="relative shrink-0">
                                       <button
                                         type="button"
@@ -1455,20 +1455,15 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             prev === lesson.id ? null : lesson.id
                                           )
                                         }
-                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all shrink-0 ${
+                                        className={`w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer border shadow-2xs transition-all shrink-0 ${
                                           activeResourceDropdownLessonId === lesson.id
-                                            ? 'bg-primary text-on-primary border-primary'
-                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30'
+                                            ? 'bg-primary text-on-primary border-primary ring-2 ring-primary/25'
+                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30 hover:border-primary/60'
                                         }`}
-                                        title="Add PDF, Document, Image, or External Web Link"
+                                        title="Add Resource (PDF, Document, Image, Link)"
+                                        aria-label="Add Resource"
                                       >
-                                        <Icon name="add" size={15} />
-                                        <span>+ Add Resource</span>
-                                        <Icon
-                                          name={activeResourceDropdownLessonId === lesson.id ? 'expand_less' : 'arrow_drop_down'}
-                                          size={16}
-                                          className="-ml-1 opacity-70"
-                                        />
+                                        <Icon name="add" size={18} />
                                       </button>
 
                                       {/* Dropdown Menu */}
