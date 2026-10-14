@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
@@ -12,7 +12,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useApp } from '@/context/AppContext';
 import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 
-export default function CourseDetailsPage() {
+function CourseDetailsContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,6 +91,11 @@ export default function CourseDetailsPage() {
 
   const course = courseData;
   const isEnrolled = !!course?.isEnrolled || (enrolledCourseIds && course ? enrolledCourseIds.includes(course.id) : false);
+
+  const courseSections = courseData?.sections || [];
+  const lessonDisplayMap = useMemo(() => {
+    return generateCurriculumDisplayMap(courseSections);
+  }, [courseSections]);
 
   const parseList = (val: any): string[] => {
     if (!val) return [];
@@ -274,8 +279,6 @@ export default function CourseDetailsPage() {
   const subtotal = course.price;
   const discountAmount = Number(((subtotal * appliedDiscount) / 100).toFixed(2));
   const finalTotal = Math.max(0, Number((subtotal - discountAmount).toFixed(2)));
-
-  const lessonDisplayMap = useMemo(() => generateCurriculumDisplayMap(course.sections || []), [course.sections]);
 
   const modules = (course.sections || []).map((sec: any, idx: number) => ({
     id: sec.id,
@@ -1085,3 +1088,22 @@ export default function CourseDetailsPage() {
     </div>
   );
 }
+
+export default function CourseDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-white text-[#2d2f31] min-h-screen flex flex-col antialiased">
+          <UdemyNavbar />
+          <div className="flex-1 flex items-center justify-center py-24">
+            <div className="w-10 h-10 border-3 border-[#5022c3] border-t-transparent rounded-full animate-spin" />
+          </div>
+          <UdemyFooter />
+        </div>
+      }
+    >
+      <CourseDetailsContent />
+    </Suspense>
+  );
+}
+
