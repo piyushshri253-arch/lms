@@ -765,7 +765,14 @@ function CourseBuilderContent() {
         throw new Error(`Server returned error (${res.status}). Please try again.`);
       }
 
-      if (!res.ok) throw new Error(data.error || 'Failed to submit course');
+      if (!res.ok) {
+        // If course was already moved to IN_REVIEW during draft save, treat it as a success!
+        if (isApprovalSubmit && (data?.status === 'IN_REVIEW' || data?.error?.toLowerCase()?.includes('review'))) {
+          // It is already under review, continue gracefully as success!
+        } else {
+          throw new Error(data.error || 'Failed to submit course');
+        }
+      }
 
       // Clear all builder drafts and cache so returning to Create Course starts completely fresh
       try {
