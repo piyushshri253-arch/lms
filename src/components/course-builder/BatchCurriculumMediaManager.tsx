@@ -1279,10 +1279,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-1.5 shrink-0 max-w-full">
-                                    {/* A. If uploaded resources exist: Show sleek dropdown trigger showing file count that reveals full file list on hover or click */}
+                                    {/* A. Sleek dropdown trigger showing file count (e.g. Resources (0), Resources (1)) that reveals full file list on hover or click */}
                                     {(() => {
                                       const resourcesList = getLessonResourcesList(lesson);
-                                      if (resourcesList.length === 0) return null;
 
                                       const isViewOpen =
                                         hoveredResourcesLessonId === lesson.id ||
@@ -1291,7 +1290,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                       return (
                                         <div
                                           className="relative shrink-0 group/resview"
-                                          onMouseEnter={() => setHoveredResourcesLessonId(lesson.id)}
+                                          onMouseEnter={() => {
+                                            if (resourcesList.length > 0) {
+                                              setHoveredResourcesLessonId(lesson.id);
+                                            }
+                                          }}
                                           onMouseLeave={() => setHoveredResourcesLessonId(null)}
                                         >
                                           <button
@@ -1302,11 +1305,17 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border shadow-2xs transition-all ${
                                               isViewOpen
                                                 ? 'bg-primary/15 text-primary border-primary/50'
-                                                : 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
+                                                : resourcesList.length > 0
+                                                ? 'bg-surface hover:bg-surface-container text-on-surface border-outline-variant'
+                                                : 'bg-surface hover:bg-surface-container text-on-surface-variant border-outline-variant/70'
                                             }`}
-                                            title={`${resourcesList.length} resource(s) uploaded. Hover or click to view files.`}
+                                            title={`${resourcesList.length} resource(s) attached. Click to view or manage files.`}
                                           >
-                                            <Icon name="folder_open" size={15} className="text-primary shrink-0" />
+                                            <Icon
+                                              name={resourcesList.length > 0 ? 'folder_open' : 'folder'}
+                                              size={15}
+                                              className={resourcesList.length > 0 ? 'text-primary shrink-0' : 'text-on-surface-variant shrink-0'}
+                                            />
                                             <span>Resources ({resourcesList.length})</span>
                                             <Icon
                                               name={isViewOpen ? 'expand_less' : 'arrow_drop_down'}
@@ -1323,11 +1332,24 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                   <Icon name="attachment" size={13} className="text-primary" />
                                                   <span>Uploaded Resources ({resourcesList.length})</span>
                                                 </span>
-                                                <span className="text-[9px] font-normal text-on-surface-variant">Click file to preview</span>
+                                                <span className="text-[9px] font-normal text-on-surface-variant">
+                                                  {resourcesList.length > 0 ? 'Click file to preview' : 'Empty'}
+                                                </span>
                                               </div>
 
                                               <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
-                                                {resourcesList.map((res) => {
+                                                {resourcesList.length === 0 ? (
+                                                  <div className="py-5 px-3 text-center space-y-1.5">
+                                                    <div className="w-8 h-8 rounded-lg bg-surface-container mx-auto flex items-center justify-center text-on-surface-variant">
+                                                      <Icon name="folder_open" size={17} />
+                                                    </div>
+                                                    <p className="text-xs font-bold text-on-surface">No resources attached yet</p>
+                                                    <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                                                      Click below or use the <strong>+</strong> button to attach PDFs, documents, images, or links.
+                                                    </p>
+                                                  </div>
+                                                ) : (
+                                                  resourcesList.map((res) => {
                                                   const resMeta = getResourceMeta(res.url, res.type);
                                                   return (
                                                     <div
@@ -1428,23 +1450,24 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                       </div>
                                                     </div>
                                                   );
-                                                })}
-                                              </div>
+                                                })
+                                              )}
+                                            </div>
 
-                                              {/* Quick option to add more files directly inside this dropdown */}
-                                              <div className="pt-1.5 border-t border-outline-variant/60">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    setHoveredResourcesLessonId(null);
-                                                    setActiveViewResourcesLessonId(null);
-                                                    setActiveResourceDropdownLessonId(lesson.id);
-                                                  }}
-                                                  className="w-full py-1.5 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                                                >
-                                                  <Icon name="add" size={15} />
-                                                  <span>Add More Files</span>
-                                                </button>
+                                            {/* Quick option to add files directly inside this dropdown */}
+                                            <div className="pt-1.5 border-t border-outline-variant/60">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setHoveredResourcesLessonId(null);
+                                                  setActiveViewResourcesLessonId(null);
+                                                  setActiveResourceDropdownLessonId(lesson.id);
+                                                }}
+                                                className="w-full py-1.5 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                              >
+                                                <Icon name="add" size={15} />
+                                                <span>{resourcesList.length === 0 ? 'Add First Resource' : 'Add More Files'}</span>
+                                              </button>
                                               </div>
                                             </div>
                                           )}
