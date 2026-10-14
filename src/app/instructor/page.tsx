@@ -1103,11 +1103,11 @@ function InstructorCoursesStudioInner() {
             </div>
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-rose-950">
-                Are you sure you want to permanently delete this draft?
+                Are you sure you want to <strong>"permanently delete"</strong> this draft?
               </h4>
               <p className="text-xs text-rose-800 leading-relaxed">
                 You are about to delete <strong className="font-semibold text-rose-950">&quot;{courseToDelete?.title}&quot;</strong>.
-                All draft curriculum sections, lessons, and uploaded files for this draft will be permanently deleted.
+                All draft curriculum sections, lessons, and uploaded files for this draft will be <strong>"permanently delete"</strong>.
               </p>
             </div>
           </div>
