@@ -176,13 +176,18 @@ export async function POST(
         targetStatus = 'IN_REVIEW';
         responseMessage = 'Course updates submitted for Super Admin & Auditor review! Once approved, your changes will be published live.';
       } else if (course.status === 'IN_REVIEW') {
-        return NextResponse.json(
-          {
-            error: 'This course is currently under review by Super Admin / Course Auditor. Please wait for approval.',
-            status: 'IN_REVIEW'
-          },
-          { status: 400 }
-        );
+        if (body.submitForApproval || body.publish) {
+          targetStatus = 'IN_REVIEW';
+          responseMessage = 'Course curriculum updates successfully submitted for Super Admin & Auditor review!';
+        } else {
+          return NextResponse.json(
+            {
+              error: 'This course is currently under review by Super Admin / Course Auditor. Please wait for approval.',
+              status: 'IN_REVIEW'
+            },
+            { status: 400 }
+          );
+        }
       } else {
         // DRAFT or REJECTED: Instructor submits for Super Admin approval
         targetStatus = 'IN_REVIEW';

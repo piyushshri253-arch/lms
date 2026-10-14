@@ -20,11 +20,16 @@ const MIME_MAP: Record<string, string> = {
   '.svg': 'image/svg+xml'
 };
 
-async function resolveMediaFile(safeFilename: string): Promise<{
+async function resolveMediaFile(inputFilename: string): Promise<{
   filePath: string;
   contentType: string;
   fileSize: number;
 } | null> {
+  let decoded = inputFilename;
+  try {
+    decoded = decodeURIComponent(inputFilename);
+  } catch {}
+  const safeFilename = path.basename(decoded);
   const ext = path.extname(safeFilename).toLowerCase();
   const contentType = MIME_MAP[ext] || 'application/octet-stream';
 

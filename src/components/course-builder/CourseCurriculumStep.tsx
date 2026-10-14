@@ -69,6 +69,10 @@ export interface BuilderLesson {
   isFree?: boolean;
   isPublished?: boolean;
   order: number;
+  clearVideo?: boolean;
+  removeVideo?: boolean;
+  clearPdf?: boolean;
+  removePdf?: boolean;
 }
 
 export function getLessonResourcesList(lesson?: BuilderLesson | BuilderSubLesson | null): LessonResourceItem[] {

@@ -73,6 +73,15 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
   const [externalLinkTitle, setExternalLinkTitle] = useState<string>('');
 
+  // External video link modal state (YouTube, Vimeo, MP4, Google Drive)
+  const [externalVideoModalTarget, setExternalVideoModalTarget] = useState<{
+    sectionId: string;
+    lessonId: string;
+    lessonTitle: string;
+    currentUrl?: string;
+  } | null>(null);
+  const [externalVideoUrl, setExternalVideoUrl] = useState<string>('');
+
   // Video preview modal
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
 
@@ -183,6 +192,111 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
     };
 
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunks (safely below Vercel's 4.5 MB request limit)
+    const file = task.file;
+    const totalSize = file.size;
+
+    // Use chunked upload for files larger than 3 MB to guarantee smooth, reliable uploads on Vercel
+    if (totalSize > 3 * 1024 * 1024) {
+      const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+      const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      let chunkIdx = 0;
+      let aborted = false;
+
+      const uploadChunk = () => {
+        if (aborted) return;
+        if (chunkIdx >= totalChunks) return;
+
+        const start = chunkIdx * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, totalSize);
+        const chunkBlob = file.slice(start, end);
+
+        const chunkFormData = new FormData();
+        chunkFormData.append('chunk', chunkBlob, file.name);
+        chunkFormData.append('uploadId', uploadId);
+        chunkFormData.append('chunkIndex', String(chunkIdx));
+        chunkFormData.append('totalChunks', String(totalChunks));
+        chunkFormData.append('fileName', file.name);
+        chunkFormData.append('fileSize', String(totalSize));
+        chunkFormData.append('lessonId', task.lessonId);
+        chunkFormData.append('title', task.lessonTitle || file.name);
+        chunkFormData.append('durationSeconds', String(durationSeconds));
+        chunkFormData.append('durationText', durationText);
+
+        const xhr = new XMLHttpRequest();
+        xhr.withCredentials = true;
+
+        setTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? { ...t, xhr } : t))
+        );
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const uploadedBytes = start + e.loaded;
+            const pct = Math.min(98, Math.round((uploadedBytes / totalSize) * 100));
+            setTasks((prev) =>
+              prev.map((t) => (t.id === task.id ? { ...t, progress: pct } : t))
+            );
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            let resData: any = {};
+            try {
+              resData = JSON.parse(xhr.responseText);
+            } catch {}
+
+            if (resData.complete && resData.videoUrl) {
+              finishTaskWithSuccess(resData.videoUrl, resData.fileName || file.name);
+            } else {
+              chunkIdx++;
+              uploadChunk();
+            }
+          } else {
+            aborted = true;
+            inFlightTaskIdsRef.current.delete(task.id);
+            setTasks((prev) =>
+              prev.map((t) =>
+                t.id === task.id
+                  ? { ...t, status: 'ERROR', errorMessage: `Upload failed with status ${xhr.status}` }
+                  : t
+              )
+            );
+            showToast({
+              title: 'Upload Error',
+              description: `Server could not process chunk of "${task.file.name}".`,
+              type: 'error'
+            });
+          }
+        };
+
+        xhr.onerror = () => {
+          aborted = true;
+          inFlightTaskIdsRef.current.delete(task.id);
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? { ...t, status: 'ERROR', errorMessage: 'Network connection lost during upload' }
+                : t
+            )
+          );
+          showToast({
+            title: 'Upload Interrupted',
+            description: `Network glitch while uploading "${task.file.name}". Please try again.`,
+            type: 'error'
+          });
+        };
+
+        xhr.open('POST', '/api/media/upload/chunk');
+        xhr.send(chunkFormData);
+      };
+
+      uploadChunk();
+      return;
+    }
+
+    // Direct upload for smaller files (<= 3 MB)
     try {
       const formData = new FormData();
       formData.append('file', task.file);
@@ -216,48 +330,58 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             const data = JSON.parse(xhr.responseText);
             videoUrl = data.videoUrl || data.media?.url || '';
             if (data.fileName) fileName = data.fileName;
-          } catch {
-            videoUrl = URL.createObjectURL(task.file);
-          }
+          } catch {}
 
-          if (!videoUrl) {
-            videoUrl = URL.createObjectURL(task.file);
+          if (videoUrl) {
+            finishTaskWithSuccess(videoUrl, fileName);
+          } else {
+            inFlightTaskIdsRef.current.delete(task.id);
+            setTasks((prev) =>
+              prev.map((t) =>
+                t.id === task.id ? { ...t, status: 'ERROR', errorMessage: 'No video URL returned' } : t
+              )
+            );
           }
-
-          finishTaskWithSuccess(videoUrl, fileName);
         } else {
-          // Resilient fallback: Server payload limit (e.g. 413) or storage restriction -> still attach video locally so user is NEVER blocked!
-          let blobUrl = '';
-          try {
-            blobUrl = URL.createObjectURL(task.file);
-          } catch {
-            blobUrl = `/uploads/videos/${Date.now()}_${task.file.name.replace(/\s+/g, '_')}`;
-          }
-          finishTaskWithSuccess(blobUrl, task.file.name);
+          inFlightTaskIdsRef.current.delete(task.id);
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? { ...t, status: 'ERROR', errorMessage: `Upload failed (${xhr.status})` }
+                : t
+            )
+          );
+          showToast({
+            title: 'Upload Failed',
+            description: `Server could not process "${task.file.name}".`,
+            type: 'error'
+          });
         }
       };
 
       xhr.onerror = () => {
-        // Resilient fallback on network glitch
-        let blobUrl = '';
-        try {
-          blobUrl = URL.createObjectURL(task.file);
-        } catch {
-          blobUrl = `/uploads/videos/${Date.now()}_${task.file.name.replace(/\s+/g, '_')}`;
-        }
-        finishTaskWithSuccess(blobUrl, task.file.name);
+        inFlightTaskIdsRef.current.delete(task.id);
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === task.id ? { ...t, status: 'ERROR', errorMessage: 'Network connection lost' } : t
+          )
+        );
+        showToast({
+          title: 'Connection Lost',
+          description: `Network glitch while uploading "${task.file.name}".`,
+          type: 'error'
+        });
       };
 
       xhr.open('POST', '/api/media/upload');
       xhr.send(formData);
-    } catch {
-      let blobUrl = '';
-      try {
-        blobUrl = URL.createObjectURL(task.file);
-      } catch {
-        blobUrl = `/uploads/videos/${Date.now()}_${task.file.name.replace(/\s+/g, '_')}`;
-      }
-      finishTaskWithSuccess(blobUrl, task.file.name);
+    } catch (err: any) {
+      inFlightTaskIdsRef.current.delete(task.id);
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === task.id ? { ...t, status: 'ERROR', errorMessage: err?.message || 'Upload failed' } : t
+        )
+      );
     }
   };
 
@@ -1250,23 +1374,43 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         </button>
                                       </div>
                                     ) : (
-                                      <label
-                                        className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
-                                        title="Upload video from PC or mobile"
-                                      >
-                                        <Icon name="videocam" size={15} />
-                                        <span>Upload Video</span>
-                                        <input
-                                          type="file"
-                                          accept="video/*"
-                                          onChange={(e) => {
-                                            const f = e.target.files?.[0];
-                                            if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
-                                            e.target.value = '';
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <label
+                                          className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
+                                          title="Upload video from PC or mobile (chunked & fast)"
+                                        >
+                                          <Icon name="videocam" size={15} />
+                                          <span>Upload Video</span>
+                                          <input
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                              e.target.value = '';
+                                            }}
+                                            className="hidden"
+                                          />
+                                        </label>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setExternalVideoModalTarget({
+                                              sectionId: section.id,
+                                              lessonId: lesson.id,
+                                              lessonTitle: lesson.title,
+                                              currentUrl: lesson.videoUrl || ''
+                                            });
+                                            setExternalVideoUrl(lesson.videoUrl || '');
                                           }}
-                                          className="hidden"
-                                        />
-                                      </label>
+                                          className="px-2.5 py-1.5 bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs transition-all shrink-0"
+                                          title="Link external video stream (YouTube, Vimeo, Google Drive, or MP4 link)"
+                                        >
+                                          <Icon name="link" size={14} />
+                                          <span>Link URL</span>
+                                        </button>
+                                      </div>
                                     )}
                                   </>
                                 )}
@@ -1886,6 +2030,89 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               >
                 <Icon name="link" size={15} />
                 <span>Add Link 🚀</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* 4. External Video Stream Link Modal (YouTube, Vimeo, MP4, Drive) */}
+      {externalVideoModalTarget && (
+        <Modal
+          isOpen={true}
+          onClose={() => setExternalVideoModalTarget(null)}
+          title={`Link Video Stream`}
+          subtitle={`Attach video to lecture "${externalVideoModalTarget.lessonTitle}"`}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const urlToSave = externalVideoUrl.trim();
+              if (!urlToSave) return;
+
+              updateLesson(
+                externalVideoModalTarget.sectionId,
+                externalVideoModalTarget.lessonId,
+                {
+                  videoUrl: urlToSave,
+                  videoFileName: 'External Video Stream',
+                  type: 'VIDEO',
+                  duration: '15:00',
+                  durationSeconds: 900,
+                  clearVideo: false,
+                  removeVideo: false
+                }
+              );
+
+              showToast({
+                title: 'Video Linked 🎬',
+                description: `Video stream attached to "${externalVideoModalTarget.lessonTitle}".`,
+                type: 'success'
+              });
+              setExternalVideoModalTarget(null);
+              setExternalVideoUrl('');
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-on-surface">
+                Lecture: <span className="text-primary">{externalVideoModalTarget.lessonTitle}</span>
+              </label>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                Paste any video link: <b>YouTube</b>, <b>Vimeo</b>, <b>Google Drive</b>, or a <b>direct .mp4 / CDN</b> stream URL.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-on-surface">
+                Video Stream URL *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/... or https://..."
+                value={externalVideoUrl}
+                onChange={(e) => setExternalVideoUrl(e.target.value)}
+                className="w-full bg-surface border border-outline-variant rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-mono"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-outline-variant/60">
+              <button
+                type="button"
+                onClick={() => setExternalVideoModalTarget(null)}
+                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-container border border-outline-variant font-bold text-xs text-on-surface cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!externalVideoUrl.trim()}
+                className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Icon name="link" size={15} />
+                <span>Attach Video 🎬</span>
               </button>
             </div>
           </form>

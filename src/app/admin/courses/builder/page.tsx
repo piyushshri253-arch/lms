@@ -494,8 +494,8 @@ function CourseBuilderContent() {
             resourcesList: les.resourcesList,
             pdfUrl: les.pdfUrl,
             fileUrl: les.fileUrl,
-            clearVideo: (les as any).clearVideo || (!les.videoUrl ? true : undefined),
-            removeVideo: (les as any).removeVideo || (!les.videoUrl ? true : undefined)
+            clearVideo: (les as any).clearVideo ? true : undefined,
+            removeVideo: (les as any).removeVideo ? true : undefined
           }))
         }))
       };
