@@ -533,6 +533,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     } finally {
       setUploadingPdfLessonId(null);
       setActiveResourceDropdownLessonId(null);
+      setActiveViewResourcesLessonId(lessonId);
     }
   };
 
@@ -543,6 +544,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     const currentList = getLessonResourcesList(existingLes);
     const updatedList = currentList.filter((r) => r.id !== resourceId);
     const primaryPdf = updatedList.find((r) => r.type === 'PDF')?.url || '';
+
+    if (updatedList.length === 0) {
+      setActiveViewResourcesLessonId(null);
+      setHoveredResourcesLessonId(null);
+    }
 
     updateLesson(sectionId, lessonId, {
       resourcesList: updatedList,
@@ -1238,9 +1244,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           type="button"
                                           onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
                                           className="p-1.5 bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-xl text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
-                                          title={`Remove video from "${lesson.title}" so you can upload a new one`}
+                                          title={`Delete video from "${lesson.title}"`}
                                         >
-                                          <Icon name="close" size={15} />
+                                          <Icon name="delete" size={14} />
                                         </button>
                                       </div>
                                     ) : (
@@ -1798,6 +1804,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 description: `"${linkName}" added to "${externalLinkModalTarget.lessonTitle}" (${updatedList.length} total).`,
                 type: 'success'
               });
+              setActiveViewResourcesLessonId(externalLinkModalTarget.lessonId);
               setExternalLinkModalTarget(null);
               setExternalLinkUrl('');
               setExternalLinkTitle('');
