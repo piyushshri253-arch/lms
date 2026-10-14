@@ -57,6 +57,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const [activeResourceDropdownLessonId, setActiveResourceDropdownLessonId] = useState<string | null>(null);
   const [activeViewResourcesLessonId, setActiveViewResourcesLessonId] = useState<string | null>(null);
   const [hoveredResourcesLessonId, setHoveredResourcesLessonId] = useState<string | null>(null);
+  const [previewResource, setPreviewResource] = useState<{
+    name: string;
+    url: string;
+    type: string;
+  } | null>(null);
 
   // External resource link modal state
   const [externalLinkModalTarget, setExternalLinkModalTarget] = useState<{
@@ -440,7 +445,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     lessonId: string,
     file: File,
     detectedType: 'PDF' | 'DOC' | 'IMAGE' | 'ZIP' | 'OTHER' = 'OTHER',
-    typeLabel: string = 'Resource'
+    typeLabel: string = 'Resource',
+    replaceResourceId?: string
   ) => {
     if (!file) return;
     setUploadingPdfLessonId(lessonId);
@@ -486,14 +492,30 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       const currentList = getLessonResourcesList(existingLes);
 
       const newResource: LessonResourceItem = {
-        id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: replaceResourceId || `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         name: file.name,
         url: finalUrl,
         type: detectedType,
         sizeBytes: file.size
       };
 
-      const updatedList = [...currentList, newResource];
+      let updatedList: LessonResourceItem[] = [];
+      if (replaceResourceId) {
+        updatedList = currentList.map((r) => (r.id === replaceResourceId ? newResource : r));
+        showToast({
+          title: 'Resource Replaced! 🔄',
+          description: `"${file.name}" replaced successfully.`,
+          type: 'success'
+        });
+      } else {
+        updatedList = [...currentList, newResource];
+        showToast({
+          title: `${typeLabel} Added! 📎`,
+          description: `"${file.name}" added to lecture resources (${updatedList.length} total).`,
+          type: 'success'
+        });
+      }
+
       const primaryPdf = updatedList.find((r) => r.type === 'PDF')?.url || updatedList[0]?.url || finalUrl;
 
       updateLesson(sectionId, lessonId, {
@@ -502,16 +524,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         fileUrl: updatedList[0]?.url || finalUrl,
         resourceFileName: updatedList[0]?.name || file.name
       });
-
-      showToast({
-        title: `${typeLabel} Attached! 📎`,
-        description: `"${file.name}" added to lecture resources (${updatedList.length} total).`,
-        type: 'success'
-      });
     } catch (err: any) {
       showToast({
-        title: 'Resource Attached',
-        description: `"${file.name}" attached to lecture.`,
+        title: 'Resource Uploaded',
+        description: `"${file.name}" saved to lecture.`,
         type: 'info'
       });
     } finally {
@@ -1295,13 +1311,13 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
                                           {/* Floating Dropdown showing all uploaded resources */}
                                           {isViewOpen && (
-                                            <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-32px)] bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1.5">
+                                            <div className="absolute right-0 top-full mt-1.5 w-80 sm:w-96 max-w-[calc(100vw-32px)] bg-surface-container-lowest border border-outline-variant shadow-2xl rounded-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1.5">
                                               <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/60 pb-1.5 mb-1 flex items-center justify-between">
                                                 <span className="flex items-center gap-1.5">
                                                   <Icon name="attachment" size={13} className="text-primary" />
                                                   <span>Uploaded Resources ({resourcesList.length})</span>
                                                 </span>
-                                                <span className="text-[9px] font-normal text-on-surface-variant">Hover to view</span>
+                                                <span className="text-[9px] font-normal text-on-surface-variant">Click file to preview</span>
                                               </div>
 
                                               <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
@@ -1312,17 +1328,17 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                       key={res.id}
                                                       className="flex items-center justify-between gap-2 p-2 rounded-xl bg-surface hover:bg-surface-container border border-outline-variant/60 transition-colors group/item"
                                                     >
-                                                      <a
-                                                        href={res.url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="flex items-center gap-2 min-w-0 flex-1 hover:text-primary transition-colors cursor-pointer"
-                                                        title={`File: ${res.name}\nType: ${resMeta.label}\nClick to preview or download`}
+                                                      {/* File Details & In-App Preview trigger */}
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => setPreviewResource({ name: res.name, url: res.url, type: res.type })}
+                                                        className="flex items-center gap-2 min-w-0 flex-1 hover:text-primary transition-colors cursor-pointer text-left"
+                                                        title={`File: ${res.name}\nType: ${resMeta.label}\nClick to preview in app`}
                                                       >
                                                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${resMeta.color}`}>
                                                           <Icon name={resMeta.icon} size={15} />
                                                         </div>
-                                                        <div className="min-w-0 flex-1 text-left">
+                                                        <div className="min-w-0 flex-1">
                                                           <p className="text-xs font-bold text-on-surface truncate leading-tight group-hover/item:text-primary" title={res.name}>
                                                             {res.name}
                                                           </p>
@@ -1330,18 +1346,68 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                             {resMeta.label}
                                                           </p>
                                                         </div>
-                                                      </a>
+                                                      </button>
 
+                                                      {/* Action Icons: Preview, Replace, Delete */}
                                                       <div className="flex items-center gap-1 shrink-0">
-                                                        <a
-                                                          href={res.url}
-                                                          target="_blank"
-                                                          rel="noreferrer"
-                                                          className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors"
-                                                          title="Open in new tab"
+                                                        {/* In-app Preview icon */}
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => setPreviewResource({ name: res.name, url: res.url, type: res.type })}
+                                                          className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
+                                                          title={`Preview "${res.name}"`}
                                                         >
-                                                          <Icon name="open_in_new" size={14} />
-                                                        </a>
+                                                          <Icon name="visibility" size={14} />
+                                                        </button>
+
+                                                        {/* In-place Replace button */}
+                                                        {res.type === 'LINK' ? (
+                                                          <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              setExternalLinkModalTarget({
+                                                                sectionId: section.id,
+                                                                lessonId: lesson.id,
+                                                                lessonTitle: lesson.title,
+                                                                currentUrl: res.url
+                                                              });
+                                                              setExternalLinkUrl(res.url);
+                                                              setExternalLinkTitle(res.name);
+                                                            }}
+                                                            className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
+                                                            title={`Replace link "${res.name}"`}
+                                                          >
+                                                            <Icon name="swap_horiz" size={14} />
+                                                          </button>
+                                                        ) : (
+                                                          <label
+                                                            className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center justify-center m-0"
+                                                            title={`Replace "${res.name}" with a new file`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                          >
+                                                            <Icon name="swap_horiz" size={14} />
+                                                            <input
+                                                              type="file"
+                                                              className="hidden"
+                                                              onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (!file) return;
+                                                                const ext = file.name.split('.').pop()?.toLowerCase() || '';
+                                                                let fileType: 'PDF' | 'DOC' | 'IMAGE' | 'ZIP' | 'OTHER' = 'OTHER';
+                                                                if (ext === 'pdf') fileType = 'PDF';
+                                                                else if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].includes(ext)) fileType = 'IMAGE';
+                                                                else if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext)) fileType = 'DOC';
+                                                                else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) fileType = 'ZIP';
+
+                                                                handleUploadResource(section.id, lesson.id, file, fileType, fileType, res.id);
+                                                                e.target.value = '';
+                                                              }}
+                                                            />
+                                                          </label>
+                                                        )}
+
+                                                        {/* Delete button */}
                                                         <button
                                                           type="button"
                                                           onClick={(e) => {
@@ -1565,6 +1631,122 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 type="button"
                 onClick={() => setPreviewVideoUrl(null)}
                 className="px-4 py-2 rounded-xl bg-surface border border-outline-variant font-bold text-xs cursor-pointer"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* In-App Resource Preview Modal (Image, PDF, Word/Document, Link) */}
+      {previewResource && (
+        <Modal
+          isOpen={true}
+          onClose={() => setPreviewResource(null)}
+          title={`Resource Preview: ${previewResource.name}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-outline-variant/60">
+              <div className="min-w-0 flex-1 pr-3">
+                <p className="text-sm font-bold text-on-surface truncate" title={previewResource.name}>
+                  {previewResource.name}
+                </p>
+                <p className="text-xs text-on-surface-variant">
+                  Type: <span className="font-semibold text-primary">{previewResource.type}</span>
+                </p>
+              </div>
+              <a
+                href={previewResource.url}
+                target="_blank"
+                rel="noreferrer"
+                download={previewResource.name}
+                className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0"
+                title="Open original file in a new tab or download"
+              >
+                <Icon name="open_in_new" size={14} />
+                <span>Open in Tab</span>
+              </a>
+            </div>
+
+            {/* Preview content based on resource type */}
+            <div className="bg-surface-container rounded-2xl p-2 sm:p-4 min-h-[300px] flex items-center justify-center overflow-hidden border border-outline-variant/50">
+              {previewResource.type === 'IMAGE' || /\.(jpe?g|png|gif|webp|svg)($|\?)/i.test(previewResource.url) ? (
+                <div className="max-h-[65vh] flex items-center justify-center overflow-auto w-full">
+                  <img
+                    src={previewResource.url}
+                    alt={previewResource.name}
+                    className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-md"
+                  />
+                </div>
+              ) : previewResource.type === 'PDF' || /\.pdf($|\?)/i.test(previewResource.url) ? (
+                <iframe
+                  src={previewResource.url}
+                  title={previewResource.name}
+                  className="w-full h-[65vh] rounded-xl border border-outline-variant bg-white"
+                />
+              ) : previewResource.type === 'LINK' ? (
+                <div className="text-center py-8 px-4 space-y-4 max-w-md mx-auto">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center">
+                    <Icon name="link" size={28} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-on-surface">{previewResource.name}</h4>
+                    <p className="text-xs text-primary underline break-all mt-1">{previewResource.url}</p>
+                  </div>
+                  <a
+                    href={previewResource.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+                  >
+                    <span>Visit External Resource</span>
+                    <Icon name="open_in_new" size={14} />
+                  </a>
+                </div>
+              ) : (
+                /* Documents (Word, Excel, PowerPoint, ZIP, etc.) */
+                <div className="text-center py-8 px-4 space-y-4 max-w-md mx-auto">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 mx-auto flex items-center justify-center">
+                    <Icon name="description" size={28} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-on-surface">{previewResource.name}</h4>
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      Office documents and files can be downloaded directly or previewed in Google Docs Viewer.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <a
+                      href={previewResource.url}
+                      download={previewResource.name}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
+                    >
+                      <Icon name="download" size={15} />
+                      <span>Download File</span>
+                    </a>
+                    {previewResource.url.startsWith('http') && !previewResource.url.startsWith('blob:') && (
+                      <a
+                        href={`https://docs.google.com/viewer?url=${encodeURIComponent(previewResource.url)}&embedded=true`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface border border-outline-variant text-on-surface font-bold text-xs hover:bg-surface-container transition-all cursor-pointer"
+                      >
+                        <Icon name="visibility" size={15} />
+                        <span>Google Docs Viewer</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setPreviewResource(null)}
+                className="px-4 py-2 rounded-xl bg-surface border border-outline-variant font-bold text-xs hover:bg-surface-container transition-colors cursor-pointer"
               >
                 Close Preview
               </button>
