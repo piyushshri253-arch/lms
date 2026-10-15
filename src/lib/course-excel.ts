@@ -91,8 +91,8 @@ export function downloadCourseExcelTemplate() {
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     headerPurple: {
-      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '581C87' } }, // Purple 800
-      fill: { fgColor: { rgb: '581C87' } },
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
+      fill: { fgColor: { rgb: '581C87' } }, // Purple 800 background
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     sectionBanner: {
@@ -584,8 +584,8 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     headerPurple: {
-      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '581C87' } },
-      fill: { fgColor: { rgb: '581C87' } },
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
+      fill: { fgColor: { rgb: '581C87' } }, // Purple 800 background
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     sectionBanner: {
@@ -818,16 +818,16 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   // 3. Quizzes & MCQs Sheet
   const quizzesAOA: any[][] = [
     [
-      'Module / Section Title',
-      'Quiz Title *',
-      'Question #',
+      'Module (e.g. Module 1)',
+      'Quiz Title (Write once per quiz)',
+      'Q#',
       'Question Text *',
       'Option A *',
       'Option B *',
-      'Option C',
-      'Option D',
-      'Correct Option (A / B / C / D) *',
-      'Explanation / Feedback',
+      'Option C *',
+      'Option D *',
+      'Correct Option (A/B/C/D) *',
+      'Explanation (Why this option is correct)',
       'Passing Score (%)'
     ]
   ];
