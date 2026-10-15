@@ -8,6 +8,22 @@ import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Modal } from '@/components/ui/Modal';
 import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
+import {
+  Users,
+  Search,
+  Download,
+  Mail,
+  Phone,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  TrendingUp,
+  GraduationCap,
+  Sparkles,
+  ExternalLink,
+  ChevronDown,
+  RefreshCw
+} from 'lucide-react';
 
 interface CourseAuthored {
   id: string;
@@ -27,6 +43,29 @@ interface CourseAuthored {
     name?: string;
     avatar?: string;
   };
+}
+
+interface EnrolledStudent {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  studentPhone?: string | null;
+  studentAvatar?: string | null;
+  courseId: string;
+  courseTitle: string;
+  courseSlug: string;
+  courseCategory?: string;
+  coursePrice: number;
+  amountPaid: number;
+  orderNumber?: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  status: string;
+  enrolledAt: string;
+  totalLessons: number;
+  completedLessons: number;
+  progressPercentage: number;
 }
 
 type TabType = 'ALL' | 'PUBLISHED' | 'IN_REVIEW' | 'DRAFT' | 'INACTIVE' | 'REJECTED';
@@ -67,6 +106,20 @@ function InstructorCoursesStudioInner() {
   const sidebarTab = searchParams?.get('tab') || '';
   const createParam = searchParams?.get('create');
 
+  // Enrolled Students State (for sidebar tab=students)
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
+  const [studentsMetrics, setStudentsMetrics] = useState<{
+    totalEnrollments: number;
+    totalUniqueStudents: number;
+    totalRevenue: number;
+    activeEnrollments: number;
+    completedEnrollments: number;
+  } | null>(null);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [studentCourseFilter, setStudentCourseFilter] = useState('ALL');
+  const [studentStatusFilter, setStudentStatusFilter] = useState('ALL');
+
   useEffect(() => {
     if (createParam === '1') {
       router.replace('/instructor/courses/builder');
@@ -101,9 +154,36 @@ function InstructorCoursesStudioInner() {
     }
   };
 
+  // Fetch Enrolled Students for this Instructor
+  const fetchInstructorStudents = async () => {
+    try {
+      setIsLoadingStudents(true);
+      const res = await fetch('/api/instructor/students');
+      const data = await res.json();
+      if (res.ok && data.students) {
+        setEnrolledStudents(data.students);
+        if (data.metrics) {
+          setStudentsMetrics(data.metrics);
+        }
+      } else {
+        setEnrolledStudents([]);
+      }
+    } catch (err) {
+      console.error('Failed to load instructor students:', err);
+    } finally {
+      setIsLoadingStudents(false);
+    }
+  };
+
   useEffect(() => {
     fetchInstructorCourses();
   }, [currentUser]);
+
+  useEffect(() => {
+    if (sidebarTab === 'students') {
+      fetchInstructorStudents();
+    }
+  }, [sidebarTab, currentUser]);
 
   // Submit Draft course for Reviewer/Admin approval
   const handleSubmitForApproval = async (courseId: string, courseSlug?: string) => {
@@ -411,6 +491,64 @@ function InstructorCoursesStudioInner() {
       );
     });
 
+  // Filtered Enrolled Students for tab=students
+  const filteredStudents = enrolledStudents.filter((s) => {
+    if (studentCourseFilter !== 'ALL' && s.courseId !== studentCourseFilter) {
+      return false;
+    }
+    if (studentStatusFilter !== 'ALL' && s.status !== studentStatusFilter) {
+      return false;
+    }
+    if (!studentSearchQuery.trim()) return true;
+    const q = studentSearchQuery.toLowerCase();
+    return (
+      s.studentName.toLowerCase().includes(q) ||
+      s.studentEmail.toLowerCase().includes(q) ||
+      s.courseTitle.toLowerCase().includes(q) ||
+      (s.orderNumber && s.orderNumber.toLowerCase().includes(q))
+    );
+  });
+
+  // Export Enrolled Students to CSV
+  const exportStudentsToCSV = () => {
+    if (filteredStudents.length === 0) return;
+    const headers = [
+      'Student Name',
+      'Email',
+      'Phone',
+      'Course Enrolled',
+      'Enrolled Date',
+      'Amount Paid (INR)',
+      'Payment Status',
+      'Progress (%)',
+      'Access Status'
+    ];
+    const rows = filteredStudents.map((s) => [
+      `"${s.studentName.replace(/"/g, '""')}"`,
+      `"${s.studentEmail.replace(/"/g, '""')}"`,
+      `"${(s.studentPhone || '').replace(/"/g, '""')}"`,
+      `"${s.courseTitle.replace(/"/g, '""')}"`,
+      `"${new Date(s.enrolledAt).toLocaleDateString('en-IN')}"`,
+      s.amountPaid,
+      s.paymentStatus,
+      `${s.progressPercentage}%`,
+      s.status
+    ]);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute(
+      'download',
+      `enrolled_students_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const shellTitle =
     sidebarTab === 'students'
       ? 'Enrolled Students & Learners'
@@ -456,7 +594,9 @@ function InstructorCoursesStudioInner() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Create deep-tech courses, upload modules &amp; lessons, manage drafts, and submit for review to launch live.
+                {sidebarTab === 'students'
+                  ? 'Track enrolled students, monitor curriculum progress, and review student purchase details.'
+                  : 'Create deep-tech courses, upload modules & lessons, manage drafts, and submit for review to launch live.'}
               </p>
             </div>
           </div>
@@ -474,66 +614,393 @@ function InstructorCoursesStudioInner() {
 
         {/* Dedicated Students View when sidebar tab=students */}
         {sidebarTab === 'students' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">
-                  Student Enrollments by Course ({totalStudents} Total Learners)
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Breakdown of active student enrollments and gross revenue across your published courses
+          <div className="space-y-6">
+            {/* 1. Quick Stats Cards for Enrolled Students */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Total Enrollments</span>
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
+                    <Users className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-2xl font-black text-slate-900">
+                  {studentsMetrics?.totalEnrollments ?? totalStudents}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Across all your authored courses
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Unique Learners</span>
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-2xl font-black text-sky-600">
+                  {studentsMetrics?.totalUniqueStudents ?? 0}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Individual registered students
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Active Learners</span>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-2xl font-black text-emerald-600">
+                  {studentsMetrics?.activeEnrollments ?? 0}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Actively studying coursework
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Gross Enrollment Value</span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-2 text-2xl font-black text-slate-900 font-mono">
+                  ₹{(studentsMetrics?.totalRevenue ?? totalRevenue).toLocaleString('en-IN')}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Total student course purchases
                 </p>
               </div>
             </div>
 
-            {courses.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
-                No courses created yet. Click &quot;+ Create Course&quot; above to launch your first course.
+            {/* 2. Main Enrolled Students Roster Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-violet-600" />
+                    Enrolled Students &amp; Purchase Roster
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Real-time list of students who purchased or enrolled in your courses with full student names, contact, purchase dates, and progress.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={fetchInstructorStudents}
+                    disabled={isLoadingStudents}
+                    className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all inline-flex items-center gap-1 cursor-pointer"
+                    title="Refresh student list"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingStudents ? 'animate-spin text-violet-600' : ''}`} />
+                  </button>
+                  <button
+                    onClick={exportStudentsToCSV}
+                    disabled={filteredStudents.length === 0}
+                    className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export CSV</span>
+                  </button>
+                </div>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-3 px-3 font-bold">Course Title</th>
-                      <th className="py-3 px-3 font-bold">Category</th>
-                      <th className="py-3 px-3 font-bold">Status</th>
-                      <th className="py-3 px-3 font-bold">Course Fee</th>
-                      <th className="py-3 px-3 font-bold">Enrolled Students</th>
-                      <th className="py-3 px-3 font-bold">Gross Value</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
+
+              {/* Filters & Search Bar */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-slate-100">
+                {/* Search */}
+                <div className="relative w-full sm:flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                    placeholder="Search by student name, email, or course..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white transition-all"
+                  />
+                  {studentSearchQuery && (
+                    <button
+                      onClick={() => setStudentSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Course Filter */}
+                <div className="w-full sm:w-auto">
+                  <select
+                    value={studentCourseFilter}
+                    onChange={(e) => setStudentCourseFilter(e.target.value)}
+                    className="w-full sm:w-56 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-violet-500 focus:bg-white truncate"
+                  >
+                    <option value="ALL">All Courses ({courses.length})</option>
                     {courses.map((c) => (
-                      <tr key={c.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-3 font-bold text-slate-900">{c.title}</td>
-                        <td className="py-3 px-3 text-slate-600">{c.category || 'Engineering'}</td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              c.status === 'PUBLISHED'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}
-                          >
-                            {c.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-mono text-slate-700">
-                          ₹{Number(c.price || 0).toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-3 px-3 font-extrabold text-violet-700">
-                          {c.studentsCount || 0} Learners
-                        </td>
-                        <td className="py-3 px-3 font-mono font-bold text-emerald-700">
-                          ₹{(Number(c.price || 0) * Number(c.studentsCount || 0)).toLocaleString('en-IN')}
-                        </td>
-                      </tr>
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div className="w-full sm:w-auto">
+                  <select
+                    value={studentStatusFilter}
+                    onChange={(e) => setStudentStatusFilter(e.target.value)}
+                    className="w-full sm:w-36 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-violet-500 focus:bg-white"
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
               </div>
-            )}
+
+              {/* Table / List */}
+              {isLoadingStudents ? (
+                <div className="py-16 text-center text-xs text-slate-500 space-y-2">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-violet-600" />
+                  <p>Loading enrolled students and purchase records...</p>
+                </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="py-14 text-center border-2 border-dashed border-slate-200 rounded-2xl p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-3">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800">
+                    {enrolledStudents.length === 0
+                      ? 'No students enrolled yet'
+                      : 'No students match your search filter'}
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                    {enrolledStudents.length === 0
+                      ? 'When a student purchases or enrolls in any of your courses, their name, purchase details, and learning progress will appear here.'
+                      : 'Try resetting the search bar or changing the course filter dropdown to see your students.'}
+                  </p>
+                  {studentSearchQuery && (
+                    <button
+                      onClick={() => {
+                        setStudentSearchQuery('');
+                        setStudentCourseFilter('ALL');
+                        setStudentStatusFilter('ALL');
+                      }}
+                      className="mt-3 text-xs font-bold text-violet-600 hover:underline cursor-pointer"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                        <th className="py-3.5 px-4">Student Name &amp; Contact</th>
+                        <th className="py-3.5 px-4">Purchased Course</th>
+                        <th className="py-3.5 px-4">Enrolled / Purchase Date</th>
+                        <th className="py-3.5 px-4">Amount Paid</th>
+                        <th className="py-3.5 px-4">Progress</th>
+                        <th className="py-3.5 px-4">Access Status</th>
+                        <th className="py-3.5 px-4 text-right">Contact</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {filteredStudents.map((student) => (
+                        <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <UserAvatar
+                                avatar={student.studentAvatar}
+                                name={student.studentName}
+                                size="sm"
+                                className="w-9 h-9 shrink-0 shadow-2xs"
+                              />
+                              <div>
+                                <div className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                                  {student.studentName}
+                                </div>
+                                <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                  <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>{student.studentEmail}</span>
+                                </div>
+                                {student.studentPhone && (
+                                  <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                    <Phone className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                    <span>{student.studentPhone}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-slate-900 max-w-[260px] line-clamp-1" title={student.courseTitle}>
+                              {student.courseTitle}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                                {student.courseCategory || 'Engineering'}
+                              </span>
+                              {student.orderNumber && (
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  #{student.orderNumber}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-slate-800">
+                              {new Date(student.enrolledAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                              {new Date(student.enrolledAt).toLocaleTimeString('en-IN', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-mono font-bold text-emerald-700 text-xs">
+                              ₹{Number(student.amountPaid || 0).toLocaleString('en-IN')}
+                            </div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-0.5">
+                              {student.paymentMethod} • {student.paymentStatus}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="w-32 space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-600">
+                                <span>{student.progressPercentage}%</span>
+                                <span className="text-slate-400 font-normal">
+                                  {student.completedLessons}/{student.totalLessons}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    student.progressPercentage === 100
+                                      ? 'bg-emerald-500'
+                                      : 'bg-violet-600'
+                                  }`}
+                                  style={{ width: `${Math.min(student.progressPercentage, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                student.status === 'COMPLETED'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : student.status === 'ACTIVE'
+                                  ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  student.status === 'COMPLETED'
+                                    ? 'bg-emerald-500'
+                                    : student.status === 'ACTIVE'
+                                    ? 'bg-sky-500'
+                                    : 'bg-slate-400'
+                                }`}
+                              />
+                              {student.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <a
+                              href={`mailto:${student.studentEmail}?subject=${encodeURIComponent(
+                                `Welcome to ${student.courseTitle} - Morena Teach`
+                              )}`}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-[11px] font-bold transition-all shadow-2xs"
+                              title={`Email ${student.studentName}`}
+                            >
+                              <Mail className="w-3.5 h-3.5 text-violet-600" />
+                              <span>Email</span>
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Course Breakdown Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Course-Wise Enrollment Breakdown ({totalStudents} Total Learners)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Breakdown of student seats and revenue across each authored course
+                  </p>
+                </div>
+              </div>
+
+              {courses.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  No courses created yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                        <th className="py-3 px-3 font-bold">Course Title</th>
+                        <th className="py-3 px-3 font-bold">Category</th>
+                        <th className="py-3 px-3 font-bold">Status</th>
+                        <th className="py-3 px-3 font-bold">Course Fee</th>
+                        <th className="py-3 px-3 font-bold">Enrolled Students</th>
+                        <th className="py-3 px-3 font-bold">Gross Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {courses.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50">
+                          <td className="py-3 px-3 font-bold text-slate-900">{c.title}</td>
+                          <td className="py-3 px-3 text-slate-600">{c.category || 'Engineering'}</td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                c.status === 'PUBLISHED'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}
+                            >
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 font-mono text-slate-700">
+                            ₹{Number(c.price || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-3 font-extrabold text-violet-700">
+                            {c.studentsCount || 0} Learners
+                          </td>
+                          <td className="py-3 px-3 font-mono font-bold text-emerald-700">
+                            ₹{(Number(c.price || 0) * Number(c.studentsCount || 0)).toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -585,8 +1052,11 @@ function InstructorCoursesStudioInner() {
           </div>
         )}
 
-        {/* Workflow Guide Alert */}
-        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3 text-xs">
+        {/* Course Studio View (Only when not on students or notifications tab) */}
+        {sidebarTab !== 'students' && sidebarTab !== 'notifications' && (
+          <>
+            {/* Workflow Guide Alert */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3 text-xs">
           <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
             <Icon name="verified" size={18} />
           </div>
@@ -1081,6 +1551,8 @@ function InstructorCoursesStudioInner() {
           </div>
         )}
         </div>
+        </>
+      )}
       </div>
 
       {/* Delete Draft Course Confirmation Modal */}
