@@ -866,38 +866,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                 {/* Module Curriculum Items (Lectures & Sub-Topics) */}
                 <div className="space-y-3 pt-1">
-                  {section.lessons.length === 0 ? (
-                    <div className="py-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] bg-white rounded-md space-y-2">
-                      <p>No curriculum items in Module {moduleNum} yet. Add as many lectures, articles, or quizzes as you need (no limit).</p>
-                      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
-                          className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                        >
-                          <Icon name="videocam" size={15} />
-                          <span>+ Add Lecture</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
-                          className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                        >
-                          <Icon name="article" size={15} />
-                          <span>+ Add Article</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
-                          className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                        >
-                          <Icon name="quiz" size={15} />
-                          <span>+ Add Quiz</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    section.lessons.map((les, lIdx) => {
+                  {section.lessons.map((les, lIdx) => {
                       const isQuizItem = les.type === 'QUIZ';
                       const isArticleItem = les.type === 'TEXT';
                       const isLectureItem = !isQuizItem && !isArticleItem;
@@ -1532,11 +1501,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           </div>
                         </div>
                       );
-                    })
-                  )}
+                    })}
 
                   {/* CURRICULUM ITEM FOOTER BAR INSIDE MODULE */}
-                  <div className="pt-3 border-t border-[#d1d7dc]/60 flex flex-wrap items-center gap-2">
+                  <div className={`flex flex-wrap items-center gap-2 ${section.lessons.length > 0 ? 'pt-3 border-t border-[#d1d7dc]/60' : 'pt-0.5'}`}>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">
                       + Add to Module {moduleNum}:
                     </span>
