@@ -42,15 +42,23 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
       >
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* 16:9 Featured Thumbnail */}
-          <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 aspect-[16/9] overflow-hidden border border-[#d1d7dc] bg-[#f7f9fa] relative">
+          <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 aspect-[16/9] overflow-hidden border border-[#d1d7dc] bg-neutral-950 relative flex items-center justify-center">
             {course.thumbnail ? (
-              <img
-                src={course.thumbnail}
-                alt={course.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
+              <>
+                <img
+                  src={course.thumbnail}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                />
+                <img
+                  src={course.thumbnail}
+                  alt={course.title}
+                  className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                />
+              </>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-[#6a6f73]">
+              <div className="w-full h-full flex flex-col items-center justify-center text-[#6a6f73] bg-[#f7f9fa]">
                 <Icon name="school" size={40} />
                 <span className="text-xs mt-1">
                   {typeof (course.category as any) === 'object' && (course.category as any) !== null

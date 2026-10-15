@@ -130,11 +130,21 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({ thumbnail, onChang
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           {/* Thumbnail Preview Canvas */}
-          <div className="md:col-span-5 aspect-video bg-surface-container-low rounded-2xl border-2 border-dashed border-outline-variant relative overflow-hidden flex flex-col items-center justify-center text-center p-4">
+          <div className="md:col-span-5 aspect-video bg-neutral-950 rounded-2xl border-2 border-dashed border-outline-variant relative overflow-hidden flex flex-col items-center justify-center text-center p-0">
             {thumbnail ? (
               <>
-                <img src={thumbnail} alt="Course Thumbnail Preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <img
+                  src={thumbnail}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                />
+                <img
+                  src={thumbnail}
+                  alt="Course Thumbnail Preview"
+                  className="relative z-10 w-full h-full object-contain"
+                />
+                <div className="absolute inset-0 z-20 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => thumbnailFileRef.current?.click()}

@@ -235,9 +235,21 @@ export default async function OrgCourseDetailsPage({
           <div className="lg:col-span-4 sticky top-24 space-y-6">
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0c1126] border border-white/15 shadow-2xl space-y-6">
               {/* Thumbnail */}
-              <div className="h-44 rounded-2xl bg-slate-900 overflow-hidden relative border border-white/10">
+              <div className="h-44 rounded-2xl bg-neutral-950 overflow-hidden relative border border-white/10 flex items-center justify-center">
                 {course.thumbnail ? (
-                  <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                  <>
+                    <img
+                      src={course.thumbnail}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                    />
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="relative z-10 w-full h-full object-contain"
+                    />
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-600">
                     <Icon name="school" size={48} />

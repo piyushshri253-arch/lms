@@ -72,16 +72,24 @@ export default function StudentWishlistPage() {
               className="bg-surface-container-lowest rounded-3xl border border-outline-variant/80 shadow-xs overflow-hidden hover:border-primary/40 transition-all flex flex-col justify-between group"
             >
               <div>
-                <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-primary/10 via-surface-container to-surface-container-high flex items-center justify-center">
+                <div className="relative aspect-video w-full overflow-hidden bg-neutral-950 flex items-center justify-center">
                   {typeof item.thumbnail === 'string' && item.thumbnail.trim().length > 0 ? (
-                    <img
-                      src={item.thumbnail.trim()}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
+                    <>
+                      <img
+                        src={item.thumbnail.trim()}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                      />
+                      <img
+                        src={item.thumbnail.trim()}
+                        alt={item.title}
+                        className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-primary/60 group-hover:scale-105 transition-transform duration-300">
                       <Icon name="school" size={32} />

@@ -38,13 +38,21 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
         href={`/courses/${course.slug}`}
         className="lg:col-span-2 group cursor-pointer bg-surface rounded-xl border border-outline-variant overflow-hidden flex flex-col md:flex-row hover:shadow-md hover:border-primary/30 transition-all duration-300"
       >
-        <div className="md:w-1/2 h-56 md:h-auto relative overflow-hidden bg-surface-container-high flex items-center justify-center">
+        <div className="md:w-1/2 h-56 md:h-auto relative overflow-hidden bg-neutral-950 flex items-center justify-center">
           {course.thumbnail ? (
-            <img
-              src={course.thumbnail}
-              alt={course.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+            <>
+              <img
+                src={course.thumbnail}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+              />
+              <img
+                src={course.thumbnail}
+                alt={course.title}
+                className="relative z-10 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+              />
+            </>
           ) : (
             <Icon name="school" size={48} className="text-outline" />
           )}
@@ -101,13 +109,21 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
         href={`/courses/${course.slug}`}
         className="bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 hover:border-primary/40 hover:shadow-sm transition-all flex gap-4 items-center cursor-pointer group"
       >
-        <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-surface-variant relative flex items-center justify-center">
+        <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-neutral-950 relative flex items-center justify-center">
           {course.thumbnail ? (
-            <img
-              src={course.thumbnail}
-              alt={course.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+            <>
+              <img
+                src={course.thumbnail}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-sm opacity-35 scale-110 pointer-events-none select-none"
+              />
+              <img
+                src={course.thumbnail}
+                alt={course.title}
+                className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+              />
+            </>
           ) : (
             <Icon name="school" size={28} className="text-outline" />
           )}
@@ -140,23 +156,31 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
       className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.05)] hover:border-primary/30 hover:scale-[1.01] transition-all duration-300 group flex flex-col h-full cursor-pointer relative"
     >
       {course.bestseller && (
-        <div className="absolute top-2.5 left-2.5 z-10 bg-surface-container-lowest/95 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-extrabold text-primary border border-outline-variant/30 tracking-wider">
+        <div className="absolute top-2.5 left-2.5 z-20 bg-surface-container-lowest/95 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-extrabold text-primary border border-outline-variant/30 tracking-wider">
           BESTSELLER
         </div>
       )}
       {course.isNew && (
-        <div className="absolute top-2.5 left-2.5 z-10 bg-primary text-on-primary px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider">
+        <div className="absolute top-2.5 left-2.5 z-20 bg-primary text-on-primary px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider">
           NEW
         </div>
       )}
 
-      <div className="h-44 w-full overflow-hidden bg-surface-container-low relative flex items-center justify-center">
+      <div className="h-44 w-full overflow-hidden bg-neutral-950 relative flex items-center justify-center">
         {course.thumbnail ? (
-          <img
-            src={course.thumbnail}
-            alt={course.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+          <>
+            <img
+              src={course.thumbnail}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+            />
+            <img
+              src={course.thumbnail}
+              alt={course.title}
+              className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+            />
+          </>
         ) : (
           <Icon name="school" size={40} className="text-outline" />
         )}

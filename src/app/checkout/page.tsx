@@ -767,11 +767,17 @@ function CheckoutContent() {
             <div className="space-y-4 mb-6 max-h-[320px] overflow-y-auto pr-1">
               {cartItems.map((item) => (
                 <div key={item.id} className="flex gap-3.5 pb-3.5 border-b border-gray-100 last:border-0 last:pb-0">
-                  <div className="w-16 h-12 rounded bg-gray-100 overflow-hidden shrink-0">
+                  <div className="w-16 h-12 rounded bg-neutral-950 overflow-hidden shrink-0 relative flex items-center justify-center">
+                    <img
+                      src={item.thumbnail || 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=400'}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover blur-sm opacity-35 scale-110 pointer-events-none select-none"
+                    />
                     <img
                       src={item.thumbnail || 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=400'}
                       alt={item.title}
-                      className="w-full h-full object-cover"
+                      className="relative z-10 w-full h-full object-contain"
                     />
                   </div>
                   <div className="flex-1 min-w-0">

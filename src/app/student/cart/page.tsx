@@ -180,14 +180,22 @@ export default function StudentCartPage() {
                     {/* Thumbnail */}
                     <Link
                       href={`/courses/${item.slug || item.id}`}
-                      className="shrink-0 w-full sm:w-32 aspect-video bg-gray-100 rounded overflow-hidden border border-[#d1d7dc]"
+                      className="shrink-0 w-full sm:w-32 aspect-video bg-neutral-950 rounded overflow-hidden border border-[#d1d7dc] relative flex items-center justify-center"
                     >
                       {item.thumbnail ? (
-                        <img
-                          src={item.thumbnail}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                        />
+                        <>
+                          <img
+                            src={item.thumbnail}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover blur-sm opacity-35 scale-110 pointer-events-none select-none"
+                          />
+                          <img
+                            src={item.thumbnail}
+                            alt={item.title}
+                            className="relative z-10 w-full h-full object-contain"
+                          />
+                        </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
                           <Icon name="school" size={28} />

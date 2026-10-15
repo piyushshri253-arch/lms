@@ -481,25 +481,33 @@ function CourseStudentPreviewInner() {
               <div className="lg:hidden bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-md overflow-hidden flex flex-col">
                 <div
                   onClick={() => setViewMode('CLASSROOM_PLAYER')}
-                  className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant"
+                  className="w-full aspect-video bg-neutral-950 relative group cursor-pointer border-b border-outline-variant overflow-hidden flex items-center justify-center"
                 >
                   {course.thumbnail ? (
-                    <img
-                      src={course.thumbnail}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
+                    <>
+                      <img
+                        src={course.thumbnail}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                      />
+                      <img
+                        src={course.thumbnail}
+                        alt={course.title}
+                        className="relative z-10 w-full h-full object-contain"
+                      />
+                    </>
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
                       <Icon name="school" size={48} />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer">
+                  <div className="absolute inset-0 z-20 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center cursor-pointer">
                     <div className="w-14 h-14 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
                       <Icon name="play_arrow" fill size={28} className="ml-1 text-primary" />
                     </div>
                   </div>
-                  <div className="absolute bottom-2.5 left-0 w-full px-3 flex justify-center">
+                  <div className="absolute bottom-2.5 left-0 w-full px-3 flex justify-center z-20 pointer-events-none">
                     <span className="bg-black/70 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-md">
                       Preview this course
                     </span>
@@ -692,25 +700,33 @@ function CourseStudentPreviewInner() {
                 {/* Video Preview Hero */}
                 <div
                   onClick={() => setViewMode('CLASSROOM_PLAYER')}
-                  className="w-full aspect-video bg-surface-container relative group cursor-pointer border-b border-outline-variant"
+                  className="w-full aspect-video bg-neutral-950 relative group cursor-pointer border-b border-outline-variant overflow-hidden flex items-center justify-center"
                 >
                   {course.thumbnail ? (
-                    <img
-                      src={course.thumbnail}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
+                    <>
+                      <img
+                        src={course.thumbnail}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                      />
+                      <img
+                        src={course.thumbnail}
+                        alt={course.title}
+                        className="relative z-10 w-full h-full object-contain"
+                      />
+                    </>
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/20 via-surface-container to-surface-container-high flex items-center justify-center text-primary/60">
                       <Icon name="school" size={48} />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center cursor-pointer">
+                  <div className="absolute inset-0 z-20 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center cursor-pointer">
                     <div className="w-16 h-16 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:text-primary transition-all duration-300">
                       <Icon name="play_arrow" fill size={32} className="ml-1 text-primary" />
                     </div>
                   </div>
-                  <div className="absolute bottom-3 left-0 w-full px-3 flex justify-center">
+                  <div className="absolute bottom-3 left-0 w-full px-3 flex justify-center z-20 pointer-events-none">
                     <span className="bg-black/70 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-md">
                       Preview this course
                     </span>

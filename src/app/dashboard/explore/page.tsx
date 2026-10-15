@@ -167,16 +167,24 @@ function ExploreCoursesContent() {
             >
               <div>
                 {/* Thumbnail */}
-                <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-primary/10 via-surface-container to-surface-container-high flex items-center justify-center">
+                <div className="relative aspect-video w-full overflow-hidden bg-neutral-950 flex items-center justify-center">
                   {typeof c.thumbnail === 'string' && c.thumbnail.trim().length > 0 ? (
-                    <img
-                      src={c.thumbnail.trim()}
-                      alt={c.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
+                    <>
+                      <img
+                        src={c.thumbnail.trim()}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                      />
+                      <img
+                        src={c.thumbnail.trim()}
+                        alt={c.title}
+                        className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-primary/60 group-hover:scale-105 transition-transform duration-300">
                       <Icon name="school" size={32} />

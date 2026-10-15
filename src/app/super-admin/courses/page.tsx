@@ -293,9 +293,21 @@ export default function SuperAdminCoursesPage() {
             className="bg-surface-container-lowest rounded-3xl border border-outline-variant/80 shadow-xs overflow-hidden flex flex-col justify-between hover:border-primary/40 transition-all"
           >
             <div>
-              <div className="relative aspect-video w-full overflow-hidden bg-surface-container flex items-center justify-center">
+              <div className="relative aspect-video w-full overflow-hidden bg-neutral-950 flex items-center justify-center">
                 {c.thumbnail ? (
-                  <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover" />
+                  <>
+                    <img
+                      src={c.thumbnail}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+                    />
+                    <img
+                      src={c.thumbnail}
+                      alt={c.title}
+                      className="relative z-10 w-full h-full object-contain"
+                    />
+                  </>
                 ) : (
                   <Icon name="school" size={40} className="text-outline" />
                 )}
