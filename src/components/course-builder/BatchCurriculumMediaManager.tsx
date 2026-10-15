@@ -552,7 +552,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     if (allVideoLessonsList.length === 0) {
       showToast({
         title: 'No Video Lectures Found',
-        description: 'Curriculum mein abhi koi video lecture slot nahi hai (sirf Articles ya Quizzes hain). Kripya pehle video lecture slots banayein.',
+        description: 'This curriculum currently only has Written Articles or Quizzes. Please add video lecture slots in the curriculum builder first.',
         type: 'error'
       });
       return;
@@ -602,8 +602,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
 
       showToast({
-        title: '⚠️ Video Limit: Extra Video(s) Skipped',
-        description: `Curriculum mein sirf ${availableSlots} lecture slots hain, jabki ${files.length} videos select ki gayi thin. Pehle ${availableSlots} videos queue kiye gaye hain, baki ${excessFiles.length} video(s) skip kar diye gaye.`,
+        title: 'Video Slot Limit Reached',
+        description: `Only ${availableSlots} of ${files.length} videos were queued. ${excessFiles.length} extra video(s) were skipped because the course only has ${availableSlots} lecture slots.`,
         type: 'info'
       });
     } else {
@@ -2082,7 +2082,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               excessFileNames: []
             })
           }
-          title="Video Slots Limit Warning"
+          title="Video Slot Allocation Warning"
           maxWidth="lg"
         >
           <div className="space-y-4">
@@ -2090,11 +2090,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               <Icon name="warning" size={24} className="shrink-0 mt-0.5 text-amber-400" />
               <div className="space-y-1">
                 <p className="font-bold text-sm text-on-surface">
-                  Slot Mismatch: {excessFilesWarning.selectedCount} Videos Selected for {excessFilesWarning.availableCount} Lecture Slots
+                  Slot Mismatch: {excessFilesWarning.selectedCount} Videos Selected for {excessFilesWarning.availableCount} {excessFilesWarning.availableCount === 1 ? 'Lecture Slot' : 'Lecture Slots'}
                 </p>
                 <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Aapke course curriculum mein kul <strong className="text-primary font-bold">{excessFilesWarning.availableCount} video lectures</strong> hain, jabki aapne <strong className="text-amber-400 font-bold">{excessFilesWarning.selectedCount} video files</strong> select ki hain.
-                  Extra videos ko upload hone se rok diya gaya hai taaki koi bhi existing lecture overwrite na ho.
+                  Your course curriculum currently has <strong className="text-primary font-bold">{excessFilesWarning.availableCount} video {excessFilesWarning.availableCount === 1 ? 'lecture' : 'lectures'}</strong>, but you selected <strong className="text-amber-400 font-bold">{excessFilesWarning.selectedCount} video files</strong>. To prevent accidental overwrites, only the first {excessFilesWarning.availableCount} {excessFilesWarning.availableCount === 1 ? 'video was' : 'videos were'} added to the upload queue.
                 </p>
               </div>
             </div>
@@ -2138,7 +2137,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-start gap-2.5 text-xs text-on-surface-variant">
               <Icon name="info" size={18} className="text-primary shrink-0 mt-0.5" />
               <span>
-                <strong>Note:</strong> Agar aapko bache hue extra videos bhi upload karne hain, toh pehle curriculum builder mein naye <strong>Lecture Slots</strong> add karein, fir unhein upload karein.
+                <strong>Note:</strong> If you wish to upload the skipped {excessFilesWarning.excessCount === 1 ? 'video' : 'videos'}, please add more <strong>Lecture Slots</strong> in the Curriculum Builder first, then attach the remaining video files.
               </span>
             </div>
 
@@ -2157,7 +2156,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 }
                 className="px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs cursor-pointer hover:bg-primary/90"
               >
-                Theek Hai / Samjh Gaya 👍
+                Understood / Continue
               </button>
             </div>
           </div>
