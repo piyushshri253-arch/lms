@@ -416,21 +416,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         title: cleanedTitle,
         description: newSectionDescription.trim(),
         order: sections.length + 1,
-        lessons: [
-          {
-            id: `les-${Date.now()}-1`,
-            title: 'Welcome & Course Orientation',
-            description: '',
-            type: 'TEXT',
-            duration: '05:00',
-            durationSeconds: 300,
-            content: `# Welcome & Course Orientation\n\nWelcome to this course! Here is an overview of what you will learn in this module:\n\n## 1. Module Overview\n- Key concepts and learning objectives\n- Structured exercises and guides\n\n> 💡 **Tip:** Review each article carefully and take the quiz at the end to assess your understanding.\n\n---\n\n## Next Steps\nContinue to the next article to dive deeper!`,
-            subLessons: [],
-            isFree: false,
-            isPublished: true,
-            order: 1
-          }
-        ]
+        lessons: []
       };
       onChange([...sections, newSec]);
       showToast({ title: 'Module Added', description: `Created Module ${newSec.order}: ${newSec.title}`, type: 'success' });
