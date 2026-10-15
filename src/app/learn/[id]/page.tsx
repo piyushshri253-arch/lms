@@ -243,7 +243,7 @@ export default function LearnPlayerPage() {
   );
 
   // Determine primary/effective lesson content mode
-  const effectiveLessonType = useMemo<'VIDEO' | 'TEXT' | 'QUIZ' | 'PDF' | 'ASSIGNMENT'>(() => {
+  const effectiveLessonType = useMemo<'VIDEO' | 'TEXT' | 'QUIZ' | 'PDF'>(() => {
     // If the lecture has a video, the main theater player stage is ALWAYS the video.
     // Supplementary materials (Article .doc, PDF) are accessed via the 📁 Resources folder dropdown.
     if (hasValidVideo) {
@@ -251,16 +251,11 @@ export default function LearnPlayerPage() {
       return 'VIDEO';
     }
     if (activeMediaMode) return activeMediaMode;
-    const isAssignment =
-      activeLesson?.type === 'ASSIGNMENT' ||
-      lessonDisplayMap.get(activeLesson?.id)?.isAssignment ||
-      /^assignment\b/i.test(activeLesson?.title || '');
-    if (isAssignment) return 'ASSIGNMENT';
     if (activeLesson?.type === 'QUIZ' || hasQuizQuestions) return 'QUIZ';
     if (activeLesson?.type === 'TEXT' || hasArticleContent) return 'TEXT';
     if (activeLesson?.type === 'PDF' || hasPdfContent) return 'PDF';
     return (activeLesson?.type as any) || 'VIDEO';
-  }, [activeMediaMode, activeLesson, hasValidVideo, hasQuizQuestions, hasArticleContent, hasPdfContent, lessonDisplayMap]);
+  }, [activeMediaMode, activeLesson, hasValidVideo, hasQuizQuestions, hasArticleContent, hasPdfContent]);
 
   // Multiple content types count for switcher tabs
   const availableContentTypes = useMemo(() => {
@@ -595,7 +590,7 @@ export default function LearnPlayerPage() {
           {/* 2A. CINEMA THEATER STAGE (Responsive 16:9 Black Container) */}
           <div
             className={`w-full bg-black flex items-center justify-center relative shrink-0 ${
-              effectiveLessonType === 'QUIZ' || effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF' || effectiveLessonType === 'ASSIGNMENT'
+              effectiveLessonType === 'QUIZ' || effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF'
                 ? 'min-h-[480px] py-6 sm:py-10 px-4 bg-slate-950'
                 : 'min-h-[260px] sm:min-h-[380px] md:min-h-[460px] lg:min-h-[520px] max-h-[78vh]'
             }`}
@@ -674,53 +669,6 @@ export default function LearnPlayerPage() {
                   quizData={activeLesson?.quizData}
                   onPass={() => handleToggleLessonComplete(activeLesson?.id)}
                 />
-              </div>
-            ) : effectiveLessonType === 'ASSIGNMENT' ? (
-              <div className="w-full max-w-4xl p-6 sm:p-8 my-4 bg-slate-900 border border-slate-800 rounded-2xl text-white shadow-xl">
-                <div className="flex items-center gap-3 mb-4 border-b border-slate-800 pb-4">
-                  <div className="w-12 h-12 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30">
-                    <Icon name="assignment" size={24} />
-                  </div>
-                  <div>
-                    <span className="text-xs uppercase tracking-wider font-extrabold text-purple-400">
-                      {lessonDisplayMap.get(activeLesson?.id)?.typeLabel || 'Assignment'}
-                    </span>
-                    <h2 className="text-xl sm:text-2xl font-black text-white">
-                      {lessonDisplayMap.get(activeLesson?.id)?.cleanTitle || activeLesson?.title}
-                    </h2>
-                  </div>
-                </div>
-                <div className="text-slate-300 text-sm leading-relaxed mb-6 space-y-3">
-                  <p>{activeLesson?.description || activeLesson?.content || 'Review the assignment instructions, prepare your project deliverables, and submit them through the Assignments section below.'}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlayerTab('assignments');
-                      if (typeof window !== 'undefined') {
-                        const el = document.getElementById('lesson-tabs-section');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                    className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs flex items-center gap-2 cursor-pointer transition-colors shadow-md"
-                  >
-                    <Icon name="upload_file" size={16} />
-                    <span>View Assignment Brief &amp; Submit</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleLessonComplete(activeLesson?.id)}
-                    className={`px-5 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 cursor-pointer transition-colors ${
-                      isCurrentCompleted
-                        ? 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-300'
-                        : 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
-                    }`}
-                  >
-                    <Icon name={isCurrentCompleted ? 'check_circle' : 'radio_button_unchecked'} size={16} />
-                    <span>{isCurrentCompleted ? 'Completed ✓' : 'Mark as Complete'}</span>
-                  </button>
-                </div>
               </div>
             ) : effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF' ? (
               <div className="w-full max-w-4xl p-4 sm:p-6 my-4">
@@ -1128,11 +1076,9 @@ export default function LearnPlayerPage() {
                           const isVersionLocked = Boolean(les.versionLocked);
                           const isLessonLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
 
-                          const itemInfo = lessonDisplayMap.get(les.id);
-                          const isAssignmentItem = les.type === 'ASSIGNMENT' || (itemInfo?.isAssignment ?? false) || /^assignment\b/i.test(les.title || '');
-                          const isQuizItem = !isAssignmentItem && (les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) || (itemInfo?.isQuiz ?? false));
-                          const isArticleItem = !isAssignmentItem && !isQuizItem && (les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:'))));
-                          const isPdfItem = !isAssignmentItem && !isQuizItem && (les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:'))));
+                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isPdfItem = les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
 
                           return (
                             <div
@@ -1173,16 +1119,14 @@ export default function LearnPlayerPage() {
                                       : 'text-slate-800 hover:text-black font-semibold'
                                   }`}
                                 >
-                                  {itemInfo?.sidebarTitle || les.title}
+                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
                                 </span>
 
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
                                   <span className="flex items-center gap-1">
                                     <Icon
                                       name={
-                                        isAssignmentItem
-                                          ? 'assignment'
-                                          : isQuizItem
+                                        isQuizItem
                                           ? 'quiz'
                                           : isPdfItem
                                           ? 'picture_as_pdf'
@@ -1191,9 +1135,9 @@ export default function LearnPlayerPage() {
                                           : 'movie'
                                       }
                                       size={12}
-                                      className={isAssignmentItem ? 'text-purple-600' : 'text-slate-500'}
+                                      className="text-slate-500"
                                     />
-                                    <span>{les.duration || (isAssignmentItem ? 'Assignment' : isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
+                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
                                   </span>
 
                                   {isVersionLocked && (
@@ -1452,11 +1396,9 @@ export default function LearnPlayerPage() {
                           const isVersionLocked = Boolean(les.versionLocked);
                           const isLessonLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
 
-                          const itemInfo = lessonDisplayMap.get(les.id);
-                          const isAssignmentItem = les.type === 'ASSIGNMENT' || (itemInfo?.isAssignment ?? false) || /^assignment\b/i.test(les.title || '');
-                          const isQuizItem = !isAssignmentItem && (les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) || (itemInfo?.isQuiz ?? false));
-                          const isArticleItem = !isAssignmentItem && !isQuizItem && (les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:'))));
-                          const isPdfItem = !isAssignmentItem && !isQuizItem && (les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:'))));
+                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const isPdfItem = les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
 
                           return (
                             <div
@@ -1494,15 +1436,13 @@ export default function LearnPlayerPage() {
                                     isActive ? 'font-bold text-[#2d2f31]' : 'text-slate-800'
                                   }`}
                                 >
-                                  {itemInfo?.sidebarTitle || les.title}
+                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
                                 </span>
                                 <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
                                   <span className="flex items-center gap-1">
                                     <Icon
                                       name={
-                                        isAssignmentItem
-                                          ? 'assignment'
-                                          : isQuizItem
+                                        isQuizItem
                                           ? 'quiz'
                                           : isPdfItem
                                           ? 'picture_as_pdf'
@@ -1511,9 +1451,8 @@ export default function LearnPlayerPage() {
                                           : 'movie'
                                       }
                                       size={12}
-                                      className={isAssignmentItem ? 'text-purple-600' : 'text-slate-500'}
                                     />
-                                    <span>{les.duration || (isAssignmentItem ? 'Assignment' : isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
+                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
                                   </span>
                                   {isVersionLocked && (
                                     <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5">

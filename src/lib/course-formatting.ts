@@ -40,7 +40,7 @@ export function cleanLessonTitle(rawTitle: string | undefined | null): string {
     prev = title;
     title = title
       .replace(/^\d+(\.\d+)*\s*[:\.\-]?\s*/, '')
-      .replace(/^(lecture|lesson|quiz|assignment|project|task)\s*\d*(\.\d+)*\s*[:\.\-]?\s*/i, '')
+      .replace(/^(lecture|lesson|quiz)\s*\d*(\.\d+)*\s*[:\.\-]?\s*/i, '')
       .trim();
   }
   return title;
@@ -49,24 +49,21 @@ export function cleanLessonTitle(rawTitle: string | undefined | null): string {
 export interface FormattedLessonItem {
   id: string;
   itemNumber: number;
-  typeLabel: string;        // "Lecture 1", "Quiz 1", or "Assignment 1"
+  typeLabel: string;        // "Lecture 1" or "Quiz 1"
   cleanTitle: string;       // "Course Orientation & Tech Stack Setup"
-  sidebarTitle: string;     // "Lecture 1: Course Orientation & Tech Stack Setup", "Quiz 1: ...", or "Assignment 1: ..."
+  sidebarTitle: string;     // "Lecture 1: Course Orientation & Tech Stack Setup" or "Quiz 1"
   underPlayerTitle: string; // "Lecture 1: Course Orientation & Tech Stack Setup"
   isQuiz: boolean;
-  isAssignment: boolean;
-  itemType: 'LECTURE' | 'QUIZ' | 'ASSIGNMENT';
 }
 
 /**
- * Generates continuous course-wide numbering for lectures (Lecture 1, 2, 3...),
- * quizzes (Quiz 1, 2...), and assignments (Assignment 1, 2...) across sections/modules.
+ * Generates continuous course-wide numbering for lectures (Lecture 1, 2, 3...)
+ * and quizzes (Quiz 1, 2...) across sections/modules.
  */
 export function generateCurriculumDisplayMap(sections: any[]): Map<string, FormattedLessonItem> {
   const map = new Map<string, FormattedLessonItem>();
   let lectureCounter = 0;
   let quizCounter = 0;
-  let assignmentCounter = 0;
 
   (sections || []).forEach((sec: any) => {
     (sec.lessons || []).forEach((les: any) => {
@@ -74,13 +71,6 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
         les.type === 'QUIZ' ||
         Boolean(les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) ||
         /^quiz\b/i.test(les.title?.trim() || '');
-
-      const isAssignment =
-        !isQuiz && (
-          les.type === 'ASSIGNMENT' ||
-          Boolean(les.assignmentData || les.assignmentId) ||
-          /^assignment\b/i.test(les.title?.trim() || '')
-        );
 
       const baseClean = cleanLessonTitle(les.title);
 
@@ -95,24 +85,7 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
           cleanTitle: baseClean || typeLabel,
           sidebarTitle: display,
           underPlayerTitle: display,
-          isQuiz: true,
-          isAssignment: false,
-          itemType: 'QUIZ'
-        });
-      } else if (isAssignment) {
-        assignmentCounter += 1;
-        const typeLabel = `Assignment ${assignmentCounter}`;
-        const display = baseClean ? `${typeLabel}: ${baseClean}` : typeLabel;
-        map.set(les.id, {
-          id: les.id,
-          itemNumber: assignmentCounter,
-          typeLabel,
-          cleanTitle: baseClean || typeLabel,
-          sidebarTitle: display,
-          underPlayerTitle: display,
-          isQuiz: false,
-          isAssignment: true,
-          itemType: 'ASSIGNMENT'
+          isQuiz: true
         });
       } else {
         lectureCounter += 1;
@@ -125,9 +98,7 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
           cleanTitle: baseClean || typeLabel,
           sidebarTitle: display,
           underPlayerTitle: display,
-          isQuiz: false,
-          isAssignment: false,
-          itemType: 'LECTURE'
+          isQuiz: false
         });
       }
     });

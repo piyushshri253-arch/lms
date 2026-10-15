@@ -81,70 +81,59 @@ export const CurriculumAccordion: React.FC<CurriculumAccordionProps> = ({
 
               {isExpanded && (
                 <div className="divide-y divide-outline-variant/30 bg-surface-container-lowest">
-                  {mod.lessons.map((lesson) => {
-                    const itemInfo = lessonDisplayMap.get(lesson.id);
-                    const isAssignment = itemInfo?.isAssignment || (lesson as any).type === 'ASSIGNMENT';
-                    const isQuiz = itemInfo?.isQuiz || (lesson as any).type === 'QUIZ';
-                    const iconName = lesson.completed
-                      ? 'check_circle'
-                      : lesson.locked
-                      ? 'lock'
-                      : isAssignment
-                      ? 'assignment'
-                      : isQuiz
-                      ? 'quiz'
-                      : 'play_circle';
-
-                    return (
-                      <div
-                        key={lesson.id}
-                        className="px-6 py-3.5 flex items-center justify-between hover:bg-surface-container-low/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon
-                            name={iconName}
-                            fill={lesson.completed}
-                            size={18}
-                            className={
-                              lesson.completed
-                                ? 'text-primary'
-                                : lesson.locked
-                                ? 'text-outline'
-                                : isAssignment
-                                ? 'text-purple-600'
-                                : 'text-primary'
-                            }
-                          />
-                          <span
-                            className={`text-xs sm:text-sm font-medium ${
-                              lesson.locked ? 'text-on-surface-variant' : 'text-on-surface'
-                            }`}
-                          >
-                            {itemInfo?.sidebarTitle || lesson.title}
+                  {mod.lessons.map((lesson) => (
+                    <div
+                      key={lesson.id}
+                      className="px-6 py-3.5 flex items-center justify-between hover:bg-surface-container-low/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon
+                          name={
+                            lesson.completed
+                              ? 'check_circle'
+                              : lesson.locked
+                              ? 'lock'
+                              : 'play_circle'
+                          }
+                          fill={lesson.completed}
+                          size={18}
+                          className={
+                            lesson.completed
+                              ? 'text-primary'
+                              : lesson.locked
+                              ? 'text-outline'
+                              : 'text-primary'
+                          }
+                        />
+                        <span
+                          className={`text-xs sm:text-sm font-medium ${
+                            lesson.locked ? 'text-on-surface-variant' : 'text-on-surface'
+                          }`}
+                        >
+                          {lessonDisplayMap.get(lesson.id)?.sidebarTitle || lesson.title}
+                        </span>
+                        {(lesson as any).versionLocked && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5 shrink-0">
+                            <span>🔒</span>
+                            <span>{(lesson as any).requiredVersionLabel || 'v2.0'}</span>
                           </span>
-                          {(lesson as any).versionLocked && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5 shrink-0">
-                              <span>🔒</span>
-                              <span>{(lesson as any).requiredVersionLabel || 'v2.0'}</span>
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs text-on-surface-variant font-mono">
-                            {lesson.duration || (isAssignment ? 'Assignment' : isQuiz ? 'Quiz' : '10:00')}
-                          </span>
-                          {!lesson.locked && (
-                            <Link
-                              href={`/learn/${courseSlug}`}
-                              className="text-xs font-bold text-primary hover:underline"
-                            >
-                              Preview
-                            </Link>
-                          )}
-                        </div>
+                        )}
                       </div>
-                    );
-                  })}
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-on-surface-variant font-mono">
+                          {lesson.duration}
+                        </span>
+                        {!lesson.locked && (
+                          <Link
+                            href={`/learn/${courseSlug}`}
+                            className="text-xs font-bold text-primary hover:underline"
+                          >
+                            Preview
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
