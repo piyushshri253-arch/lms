@@ -97,8 +97,8 @@ export async function POST(req: NextRequest) {
 
     const allPresent = expectedChunkNames.every((name) => existingChunkFiles.includes(name));
     if (!allPresent && chunkIndex === totalChunks - 1) {
-      // Small race condition retry: wait 300ms to ensure all asynchronous chunk writes have finished
-      await new Promise((r) => setTimeout(r, 400));
+      // Fast non-blocking re-check if async write is flushing
+      await new Promise((r) => setTimeout(r, 100));
       const recheck = await fs.promises.readdir(uploadChunkDir);
       if (!expectedChunkNames.every((name) => recheck.includes(name))) {
         return NextResponse.json({
@@ -151,8 +151,8 @@ export async function POST(req: NextRequest) {
       await fs.promises.rmdir(uploadChunkDir).catch(() => {});
     } catch {}
 
-    // Store base64 data for files up to 50 MB in PostgreSQL MediaAsset table for cross-instance persistence on Vercel
-    const base64Data = finalBuffer.length <= 50 * 1024 * 1024 ? finalBuffer.toString('base64') : null;
+    // Only store lightweight base64 (<= 3 MB) in database to avoid multi-second DB network freezes and 98% hang
+    const base64Data = finalBuffer.length <= 3 * 1024 * 1024 ? finalBuffer.toString('base64') : null;
     const assetName = customTitle || originalFileName.replace(ext, '');
 
     let validCourseId: string | null = null;

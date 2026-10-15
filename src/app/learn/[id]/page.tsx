@@ -726,7 +726,7 @@ export default function LearnPlayerPage() {
                 {lessonDisplayMap.get(activeLesson?.id)?.underPlayerTitle || activeLesson?.title || 'Lecture'}
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
-                {activeLesson?.duration || '10:00'} • {activeSection ? `Module ${(allSections.indexOf(activeSection) + 1)}: ${cleanSectionTitle(activeSection.title, allSections.indexOf(activeSection) + 1)}` : 'Curriculum'}
+                {activeLesson?.duration || (lessonDisplayMap.get(activeLesson?.id)?.isArticle ? 'Article' : '10:00')} • {activeSection ? `Module ${(allSections.indexOf(activeSection) + 1)}: ${cleanSectionTitle(activeSection.title, allSections.indexOf(activeSection) + 1)}` : 'Curriculum'}
               </span>
             </div>
 
@@ -1076,9 +1076,10 @@ export default function LearnPlayerPage() {
                           const isVersionLocked = Boolean(les.versionLocked);
                           const isLessonLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
 
-                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
-                          const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
-                          const isPdfItem = les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const itemInfo = lessonDisplayMap.get(les.id);
+                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) || (itemInfo?.isQuiz ?? false);
+                          const isArticleItem = !isQuizItem && (les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) || (itemInfo?.isArticle ?? false));
+                          const isPdfItem = !isQuizItem && !isArticleItem && (les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:'))));
 
                           return (
                             <div
@@ -1119,7 +1120,7 @@ export default function LearnPlayerPage() {
                                       : 'text-slate-800 hover:text-black font-semibold'
                                   }`}
                                 >
-                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
+                                  {itemInfo?.sidebarTitle || les.title}
                                 </span>
 
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
@@ -1135,9 +1136,9 @@ export default function LearnPlayerPage() {
                                           : 'movie'
                                       }
                                       size={12}
-                                      className="text-slate-500"
+                                      className={isArticleItem ? 'text-amber-600' : 'text-slate-500'}
                                     />
-                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
+                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Article' : '10:00')}</span>
                                   </span>
 
                                   {isVersionLocked && (
@@ -1396,9 +1397,10 @@ export default function LearnPlayerPage() {
                           const isVersionLocked = Boolean(les.versionLocked);
                           const isLessonLocked = (!isEnrolled && !les.isFree) || isVersionLocked;
 
-                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
-                          const isArticleItem = les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
-                          const isPdfItem = les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:')));
+                          const itemInfo = lessonDisplayMap.get(les.id);
+                          const isQuizItem = les.type === 'QUIZ' || (les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) || (itemInfo?.isQuiz ?? false);
+                          const isArticleItem = !isQuizItem && (les.type === 'TEXT' || (les.content && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) || (itemInfo?.isArticle ?? false));
+                          const isPdfItem = !isQuizItem && !isArticleItem && (les.type === 'PDF' || (les.pdfUrl && (!les.videoUrl || les.videoUrl.startsWith('blob:'))));
 
                           return (
                             <div
@@ -1436,7 +1438,7 @@ export default function LearnPlayerPage() {
                                     isActive ? 'font-bold text-[#2d2f31]' : 'text-slate-800'
                                   }`}
                                 >
-                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
+                                  {itemInfo?.sidebarTitle || les.title}
                                 </span>
                                 <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
                                   <span className="flex items-center gap-1">
@@ -1451,8 +1453,9 @@ export default function LearnPlayerPage() {
                                           : 'movie'
                                       }
                                       size={12}
+                                      className={isArticleItem ? 'text-amber-600' : 'text-slate-500'}
                                     />
-                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Reading' : '10:00')}</span>
+                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Article' : '10:00')}</span>
                                   </span>
                                   {isVersionLocked && (
                                     <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5">

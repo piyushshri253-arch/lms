@@ -80,6 +80,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   // Module accordion collapse state
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
+  // Bulk upload lecture vs video count mismatch warning modal state
+  const [excessFilesWarning, setExcessFilesWarning] = useState<{
+    isOpen: boolean;
+    availableCount: number;
+    selectedCount: number;
+    excessCount: number;
+    queuedFileNames: string[];
+    excessFileNames: string[];
+  }>({
+    isOpen: false,
+    availableCount: 0,
+    selectedCount: 0,
+    excessCount: 0,
+    queuedFileNames: [],
+    excessFileNames: []
+  });
+
   // Helper to read video duration from client file with strict safety timeout
   const readVideoDuration = (file: File): Promise<{ durationText: string; durationSeconds: number }> => {
     return new Promise((resolve) => {
@@ -184,12 +201,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
     };
 
-    const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunks (safely below Vercel's 4.5 MB request limit)
+    const CHUNK_SIZE = Math.round(3.8 * 1024 * 1024); // 3.8 MB chunks (safely below Vercel's 4.5 MB request limit)
     const file = task.file;
     const totalSize = file.size;
 
-    // Use chunked upload for files larger than 3 MB to guarantee smooth, reliable uploads on Vercel
-    if (totalSize > 3 * 1024 * 1024) {
+    // Use chunked upload for files larger than 3.5 MB to guarantee smooth, reliable uploads on Vercel
+    if (totalSize > 3.5 * 1024 * 1024) {
       const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
       const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       let chunkIdx = 0;
@@ -217,6 +234,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
         const xhr = new XMLHttpRequest();
         xhr.withCredentials = true;
+        xhr.timeout = 180000; // 3 minutes timeout per chunk
 
         setTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, xhr } : t))
@@ -225,7 +243,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const uploadedBytes = start + e.loaded;
-            const pct = Math.min(98, Math.round((uploadedBytes / totalSize) * 100));
+            const pct = Math.min(99, Math.round((uploadedBytes / totalSize) * 99));
             setTasks((prev) =>
               prev.map((t) => (t.id === task.id ? { ...t, progress: pct } : t))
             );
@@ -276,6 +294,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           showToast({
             title: 'Upload Interrupted',
             description: `Network glitch while uploading "${task.file.name}". Please try again.`,
+            type: 'error'
+          });
+        };
+
+        xhr.ontimeout = () => {
+          aborted = true;
+          inFlightTaskIdsRef.current.delete(task.id);
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? { ...t, status: 'ERROR', errorMessage: 'Upload timed out. Please try again.' }
+                : t
+            )
+          );
+          showToast({
+            title: 'Upload Timed Out',
+            description: `Upload timed out for "${task.file.name}". Please check your internet connection.`,
             type: 'error'
           });
         };
@@ -484,12 +519,15 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     showToast({ title: 'Upload Cancelled', description: 'Task removed from queue.', type: 'info' });
   };
 
-  // Bulk multiple files selection: assigns selected files in sequential order to lessons
+  // Bulk multiple files selection: assigns selected files in sequential order to lessons (Strict 1-to-1 matching)
   const handleBulkSelectVideos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const allLessonsList: {
+    // Reset input value so user can select files again even if the same names are chosen
+    e.target.value = '';
+
+    const allVideoLessonsList: {
       sectionId: string;
       lessonId: string;
       moduleTitle: string;
@@ -501,7 +539,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       (s.lessons || [])
         .filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT')
         .forEach((l) => {
-          allLessonsList.push({
+          allVideoLessonsList.push({
             sectionId: s.id,
             lessonId: l.id,
             moduleTitle: s.title,
@@ -511,24 +549,30 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         });
     });
 
-    if (allLessonsList.length === 0) {
+    if (allVideoLessonsList.length === 0) {
       showToast({
         title: 'No Video Lectures Found',
-        description: 'This curriculum uses Written Articles and Quizzes. You can attach study resources below.',
-        type: 'info'
+        description: 'Curriculum mein abhi koi video lecture slot nahi hai (sirf Articles ya Quizzes hain). Kripya pehle video lecture slots banayein.',
+        type: 'error'
       });
-      e.target.value = '';
       return;
     }
 
-    let targetList = allLessonsList.filter((item) => !item.hasVideo);
+    // Prefer video lessons that don't have video yet; if all have videos, target all to allow updating
+    let targetList = allVideoLessonsList.filter((item) => !item.hasVideo);
     if (targetList.length === 0) {
-      targetList = allLessonsList;
+      targetList = allVideoLessonsList;
     }
 
+    const availableSlots = targetList.length;
+    const isExcess = files.length > availableSlots;
+    const filesToUpload = isExcess ? files.slice(0, availableSlots) : files;
+    const excessFiles = isExcess ? files.slice(availableSlots) : [];
+
+    // Strictly 1-to-1 mapping without modulo wrap-around
     const newTasks: VideoQueueTask[] = [];
-    files.forEach((file, idx) => {
-      const targetLesson = targetList[idx % targetList.length];
+    filesToUpload.forEach((file, idx) => {
+      const targetLesson = targetList[idx];
       if (targetLesson) {
         newTasks.push({
           id: `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
@@ -545,14 +589,30 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
     if (newTasks.length > 0) {
       setTasks((prev) => [...prev, ...newTasks]);
+    }
+
+    if (isExcess) {
+      setExcessFilesWarning({
+        isOpen: true,
+        availableCount: availableSlots,
+        selectedCount: files.length,
+        excessCount: excessFiles.length,
+        queuedFileNames: filesToUpload.map((f) => f.name),
+        excessFileNames: excessFiles.map((f) => f.name)
+      });
+
+      showToast({
+        title: '⚠️ Video Limit: Extra Video(s) Skipped',
+        description: `Curriculum mein sirf ${availableSlots} lecture slots hain, jabki ${files.length} videos select ki gayi thin. Pehle ${availableSlots} videos queue kiye gaye hain, baki ${excessFiles.length} video(s) skip kar diye gaye.`,
+        type: 'info'
+      });
+    } else {
       showToast({
         title: `${newTasks.length} Videos Added to Queue! 🚀`,
         description: `Max 2 videos will upload in parallel. Remaining videos will automatically upload next.`,
         type: 'success'
       });
     }
-
-    e.target.value = '';
   };
 
   // Multi-type resource upload handler (PDF, Document, Image, Zip, etc.)
@@ -2008,6 +2068,101 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         </Modal>
       )}
 
+      {/* Excess Files Warning Modal (e.g. 7 lectures vs 8 videos selected) */}
+      {excessFilesWarning.isOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() =>
+            setExcessFilesWarning({
+              isOpen: false,
+              availableCount: 0,
+              selectedCount: 0,
+              excessCount: 0,
+              queuedFileNames: [],
+              excessFileNames: []
+            })
+          }
+          title="Video Slots Limit Warning"
+          maxWidth="lg"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
+              <Icon name="warning" size={24} className="shrink-0 mt-0.5 text-amber-400" />
+              <div className="space-y-1">
+                <p className="font-bold text-sm text-on-surface">
+                  Slot Mismatch: {excessFilesWarning.selectedCount} Videos Selected for {excessFilesWarning.availableCount} Lecture Slots
+                </p>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Aapke course curriculum mein kul <strong className="text-primary font-bold">{excessFilesWarning.availableCount} video lectures</strong> hain, jabki aapne <strong className="text-amber-400 font-bold">{excessFilesWarning.selectedCount} video files</strong> select ki hain.
+                  Extra videos ko upload hone se rok diya gaya hai taaki koi bhi existing lecture overwrite na ho.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-surface-container border border-outline-variant/60 space-y-2">
+                <div className="flex items-center justify-between font-bold text-emerald-400">
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="check_circle" size={16} />
+                    <span>Queued for Upload ({excessFilesWarning.queuedFileNames.length})</span>
+                  </span>
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1 pr-1 font-mono text-[11px] text-on-surface-variant">
+                  {excessFilesWarning.queuedFileNames.map((name, i) => (
+                    <div key={i} className="flex items-center gap-1.5 truncate">
+                      <span className="text-primary font-bold shrink-0">#{i + 1}</span>
+                      <span className="truncate" title={name}>{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-2">
+                <div className="flex items-center justify-between font-bold text-rose-400">
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="block" size={16} />
+                    <span>Skipped / Not Uploaded ({excessFilesWarning.excessFileNames.length})</span>
+                  </span>
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1 pr-1 font-mono text-[11px] text-rose-300">
+                  {excessFilesWarning.excessFileNames.map((name, i) => (
+                    <div key={i} className="flex items-center gap-1.5 truncate">
+                      <span className="text-rose-400 font-bold shrink-0">#{excessFilesWarning.availableCount + i + 1}</span>
+                      <span className="truncate" title={name}>{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-start gap-2.5 text-xs text-on-surface-variant">
+              <Icon name="info" size={18} className="text-primary shrink-0 mt-0.5" />
+              <span>
+                <strong>Note:</strong> Agar aapko bache hue extra videos bhi upload karne hain, toh pehle curriculum builder mein naye <strong>Lecture Slots</strong> add karein, fir unhein upload karein.
+              </span>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-outline-variant/60">
+              <button
+                type="button"
+                onClick={() =>
+                  setExcessFilesWarning({
+                    isOpen: false,
+                    availableCount: 0,
+                    selectedCount: 0,
+                    excessCount: 0,
+                    queuedFileNames: [],
+                    excessFileNames: []
+                  })
+                }
+                className="px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs cursor-pointer hover:bg-primary/90"
+              >
+                Theek Hai / Samjh Gaya 👍
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
     </div>
   );
