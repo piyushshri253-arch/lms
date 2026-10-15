@@ -565,6 +565,335 @@ export function downloadCourseExcelTemplate() {
 }
 
 /**
+ * Exports current course state directly to an official Excel template file (.xlsx).
+ * This allows instructors to download their course curriculum with all modules,
+ * lectures, and details populated, make changes in Excel, and re-upload.
+ */
+export function exportCourseToExcelFile(course: any, targetFileName?: string) {
+  const wb = XLSX.utils.book_new();
+
+  const styles = {
+    headerDark: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1E293B' } },
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
+    headerBlue: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1E40AF' } },
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
+    headerPurple: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '581C87' } },
+      fill: { fgColor: { rgb: '581C87' } },
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
+    sectionBanner: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '1E3A8A' } },
+      fill: { fgColor: { rgb: 'DBEAFE' } },
+      alignment: { vertical: 'center', horizontal: 'left' }
+    },
+    boldTopic: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '0F172A' } },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true }
+    },
+    boldCenter: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '0F172A' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
+    },
+    requiredBadge: {
+      font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'B91C1C' } },
+      fill: { fgColor: { rgb: 'FEE2E2' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
+    },
+    optionalBadge: {
+      font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '475569' } },
+      fill: { fgColor: { rgb: 'F1F5F9' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
+    },
+    cellNormal: {
+      font: { name: 'Calibri', sz: 11, color: { rgb: '1E293B' } },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true }
+    },
+    centerNormal: {
+      font: { name: 'Calibri', sz: 11, color: { rgb: '1E293B' } },
+      alignment: { vertical: 'center', horizontal: 'center' }
+    },
+    cellInstruction: {
+      font: { name: 'Calibri', sz: 10, color: { rgb: '475569' }, italic: true },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true }
+    }
+  };
+
+  const toMultiString = (arr: any) => {
+    if (Array.isArray(arr)) return arr.filter(Boolean).join('; ');
+    if (typeof arr === 'string') return arr;
+    return '';
+  };
+
+  // 1. Course Details Sheet Data
+  const detailsAOA: any[][] = [
+    [
+      'Field Name (Topic)',
+      'Your Value / Enter Value Here',
+      'Status',
+      'Instructions & Examples'
+    ],
+    ['📌 SECTION 1: BASIC COURSE INFORMATION', '', '', ''],
+    [
+      'Course Title *',
+      course.title || '',
+      'REQUIRED',
+      'Enter the official title of your course'
+    ],
+    [
+      'Course Slug',
+      course.slug || '',
+      'OPTIONAL',
+      'URL slug for the course. Leave empty to auto-generate from the title'
+    ],
+    [
+      'Category *',
+      typeof course.category === 'object' && course.category ? course.category.name || '' : String(course.category || 'Teacher Development'),
+      'REQUIRED',
+      'Select category'
+    ],
+    [
+      'Skill Level *',
+      course.level || 'ALL_LEVELS',
+      'REQUIRED',
+      'Select difficulty level: Foundational, Intermediate, Advanced, or All Levels'
+    ],
+    [
+      'Language *',
+      course.language || 'English',
+      'REQUIRED',
+      'Primary language of instruction'
+    ],
+    ['📝 SECTION 2: DESCRIPTIONS & LEARNING OBJECTIVES', '', '', ''],
+    [
+      'Short Description *',
+      course.shortDescription || course.subtitle || '',
+      'REQUIRED',
+      'Compelling summary for course preview cards'
+    ],
+    [
+      'Full Course Description',
+      course.description || '',
+      'OPTIONAL',
+      'Detailed overview of the course'
+    ],
+    [
+      'What Students Will Learn',
+      toMultiString(course.whatYouWillLearn),
+      'OPTIONAL',
+      'Separate points with a semicolon (;)'
+    ],
+    [
+      'Prerequisites & Setup',
+      toMultiString(course.requirements),
+      'OPTIONAL',
+      'Separate prerequisites with a semicolon (;)'
+    ],
+    [
+      'Target Audience',
+      toMultiString(course.targetAudience),
+      'OPTIONAL',
+      'Separate audience groups with a semicolon (;)'
+    ],
+    ['💰 SECTION 3: PRICING & ENROLLMENT ACCESS', '', '', ''],
+    [
+      'Course Price (INR) *',
+      course.price !== undefined ? course.price : 0,
+      'REQUIRED',
+      'Course regular price in INR (0 for Free)'
+    ],
+    [
+      'Discount Price (INR)',
+      course.discountPrice || '',
+      'OPTIONAL',
+      'Optional discounted price'
+    ],
+    [
+      'Currency',
+      course.currency || 'INR',
+      'OPTIONAL',
+      'INR or USD'
+    ],
+    [
+      'Access Type',
+      course.accessType || 'LIFETIME',
+      'OPTIONAL',
+      'LIFETIME or LIMITED_DAYS'
+    ],
+    [
+      'Access Days',
+      course.accessDays || '',
+      'OPTIONAL',
+      'Number of days access is granted if limited'
+    ]
+  ];
+
+  const wsDetails = XLSX.utils.aoa_to_sheet(detailsAOA);
+  detailsAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    const isBanner = String(row[0]).startsWith('📌') || String(row[0]).startsWith('📝') || String(row[0]).startsWith('💰');
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsDetails[cellRef]) wsDetails[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsDetails[cellRef].s = styles.headerDark;
+      } else if (isBanner) {
+        wsDetails[cellRef].s = styles.sectionBanner;
+      } else {
+        if (cIdx === 0) wsDetails[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1) wsDetails[cellRef].s = styles.cellNormal;
+        else if (cIdx === 2) wsDetails[cellRef].s = row[2] === 'REQUIRED' ? styles.requiredBadge : styles.optionalBadge;
+        else if (cIdx === 3) wsDetails[cellRef].s = styles.cellInstruction;
+      }
+    }
+  });
+
+  wsDetails['!cols'] = [{ wch: 32 }, { wch: 65 }, { wch: 18 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb, wsDetails, 'Course Details');
+
+  // 2. Curriculum Syllabus Sheet Data
+  const curriculumAOA: any[][] = [
+    [
+      'Module Title (Write once per module)',
+      'Topic / Lesson Title *',
+      'Content Type (LECTURE / ARTICLE / QUIZ) *',
+      'Duration (mm:ss)',
+      'Free Preview (Yes / No)',
+      'Written Article Content / Notes (Markdown for Written Articles)'
+    ]
+  ];
+
+  const sections = Array.isArray(course.sections) ? course.sections : [];
+  sections.forEach((sec: any) => {
+    const lessons = Array.isArray(sec.lessons) ? sec.lessons : [];
+    if (lessons.length === 0) {
+      curriculumAOA.push([sec.title || 'Untitled Module', '', '', '', '', '']);
+    } else {
+      lessons.forEach((les: any, lIdx: number) => {
+        let typeStr = 'LECTURE';
+        if (les.type === 'TEXT' || les.type === 'ARTICLE') typeStr = 'ARTICLE';
+        else if (les.type === 'QUIZ') typeStr = 'QUIZ';
+
+        curriculumAOA.push([
+          lIdx === 0 ? (sec.title || 'Module') : '',
+          les.title || '',
+          typeStr,
+          les.duration || '10:00',
+          les.isFree ? 'Yes' : 'No',
+          les.content || ''
+        ]);
+      });
+    }
+  });
+
+  if (curriculumAOA.length === 1) {
+    curriculumAOA.push(['Module 1: Foundations', 'Orientation & Tech Stack', 'LECTURE', '10:00', 'Yes', '']);
+  }
+
+  const wsCurriculum = XLSX.utils.aoa_to_sheet(curriculumAOA);
+  curriculumAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsCurriculum[cellRef]) wsCurriculum[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsCurriculum[cellRef].s = styles.headerBlue;
+      } else {
+        if (cIdx === 0 || cIdx === 1) wsCurriculum[cellRef].s = styles.boldTopic;
+        else if (cIdx === 2 || cIdx === 3 || cIdx === 4) wsCurriculum[cellRef].s = styles.boldCenter;
+        else if (cIdx === 5) wsCurriculum[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
+  wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 70 }];
+  XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
+
+  // 3. Quizzes & MCQs Sheet
+  const quizzesAOA: any[][] = [
+    [
+      'Module / Section Title',
+      'Quiz Title *',
+      'Question #',
+      'Question Text *',
+      'Option A *',
+      'Option B *',
+      'Option C',
+      'Option D',
+      'Correct Option (A / B / C / D) *',
+      'Explanation / Feedback',
+      'Passing Score (%)'
+    ]
+  ];
+
+  sections.forEach((sec: any) => {
+    (sec.lessons || []).forEach((les: any) => {
+      if (les.type === 'QUIZ' && les.quizData) {
+        let qData: any = les.quizData;
+        if (typeof qData === 'string') {
+          try { qData = JSON.parse(qData); } catch {}
+        }
+        const questions = Array.isArray(qData?.questions) ? qData.questions : [];
+        const passingScore = qData?.passingScore || 70;
+        questions.forEach((q: any, qIdx: number) => {
+          const opts = Array.isArray(q.options) ? q.options : [];
+          const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+          const letter = ['A', 'B', 'C', 'D'][correctIdx] || 'A';
+          quizzesAOA.push([
+            qIdx === 0 ? (sec.title || 'Module') : '',
+            qIdx === 0 ? (les.title || 'Quiz') : '',
+            qIdx + 1,
+            q.question || '',
+            opts[0] || '',
+            opts[1] || '',
+            opts[2] || '',
+            opts[3] || '',
+            letter,
+            q.explanation || '',
+            qIdx === 0 ? passingScore : ''
+          ]);
+        });
+      }
+    });
+  });
+
+  if (quizzesAOA.length === 1) {
+    quizzesAOA.push(['Module 1', 'Sample Knowledge Check', 1, 'Sample Question?', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A', 'Correct answer', 70]);
+  }
+
+  const wsQuizzes = XLSX.utils.aoa_to_sheet(quizzesAOA);
+  quizzesAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsQuizzes[cellRef]) wsQuizzes[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsQuizzes[cellRef].s = styles.headerPurple;
+      } else {
+        if (cIdx === 0 || cIdx === 1 || cIdx === 3) wsQuizzes[cellRef].s = styles.boldTopic;
+        else if (cIdx === 2 || cIdx === 8 || cIdx === 10) wsQuizzes[cellRef].s = styles.boldCenter;
+        else wsQuizzes[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
+  wsQuizzes['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
+
+  const finalName = targetFileName?.endsWith('.xlsx')
+    ? targetFileName
+    : `${(targetFileName || course.slug || 'Course_Curriculum').replace(/[^a-zA-Z0-9_\-]/g, '_')}.xlsx`;
+
+  XLSX.writeFile(wb, finalName);
+}
+
+/**
  * Parses duration string (e.g. "12:30" or "15") into total seconds
  */
 function parseDurationToSeconds(durationStr: string): number {

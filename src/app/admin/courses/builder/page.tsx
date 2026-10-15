@@ -17,7 +17,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
-import { downloadCourseExcelTemplate, parseCourseExcelFile } from '@/lib/course-excel';
+import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile } from '@/lib/course-excel';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
 import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
 
@@ -78,6 +78,13 @@ const getDefaultCourseState = () => ({
   ] as BuilderSection[]
 });
 
+export interface UploadedExcelRecord {
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+  fileData?: string;
+}
+
 function CourseBuilderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,7 +94,9 @@ function CourseBuilderContent() {
     searchParams.get('slug') || searchParams.get('courseId') || searchParams.get('id') || '';
 
   const draftStorageKey = `morena_course_builder_draft_${editSlugOrId || 'new'}`;
+  const excelStorageKey = `morena_uploaded_excel_${editSlugOrId || 'new'}`;
 
+  const [uploadedExcel, setUploadedExcel] = useState<UploadedExcelRecord | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(!!editSlugOrId);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -109,6 +118,23 @@ function CourseBuilderContent() {
   // Video Tutorial Modal State (Dual English & Hindi walkthrough)
   const [isTutorialModalOpen, setIsTutorialModalOpen] = useState<boolean>(false);
   const [tutorialModalLang, setTutorialModalLang] = useState<'en' | 'hi'>('en');
+
+  // Load cached uploaded excel file on mount or when course changes
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(excelStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.fileName) {
+          setUploadedExcel(parsed);
+        }
+      } else {
+        setUploadedExcel(null);
+      }
+    } catch {
+      // Ignore parse error
+    }
+  }, [excelStorageKey]);
 
   // Full Course Form State
   const [courseState, setCourseState] = useState<{
@@ -953,6 +979,14 @@ function CourseBuilderContent() {
 
     setIsImportingExcel(true);
     try {
+      // Convert to base64 so user can re-download this exact uploaded file
+      const fileBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string) || '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+
       const parsed = await parseCourseExcelFile(file);
 
       if (!parsed.title && (!parsed.sections || parsed.sections.length === 0)) {
@@ -980,12 +1014,30 @@ function CourseBuilderContent() {
         // Thumbnail is intentionally kept manual as requested: "thumnail vo maunally he kraega"
       }));
 
+      // Store uploaded file info & replace previous file ("purani wali hatt jaye, jo upload kiya hai wahi download par aa jaye")
+      const newRecord: UploadedExcelRecord = {
+        fileName: file.name,
+        fileSize: file.size,
+        uploadedAt: new Date().toISOString(),
+        fileData: fileBase64
+      };
+      setUploadedExcel(newRecord);
+
+      try {
+        localStorage.setItem(excelStorageKey, JSON.stringify(newRecord));
+      } catch (storageErr) {
+        console.warn('Could not cache full file in localStorage, caching metadata only:', storageErr);
+        try {
+          localStorage.setItem(excelStorageKey, JSON.stringify({ ...newRecord, fileData: '' }));
+        } catch {}
+      }
+
       const modulesCount = parsed.sections?.length || 0;
       const lessonsCount = (parsed.sections || []).reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
 
       showToast({
         title: 'Course Auto-Filled from Excel! 🚀',
-        description: `"${parsed.title || 'Course'}" imported! Basic info, ${modulesCount} modules (${lessonsCount} lessons), and pricing auto-filled successfully.`,
+        description: `"${file.name}" uploaded successfully! ${modulesCount} modules and ${lessonsCount} lessons imported.`,
         type: 'success'
       });
     } catch (err: any) {
@@ -998,6 +1050,53 @@ function CourseBuilderContent() {
       setIsImportingExcel(false);
       e.target.value = '';
     }
+  };
+
+  const handleDownloadUploadedExcel = () => {
+    if (!uploadedExcel) return;
+
+    try {
+      if (uploadedExcel.fileData) {
+        // Direct download of the exact uploaded file
+        const link = document.createElement('a');
+        link.href = uploadedExcel.fileData;
+        link.download = uploadedExcel.fileName || 'Course_Curriculum.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast({
+          title: 'File Downloaded 📥',
+          description: `Downloaded "${uploadedExcel.fileName}". You can edit it and re-upload here.`,
+          type: 'success'
+        });
+      } else {
+        // Fallback: export populated course spreadsheet
+        exportCourseToExcelFile(courseStateRef.current, uploadedExcel.fileName || `${courseStateRef.current.slug || 'Course'}_Curriculum.xlsx`);
+        showToast({
+          title: 'Excel Downloaded 📥',
+          description: `Exported populated course curriculum spreadsheet. Edit in Excel and re-upload here.`,
+          type: 'success'
+        });
+      }
+    } catch (err: any) {
+      showToast({
+        title: 'Download Failed',
+        description: err?.message || 'Could not download Excel file.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleRemoveUploadedExcel = () => {
+    setUploadedExcel(null);
+    try {
+      localStorage.removeItem(excelStorageKey);
+    } catch {}
+    showToast({
+      title: 'File Removed',
+      description: 'Uploaded template record cleared. You can upload a new Excel file anytime.',
+      type: 'info'
+    });
   };
 
   const renderStepNavigationBar = (isTop: boolean = false) => (
@@ -1196,6 +1295,49 @@ function CourseBuilderContent() {
               className="hidden"
             />
           </label>
+
+          {/* Uploaded File Chip with Download Icon */}
+          {uploadedExcel && (
+            <div className="flex items-center gap-2.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-emerald-950 dark:text-emerald-100 text-xs shadow-2xs animate-in fade-in slide-in-from-left-2 duration-200">
+              <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Icon name="description" size={16} />
+              </div>
+              <div className="flex flex-col min-w-0 pr-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <span className="truncate max-w-[150px] sm:max-w-[240px]" title={uploadedExcel.fileName}>
+                    {uploadedExcel.fileName}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono shrink-0">
+                    ({uploadedExcel.fileSize ? `${(uploadedExcel.fileSize / 1024).toFixed(1)} KB` : 'Active'})
+                  </span>
+                </div>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  Uploaded file • Download to edit &amp; re-upload
+                </span>
+              </div>
+
+              {/* Download Icon Button */}
+              <button
+                type="button"
+                onClick={handleDownloadUploadedExcel}
+                className="px-2.5 py-1.5 bg-white dark:bg-emerald-900 hover:bg-emerald-100 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-100 font-bold text-xs rounded-lg border border-emerald-300 dark:border-emerald-600 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 shrink-0"
+                title={`Download ${uploadedExcel.fileName}`}
+              >
+                <Icon name="download" size={15} className="text-emerald-700 dark:text-emerald-300" />
+                <span>Download</span>
+              </button>
+
+              {/* Remove / Clear Button */}
+              <button
+                type="button"
+                onClick={handleRemoveUploadedExcel}
+                className="p-1 text-emerald-700/60 hover:text-rose-600 rounded cursor-pointer transition-colors"
+                title="Remove this uploaded template record"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+          )}
 
           {/* Watch Tutorial Video Button (Dual-Language Hindi & English) */}
           <button
