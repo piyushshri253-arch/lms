@@ -882,7 +882,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                 <div className="space-y-3 pt-1">
                   {section.lessons.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-500 border border-dashed border-[#d1d7dc] bg-white rounded-md space-y-2">
-                      <p>No curriculum items in Module {moduleNum} yet.</p>
+                      <p>No curriculum items in Module {moduleNum} yet. Add as many lectures, articles, or quizzes as you need (no limit).</p>
                       <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
                         <button
                           type="button"
@@ -1581,6 +1581,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       <Icon name="quiz" size={15} />
                       <span>+ Add Quiz</span>
                     </button>
+                    <span className="text-[11px] font-medium text-slate-500 ml-auto hidden sm:inline flex items-center gap-1">
+                      <Icon name="all_inclusive" size={14} className="text-primary" />
+                      <span>Unlimited items per module</span>
+                    </span>
                   </div>
                 </div>
               </div>

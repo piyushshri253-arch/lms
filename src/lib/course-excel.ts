@@ -26,7 +26,8 @@ export interface ParsedCourseData {
  */
 export function cleanModuleTitle(raw?: string | null): string {
   if (!raw) return '';
-  let str = String(raw).trim();
+  const original = String(raw).trim();
+  let str = original;
   // Strip leading "Module 1:", "Section 1 -", "Module 01.", "Module 1", "Section 1"
   str = str.replace(/^(module|section)\s*\d+[\s:\-\.]*/i, '').trim();
   // Strip leading numbers like "1: ", "1 - ", "1. "
@@ -34,7 +35,7 @@ export function cleanModuleTitle(raw?: string | null): string {
   // If only a lone number or single word "Module" was left, clear it
   str = str.replace(/^\d+(\.\d+)*$/, '').trim();
   str = str.replace(/^(module|section)$/i, '').trim();
-  return str;
+  return str || original;
 }
 
 /**
@@ -43,7 +44,8 @@ export function cleanModuleTitle(raw?: string | null): string {
  */
 export function cleanLectureTitle(raw?: string | null): string {
   if (!raw) return '';
-  let str = String(raw).trim();
+  const original = String(raw).trim();
+  let str = original;
   // Strip leading "Lecture 1:", "Lesson 1 -", "Lecture 01.", "Lecture 1", "Lesson 1"
   str = str.replace(/^(lecture|lesson)\s*\d+[\s:\-\.]*/i, '').trim();
   // Strip leading numbering like "1.1: ", "1.1 - ", "1.1.1 ", "1.1 ", "01. ", "1 - ", "1: ", "1. "
@@ -51,7 +53,7 @@ export function cleanLectureTitle(raw?: string | null): string {
   // If only a lone number or decimal like "1" or "1.1" was left, clear it
   str = str.replace(/^\d+(\.\d+)*$/, '').trim();
   str = str.replace(/^(lecture|lesson)$/i, '').trim();
-  return str;
+  return str || original;
 }
 
 /**
@@ -60,7 +62,8 @@ export function cleanLectureTitle(raw?: string | null): string {
  */
 export function cleanQuizTitle(raw?: string | null): string {
   if (!raw) return '';
-  let str = String(raw).trim();
+  const original = String(raw).trim();
+  let str = original;
   // Strip leading "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
   str = str.replace(/^(quiz|assessment)\s*\d+[\s:\-\.]*/i, '').trim();
   // Strip leading numbers like "1: ", "1 - ", "1. "
@@ -68,7 +71,7 @@ export function cleanQuizTitle(raw?: string | null): string {
   // If only a lone number or "Quiz" was left, clear it
   str = str.replace(/^\d+(\.\d+)*$/, '').trim();
   str = str.replace(/^(quiz|assessment)$/i, '').trim();
-  return str;
+  return str || original;
 }
 
 /**
@@ -286,6 +289,22 @@ export function downloadCourseExcelTemplate() {
       'Setting Up Developer Workspace & Tools',
       'LECTURE',
       '14:15',
+      'No',
+      ''
+    ],
+    [
+      '',
+      'Git Workflow, Branching & Code Repository Setup',
+      'LECTURE',
+      '16:20',
+      'No',
+      ''
+    ],
+    [
+      '',
+      'CLI Commands & Terminal Mastery for Web Developers',
+      'LECTURE',
+      '12:45',
       'No',
       ''
     ],
@@ -526,15 +545,19 @@ export function downloadCourseExcelTemplate() {
       'Write the Module Title only on the first lesson row of that module. For all subsequent lessons within the same module, leave the Module Title column BLANK! The system will automatically group all consecutive lessons under that module until a new Module Title is specified.'
     ],
     [
-      '🚫 STEP 4: Avoid Redundant Numbering Prefixes in Titles',
+      '♾️ STEP 4: No Limit on Lectures Per Module (Add Unlimited Lectures)',
+      'There is absolutely NO LIMIT on how many lectures you can put in a module! You can add 2, 5, 10, 25, or 50+ lectures inside any single module. Simply keep adding rows with your topic titles under that module.'
+    ],
+    [
+      '🚫 STEP 5: Avoid Redundant Numbering Prefixes in Titles',
       'Do not manually type prefixes like "Module 1:" or "Lecture 1:" in the title cells. The LMS platform automatically numbers and formats all modules (Module 1, Module 2) and lessons (Lecture 1, Article 1, Quiz 1) dynamically!'
     ],
     [
-      '❓ STEP 5: Add Quizzes & MCQs Effortlessly',
+      '❓ STEP 6: Add Quizzes & MCQs Effortlessly',
       'In the "Quizzes & MCQs" tab, write the Module and Quiz Title on the first question row. For subsequent questions belonging to the same quiz, leave the Module and Quiz Title BLANK. Enter options A through D, and specify the exact uppercase letter (A, B, C, or D) in the Correct Option column.'
     ],
     [
-      '🚀 STEP 6: Save & Upload Spreadsheet into Course Builder',
+      '🚀 STEP 7: Save & Upload Spreadsheet into Course Builder',
       'After filling in your details, save your Excel spreadsheet (.xlsx). In the LMS Course Builder, click the "Upload Excel (.xlsx)" button and select your file. Your entire curriculum, articles, and quizzes will be generated automatically in seconds!'
     ]
   ];
