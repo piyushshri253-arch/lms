@@ -666,7 +666,7 @@ export default function AdminReviewersPage() {
             <div className="p-3 rounded-xl bg-surface-variant/40 border border-outline-variant/40 space-y-2 text-xs">
               <div>
                 <span className="text-[10px] text-outline uppercase font-bold block">Auditor Studio Login URL:</span>
-                <span className="font-mono text-primary font-semibold">https://lms-phi-plum.vercel.app/reviewer/login</span>
+                <span className="font-mono text-primary font-semibold">https://lms-ipvw.vercel.app/reviewer/login</span>
               </div>
               <div>
                 <span className="text-[10px] text-outline uppercase font-bold block">Email:</span>
@@ -683,7 +683,7 @@ export default function AdminReviewersPage() {
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    `Auditor Studio Login: https://lms-phi-plum.vercel.app/reviewer/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
+                    `Auditor Studio Login: https://lms-ipvw.vercel.app/reviewer/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
                   );
                   showToast({ title: 'Copied!', description: 'Auditor credentials copied to clipboard.', type: 'success' });
                 }}

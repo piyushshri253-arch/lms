@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Resolves the canonical public base URL for Morena Teach LMS.
  * Prioritizes configured production URLs over localhost to ensure
  * email action buttons, invitation links, and payment redirects always work.
@@ -26,5 +26,5 @@ export function getBaseUrl(): string {
   }
 
   // Default to live production deployment
-  return 'https://lms-phi-plum.vercel.app';
+  return 'https://lms-ipvw.vercel.app';
 }

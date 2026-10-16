@@ -848,7 +848,7 @@ function InstructorsPageContent() {
             <div className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant space-y-3 font-mono text-xs">
               <div>
                 <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Login URL</span>
-                <span className="font-bold text-primary select-all">https://lms-phi-plum.vercel.app/instructor/login</span>
+                <span className="font-bold text-primary select-all">https://lms-ipvw.vercel.app/instructor/login</span>
               </div>
               <div>
                 <span className="text-[10px] text-outline uppercase font-bold tracking-wider block">Email Address</span>
@@ -865,7 +865,7 @@ function InstructorsPageContent() {
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    `Morena Teach LMS - Instructor Login Credentials:\nURL: https://lms-phi-plum.vercel.app/instructor/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
+                    `Morena Teach LMS - Instructor Login Credentials:\nURL: https://lms-ipvw.vercel.app/instructor/login\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
                   );
                   showToast({ title: 'Copied!', description: 'Credentials copied to clipboard.', type: 'success' });
                 }}

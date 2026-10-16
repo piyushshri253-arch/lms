@@ -1155,8 +1155,8 @@ export default function SuperAdminInstructorsPage() {
                 <span className="text-[10px] text-outline uppercase font-bold block">Portal Login URL:</span>
                 <span className="text-primary font-bold">
                   {createdCredentials.role === 'REVIEWER'
-                    ? 'https://lms-phi-plum.vercel.app/reviewer/login'
-                    : 'https://lms-phi-plum.vercel.app/instructor/login'}
+                    ? 'https://lms-ipvw.vercel.app/reviewer/login'
+                    : 'https://lms-ipvw.vercel.app/instructor/login'}
                 </span>
               </div>
               <div>
@@ -1175,8 +1175,8 @@ export default function SuperAdminInstructorsPage() {
                 onClick={() => {
                   const loginUrl =
                     createdCredentials.role === 'REVIEWER'
-                      ? 'https://lms-phi-plum.vercel.app/reviewer/login'
-                      : 'https://lms-phi-plum.vercel.app/instructor/login';
+                      ? 'https://lms-ipvw.vercel.app/reviewer/login'
+                      : 'https://lms-ipvw.vercel.app/instructor/login';
                   navigator.clipboard.writeText(
                     `Login URL: ${loginUrl}\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
                   );

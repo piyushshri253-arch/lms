@@ -190,7 +190,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
                 <strong>Morena Teach Technologies Pvt. Ltd.</strong><br />
                 CIN: U80903DL2024PTC392812<br />
                 GSTIN: 07AABCT8923M1Z8<br />
-                support@morenateach.com | https://lms-phi-plum.vercel.app
+                support@morenateach.com | https://lms-ipvw.vercel.app
               </p>
             </div>
 
