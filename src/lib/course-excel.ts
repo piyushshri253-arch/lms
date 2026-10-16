@@ -64,6 +64,10 @@ export function cleanQuizTitle(raw?: string | null): string {
   if (!raw) return '';
   const original = String(raw).trim();
   let str = original;
+  // If it's a Final Assignment, preserve it cleanly
+  if (/final\s*assignment/i.test(str)) {
+    return 'Final Assignment';
+  }
   // Strip leading "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
   str = str.replace(/^(quiz|assessment)\s*\d+[\s:\-\.]*/i, '').trim();
   // Strip leading numbers like "1: ", "1 - ", "1. "
@@ -271,7 +275,7 @@ export function downloadCourseExcelTemplate() {
     [
       'Module Title (Write once per module)',
       'Topic / Lesson Title *',
-      'Content Type (LECTURE / ARTICLE / QUIZ) *',
+      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSIGNMENT) *',
       'Duration (mm:ss)',
       'Free Preview (Yes / No)',
       'Written Article Content / Notes (Markdown for Written Articles)'
@@ -363,6 +367,14 @@ export function downloadCourseExcelTemplate() {
       '05:00',
       'No',
       '# Database Schema Cheatsheet\nPostgreSQL table schemas, relationships, indexing rules, and migration best practices.'
+    ],
+    [
+      'Course Completion & Certification',
+      'Final Assignment',
+      'FINAL ASSIGNMENT',
+      '30:00',
+      'No',
+      '# Course Final Assignment\n\nMandatory comprehensive assessment covering all curriculum modules. Students must achieve the configured passing percentage (e.g., 80%) to pass the course and unlock the official verifiable Certificate of Completion.'
     ]
   ];
 
@@ -388,7 +400,7 @@ export function downloadCourseExcelTemplate() {
   wsCurriculum['!cols'] = [
     { wch: 42 }, // Module Title
     { wch: 48 }, // Topic / Lesson Title
-    { wch: 36 }, // Content Type
+    { wch: 38 }, // Content Type
     { wch: 20 }, // Duration
     { wch: 24 }, // Free Preview
     { wch: 65 }  // Article Content
@@ -487,6 +499,45 @@ export function downloadCourseExcelTemplate() {
       'A',
       'The WHERE clause filters rows satisfying given Boolean conditions.',
       70
+    ],
+    [
+      'Course Completion & Certification',
+      'Final Assignment',
+      1,
+      'Which architectural approach separates client presentation from server database logic with secure APIs?',
+      'Monolithic with no boundaries',
+      'Client-Server Architecture with REST/GraphQL APIs',
+      'Single-threaded mainframe',
+      'Static HTML only',
+      'B',
+      'Modern web systems use structured client-server architecture with protected API boundaries.',
+      80
+    ],
+    [
+      '',
+      '',
+      2,
+      'When designing a production database schema, what ensures relational integrity across related tables?',
+      'Arbitrary JSON strings',
+      'Foreign Key Constraints & Relations',
+      'Global public variables',
+      'Random IDs without indexes',
+      'B',
+      'Foreign key constraints enforce relational integrity between parent and child tables.',
+      80
+    ],
+    [
+      '',
+      '',
+      3,
+      'Why is HTTPS required for modern web applications and user authentication?',
+      'It speeds up CSS rendering',
+      'It encrypts sensitive credentials and session tokens over the network',
+      'It decreases video file size',
+      'It allows unrestricted CORS access',
+      'B',
+      'HTTPS uses TLS to encrypt payload data, protecting passwords and auth tokens from eavesdropping.',
+      80
     ]
   ];
 
@@ -512,7 +563,7 @@ export function downloadCourseExcelTemplate() {
   });
 
   wsQuizzes['!cols'] = [
-    { wch: 22 }, // Module
+    { wch: 24 }, // Module
     { wch: 35 }, // Quiz Title
     { wch: 8 },  // Q#
     { wch: 75 }, // Question Text
@@ -527,6 +578,17 @@ export function downloadCourseExcelTemplate() {
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
 
   // 4. User Guide & Format Instructions Sheet
+  const wsGuide = buildGuideInstructionsSheet(styles);
+  XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
+
+  // Trigger browser download
+  XLSX.writeFile(wb, 'MORENA_Course_Upload_Template.xlsx');
+}
+
+/**
+ * Builds the official User Guide & Format Instructions worksheet with crystal-clear rules.
+ */
+export function buildGuideInstructionsSheet(styles: any) {
   const guideAOA: any[][] = [
     [
       'Step / Key Topic',
@@ -537,28 +599,36 @@ export function downloadCourseExcelTemplate() {
       '1. Navigate to the "Course Details" tab.\n2. Enter your course Title, Category, Language, Skill Level, and Pricing.\n3. All core topic fields are highlighted in BOLD font, and essential fields are marked with "REQUIRED" status.\n4. For "What Students Will Learn", "Prerequisites", and "Target Audience", separate each bullet point with a semicolon (;).'
     ],
     [
-      '🎥 STEP 2: Curriculum Structure (LECTURE vs ARTICLE vs QUIZ)',
-      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can upload video media in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for interactive MCQ assessments. (Questions are linked from the "Quizzes & MCQs" tab).'
+      '🎥 STEP 2: Curriculum Content Types (LECTURE, ARTICLE, QUIZ, FINAL ASSIGNMENT)',
+      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSIGNMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in "Quizzes & MCQs").'
     ],
     [
-      '📁 STEP 3: Do Not Repeat Module Names on Every Row',
-      'Write the Module Title only on the first lesson row of that module. For all subsequent lessons within the same module, leave the Module Title column BLANK! The system will automatically group all consecutive lessons under that module until a new Module Title is specified.'
+      '🏆 STEP 3: Mandatory Final Assignment & Certificate Gate',
+      'Every course MUST have a "Final Assignment" at the end of the curriculum before it can be submitted for approval!\n• Content Type: FINAL ASSIGNMENT (or name the topic "Final Assignment").\n• Questions & Passing Score: Add comprehensive questions in the "Quizzes & MCQs" tab with your desired Passing Score (%) (e.g. 75% or 80%).\n• Certificate Eligibility: When a student passes this Final Assignment, they immediately unlock the official verifiable Certificate of Completion. If they score below the passing score, they receive retake and review options.'
     ],
     [
-      '♾️ STEP 4: No Limit on Lectures Per Module (Add Unlimited Lectures)',
+      '💯 STEP 4: Quiz Passing Score (%) & Auto-Advance Behavior',
+      'Set the "Passing Score (%)" for every Quiz and Final Assignment in the "Quizzes & MCQs" tab (Column K):\n• When a Student PASSES (Score >= Passing Score): Their score is shown on screen, and after 5 seconds the player automatically advances to the next lecture (or triggers certificate celebration for the Final Assignment)!\n• When a Student FAILS (Score < Passing Score): The score remains on screen with a full question breakdown and a Retake Quiz button; the player does NOT automatically jump to the next lecture.'
+    ],
+    [
+      '📹 STEP 5: Bulk Video Uploading (Supports up to 500 MB / 300 MB Videos)',
+      'Uploading videos is fast and seamless:\n1. In this Excel template, list all your video lectures with clean titles under Content Type "LECTURE" (leave video URLs blank).\n2. Upload this Excel file into the Course Builder.\n3. Open "Curriculum Studio / Batch Media Manager" and click "Bulk Select Multiple Videos".\n4. Select all your video files from your computer at once. The platform supports videos up to 500 MB each (such as 300 MB MP4/WebM videos) with smart 3.8 MB chunking and max 2 parallel uploads to ensure zero network failures, zero timeouts, and smooth real-time progress.'
+    ],
+    [
+      '♾️ STEP 6: No Limit on Lectures Per Module (Add Unlimited Lectures)',
       'There is absolutely NO LIMIT on how many lectures you can put in a module! You can add 2, 5, 10, 25, or 50+ lectures inside any single module. Simply keep adding rows with your topic titles under that module.'
     ],
     [
-      '🚫 STEP 5: Avoid Redundant Numbering Prefixes in Titles',
-      'Do not manually type prefixes like "Module 1:" or "Lecture 1:" in the title cells. The LMS platform automatically numbers and formats all modules (Module 1, Module 2) and lessons (Lecture 1, Article 1, Quiz 1) dynamically!'
+      '📁 STEP 7: Module Grouping Rule (Do Not Repeat Module Names)',
+      'Write the Module Title ONLY on the first lesson row of that module. For all subsequent lessons within the same module, leave the Module Title column BLANK! The system will automatically group all consecutive rows under that module until a new Module Title is specified.'
     ],
     [
-      '❓ STEP 6: Add Quizzes & MCQs Effortlessly',
-      'In the "Quizzes & MCQs" tab, write the Module and Quiz Title on the first question row. For subsequent questions belonging to the same quiz, leave the Module and Quiz Title BLANK. Enter options A through D, and specify the exact uppercase letter (A, B, C, or D) in the Correct Option column.'
+      '🚫 STEP 8: Clean Titles (Avoid Redundant Numbering Prefixes)',
+      'Do not manually type prefixes like "Module 1:" or "Lecture 1:" in the title cells. The LMS platform automatically numbers and formats all modules (Module 1, Module 2) and lessons (Lecture 1, Article 1, Quiz 1, Final Assignment) dynamically!'
     ],
     [
-      '🚀 STEP 7: Save & Upload Spreadsheet into Course Builder',
-      'After filling in your details, save your Excel spreadsheet (.xlsx). In the LMS Course Builder, click the "Upload Excel (.xlsx)" button and select your file. Your entire curriculum, articles, and quizzes will be generated automatically in seconds!'
+      '🚀 STEP 9: Save & Upload Spreadsheet into Course Builder',
+      'After filling in your details, save your Excel spreadsheet (.xlsx). In the LMS Course Builder, click the "Upload Excel (.xlsx)" button and select your file. Your entire curriculum, articles, quizzes, and Final Assignment will be generated automatically in seconds!'
     ]
   ];
 
@@ -579,12 +649,9 @@ export function downloadCourseExcelTemplate() {
 
   wsGuide['!cols'] = [
     { wch: 38 }, // Step / Topic
-    { wch: 100 } // Easy Instructions
+    { wch: 105 } // Easy Instructions
   ];
-  XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
-
-  // Trigger browser download
-  XLSX.writeFile(wb, 'MORENA_Course_Upload_Template.xlsx');
+  return wsGuide;
 }
 
 /**
@@ -785,7 +852,7 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     [
       'Module Title (Write once per module)',
       'Topic / Lesson Title *',
-      'Content Type (LECTURE / ARTICLE / QUIZ) *',
+      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSIGNMENT) *',
       'Duration (mm:ss)',
       'Free Preview (Yes / No)',
       'Written Article Content / Notes (Markdown for Written Articles)'
@@ -800,8 +867,13 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     } else {
       lessons.forEach((les: any, lIdx: number) => {
         let typeStr = 'LECTURE';
-        if (les.type === 'TEXT' || les.type === 'ARTICLE') typeStr = 'ARTICLE';
-        else if (les.type === 'QUIZ') typeStr = 'QUIZ';
+        if (les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*assignment/i.test(les.title || '')) || /final\s*assignment/i.test(les.title || '')) {
+          typeStr = 'FINAL ASSIGNMENT';
+        } else if (les.type === 'TEXT' || les.type === 'ARTICLE') {
+          typeStr = 'ARTICLE';
+        } else if (les.type === 'QUIZ') {
+          typeStr = 'QUIZ';
+        }
 
         curriculumAOA.push([
           lIdx === 0 ? (sec.title || 'Module') : '',
@@ -835,7 +907,7 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     }
   });
 
-  wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 70 }];
+  wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 70 }];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
 
   // 3. Quizzes & MCQs Sheet
@@ -863,14 +935,15 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
           try { qData = JSON.parse(qData); } catch {}
         }
         const questions = Array.isArray(qData?.questions) ? qData.questions : [];
-        const passingScore = qData?.passingScore || 70;
+        const isFinal = Boolean(les.isFinalAssignment || /final\s*assignment/i.test(les.title || ''));
+        const passingScore = qData?.passingScore || (isFinal ? 80 : 70);
         questions.forEach((q: any, qIdx: number) => {
           const opts = Array.isArray(q.options) ? q.options : [];
           const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
           const letter = ['A', 'B', 'C', 'D'][correctIdx] || 'A';
           quizzesAOA.push([
             qIdx === 0 ? (sec.title || 'Module') : '',
-            qIdx === 0 ? (les.title || 'Quiz') : '',
+            qIdx === 0 ? (les.title || (isFinal ? 'Final Assignment' : 'Quiz')) : '',
             qIdx + 1,
             q.question || '',
             opts[0] || '',
@@ -908,6 +981,10 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
 
   wsQuizzes['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
+
+  // 4. Append User Guide & Format Instructions Sheet
+  const wsGuide = buildGuideInstructionsSheet(styles);
+  XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
   const finalName = targetFileName?.endsWith('.xlsx')
     ? targetFileName
@@ -1221,11 +1298,21 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
 
         // 2. Lecture / Lesson Creation:
         if (rawLessonTitle || lessonDesc || durationStr) {
-          const isQuiz = /quiz/i.test(lessonTypeRaw) || /quiz/i.test(rawLessonTitle);
-          const isText = /article|text|written|reading|note/i.test(lessonTypeRaw);
-          const isPdf = /pdf|doc|file|handout/i.test(lessonTypeRaw);
+          const isFinalAssignment =
+            /final\s*assignment/i.test(lessonTypeRaw) ||
+            /final\s*assignment/i.test(rawLessonTitle);
+          const isQuiz =
+            isFinalAssignment ||
+            /quiz|assessment|exam|test/i.test(lessonTypeRaw) ||
+            /quiz|assessment|exam|test/i.test(rawLessonTitle);
+          const isText =
+            !isQuiz && /article|text|written|reading|note/i.test(lessonTypeRaw);
+          const isPdf =
+            !isQuiz && !isText && /pdf|doc|file|handout/i.test(lessonTypeRaw);
 
-          const finalLessonTitle = isQuiz
+          const finalLessonTitle = isFinalAssignment
+            ? 'Final Assignment'
+            : isQuiz
             ? (cleanQuizTitle(rawLessonTitle) || '')
             : cleanedLessonTitle;
           const durationSeconds = parseDurationToSeconds(durationStr);
@@ -1240,7 +1327,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           currentSection.lessons.push({
             id: `les-${Date.now()}-${currentSection.order}-${currentSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
             title: finalLessonTitle,
-            description: lessonDesc || '',
+            description: lessonDesc || (isFinalAssignment ? 'Mandatory comprehensive final assessment for certificate qualification.' : ''),
             type: normalizedType,
             duration: durationStr,
             durationSeconds,
@@ -1251,11 +1338,12 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
                 : undefined,
             isFree,
             isPublished: true,
+            isFinalAssignment: isFinalAssignment,
             order: currentSection.lessons.length + 1,
             quizData: isQuiz
               ? {
                   questions: [],
-                  passingScore: 70,
+                  passingScore: isFinalAssignment ? 80 : 70,
                   attemptLimit: 0
                 }
               : undefined,
@@ -1380,13 +1468,21 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         }
 
         const secOrder = activeSection.order || 1;
-        const cleanedQuizTitle = quizTitleRaw ? cleanQuizTitle(quizTitleRaw) : '';
+        const isFinalAssignment =
+          /final\s*assignment/i.test(quizTitleRaw) ||
+          /final\s*assignment/i.test(moduleIdentifier);
+        const cleanedQuizTitle = isFinalAssignment
+          ? 'Final Assignment'
+          : quizTitleRaw
+          ? cleanQuizTitle(quizTitleRaw)
+          : '';
 
         // 2. Resolve Target Quiz Lesson inside activeSection:
         if (quizTitleRaw) {
           // Explicit Quiz Title given on this row:
           let foundQuiz = activeSection.lessons.find((l) => {
             if (l.type !== 'QUIZ') return false;
+            if (isFinalAssignment && (l.isFinalAssignment || /final\s*assignment/i.test(l.title || ''))) return true;
             if (cleanedQuizTitle && l.title.toLowerCase().trim() === cleanedQuizTitle.toLowerCase().trim()) return true;
             if (l.title.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()) return true;
             return false;
@@ -1399,28 +1495,33 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             );
             if (foundQuiz) {
               foundQuiz.title = cleanedQuizTitle;
+              if (isFinalAssignment) foundQuiz.isFinalAssignment = true;
             }
           }
 
           if (!foundQuiz) {
             foundQuiz = {
               id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-              title: cleanedQuizTitle,
-              description: `Assessment for Module ${secOrder}`,
+              title: isFinalAssignment ? 'Final Assignment' : cleanedQuizTitle,
+              description: isFinalAssignment ? 'Mandatory Final Assignment for Certification' : `Assessment for Module ${secOrder}`,
               type: 'QUIZ',
-              duration: '10:00',
-              durationSeconds: 600,
+              duration: isFinalAssignment ? '30:00' : '10:00',
+              durationSeconds: isFinalAssignment ? 1800 : 600,
               isFree: false,
               isPublished: true,
+              isFinalAssignment: isFinalAssignment,
               order: activeSection.lessons.length + 1,
               quizData: {
                 questions: [],
-                passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+                passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || (isFinalAssignment ? 80 : 70) : (isFinalAssignment ? 80 : 70),
                 attemptLimit: 0
               },
               subLessons: []
             };
             activeSection.lessons.push(foundQuiz);
+          } else if (isFinalAssignment) {
+            foundQuiz.isFinalAssignment = true;
+            foundQuiz.title = 'Final Assignment';
           }
 
           activeQuizLesson = foundQuiz;
@@ -1431,17 +1532,18 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
             if (!activeQuizLesson) {
               activeQuizLesson = {
                 id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-                title: '',
-                description: `Assessment for Module ${secOrder}`,
+                title: isFinalAssignment ? 'Final Assignment' : '',
+                description: isFinalAssignment ? 'Mandatory Final Assignment for Certification' : `Assessment for Module ${secOrder}`,
                 type: 'QUIZ',
-                duration: '10:00',
-                durationSeconds: 600,
+                duration: isFinalAssignment ? '30:00' : '10:00',
+                durationSeconds: isFinalAssignment ? 1800 : 600,
                 isFree: false,
                 isPublished: true,
+                isFinalAssignment: isFinalAssignment,
                 order: activeSection.lessons.length + 1,
                 quizData: {
                   questions: [],
-                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || (isFinalAssignment ? 80 : 70) : (isFinalAssignment ? 80 : 70),
                   attemptLimit: 0
                 },
                 subLessons: []
@@ -1497,6 +1599,8 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         }
         if (passScoreRaw && !isNaN(parseInt(passScoreRaw, 10))) {
           qData.passingScore = parseInt(passScoreRaw, 10);
+        } else if (isFinalAssignment && (!qData.passingScore || qData.passingScore === 70)) {
+          qData.passingScore = 80;
         }
         qData.questions.push(newQuestion);
       });
