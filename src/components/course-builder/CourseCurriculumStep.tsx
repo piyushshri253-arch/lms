@@ -745,14 +745,37 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       pdfUrl: updatedLesson.pdfUrl?.startsWith('blob:') ? '' : updatedLesson.pdfUrl
     };
 
+    const targetSecId = editingLesson.sectionId;
+    const targetLesId = sanitizedLesson.id;
+    const origLesId = editingLesson.lesson?.id;
+    const targetOrder = editingLesson.lesson?.order;
+
     const updatedSections = sections.map((s) => {
-      if (s.id === editingLesson.sectionId) {
-        return {
-          ...s,
-          lessons: s.lessons.map((l) => (l.id === sanitizedLesson.id ? sanitizedLesson : l))
-        };
+      if (s.id !== targetSecId && (s as any).tempId !== targetSecId) return s;
+
+      let matchedIdx = s.lessons.findIndex(
+        (l) =>
+          l.id === targetLesId ||
+          (origLesId && l.id === origLesId) ||
+          (l as any).tempId === targetLesId ||
+          (origLesId && (l as any).tempId === origLesId)
+      );
+
+      if (matchedIdx === -1 && typeof targetOrder === 'number') {
+        matchedIdx = s.lessons.findIndex((l) => l.order === targetOrder);
       }
-      return s;
+
+      if (matchedIdx !== -1) {
+        const nextLessons = [...s.lessons];
+        nextLessons[matchedIdx] = {
+          ...nextLessons[matchedIdx],
+          ...sanitizedLesson,
+          id: nextLessons[matchedIdx].id // Preserve latest ID (server CUID or local ID)
+        };
+        return { ...s, lessons: nextLessons };
+      }
+
+      return { ...s, lessons: [...s.lessons, sanitizedLesson] };
     });
 
     onChange(updatedSections);
@@ -1473,6 +1496,66 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     />
                                   </div>
 
+                                  {/* Attached Video Badge or Upload Button */}
+                                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                    {les.videoUrl ? (
+                                      <div className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-blue-50 text-blue-950 px-2 py-0.5 rounded border border-blue-300 shadow-2xs">
+                                        <Icon name="play_circle" size={13} className="text-blue-600" />
+                                        <span className="truncate max-w-[130px]">
+                                          {les.videoFileName || 'Video Attached'}
+                                        </span>
+                                        <span className="text-[10px] text-blue-700 font-semibold">
+                                          ({les.duration || '10:00'})
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setVideoModalTarget({
+                                              sectionId: section.id,
+                                              lessonId: les.id,
+                                              title: les.title || `Lecture ${itemMeta.num}`
+                                            })
+                                          }
+                                          className="text-blue-800 hover:text-blue-950 hover:underline cursor-pointer ml-0.5 text-[10px]"
+                                          title="Replace or change video"
+                                        >
+                                          Change
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleUpdateLessonInline(section.id, les.id, {
+                                              videoUrl: '',
+                                              videoFileName: '',
+                                              clearVideo: true,
+                                              removeVideo: true
+                                            } as any)
+                                          }
+                                          className="text-slate-400 hover:text-rose-600 cursor-pointer ml-0.5"
+                                          title="Remove attached video"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setVideoModalTarget({
+                                            sectionId: section.id,
+                                            lessonId: les.id,
+                                            title: les.title || `Lecture ${itemMeta.num}`
+                                          })
+                                        }
+                                        className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-950 px-2.5 py-1 rounded border border-blue-300 cursor-pointer transition-colors shadow-2xs"
+                                        title="Attach Video (Upload MP4 from computer, paste URL, or choose from media library)"
+                                      >
+                                        <Icon name="videocam" size={13} className="text-blue-700" />
+                                        <span>+ Attach Video</span>
+                                      </button>
+                                    )}
+                                  </div>
+
                                   {/* Free Preview Checkbox */}
                                   <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
                                     <input
@@ -1489,7 +1572,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   </label>
                                 </div>
 
-                                {/* Delete button on Lecture (No edit button) */}
+                                {/* Delete button on Lecture */}
                                 <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                   <button
                                     type="button"

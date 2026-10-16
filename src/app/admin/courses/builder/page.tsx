@@ -256,6 +256,10 @@ function CourseBuilderContent() {
           id: l.id,
           title: l.title,
           type: l.type,
+          contentLength: l.content?.length || 0,
+          contentPreview: (l.content || '').slice(0, 40),
+          quizCount: typeof l.quizData === 'object' && l.quizData?.questions ? l.quizData.questions.length : 0,
+          quizScore: typeof l.quizData === 'object' ? l.quizData?.passingScore : undefined,
           videoUrl: l.videoUrl,
           pdfUrl: l.pdfUrl,
           fileUrl: l.fileUrl,
@@ -612,19 +616,19 @@ function CourseBuilderContent() {
         // Synchronize server-assigned database IDs for sections & lessons so subsequent auto-saves never loop
         if (responseData?.course?.sections && Array.isArray(responseData.course.sections)) {
           const currentState = courseStateRef.current;
-          const syncedSections: BuilderSection[] = responseData.course.sections.map((s: any, sIdx: number) => ({
-            id: s.id,
-            title: s.title || `Module ${sIdx + 1}`,
-            description: s.description || '',
-            order: s.order || sIdx + 1,
-            lessons: (s.lessons || []).map((l: any, lIdx: number) => {
+          const serverSectionIds = new Set(responseData.course.sections.map((s: any) => s.id));
+
+          const syncedSections: BuilderSection[] = responseData.course.sections.map((s: any, sIdx: number) => {
+            const localSec = (currentState.sections || []).find((sec) => sec.id === s.id) || currentState.sections?.[sIdx];
+            const serverLessonIds = new Set((s.lessons || []).map((l: any) => l.id));
+
+            const mappedLessons = (s.lessons || []).map((l: any, lIdx: number) => {
               // Local section and lesson lookup to preserve any local videoUrl or resources that were just attached
-              const localSec = (currentState.sections || []).find((sec) => sec.id === s.id) || currentState.sections?.[sIdx];
               const localLes = localSec?.lessons?.find((les) => les.id === l.id) || localSec?.lessons?.[lIdx];
               const isVideoExplicitlyCleared = Boolean((localLes as any)?.clearVideo || (localLes as any)?.removeVideo || localLes?.videoUrl === '');
-              const resolvedVideo = isVideoExplicitlyCleared ? '' : (l.videoUrl || localLes?.videoUrl || '');
-              const resolvedPdf = l.pdfUrl || localLes?.pdfUrl || '';
-              const resolvedFile = l.fileUrl || localLes?.fileUrl || '';
+              const resolvedVideo = isVideoExplicitlyCleared ? '' : (localLes?.videoUrl || l.videoUrl || '');
+              const resolvedPdf = localLes?.pdfUrl || l.pdfUrl || '';
+              const resolvedFile = localLes?.fileUrl || l.fileUrl || '';
 
               let parsedRes: any = null;
               try {
@@ -632,7 +636,7 @@ function CourseBuilderContent() {
               } catch {}
               const subLessons = Array.isArray(parsedRes)
                 ? parsedRes
-                : (parsedRes?.subLessons || localLes?.subLessons || []);
+                : (localLes?.subLessons || parsedRes?.subLessons || []);
               const videoFileName = isVideoExplicitlyCleared ? '' : (localLes?.videoFileName || (!Array.isArray(parsedRes) && parsedRes?.videoFileName) || l.videoFileName);
               const resourceFileName = localLes?.resourceFileName || (!Array.isArray(parsedRes) && parsedRes?.resourceFileName) || l.resourceFileName;
 
@@ -652,35 +656,75 @@ function CourseBuilderContent() {
               const finalFile = resolvedFile || finalResources[0]?.url || '';
               const finalResName = resourceFileName || localLes?.resourceFileName || finalResources[0]?.name || '';
 
+              // Preserve any in-flight edits the user has made locally (typing in input, editing modal)
+              const resolvedTitle = (localLes?.title !== undefined && localLes?.title !== '')
+                ? localLes.title
+                : (l.title || '');
+              const resolvedContent = localLes?.content !== undefined
+                ? localLes.content
+                : (l.content || '');
+              const resolvedDescription = localLes?.description !== undefined
+                ? localLes.description
+                : (l.description || '');
+              const resolvedType = localLes?.type || l.type || 'VIDEO';
+
+              let resolvedQuizData = localLes?.quizData;
+              if (!resolvedQuizData && l.quizData) {
+                resolvedQuizData = typeof l.quizData === 'string'
+                  ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })()
+                  : l.quizData;
+              }
+
               return {
                 id: l.id,
-                title: l.title || `Lesson ${lIdx + 1}`,
-                description: l.description || '',
-                type: l.type || 'VIDEO',
-                content: l.content || '',
+                tempId: localLes?.id?.startsWith('les-') ? localLes.id : (localLes as any)?.tempId,
+                title: resolvedTitle,
+                description: resolvedDescription,
+                type: resolvedType,
+                content: resolvedContent,
                 videoUrl: resolvedVideo,
                 videoFileName,
                 resourceFileName: finalResName,
                 resourcesList,
                 pdfUrl: finalPdf,
                 fileUrl: finalFile,
-                quizData: l.quizData ? (typeof l.quizData === 'string' ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })() : l.quizData) : null,
+                quizData: resolvedQuizData || null,
                 subLessons,
-                duration: l.duration || localLes?.duration || '10:00',
-                durationSeconds: l.durationSeconds || localLes?.durationSeconds || 600,
-                isFree: Boolean(l.isFree),
-                isFinalAssignment: Boolean(l.isFinalAssignment || localLes?.isFinalAssignment || (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))),
+                duration: localLes?.duration || l.duration || '10:00',
+                durationSeconds: localLes?.durationSeconds || l.durationSeconds || 600,
+                isFree: localLes?.isFree !== undefined ? Boolean(localLes.isFree) : Boolean(l.isFree),
+                isFinalAssignment: Boolean(localLes?.isFinalAssignment || l.isFinalAssignment || (resolvedType === 'QUIZ' && /final\s+assignment/i.test(resolvedTitle))),
                 isPublished: l.isPublished !== false,
                 order: l.order || lIdx + 1
               };
-            })
-          }));
+            });
+
+            // CRITICAL: Retain any newly added local lessons in this section that were not yet included in server response
+            const pendingLocalLessons = (localSec?.lessons || []).filter((les, idx) => {
+              if (idx < (s.lessons || []).length) return false;
+              return !serverLessonIds.has(les.id);
+            });
+
+            return {
+              id: s.id,
+              tempId: localSec?.id?.startsWith('sec-') ? localSec.id : (localSec as any)?.tempId,
+              title: localSec?.title || s.title || `Module ${sIdx + 1}`,
+              description: localSec?.description !== undefined ? localSec.description : (s.description || ''),
+              order: s.order || sIdx + 1,
+              lessons: [...mappedLessons, ...pendingLocalLessons]
+            };
+          });
+
+          // CRITICAL: Retain any newly added local sections that were not yet included in server response
+          const pendingLocalSections = (currentState.sections || []).filter(
+            (sec) => !serverSectionIds.has(sec.id) && sec.id.startsWith('sec-')
+          );
 
           const updatedState = {
             ...currentState,
             id: savedCourseId || currentState.id,
             slug: savedSlug || currentState.slug,
-            sections: syncedSections
+            sections: [...syncedSections, ...pendingLocalSections]
           };
 
           courseStateRef.current = updatedState;
@@ -702,6 +746,10 @@ function CourseBuilderContent() {
                 id: l.id,
                 title: l.title,
                 type: l.type,
+                contentLength: l.content?.length || 0,
+                contentPreview: (l.content || '').slice(0, 40),
+                quizCount: typeof l.quizData === 'object' && l.quizData?.questions ? l.quizData.questions.length : 0,
+                quizScore: typeof l.quizData === 'object' ? l.quizData?.passingScore : undefined,
                 videoUrl: l.videoUrl,
                 pdfUrl: l.pdfUrl,
                 fileUrl: l.fileUrl,

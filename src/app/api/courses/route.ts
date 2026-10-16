@@ -337,24 +337,25 @@ export async function POST(request: Request) {
                 ? les.videoUrl
                 : null;
             let lesType = les.type || 'VIDEO';
-            if (lesType === 'VIDEO' && !cleanVideoUrl) {
+            if (!les.type) {
               if (quizDataStr) {
                 try {
                   const q = JSON.parse(quizDataStr);
                   if (Array.isArray(q?.questions) && q.questions.length > 0) lesType = 'QUIZ';
                 } catch {}
-              }
-              if (lesType === 'VIDEO' && les.content && les.content.trim().length > 0) {
-                lesType = 'TEXT';
-              } else if (lesType === 'VIDEO' && les.pdfUrl) {
+              } else if (cleanVideoUrl) {
+                lesType = 'VIDEO';
+              } else if (les.pdfUrl) {
                 lesType = 'PDF';
+              } else if (les.content && les.content.trim().length > 0) {
+                lesType = 'TEXT';
               }
             }
 
             await prisma.lesson.create({
               data: {
                 sectionId: createdSec.id,
-                title: les.title || `Lesson ${lIdx + 1}`,
+                title: les.title !== undefined ? les.title : `Lesson ${lIdx + 1}`,
                 description: les.description || null,
                 type: lesType,
                 content: les.content || null,

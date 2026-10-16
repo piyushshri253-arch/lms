@@ -837,17 +837,18 @@ export async function PUT(
             }
 
             let lesType = lesData.type || 'VIDEO';
-            if (lesType === 'VIDEO' && !cleanVideoUrl) {
+            if (!lesData.type) {
               if (quizDataStr) {
                 try {
                   const q = JSON.parse(quizDataStr);
                   if (Array.isArray(q?.questions) && q.questions.length > 0) lesType = 'QUIZ';
                 } catch {}
-              }
-              if (lesType === 'VIDEO' && lesData.content && lesData.content.trim().length > 0) {
-                lesType = 'TEXT';
-              } else if (lesType === 'VIDEO' && cleanPdfUrl) {
+              } else if (cleanVideoUrl) {
+                lesType = 'VIDEO';
+              } else if (cleanPdfUrl) {
                 lesType = 'PDF';
+              } else if (lesData.content && lesData.content.trim().length > 0) {
+                lesType = 'TEXT';
               }
             }
 
@@ -855,7 +856,7 @@ export async function PUT(
               const updatedLesson = await prisma.lesson.update({
                 where: { id: existingLesson.id },
                 data: {
-                  title: lesData.title,
+                  title: lesData.title !== undefined ? lesData.title : existingLesson.title,
                   description: lesData.description !== undefined ? lesData.description : undefined,
                   type: lesType,
                   content: lesData.content !== undefined ? lesData.content : undefined,
@@ -876,7 +877,7 @@ export async function PUT(
               const newLesson = await prisma.lesson.create({
                 data: {
                   sectionId: section.id,
-                  title: lesData.title || `Lesson ${lIdx + 1}`,
+                  title: lesData.title !== undefined ? lesData.title : `Lesson ${lIdx + 1}`,
                   description: lesData.description || null,
                   type: lesType,
                   content: lesData.content || null,
