@@ -961,9 +961,26 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         {qCount} {qCount === 1 ? 'Question' : 'Questions'}
                                       </span>
                                     </span>
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-white text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                                      Passing: {qConf.passingScore || 70}%
-                                    </span>
+                                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white text-purple-900 px-2 py-0.5 rounded border border-purple-200 shadow-2xs">
+                                      <Icon name="verified" size={13} className="text-purple-600" />
+                                      <span>Passing:</span>
+                                      <input
+                                        type="number"
+                                        min={10}
+                                        max={100}
+                                        value={qConf.passingScore ?? 70}
+                                        onChange={(e) => {
+                                          const val = Math.min(100, Math.max(10, Number(e.target.value) || 70));
+                                          handleUpdateLessonInline(section.id, les.id, {
+                                            quizData: { ...qConf, passingScore: val }
+                                          });
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-11 px-1 py-0.5 bg-purple-50 text-center font-extrabold rounded border border-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-600 text-xs text-purple-950"
+                                        title="Passing percentage required for student to pass and auto-advance"
+                                      />
+                                      <span>%</span>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -1015,22 +1032,25 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                     <div className="flex items-center gap-3">
                                       {/* Passing Score Input */}
-                                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2.5 py-1">
-                                        <span className="text-[11px] font-bold text-slate-600">Passing Score:</span>
+                                      <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 shadow-2xs">
+                                        <div className="flex items-center gap-1 text-[11px] font-extrabold text-purple-950">
+                                          <Icon name="verified" size={14} className="text-purple-600" />
+                                          <span>Passing Score:</span>
+                                        </div>
                                         <input
                                           type="number"
                                           min={10}
                                           max={100}
-                                          value={qConf.passingScore || 70}
+                                          value={qConf.passingScore ?? 70}
                                           onChange={(e) => {
                                             const val = Math.min(100, Math.max(10, Number(e.target.value) || 70));
                                             handleUpdateLessonInline(section.id, les.id, {
                                               quizData: { ...qConf, passingScore: val }
                                             });
                                           }}
-                                          className="w-12 px-1 py-0.5 bg-white border border-slate-300 rounded text-center text-xs font-bold text-slate-800 focus:outline-none"
+                                          className="w-12 px-1 py-0.5 bg-white border border-purple-300 rounded text-center text-xs font-black text-purple-900 focus:outline-none focus:ring-1 focus:ring-purple-600 shadow-2xs"
                                         />
-                                        <span className="text-[11px] font-bold text-slate-600">%</span>
+                                        <span className="text-xs font-bold text-purple-900">%</span>
                                       </div>
 
                                       <button
@@ -1041,6 +1061,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         ✕ Close
                                       </button>
                                     </div>
+                                  </div>
+
+                                  {/* Passing Rule Note */}
+                                  <div className="p-2.5 rounded-lg bg-purple-50/70 border border-purple-200/80 text-[11px] text-purple-900 flex items-center gap-2">
+                                    <Icon name="info" size={15} className="text-purple-600 shrink-0" />
+                                    <span>
+                                      <strong>Auto-Progression Rule:</strong> Students who score <strong>{qConf.passingScore ?? 70}% or higher</strong> will see their score for 5 seconds and automatically advance to the next lecture. Students who score below this threshold will see their failure score and must retake the quiz to proceed.
+                                    </span>
                                   </div>
 
                                   {/* Questions List */}

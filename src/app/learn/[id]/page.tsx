@@ -399,6 +399,30 @@ export default function LearnPlayerPage() {
     }
   };
 
+  // Automatically advance to the next lecture after student passes a quiz
+  const handleQuizAdvance = () => {
+    const currentId = activeLesson?.id;
+    if (currentId && !completedLessonIds.includes(currentId)) {
+      handleToggleLessonComplete(currentId);
+    }
+    if (currentIndex < allLessons.length - 1) {
+      const nextLesson = allLessons[currentIndex + 1];
+      const nextTitle = lessonDisplayMap.get(nextLesson.id)?.underPlayerTitle || nextLesson.title || 'Next Lecture';
+      showToast({
+        title: 'Quiz Passed! 🎯',
+        description: `Advancing to ${nextTitle}`,
+        type: 'success'
+      });
+      handleSelectLesson(nextLesson.id, true);
+    } else {
+      showToast({
+        title: 'Course Completed! 🎉',
+        description: 'You have finished all curriculum items in this course.',
+        type: 'success'
+      });
+    }
+  };
+
   const handleToggleLessonComplete = async (targetLessonId?: string) => {
     const lId = targetLessonId || activeLesson?.id;
     if (!lId) return;
@@ -720,10 +744,12 @@ export default function LearnPlayerPage() {
             ) : effectiveLessonType === 'QUIZ' ? (
               <div className="w-full max-w-4xl p-2 sm:p-4 my-2">
                 <QuizPlayer
+                  key={activeLesson?.id}
                   title={activeLesson?.title || 'Lecture Quiz'}
                   lessonId={activeLesson?.id}
                   quizData={activeLesson?.quizData}
                   onPass={() => handleToggleLessonComplete(activeLesson?.id)}
+                  onAutoAdvanceNext={handleQuizAdvance}
                 />
               </div>
             ) : effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF' ? (
