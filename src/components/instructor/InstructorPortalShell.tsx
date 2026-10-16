@@ -64,11 +64,14 @@ function InstructorPortalShellInner({
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    const saved = localStorage.getItem('mt_instructor_theme_light_v2') as 'light' | 'dark' | null;
-    if (saved === 'light' || saved === 'dark') {
-      setTheme(saved);
+    const saved = (localStorage.getItem('mt_theme') || localStorage.getItem('mt_instructor_theme_light_v2')) as 'light' | 'dark' | null;
+    if (saved === 'dark') {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
     } else {
       setTheme('light');
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('mt_theme', 'light');
       localStorage.setItem('mt_instructor_theme_light_v2', 'light');
     }
   }, []);
@@ -76,7 +79,16 @@ function InstructorPortalShellInner({
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
+    localStorage.setItem('mt_theme', next);
     localStorage.setItem('mt_instructor_theme_light_v2', next);
+    if (next === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.dispatchEvent(
+      new CustomEvent('mt-theme-change', { detail: { theme: next } })
+    );
   };
 
   const handleLogout = async () => {

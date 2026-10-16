@@ -15,7 +15,7 @@ export function ThemeToggle({ variant = 'icon', className = '' }: ThemeTogglePro
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem('mt_theme');
-    if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (stored === 'dark') {
       setTheme('dark');
       document.documentElement.classList.add('dark');
     } else {
