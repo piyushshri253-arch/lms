@@ -128,9 +128,15 @@ export async function POST(
         ? Math.min(100, Math.round((completedRequiredCount / totalRequiredCount) * 100))
         : 100;
 
+    const finalAssignmentLesson = allCourseLessons.find((l: any) =>
+      Boolean(l.isFinalAssignment) ||
+      (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+    );
+    const hasPassedFinalAssignment = !finalAssignmentLesson || completedLessonIds.has(finalAssignmentLesson.id);
+
     let certificate = null;
-    // If completed 100%, issue certificate and mark enrollment COMPLETED
-    if (progressPercent >= 100 && enrollment) {
+    // If completed 100% and passed final assignment (if present), issue certificate and mark enrollment COMPLETED
+    if (progressPercent >= 100 && hasPassedFinalAssignment && enrollment) {
       const year = new Date().getFullYear();
       const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
       const certNumber = `MT-${year}-${randomHex}`;

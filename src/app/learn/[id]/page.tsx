@@ -269,6 +269,26 @@ export default function LearnPlayerPage() {
     return list;
   }, [hasValidVideo, hasArticleContent, hasQuizQuestions, hasPdfContent]);
 
+  const finalAssignmentLesson = useMemo(() => {
+    return allLessons.find((l: any) =>
+      Boolean(l.isFinalAssignment) ||
+      (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+    ) || null;
+  }, [allLessons]);
+
+  const hasPassedFinalAssignment = useMemo(() => {
+    if (!finalAssignmentLesson) return true;
+    return completedLessonIds.includes(finalAssignmentLesson.id);
+  }, [finalAssignmentLesson, completedLessonIds]);
+
+  const isCurrentFinalAssignment = useMemo(() => {
+    if (!activeLesson) return false;
+    return Boolean(
+      activeLesson.isFinalAssignment ||
+      (activeLesson.type === 'QUIZ' && /final\s+assignment/i.test(activeLesson.title || ''))
+    );
+  }, [activeLesson]);
+
   const currentIndex = allLessons.findIndex((l: any) => l.id === activeLesson?.id);
   const isCurrentCompleted = activeLesson?.id ? completedLessonIds.includes(activeLesson.id) : false;
 
@@ -596,7 +616,7 @@ export default function LearnPlayerPage() {
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
-                    {progressPercent >= 100 ? (
+                    {progressPercent >= 100 && hasPassedFinalAssignment ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -608,6 +628,29 @@ export default function LearnPlayerPage() {
                         <Icon name="workspace_premium" size={16} fill />
                         <span>Claim Certificate</span>
                       </button>
+                    ) : finalAssignmentLesson && !hasPassedFinalAssignment ? (
+                      <div className="space-y-2">
+                        <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs text-left">
+                          <p className="font-bold flex items-center gap-1">
+                            <Icon name="lock" size={14} className="text-amber-700" />
+                            <span>Certificate Locked</span>
+                          </p>
+                          <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
+                            Pass the mandatory Final Assignment ({finalAssignmentLesson.title || 'Final Assignment'}) to unlock your certificate.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveLessonId(finalAssignmentLesson.id);
+                            setIsProgressDropdownOpen(false);
+                          }}
+                          className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded font-bold text-xs flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                        >
+                          <span>Take Final Assignment</span>
+                          <Icon name="arrow_forward" size={13} />
+                        </button>
+                      </div>
                     ) : (
                       <p className="text-[11px] text-slate-500 leading-relaxed">
                         Complete all lectures to claim your verified certificate of completion.
@@ -745,11 +788,21 @@ export default function LearnPlayerPage() {
               <div className="w-full max-w-4xl p-2 sm:p-4 my-2">
                 <QuizPlayer
                   key={activeLesson?.id}
-                  title={activeLesson?.title || 'Lecture Quiz'}
+                  title={activeLesson?.title || (isCurrentFinalAssignment ? 'Final Assignment' : 'Lecture Quiz')}
                   lessonId={activeLesson?.id}
                   quizData={activeLesson?.quizData}
-                  onPass={() => handleToggleLessonComplete(activeLesson?.id)}
+                  isFinalAssignment={isCurrentFinalAssignment}
+                  onPass={() => {
+                    handleToggleLessonComplete(activeLesson?.id);
+                    if (isCurrentFinalAssignment) {
+                      confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+                    }
+                  }}
                   onAutoAdvanceNext={handleQuizAdvance}
+                  onClaimCertificate={() => {
+                    setIsCertificateOpen(true);
+                    confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+                  }}
                 />
               </div>
             ) : effectiveLessonType === 'TEXT' || effectiveLessonType === 'PDF' ? (
@@ -1227,22 +1280,29 @@ export default function LearnPlayerPage() {
                                 </span>
 
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
-                                  <span className="flex items-center gap-1">
-                                    <Icon
-                                      name={
-                                        isQuizItem
-                                          ? 'quiz'
-                                          : isPdfItem
-                                          ? 'picture_as_pdf'
-                                          : isArticleItem
-                                          ? 'article'
-                                          : 'movie'
-                                      }
-                                      size={12}
-                                      className={isArticleItem ? 'text-amber-600' : 'text-slate-500'}
-                                    />
-                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Article' : '10:00')}</span>
-                                  </span>
+                                  {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-1 border border-amber-300">
+                                      <Icon name="workspace_premium" size={12} className="text-amber-700" fill />
+                                      <span>Final Assignment</span>
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1">
+                                      <Icon
+                                        name={
+                                          isQuizItem
+                                            ? 'quiz'
+                                            : isPdfItem
+                                            ? 'picture_as_pdf'
+                                            : isArticleItem
+                                            ? 'article'
+                                            : 'movie'
+                                        }
+                                        size={12}
+                                        className={isArticleItem ? 'text-amber-600' : 'text-slate-500'}
+                                      />
+                                      <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Article' : '10:00')}</span>
+                                    </span>
+                                  )}
 
                                   {isVersionLocked && (
                                     <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5">
@@ -1544,22 +1604,29 @@ export default function LearnPlayerPage() {
                                   {itemInfo?.sidebarTitle || les.title}
                                 </span>
                                 <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                  <span className="flex items-center gap-1">
-                                    <Icon
-                                      name={
-                                        isQuizItem
-                                          ? 'quiz'
-                                          : isPdfItem
-                                          ? 'picture_as_pdf'
-                                          : isArticleItem
-                                          ? 'article'
-                                          : 'movie'
-                                      }
-                                      size={12}
-                                      className={isArticleItem ? 'text-amber-600' : 'text-slate-500'}
-                                    />
-                                    <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Article' : '10:00')}</span>
-                                  </span>
+                                  {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-1 border border-amber-300">
+                                      <Icon name="workspace_premium" size={12} className="text-amber-700" fill />
+                                      <span>Final Assignment</span>
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1">
+                                      <Icon
+                                        name={
+                                          isQuizItem
+                                            ? 'quiz'
+                                            : isPdfItem
+                                            ? 'picture_as_pdf'
+                                            : isArticleItem
+                                            ? 'article'
+                                            : 'movie'
+                                        }
+                                        size={12}
+                                        className={isArticleItem ? 'text-amber-600' : 'text-slate-500'}
+                                      />
+                                      <span>{les.duration || (isQuizItem ? 'Quiz' : isArticleItem ? 'Article' : '10:00')}</span>
+                                    </span>
+                                  )}
                                   {isVersionLocked && (
                                     <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-0.5">
                                       <span>🔒</span>

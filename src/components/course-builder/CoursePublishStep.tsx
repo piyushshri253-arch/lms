@@ -34,6 +34,19 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
 
   const allLessons = (courseData.sections || []).flatMap((s: any) => s.lessons || []);
 
+  const finalAssignmentLesson = allLessons.find((l: any) =>
+    Boolean(l.isFinalAssignment) ||
+    (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+  );
+
+  const hasValidFinalAssignment = Boolean(
+    finalAssignmentLesson &&
+    (
+      (finalAssignmentLesson.quizData?.questions && finalAssignmentLesson.quizData.questions.length > 0) ||
+      (typeof finalAssignmentLesson.quizData === 'string' && finalAssignmentLesson.quizData.includes('"question"'))
+    )
+  );
+
   const checklist: ChecklistItem[] = [
     {
       id: 'title',
@@ -70,6 +83,25 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         allLessons.length >= 1
           ? `${allLessons.length} lesson(s) in curriculum.`
           : 'Add at least 1 lecture in Curriculum.',
+      step: 1
+    },
+    {
+      id: 'final_assignment',
+      label: 'Mandatory Final Assignment (Certification Exam)',
+      passed: hasValidFinalAssignment,
+      message: hasValidFinalAssignment
+        ? `Configured with ${
+            typeof finalAssignmentLesson?.quizData === 'string'
+              ? 'questions'
+              : finalAssignmentLesson?.quizData?.questions?.length || 1
+          } question(s) & ${
+            typeof finalAssignmentLesson?.quizData === 'object'
+              ? finalAssignmentLesson?.quizData?.passingScore ?? 70
+              : 70
+          }% passing threshold.`
+        : finalAssignmentLesson
+        ? 'Final Assignment exists but has no questions yet. Add at least 1 question in Curriculum.'
+        : 'Every course requires a Final Assignment before it can be submitted for approval.',
       step: 1
     },
     {

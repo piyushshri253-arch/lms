@@ -70,6 +70,19 @@ export async function POST(
 
     const allLessons = course.sections.flatMap((s) => s.lessons);
 
+    const finalAssignmentLesson = allLessons.find((l: any) =>
+      Boolean(l.isFinalAssignment) ||
+      (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+    );
+
+    const hasValidFinalAssignment = Boolean(
+      finalAssignmentLesson &&
+      (
+        (finalAssignmentLesson.quizData && typeof finalAssignmentLesson.quizData === 'object' && Array.isArray((finalAssignmentLesson.quizData as any).questions) && (finalAssignmentLesson.quizData as any).questions.length > 0) ||
+        (typeof finalAssignmentLesson?.quizData === 'string' && finalAssignmentLesson.quizData.includes('"question"'))
+      )
+    );
+
     // Flexible, realistic validation rules
     const checklist = [
       {
@@ -101,6 +114,15 @@ export async function POST(
         step: 2
       },
       {
+        id: 'final_assignment',
+        label: 'Mandatory Final Assignment (Certification Exam)',
+        passed: hasValidFinalAssignment,
+        message: hasValidFinalAssignment
+          ? 'Mandatory Final Assignment configured.'
+          : 'Every course requires a Final Assignment before it can be submitted for review or approval.',
+        step: 2
+      },
+      {
         id: 'pricing',
         label: 'Pricing & Access Configured',
         passed: course.price !== undefined && course.price !== null && course.price >= 0,
@@ -125,8 +147,7 @@ export async function POST(
       body.action === 'REJECT' ||
       body.status === 'REJECTED' ||
       body.action === 'UNPUBLISH' ||
-      body.status === 'DRAFT' ||
-      body.submitForApproval === true;
+      body.status === 'DRAFT';
 
     if (!canPublish && !isBypassCheck) {
       const missing = checklist.filter((c) => !c.passed);

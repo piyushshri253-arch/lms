@@ -341,6 +341,7 @@ export async function GET(
             requiredVersion: isVersionLocked ? liveVersionNumber : undefined,
             requiredVersionLabel: isVersionLocked ? (versionState.liveVersionLabel || `v${liveVersionNumber}.0`) : undefined,
             isFree: les.isFree,
+            isFinalAssignment: Boolean((les as any).isFinalAssignment || (effectiveType === 'QUIZ' && /final\s+assignment/i.test(les.title || ''))),
             isPublished: (les as any).isPublished ?? true,
             order: les.order
           };

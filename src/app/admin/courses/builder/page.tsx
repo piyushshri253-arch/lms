@@ -382,6 +382,7 @@ function CourseBuilderContent() {
                 duration: l.duration,
                 durationSeconds: l.durationSeconds,
                 isFree: l.isFree,
+                isFinalAssignment: Boolean(l.isFinalAssignment || (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))),
                 isPublished: l.isPublished,
                 order: l.order || lIdx + 1
               };
@@ -668,6 +669,7 @@ function CourseBuilderContent() {
                 duration: l.duration || localLes?.duration || '10:00',
                 durationSeconds: l.durationSeconds || localLes?.durationSeconds || 600,
                 isFree: Boolean(l.isFree),
+                isFinalAssignment: Boolean(l.isFinalAssignment || localLes?.isFinalAssignment || (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))),
                 isPublished: l.isPublished !== false,
                 order: l.order || lIdx + 1
               };

@@ -9,16 +9,20 @@ interface QuizPlayerProps {
   title: string;
   lessonId?: string;
   quizData?: QuizConfig | string | null;
+  isFinalAssignment?: boolean;
   onPass?: () => void;
   onAutoAdvanceNext?: () => void;
+  onClaimCertificate?: () => void;
 }
 
 export const QuizPlayer: React.FC<QuizPlayerProps> = ({
   title,
   lessonId,
   quizData,
+  isFinalAssignment = false,
   onPass,
-  onAutoAdvanceNext
+  onAutoAdvanceNext,
+  onClaimCertificate
 }) => {
   const config: QuizConfig = React.useMemo(() => {
     if (!quizData) {
@@ -158,8 +162,12 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
               if (serverPassed) {
                 confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
                 onPass?.();
-                setAutoAdvanceCountdown(5);
-                setIsTimerPaused(false);
+                if (!isFinalAssignment) {
+                  setAutoAdvanceCountdown(5);
+                  setIsTimerPaused(false);
+                } else {
+                  setAutoAdvanceCountdown(null);
+                }
               } else {
                 setAutoAdvanceCountdown(null);
                 setIsTimerPaused(false);
@@ -184,8 +192,12 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
       if (calculatedPassed) {
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         onPass?.();
-        setAutoAdvanceCountdown(5);
-        setIsTimerPaused(false);
+        if (!isFinalAssignment) {
+          setAutoAdvanceCountdown(5);
+          setIsTimerPaused(false);
+        } else {
+          setAutoAdvanceCountdown(null);
+        }
       } else {
         setAutoAdvanceCountdown(null);
         setIsTimerPaused(false);
@@ -218,8 +230,12 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
       if (isPassing) {
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         onPass?.();
-        setAutoAdvanceCountdown(5);
-        setIsTimerPaused(false);
+        if (!isFinalAssignment) {
+          setAutoAdvanceCountdown(5);
+          setIsTimerPaused(false);
+        } else {
+          setAutoAdvanceCountdown(null);
+        }
       } else {
         setAutoAdvanceCountdown(null);
         setIsTimerPaused(false);
@@ -314,10 +330,20 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
           {/* Heading & Subtitle */}
           <div className="space-y-1.5 max-w-md">
             <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-              {passed ? 'Congratulations! You Passed 🎉' : 'Assessment Not Passed ❌'}
+              {isFinalAssignment
+                ? passed
+                  ? 'Congratulations! You Passed the Final Assignment 🎓'
+                  : 'Final Assignment Not Passed ❌'
+                : passed
+                ? 'Congratulations! You Passed 🎉'
+                : 'Assessment Not Passed ❌'}
             </h3>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              {passed
+              {isFinalAssignment
+                ? passed
+                  ? `You scored ${scorePercent}%, successfully achieving the ${passingScore}% passing threshold. Your verified Course Certificate of Completion is unlocked!`
+                  : `You scored ${scorePercent}%, which is below the required ${passingScore}% mark. Passing this Final Assignment is required to unlock your certificate.`
+                : passed
                 ? `You scored ${scorePercent}%, successfully reaching the ${passingScore}% passing threshold required by your instructor.`
                 : `You scored ${scorePercent}%, which is below the required ${passingScore}% passing score. Review the questions and retake the quiz to proceed.`}
             </p>
@@ -345,81 +371,167 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
             </div>
           </div>
 
-          {/* IF PASSED: 5-Second Auto-Advance Countdown Card */}
+          {/* IF PASSED: Check if Final Assignment or Regular Quiz */}
           {passed ? (
-            <div className="w-full max-w-lg p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-300 shadow-md space-y-3 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs sm:text-sm">
-                  <Icon name="timer" size={18} className="text-emerald-600 animate-spin" />
-                  <span>
-                    {autoAdvanceCountdown !== null && autoAdvanceCountdown > 0
-                      ? `Auto-advancing to next lecture in ${autoAdvanceCountdown}s...`
-                      : 'Advancing now...'}
-                  </span>
+            isFinalAssignment ? (
+              <div className="w-full max-w-lg p-6 rounded-2xl bg-gradient-to-br from-amber-50 via-yellow-50/70 to-emerald-50 border-2 border-amber-400 shadow-xl space-y-4 animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-white flex items-center justify-center shadow-md text-2xl shrink-0">
+                    🎓
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-base sm:text-lg font-black text-slate-900">
+                      Course Certificate Unlocked!
+                    </h4>
+                    <p className="text-xs text-amber-900 font-medium">
+                      Outstanding accomplishment! You have satisfied all completion criteria.
+                    </p>
+                  </div>
                 </div>
-                {autoAdvanceCountdown !== null && (
-                  <span className="w-8 h-8 rounded-full bg-emerald-600 text-white font-mono font-black text-sm flex items-center justify-center shadow">
-                    {autoAdvanceCountdown}
-                  </span>
-                )}
-              </div>
 
-              {/* Progress bar countdown */}
-              <div className="h-1.5 w-full bg-emerald-200/80 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-600 rounded-full transition-all duration-1000 ease-linear"
-                  style={{ width: `${((autoAdvanceCountdown ?? 0) / 5) * 100}%` }}
-                />
-              </div>
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-white/80 p-3.5 rounded-xl border border-amber-200 text-left">
+                  Your official verified <strong>Certificate of Completion</strong> is ready. You can download your high-resolution certificate now or review your test responses.
+                </p>
 
-              <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleStayAndReview}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 transition cursor-pointer"
-                >
-                  Stay &amp; Review Answers
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImmediateNext}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-lg shadow transition flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Next Lecture Now</span>
-                  <Icon name="arrow_forward" size={14} />
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleStayAndReview}
+                    className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl border border-slate-300 transition cursor-pointer shadow-2xs"
+                  >
+                    Review Answers
+                  </button>
+                  {onClaimCertificate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+                        onClaimCertificate();
+                      }}
+                      className="px-5 py-2.5 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white text-xs font-extrabold rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer transform hover:scale-[1.02]"
+                    >
+                      <Icon name="workspace_premium" size={18} />
+                      <span>Download Certificate 🎓</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Regular Quiz: 5-Second Auto-Advance Countdown Card */
+              <div className="w-full max-w-lg p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-300 shadow-md space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs sm:text-sm">
+                    <Icon name="timer" size={18} className="text-emerald-600 animate-spin" />
+                    <span>
+                      {autoAdvanceCountdown !== null && autoAdvanceCountdown > 0
+                        ? `Auto-advancing to next lecture in ${autoAdvanceCountdown}s...`
+                        : 'Advancing now...'}
+                    </span>
+                  </div>
+                  {autoAdvanceCountdown !== null && (
+                    <span className="w-8 h-8 rounded-full bg-emerald-600 text-white font-mono font-black text-sm flex items-center justify-center shadow">
+                      {autoAdvanceCountdown}
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress bar countdown */}
+                <div className="h-1.5 w-full bg-emerald-200/80 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-600 rounded-full transition-all duration-1000 ease-linear"
+                    style={{ width: `${((autoAdvanceCountdown ?? 0) / 5) * 100}%` }}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleStayAndReview}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 transition cursor-pointer"
+                  >
+                    Stay &amp; Review Answers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleImmediateNext}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-lg shadow transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Next Lecture Now</span>
+                    <Icon name="arrow_forward" size={14} />
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             /* IF FAILED: Big Screen Failure Notice (No auto-advance) */
-            <div className="w-full max-w-lg p-5 rounded-2xl bg-rose-50/80 border-2 border-rose-300 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 text-rose-900 font-extrabold text-xs sm:text-sm">
-                <Icon name="lock" size={18} className="text-rose-600 shrink-0" />
-                <span>Next Lecture Progression Locked</span>
-              </div>
-              <p className="text-xs text-rose-800 leading-relaxed text-left">
-                You must achieve at least <strong>{passingScore}%</strong> on this quiz to unlock completion. Retake the quiz or review the questions and explanations below.
-              </p>
+            isFinalAssignment ? (
+              <div className="w-full max-w-lg p-6 rounded-2xl bg-gradient-to-br from-rose-50 to-orange-50 border-2 border-rose-300 shadow-md space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow shrink-0">
+                    <Icon name="lock" size={20} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-sm sm:text-base font-extrabold text-rose-950">
+                      Certificate Locked — Final Assignment Not Passed
+                    </h4>
+                    <p className="text-xs text-rose-700">
+                      Passing mark required: {passingScore}% (Your score: {scorePercent}%)
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-rose-800 leading-relaxed bg-white/70 p-3 rounded-xl border border-rose-200 text-left">
+                  The verified Certificate of Completion is awarded only after successfully passing this Final Assignment. Review the answers and explanations below, then retake the assignment to earn your certificate!
+                </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleRetry}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Icon name="refresh" size={16} />
-                  <span>Retake Quiz Now</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowResultScreen(false)}
-                  className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                >
-                  <Icon name="visibility" size={15} />
-                  <span>Review Answers &amp; Explanations</span>
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Icon name="refresh" size={16} />
+                    <span>Retake Final Assignment</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResultScreen(false)}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Icon name="visibility" size={15} />
+                    <span>Review Answers &amp; Explanations</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="w-full max-w-lg p-5 rounded-2xl bg-rose-50/80 border-2 border-rose-300 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 text-rose-900 font-extrabold text-xs sm:text-sm">
+                  <Icon name="lock" size={18} className="text-rose-600 shrink-0" />
+                  <span>Next Lecture Progression Locked</span>
+                </div>
+                <p className="text-xs text-rose-800 leading-relaxed text-left">
+                  You must achieve at least <strong>{passingScore}%</strong> on this quiz to unlock completion. Retake the quiz or review the questions and explanations below.
+                </p>
+
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Icon name="refresh" size={16} />
+                    <span>Retake Quiz Now</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResultScreen(false)}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Icon name="visibility" size={15} />
+                    <span>Review Answers &amp; Explanations</span>
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -466,28 +578,57 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
               <span className="text-[10px] underline ml-1">Score Card</span>
             </button>
 
-            {passed && onAutoAdvanceNext && (
-              <button
-                type="button"
-                onClick={handleImmediateNext}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
-                title="Continue to Next Lecture"
-              >
-                <span>Next Lecture</span>
-                <Icon name="arrow_forward" size={14} />
-              </button>
-            )}
+            {isFinalAssignment ? (
+              passed && onClaimCertificate ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+                    onClaimCertificate();
+                  }}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Claim & Download Certificate"
+                >
+                  <Icon name="workspace_premium" size={16} />
+                  <span>Download Certificate</span>
+                </button>
+              ) : !passed ? (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
+                  title="Retake Final Assignment"
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>Retake Final Assignment</span>
+                </button>
+              ) : null
+            ) : (
+              <>
+                {passed && onAutoAdvanceNext && (
+                  <button
+                    type="button"
+                    onClick={handleImmediateNext}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
+                    title="Continue to Next Lecture"
+                  >
+                    <span>Next Lecture</span>
+                    <Icon name="arrow_forward" size={14} />
+                  </button>
+                )}
 
-            {!passed && (
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
-                title="Retake Quiz"
-              >
-                <Icon name="refresh" size={14} />
-                <span>Retake Quiz</span>
-              </button>
+                {!passed && (
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
+                    title="Retake Quiz"
+                  >
+                    <Icon name="refresh" size={14} />
+                    <span>Retake Quiz</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -694,7 +835,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-colors cursor-pointer shadow-md disabled:opacity-50"
             >
               <Icon name={isSubmitting ? 'sync' : 'done_all'} size={15} className={isSubmitting ? 'animate-spin' : ''} />
-              <span>{isSubmitting ? 'Scoring Quiz...' : 'Submit Answers'}</span>
+              <span>{isSubmitting ? 'Scoring Assessment...' : isFinalAssignment ? 'Submit Final Assignment' : 'Submit Answers'}</span>
             </button>
           ) : (
             <>
@@ -714,7 +855,30 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                 <Icon name="replay" size={14} />
                 <span>Review from Start</span>
               </button>
-              {passed && onAutoAdvanceNext && (
+              {isFinalAssignment && passed && onClaimCertificate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+                    onClaimCertificate();
+                  }}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white text-xs font-extrabold transition-colors cursor-pointer shadow-md"
+                >
+                  <Icon name="workspace_premium" size={16} />
+                  <span>Download Certificate</span>
+                </button>
+              )}
+              {isFinalAssignment && !passed && (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition-colors cursor-pointer shadow-md"
+                >
+                  <Icon name="refresh" size={15} />
+                  <span>Retake Final Assignment</span>
+                </button>
+              )}
+              {!isFinalAssignment && passed && onAutoAdvanceNext && (
                 <button
                   type="button"
                   onClick={handleImmediateNext}

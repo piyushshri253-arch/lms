@@ -47,6 +47,7 @@ export interface BuilderSubLesson {
   quizData?: QuizConfig | string;
   duration?: string;
   isFree?: boolean;
+  isFinalAssignment?: boolean;
   order: number;
 }
 
@@ -67,6 +68,7 @@ export interface BuilderLesson {
   duration?: string;
   durationSeconds?: number;
   isFree?: boolean;
+  isFinalAssignment?: boolean;
   isPublished?: boolean;
   order: number;
   clearVideo?: boolean;
@@ -538,6 +540,79 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     });
   };
 
+  const hasFinalAssignment = useMemo(() => {
+    return sections.some((s) =>
+      s.lessons?.some((l) =>
+        Boolean(l.isFinalAssignment) ||
+        (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+      )
+    );
+  }, [sections]);
+
+  const handleCreateFinalAssignment = (sectionId?: string) => {
+    let targetSectionId = sectionId;
+    if (!targetSectionId) {
+      if (sections.length === 0) {
+        showToast({
+          title: 'Add a Module First',
+          description: 'Please add a module first before adding the Final Assignment.',
+          type: 'info'
+        });
+        return;
+      }
+      targetSectionId = sections[sections.length - 1].id;
+    }
+
+    const sIdx = sections.findIndex((s) => s.id === targetSectionId);
+    if (sIdx === -1) return;
+    const targetSec = sections[sIdx];
+    const moduleNum = sIdx + 1;
+
+    const defaultQuiz: QuizConfig = {
+      passingScore: 70,
+      attemptLimit: 0,
+      questions: [
+        {
+          id: `q-${Date.now()}`,
+          question: 'Final comprehensive assessment question 1...',
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctIndex: 0,
+          explanation: 'Comprehensive explanation for the correct answer.',
+          points: 10
+        }
+      ]
+    };
+
+    const newLesson: BuilderLesson = {
+      id: `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title: 'Final Assignment',
+      description: 'Mandatory final assessment required to complete the course and unlock the verified Certificate of Completion.',
+      type: 'QUIZ',
+      duration: '15:00',
+      durationSeconds: 900,
+      quizData: defaultQuiz,
+      isFinalAssignment: true,
+      subLessons: [],
+      isFree: false,
+      isPublished: true,
+      order: targetSec.lessons.length + 1
+    };
+
+    const updated = sections.map((s) =>
+      s.id === targetSectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
+    );
+
+    onChange(updated);
+    setOpenContentDrawerId(newLesson.id);
+    setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
+
+    showToast({
+      title: 'Final Assignment Created 🎓',
+      description: `Added to Module ${moduleNum}. Students must pass this to unlock their certificate.`,
+      type: 'success'
+    });
+  };
+
   // Update Lesson inline
   const handleUpdateLessonInline = (sectionId: string, lessonId: string, patch: Partial<BuilderLesson>) => {
     onChange(
@@ -933,9 +1008,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   )}
 
                                   {/* Quiz Badge Label */}
-                                  <span className="font-extrabold text-xs text-purple-800 bg-purple-100 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide">
-                                    Quiz {itemMeta.num}:
-                                  </span>
+                                  {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                    <span className="font-extrabold text-xs text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide flex items-center gap-1 shadow-2xs">
+                                      <Icon name="workspace_premium" size={13} className="text-amber-700" fill />
+                                      <span>FINAL ASSIGNMENT:</span>
+                                    </span>
+                                  ) : (
+                                    <span className="font-extrabold text-xs text-purple-800 bg-purple-100 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide">
+                                      Quiz {itemMeta.num}:
+                                    </span>
+                                  )}
 
                                   {/* Inline Title Input */}
                                   <div className="flex-1 min-w-[160px]">
@@ -945,11 +1027,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       onChange={(e) =>
                                         handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
                                       }
-                                      onBlur={() =>
-                                        handleUpdateLessonInline(section.id, les.id, { title: cleanQuizTitle(les.title) })
-                                      }
-                                      placeholder="Quiz Title (e.g. Knowledge Assessment)"
-                                      className="w-full bg-white hover:bg-purple-50/50 focus:bg-white border border-purple-200 focus:border-purple-600 rounded px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none transition-colors"
+                                      onBlur={() => {
+                                        if (les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')) {
+                                          handleUpdateLessonInline(section.id, les.id, { title: les.title.trim() || 'Final Assignment' });
+                                        } else {
+                                          handleUpdateLessonInline(section.id, les.id, { title: cleanQuizTitle(les.title) });
+                                        }
+                                      }}
+                                      placeholder={les.isFinalAssignment ? "Final Assignment (Certification Exam)" : "Quiz Title (e.g. Knowledge Assessment)"}
+                                      className={`w-full bg-white border rounded px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none transition-colors ${
+                                        les.isFinalAssignment
+                                          ? 'border-amber-300 focus:border-amber-600 hover:bg-amber-50/40'
+                                          : 'border-purple-200 focus:border-purple-600 hover:bg-purple-50/50'
+                                      }`}
                                     />
                                   </div>
 
@@ -1018,15 +1108,24 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-100">
                                     <div className="space-y-0.5">
                                       <div className="flex items-center gap-2">
-                                        <span className="px-2 py-0.5 rounded bg-purple-600 text-white text-[11px] font-black uppercase tracking-wider">
-                                          Quiz {itemMeta.num}
-                                        </span>
+                                        {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                          <span className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                                            <Icon name="workspace_premium" size={13} fill />
+                                            <span>Final Assignment (Certificate Gate)</span>
+                                          </span>
+                                        ) : (
+                                          <span className="px-2 py-0.5 rounded bg-purple-600 text-white text-[11px] font-black uppercase tracking-wider">
+                                            Quiz {itemMeta.num}
+                                          </span>
+                                        )}
                                         <h4 className="text-xs font-bold text-slate-800">
-                                          {les.title || `Quiz ${itemMeta.num}`} Question Editor
+                                          {les.title || (les.isFinalAssignment ? 'Final Assignment' : `Quiz ${itemMeta.num}`)} Question Editor
                                         </h4>
                                       </div>
                                       <p className="text-[11px] text-slate-500">
-                                        Add multiple-choice questions, choose correct options, and configure the passing threshold.
+                                        {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')
+                                          ? 'Configure final exam questions and passing percentage. Students must achieve this score to unlock their verified course completion certificate.'
+                                          : 'Add multiple-choice questions, choose correct options, and configure the passing threshold.'}
                                       </p>
                                     </div>
 
@@ -1563,6 +1662,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       <Icon name="quiz" size={15} />
                       <span>+ Add Quiz</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCreateFinalAssignment(section.id)}
+                      className={`px-3.5 py-2 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                        hasFinalAssignment
+                          ? 'bg-amber-50/70 border border-amber-300 text-amber-900 hover:bg-amber-100'
+                          : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-extrabold shadow-sm'
+                      }`}
+                      title="Add mandatory Final Assignment required for certificate and approval"
+                    >
+                      <Icon name="workspace_premium" size={15} fill />
+                      <span>{hasFinalAssignment ? '+ Final Assignment' : '+ Final Assignment (Required)'}</span>
+                    </button>
                     <span className="text-[11px] font-medium text-slate-500 ml-auto hidden sm:inline flex items-center gap-1">
                       <Icon name="all_inclusive" size={14} className="text-primary" />
                       <span>Unlimited items per module</span>
@@ -1588,6 +1700,58 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
               <Icon name="add_circle" size={18} />
               <span>Add Module</span>
             </button>
+          </div>
+
+          {/* MANDATORY FINAL ASSIGNMENT STATUS / CALLOUT BANNER */}
+          <div className="pt-2">
+            {hasFinalAssignment ? (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 shadow-sm flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    ✓
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-extrabold text-emerald-950 flex items-center gap-1.5">
+                      <span>Mandatory Final Assignment Configured</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 text-[10px] uppercase font-bold tracking-wide">
+                        Certificate Gate Ready
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-emerald-800 mt-0.5">
+                      Your course contains the required Final Assignment. Students must pass this assignment to unlock their completion certificate.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border-2 border-amber-400 shadow-md flex items-center justify-between gap-4 flex-wrap animate-in fade-in">
+                <div className="flex items-start gap-3 max-w-xl">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
+                    🎓
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-amber-950 flex items-center gap-2">
+                      <span>Mandatory Requirement: Final Assignment Missing</span>
+                      <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] uppercase font-bold tracking-wider">
+                        Required for Approval
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-amber-900 mt-1 leading-relaxed">
+                      Every course must have a <strong>Final Assignment</strong> (Certificate Gate) before it can be submitted for review. It acts as the final qualification exam: students must pass it with your chosen passing score to claim their course certificate.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCreateFinalAssignment()}
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer transform hover:scale-[1.02]"
+                >
+                  <Icon name="workspace_premium" size={16} fill />
+                  <span>+ Add Mandatory Final Assignment</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -49,12 +49,13 @@ export function cleanLessonTitle(rawTitle: string | undefined | null): string {
 export interface FormattedLessonItem {
   id: string;
   itemNumber: number;
-  typeLabel: string;        // "Lecture 1", "Article 1", or "Quiz 1"
+  typeLabel: string;        // "Lecture 1", "Article 1", "Quiz 1", or "Final Assignment"
   cleanTitle: string;       // "Course Orientation & Tech Stack Setup"
-  sidebarTitle: string;     // "Lecture 1: ...", "Article 1: ...", or "Quiz 1: ..."
-  underPlayerTitle: string; // "Lecture 1: ...", "Article 1: ...", or "Quiz 1: ..."
+  sidebarTitle: string;     // "Lecture 1: ...", "Article 1: ...", "Quiz 1: ...", or "Final Assignment: ..."
+  underPlayerTitle: string; // "Lecture 1: ...", "Article 1: ...", "Quiz 1: ...", or "Final Assignment: ..."
   isQuiz: boolean;
   isArticle: boolean;
+  isFinalAssignment?: boolean;
   itemType: 'LECTURE' | 'ARTICLE' | 'QUIZ';
 }
 
@@ -70,13 +71,20 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
 
   (sections || []).forEach((sec: any) => {
     (sec.lessons || []).forEach((les: any) => {
+      const isFinalAssignment = Boolean(
+        les.isFinalAssignment ||
+        /final\s+assignment/i.test(les.title?.trim() || '')
+      );
+
       const isQuiz =
-        les.type === 'QUIZ' ||
-        Boolean(les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) ||
-        /^quiz\b/i.test(les.title?.trim() || '');
+        !isFinalAssignment && (
+          les.type === 'QUIZ' ||
+          Boolean(les.quizData && (!les.videoUrl || les.videoUrl.startsWith('blob:'))) ||
+          /^quiz\b/i.test(les.title?.trim() || '')
+        );
 
       const isArticle =
-        !isQuiz && (
+        !isFinalAssignment && !isQuiz && (
           les.type === 'TEXT' ||
           (!les.videoUrl && Boolean(les.content && String(les.content).trim().length > 0)) ||
           /^(article|reading)\b/i.test(les.title?.trim() || '')
@@ -84,7 +92,22 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
 
       const baseClean = cleanLessonTitle(les.title);
 
-      if (isQuiz) {
+      if (isFinalAssignment) {
+        const typeLabel = 'Final Assignment';
+        const display = baseClean ? `Final Assignment: ${baseClean}` : 'Final Assignment';
+        map.set(les.id, {
+          id: les.id,
+          itemNumber: 1,
+          typeLabel,
+          cleanTitle: baseClean || typeLabel,
+          sidebarTitle: display,
+          underPlayerTitle: display,
+          isQuiz: true,
+          isArticle: false,
+          isFinalAssignment: true,
+          itemType: 'QUIZ'
+        });
+      } else if (isQuiz) {
         quizCounter += 1;
         const typeLabel = `Quiz ${quizCounter}`;
         const display = baseClean ? `${typeLabel}: ${baseClean}` : typeLabel;
@@ -97,6 +120,7 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
           underPlayerTitle: display,
           isQuiz: true,
           isArticle: false,
+          isFinalAssignment: false,
           itemType: 'QUIZ'
         });
       } else if (isArticle) {
