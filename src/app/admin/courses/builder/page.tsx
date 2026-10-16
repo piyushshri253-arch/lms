@@ -57,12 +57,16 @@ const getDefaultCourseState = () => ({
   sections: [
     {
       id: `sec-${Date.now()}-1`,
+      clientKey: `sec-${Date.now()}-1`,
+      tempId: `sec-${Date.now()}-1`,
       title: 'Foundations & Pedagogy Setup',
       description: 'Core pedagogical frameworks, active classroom strategies, and foundational orientation.',
       order: 1,
       lessons: [
         {
           id: `les-${Date.now()}-1`,
+          clientKey: `les-${Date.now()}-1`,
+          tempId: `les-${Date.now()}-1`,
           title: 'Welcome & Course Orientation',
           description: 'Introduction to the course structure and key learning outcomes.',
           type: 'VIDEO' as const,
@@ -109,6 +113,7 @@ function CourseBuilderContent() {
   const autoSaveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const isAutoSavingRef = React.useRef<boolean>(false);
   const lastSavedPayloadRef = React.useRef<string>('');
+  const loadedCourseIdRef = React.useRef<string | null>(null);
 
   // Live Preview Modal State (keeps 100% of form state intact when opened/closed!)
   const [isLivePreviewOpen, setIsLivePreviewOpen] = useState<boolean>(false);
@@ -186,6 +191,13 @@ function CourseBuilderContent() {
   // Load existing course if editing, or restore unsaved draft from localStorage so fields never disappear!
   useEffect(() => {
     if (editSlugOrId) {
+      // If this course is already loaded into memory or is currently being authored, do not re-fetch from server!
+      if (loadedCourseIdRef.current === editSlugOrId || (courseStateRef.current.id && courseStateRef.current.id === editSlugOrId)) {
+        setHasLoadedInitial(true);
+        setIsLoading(false);
+        return;
+      }
+      loadedCourseIdRef.current = editSlugOrId;
       loadCourse(editSlugOrId);
     } else {
       try {
@@ -303,6 +315,7 @@ function CourseBuilderContent() {
 
   const loadCourse = async (identifier: string) => {
     setIsLoading(true);
+    loadedCourseIdRef.current = identifier;
     try {
       const res = await fetch(`/api/courses/${encodeURIComponent(identifier)}`);
       const data = await res.json();
@@ -348,6 +361,8 @@ function CourseBuilderContent() {
           seoDescription: c.seoDescription || '',
           sections: (c.sections || []).map((s: any, sIdx: number) => ({
             id: s.id,
+            clientKey: s.id,
+            tempId: s.id,
             title: s.title,
             description: s.description || '',
             order: s.order || sIdx + 1,
@@ -371,6 +386,8 @@ function CourseBuilderContent() {
 
               return {
                 id: l.id,
+                clientKey: l.id,
+                tempId: l.id,
                 title: l.title,
                 description: l.description || '',
                 type: l.type || 'VIDEO',
@@ -553,7 +570,10 @@ function CourseBuilderContent() {
 
         if (!res.ok) throw new Error(responseData?.error || 'Failed to create course');
 
-        if (responseData?.course?.id) savedCourseId = responseData.course.id;
+        if (responseData?.course?.id) {
+          savedCourseId = responseData.course.id;
+          loadedCourseIdRef.current = savedCourseId;
+        }
         if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       } else {
         // Update existing course in DB using reliable ID/identifier
@@ -575,7 +595,10 @@ function CourseBuilderContent() {
         }
 
         if (!res.ok) throw new Error(responseData?.error || 'Failed to update course');
-        if (responseData?.course?.id) savedCourseId = responseData.course.id;
+        if (responseData?.course?.id) {
+          savedCourseId = responseData.course.id;
+          loadedCourseIdRef.current = savedCourseId;
+        }
         if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       }
 
@@ -619,12 +642,20 @@ function CourseBuilderContent() {
           const serverSectionIds = new Set(responseData.course.sections.map((s: any) => s.id));
 
           const syncedSections: BuilderSection[] = responseData.course.sections.map((s: any, sIdx: number) => {
-            const localSec = (currentState.sections || []).find((sec) => sec.id === s.id) || currentState.sections?.[sIdx];
+            const localSec = (currentState.sections || []).find((sec) =>
+              sec.id === s.id ||
+              (sec.clientKey && sec.clientKey === s.id) ||
+              (sec.tempId && sec.tempId === s.id)
+            ) || currentState.sections?.[sIdx];
             const serverLessonIds = new Set((s.lessons || []).map((l: any) => l.id));
 
             const mappedLessons = (s.lessons || []).map((l: any, lIdx: number) => {
               // Local section and lesson lookup to preserve any local videoUrl or resources that were just attached
-              const localLes = localSec?.lessons?.find((les) => les.id === l.id) || localSec?.lessons?.[lIdx];
+              const localLes = localSec?.lessons?.find((les) =>
+                les.id === l.id ||
+                (les.clientKey && les.clientKey === l.id) ||
+                (les.tempId && les.tempId === l.id)
+              ) || localSec?.lessons?.[lIdx];
               const isVideoExplicitlyCleared = Boolean((localLes as any)?.clearVideo || (localLes as any)?.removeVideo || localLes?.videoUrl === '');
               const resolvedVideo = isVideoExplicitlyCleared ? '' : (localLes?.videoUrl || l.videoUrl || '');
               const resolvedPdf = localLes?.pdfUrl || l.pdfUrl || '';
@@ -657,7 +688,7 @@ function CourseBuilderContent() {
               const finalResName = resourceFileName || localLes?.resourceFileName || finalResources[0]?.name || '';
 
               // Preserve any in-flight edits the user has made locally (typing in input, editing modal)
-              const resolvedTitle = (localLes?.title !== undefined && localLes?.title !== '')
+              const resolvedTitle = (localLes?.title !== undefined)
                 ? localLes.title
                 : (l.title || '');
               const resolvedContent = localLes?.content !== undefined
@@ -675,9 +706,13 @@ function CourseBuilderContent() {
                   : l.quizData;
               }
 
+              const lessonClientKey = localLes?.clientKey || localLes?.tempId || (localLes?.id?.startsWith('les-') ? localLes.id : undefined) || l.clientKey || l.id;
+              const lessonTempId = localLes?.id?.startsWith('les-') ? localLes.id : ((localLes as any)?.tempId || lessonClientKey);
+
               return {
                 id: l.id,
-                tempId: localLes?.id?.startsWith('les-') ? localLes.id : (localLes as any)?.tempId,
+                clientKey: lessonClientKey,
+                tempId: lessonTempId,
                 title: resolvedTitle,
                 description: resolvedDescription,
                 type: resolvedType,
@@ -702,13 +737,17 @@ function CourseBuilderContent() {
             // CRITICAL: Retain any newly added local lessons in this section that were not yet included in server response
             const pendingLocalLessons = (localSec?.lessons || []).filter((les, idx) => {
               if (idx < (s.lessons || []).length) return false;
-              return !serverLessonIds.has(les.id);
+              return !serverLessonIds.has(les.id) && !(les.clientKey && serverLessonIds.has(les.clientKey));
             });
+
+            const sectionClientKey = localSec?.clientKey || localSec?.tempId || (localSec?.id?.startsWith('sec-') ? localSec.id : undefined) || s.clientKey || s.id;
+            const sectionTempId = localSec?.id?.startsWith('sec-') ? localSec.id : ((localSec as any)?.tempId || s.id);
 
             return {
               id: s.id,
-              tempId: localSec?.id?.startsWith('sec-') ? localSec.id : (localSec as any)?.tempId,
-              title: localSec?.title || s.title || `Module ${sIdx + 1}`,
+              clientKey: sectionClientKey,
+              tempId: sectionTempId,
+              title: localSec?.title !== undefined ? localSec.title : (s.title || `Module ${sIdx + 1}`),
               description: localSec?.description !== undefined ? localSec.description : (s.description || ''),
               order: s.order || sIdx + 1,
               lessons: [...mappedLessons, ...pendingLocalLessons]
@@ -769,6 +808,7 @@ function CourseBuilderContent() {
 
         // Silent background sync updates URL and local cache
         if (typeof window !== 'undefined' && savedCourseId && !options?.submitForApproval) {
+          loadedCourseIdRef.current = savedCourseId;
           const url = new URL(window.location.href);
           url.searchParams.set('courseId', savedCourseId);
           window.history.replaceState({}, '', url.toString());

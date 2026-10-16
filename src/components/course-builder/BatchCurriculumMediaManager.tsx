@@ -422,12 +422,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     let matched = false;
 
     let updated = currentSections.map((sec, sIdx) => {
-      const isSecMatch = sec.id === sectionId || `sec-${sIdx}` === sectionId;
+      const isSecMatch = sec.id === sectionId || sec.clientKey === sectionId || (sec as any).tempId === sectionId || `sec-${sIdx}` === sectionId;
       if (!isSecMatch) return sec;
       return {
         ...sec,
         lessons: (sec.lessons || []).map((les, lIdx) => {
-          const isLesMatch = les.id === lessonId || `les-${lIdx}` === lessonId;
+          const isLesMatch = les.id === lessonId || les.clientKey === lessonId || (les as any).tempId === lessonId || `les-${lIdx}` === lessonId;
           if (!isLesMatch) return les;
           matched = true;
           return { ...les, ...updates };
@@ -440,7 +440,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       updated = currentSections.map((sec) => ({
         ...sec,
         lessons: (sec.lessons || []).map((les) => {
-          if (les.id === lessonId) {
+          if (les.id === lessonId || les.clientKey === lessonId || (les as any).tempId === lessonId) {
             matched = true;
             return { ...les, ...updates };
           }

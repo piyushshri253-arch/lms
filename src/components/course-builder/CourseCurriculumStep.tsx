@@ -53,6 +53,8 @@ export interface BuilderSubLesson {
 
 export interface BuilderLesson {
   id: string;
+  clientKey?: string;
+  tempId?: string;
   title: string;
   description?: string;
   type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD';
@@ -110,6 +112,8 @@ export function getLessonResourcesList(lesson?: BuilderLesson | BuilderSubLesson
 
 export interface BuilderSection {
   id: string;
+  clientKey?: string;
+  tempId?: string;
   title: string;
   description?: string;
   order: number;
@@ -205,13 +209,22 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           quizCount += 1;
-          map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
+          const entry = { type: 'QUIZ' as const, num: quizCount, label: `Quiz ${quizCount}` };
+          map[les.id] = entry;
+          if (les.clientKey) map[les.clientKey] = entry;
+          if (les.tempId) map[les.tempId] = entry;
         } else if (les.type === 'TEXT') {
           articleCount += 1;
-          map[les.id] = { type: 'ARTICLE', num: articleCount, label: `Article ${articleCount}` };
+          const entry = { type: 'ARTICLE' as const, num: articleCount, label: `Article ${articleCount}` };
+          map[les.id] = entry;
+          if (les.clientKey) map[les.clientKey] = entry;
+          if (les.tempId) map[les.tempId] = entry;
         } else {
           lectureCount += 1;
-          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
+          const entry = { type: 'LECTURE' as const, num: lectureCount, label: `Lecture ${lectureCount}` };
+          map[les.id] = entry;
+          if (les.clientKey) map[les.clientKey] = entry;
+          if (les.tempId) map[les.tempId] = entry;
         }
       });
     });
@@ -376,21 +389,29 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (!curriculum.sections) return;
     const newSections: BuilderSection[] = curriculum.sections.map((s: any, sIdx: number) => {
       const mNum = sections.length + sIdx + 1;
+      const sId = `sec-${Date.now()}-${sIdx}`;
       return {
-        id: `sec-${Date.now()}-${sIdx}`,
+        id: sId,
+        clientKey: sId,
+        tempId: sId,
         title: s.title ? cleanModuleTitle(s.title) : 'Overview & Fundamentals',
         description: s.description || '',
         order: mNum,
-        lessons: (s.lessons || []).map((l: any, lIdx: number) => ({
-          id: `les-${Date.now()}-${sIdx}-${lIdx}`,
-          title: l.title ? cleanLectureTitle(l.title) : 'Lesson Topic',
-          type: l.type || 'VIDEO',
-          description: l.description || '',
-          duration: l.duration || '10:00',
-          subLessons: [],
-          order: lIdx + 1,
-          isFree: lIdx === 0
-        }))
+        lessons: (s.lessons || []).map((l: any, lIdx: number) => {
+          const lId = `les-${Date.now()}-${sIdx}-${lIdx}`;
+          return {
+            id: lId,
+            clientKey: lId,
+            tempId: lId,
+            title: l.title ? cleanLectureTitle(l.title) : 'Lesson Topic',
+            type: l.type || 'VIDEO',
+            description: l.description || '',
+            duration: l.duration || '10:00',
+            subLessons: [],
+            order: lIdx + 1,
+            isFree: lIdx === 0
+          };
+        })
       };
     });
     onChange([...sections, ...newSections]);
@@ -405,7 +426,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
     if (editingSectionId) {
       const updated = sections.map((s) =>
-        s.id === editingSectionId
+        s.id === editingSectionId || s.clientKey === editingSectionId || s.tempId === editingSectionId
           ? { ...s, title: cleanedTitle, description: newSectionDescription.trim() }
           : s
       );
@@ -413,8 +434,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       setEditingSectionId(null);
       showToast({ title: 'Module Updated', type: 'info' });
     } else {
+      const newId = `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const newSec: BuilderSection = {
-        id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        id: newId,
+        clientKey: newId,
+        tempId: newId,
         title: cleanedTitle,
         description: newSectionDescription.trim(),
         order: sections.length + 1,
@@ -432,13 +456,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   // Update Module field inline (Title or Description)
   const handleUpdateSectionField = (sectionId: string, field: 'title' | 'description', value: string) => {
     onChange(
-      sections.map((s) => (s.id === sectionId ? { ...s, [field]: value } : s))
+      sections.map((s) => (s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId ? { ...s, [field]: value } : s))
     );
   };
 
   const handleDeleteSection = (sectionId: string) => {
     if (!confirm('Are you sure you want to delete this module and all its lessons?')) return;
-    onChange(sections.filter((s) => s.id !== sectionId).map((s, idx) => ({ ...s, order: idx + 1 })));
+    onChange(sections.filter((s) => s.id !== sectionId && s.clientKey !== sectionId && s.tempId !== sectionId).map((s, idx) => ({ ...s, order: idx + 1 })));
     showToast({ title: 'Module Removed', type: 'info' });
   };
 
@@ -448,7 +472,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD',
     openModal = false
   ) => {
-    const sIdx = sections.findIndex((s) => s.id === sectionId);
+    const sIdx = sections.findIndex((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (sIdx === -1) return;
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
@@ -496,8 +520,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       };
     }
 
+    const newId = `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newLesson: BuilderLesson = {
-      id: `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: newId,
+      clientKey: newId,
+      tempId: newId,
       title: defaultTitle,
       description: '',
       type,
@@ -515,15 +542,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     };
 
     const updated = sections.map((s) =>
-      s.id === sectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
+      s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
     );
 
     onChange(updated);
     if (openModal) {
       setEditingLesson({ sectionId, lesson: newLesson });
     } else if (type === 'QUIZ') {
-      setOpenContentDrawerId(newLesson.id);
-      setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
+      const targetDrawerKey = newLesson.clientKey || newLesson.id;
+      setOpenContentDrawerId(targetDrawerKey);
+      setActiveContentTab((prev) => ({ ...prev, [targetDrawerKey]: 'QUIZ', [newLesson.id]: 'QUIZ' }));
     }
 
     const itemLabel =
@@ -563,7 +591,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       targetSectionId = sections[sections.length - 1].id;
     }
 
-    const sIdx = sections.findIndex((s) => s.id === targetSectionId);
+    const sIdx = sections.findIndex((s) => s.id === targetSectionId || s.clientKey === targetSectionId || s.tempId === targetSectionId);
     if (sIdx === -1) return;
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
@@ -583,8 +611,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       ]
     };
 
+    const newId = `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newLesson: BuilderLesson = {
-      id: `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: newId,
+      clientKey: newId,
+      tempId: newId,
       title: 'Final Assignment',
       description: 'Mandatory final assessment required to complete the course and unlock the verified Certificate of Completion.',
       type: 'QUIZ',
@@ -599,12 +630,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     };
 
     const updated = sections.map((s) =>
-      s.id === targetSectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
+      s.id === targetSectionId || s.clientKey === targetSectionId || s.tempId === targetSectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
     );
 
     onChange(updated);
-    setOpenContentDrawerId(newLesson.id);
-    setActiveContentTab((prev) => ({ ...prev, [newLesson.id]: 'QUIZ' }));
+    const targetDrawerKey = newLesson.clientKey || newLesson.id;
+    setOpenContentDrawerId(targetDrawerKey);
+    setActiveContentTab((prev) => ({ ...prev, [targetDrawerKey]: 'QUIZ', [newLesson.id]: 'QUIZ' }));
 
     showToast({
       title: 'Final Assignment Created 🎓',
@@ -616,23 +648,26 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   // Update Lesson inline
   const handleUpdateLessonInline = (sectionId: string, lessonId: string, patch: Partial<BuilderLesson>) => {
     onChange(
-      sections.map((s) =>
-        s.id === sectionId
-          ? {
-              ...s,
-              lessons: s.lessons.map((l) => (l.id === lessonId ? { ...l, ...patch } : l))
-            }
-          : s
-      )
+      sections.map((s) => {
+        const isMatchSec = s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId;
+        if (!isMatchSec) return s;
+        return {
+          ...s,
+          lessons: s.lessons.map((l) => {
+            const isMatchLes = l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId;
+            return isMatchLes ? { ...l, ...patch } : l;
+          })
+        };
+      })
     );
   };
 
   // Add Sub-Lesson / Sub-Category (e.g., 1.1.1, 1.1.2, 2.1.1)
   const handleAddSubLesson = (sectionId: string, lessonId: string) => {
-    const sIdx = sections.findIndex((s) => s.id === sectionId);
+    const sIdx = sections.findIndex((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (sIdx === -1) return;
     const section = sections[sIdx];
-    const lIdx = section.lessons.findIndex((l) => l.id === lessonId);
+    const lIdx = section.lessons.findIndex((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
     if (lIdx === -1) return;
 
     const lesson = section.lessons[lIdx];
@@ -674,11 +709,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   ) => {
     onChange(
       sections.map((s) => {
-        if (s.id !== sectionId) return s;
+        if (s.id !== sectionId && s.clientKey !== sectionId && s.tempId !== sectionId) return s;
         return {
           ...s,
           lessons: s.lessons.map((l) => {
-            if (l.id !== lessonId) return l;
+            if (l.id !== lessonId && l.clientKey !== lessonId && l.tempId !== lessonId) return l;
             const subs = (l.subLessons || []).map((sub) =>
               sub.id === subLessonId ? { ...sub, ...patch } : sub
             );
@@ -693,11 +728,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   const handleDeleteSubLesson = (sectionId: string, lessonId: string, subLessonId: string) => {
     onChange(
       sections.map((s, sIdx) => {
-        if (s.id !== sectionId) return s;
+        if (s.id !== sectionId && s.clientKey !== sectionId && s.tempId !== sectionId) return s;
         return {
           ...s,
           lessons: s.lessons.map((l, lIdx) => {
-            if (l.id !== lessonId) return l;
+            if (l.id !== lessonId && l.clientKey !== lessonId && l.tempId !== lessonId) return l;
             const filtered = (l.subLessons || [])
               .filter((sub) => sub.id !== subLessonId)
               .map((sub, subIdx) => ({
@@ -715,9 +750,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Move Sub-Lesson up/down
   const moveSubLesson = (sectionId: string, lessonId: string, subIdx: number, direction: 'up' | 'down') => {
-    const sIdx = sections.findIndex((s) => s.id === sectionId);
+    const sIdx = sections.findIndex((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (sIdx === -1) return;
-    const lIdx = sections[sIdx].lessons.findIndex((l) => l.id === lessonId);
+    const lIdx = sections[sIdx].lessons.findIndex((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
     if (lIdx === -1) return;
     const subs = [...(sections[sIdx].lessons[lIdx].subLessons || [])];
     const targetIdx = direction === 'up' ? subIdx - 1 : subIdx + 1;
@@ -751,12 +786,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const targetOrder = editingLesson.lesson?.order;
 
     const updatedSections = sections.map((s) => {
-      if (s.id !== targetSecId && (s as any).tempId !== targetSecId) return s;
+      const isMatchSec = s.id === targetSecId || s.clientKey === targetSecId || (s as any).tempId === targetSecId;
+      if (!isMatchSec) return s;
 
       let matchedIdx = s.lessons.findIndex(
         (l) =>
           l.id === targetLesId ||
-          (origLesId && l.id === origLesId) ||
+          l.clientKey === targetLesId ||
+          (origLesId && (l.id === origLesId || l.clientKey === origLesId)) ||
           (l as any).tempId === targetLesId ||
           (origLesId && (l as any).tempId === origLesId)
       );
@@ -770,7 +807,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         nextLessons[matchedIdx] = {
           ...nextLessons[matchedIdx],
           ...sanitizedLesson,
-          id: nextLessons[matchedIdx].id // Preserve latest ID (server CUID or local ID)
+          id: nextLessons[matchedIdx].id, // Preserve latest ID (server CUID or local ID)
+          clientKey: nextLessons[matchedIdx].clientKey || sanitizedLesson.clientKey || nextLessons[matchedIdx].id,
+          tempId: nextLessons[matchedIdx].tempId || sanitizedLesson.tempId
         };
         return { ...s, lessons: nextLessons };
       }
@@ -787,11 +826,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (!confirm('Are you sure you want to delete this lesson and its sub-topics?')) return;
 
     const updated = sections.map((s) => {
-      if (s.id === sectionId) {
+      const isMatchSec = s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId;
+      if (isMatchSec) {
         return {
           ...s,
           lessons: s.lessons
-            .filter((l) => l.id !== lessonId)
+            .filter((l) => l.id !== lessonId && l.clientKey !== lessonId && l.tempId !== lessonId)
             .map((l, idx) => ({ ...l, order: idx + 1 }))
         };
       }
@@ -799,7 +839,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     });
 
     onChange(updated);
-    if (editingLesson?.lesson.id === lessonId) setEditingLesson(null);
+    if (editingLesson?.lesson.id === lessonId || editingLesson?.lesson.clientKey === lessonId || editingLesson?.lesson.tempId === lessonId) {
+      setEditingLesson(null);
+    }
     showToast({ title: 'Lesson Deleted', type: 'info' });
   };
 
@@ -814,7 +856,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   const moveLesson = (sectionId: string, index: number, direction: 'up' | 'down') => {
-    const sec = sections.find((s) => s.id === sectionId);
+    const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (!sec) return;
     const newIdx = direction === 'up' ? index - 1 : index + 1;
     if (newIdx < 0 || newIdx >= sec.lessons.length) return;
@@ -824,7 +866,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     lessonsCopy.splice(newIdx, 0, moved);
 
     const updated = sections.map((s) =>
-      s.id === sectionId
+      s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId
         ? { ...s, lessons: lessonsCopy.map((l, i) => ({ ...l, order: i + 1 })) }
         : s
     );
@@ -901,10 +943,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         <div className="space-y-6">
           {sections.map((section, sIdx) => {
             const moduleNum = sIdx + 1;
+            const secKey = section.clientKey || section.tempId || section.id;
 
             return (
               <div
-                key={section.id}
+                key={secKey}
                 className="bg-[#f7f9fa] border border-[#d1d7dc] rounded-lg p-4 sm:p-5 space-y-4 shadow-2xs transition-all"
               >
                 {/* Section Header (Udemy Style) */}
@@ -941,8 +984,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         <input
                           type="text"
                           value={section.title}
-                          onChange={(e) => handleUpdateSectionField(section.id, 'title', e.target.value)}
-                          onBlur={() => handleUpdateSectionField(section.id, 'title', cleanModuleTitle(section.title))}
+                          onChange={(e) => handleUpdateSectionField(secKey, 'title', e.target.value)}
+                          onBlur={() => handleUpdateSectionField(secKey, 'title', cleanModuleTitle(section.title))}
                           placeholder="Module Title (e.g. Foundations & Architecture)"
                           className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors shadow-2xs"
                         />
@@ -952,7 +995,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleDeleteSection(section.id)}
+                        onClick={() => handleDeleteSection(secKey)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
                         title="Delete Module"
                       >
@@ -965,28 +1008,35 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                 {/* Module Curriculum Items (Lectures & Sub-Topics) */}
                 <div className="space-y-3 pt-1">
                   {section.lessons.map((les, lIdx) => {
+                      const itemKey = les.clientKey || les.tempId || les.id;
                       const isQuizItem = les.type === 'QUIZ';
                       const isArticleItem = les.type === 'TEXT';
                       const isLectureItem = !isQuizItem && !isArticleItem;
-                      const itemMeta = itemNumbering.map[les.id] || {
-                        type: isQuizItem ? 'QUIZ' : isArticleItem ? 'ARTICLE' : 'LECTURE',
-                        num: lIdx + 1,
-                        label: isQuizItem ? `Quiz ${lIdx + 1}` : isArticleItem ? `Article ${lIdx + 1}` : `Lecture ${lIdx + 1}`
-                      };
+                      const itemMeta =
+                        itemNumbering.map[itemKey] ||
+                        itemNumbering.map[les.id] || {
+                          type: isQuizItem ? 'QUIZ' : isArticleItem ? 'ARTICLE' : 'LECTURE',
+                          num: lIdx + 1,
+                          label: isQuizItem ? `Quiz ${lIdx + 1}` : isArticleItem ? `Article ${lIdx + 1}` : `Lecture ${lIdx + 1}`
+                        };
                       const qConf = parseQuizConfig(les.quizData);
                       const qCount = qConf.questions.length;
                       const hasContent = isQuizItem
                         ? qCount > 0
                         : !!(les.videoUrl || les.content || les.pdfUrl);
-                      const isDrawerOpen = openContentDrawerId === les.id;
+                      const isDrawerOpen =
+                        openContentDrawerId === les.id ||
+                        (Boolean(les.clientKey) && openContentDrawerId === les.clientKey) ||
+                        (Boolean(les.tempId) && openContentDrawerId === les.tempId);
                       const currentTab =
+                        (les.clientKey && activeContentTab[les.clientKey]) ||
                         activeContentTab[les.id] ||
                         (les.type === 'TEXT' ? 'TEXT' : les.type === 'PDF' ? 'PDF' : 'VIDEO');
 
                       // 1. DEDICATED QUIZ ROW & EDITOR (Purple Theme, Clear "Edit Quiz" Button)
                       if (isQuizItem) {
                         return (
-                          <div key={les.id} className="space-y-2">
+                          <div key={itemKey} className="space-y-2">
                             <div className="border border-purple-200 bg-purple-50/25 hover:border-purple-300 rounded-md transition-all shadow-2xs overflow-hidden">
                               {/* Quiz Top Bar */}
                               <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -996,7 +1046,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <button
                                       type="button"
                                       disabled={lIdx === 0}
-                                      onClick={() => moveLesson(section.id, lIdx, 'up')}
+                                      onClick={() => moveLesson(secKey, lIdx, 'up')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                       title="Move Quiz Up"
                                     >
@@ -1005,7 +1055,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <button
                                       type="button"
                                       disabled={lIdx === section.lessons.length - 1}
-                                      onClick={() => moveLesson(section.id, lIdx, 'down')}
+                                      onClick={() => moveLesson(secKey, lIdx, 'down')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                       title="Move Quiz Down"
                                     >
@@ -1048,13 +1098,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       type="text"
                                       value={les.title}
                                       onChange={(e) =>
-                                        handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                        handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                       }
                                       onBlur={() => {
                                         if (les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')) {
-                                          handleUpdateLessonInline(section.id, les.id, { title: les.title.trim() || 'Final Assignment' });
+                                          handleUpdateLessonInline(secKey, itemKey, { title: les.title.trim() || 'Final Assignment' });
                                         } else {
-                                          handleUpdateLessonInline(section.id, les.id, { title: cleanQuizTitle(les.title) });
+                                          handleUpdateLessonInline(secKey, itemKey, { title: cleanQuizTitle(les.title) });
                                         }
                                       }}
                                       placeholder={les.isFinalAssignment ? "Final Assignment (Certification Exam)" : "Quiz Title (e.g. Knowledge Assessment)"}
@@ -1084,7 +1134,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         value={qConf.passingScore ?? 70}
                                         onChange={(e) => {
                                           const val = Math.min(100, Math.max(10, Number(e.target.value) || 70));
-                                          handleUpdateLessonInline(section.id, les.id, {
+                                          handleUpdateLessonInline(secKey, itemKey, {
                                             quizData: { ...qConf, passingScore: val }
                                           });
                                         }}
@@ -1101,7 +1151,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <div className="flex items-center gap-2 self-end md:self-center shrink-0">
                                   <button
                                     type="button"
-                                    onClick={() => toggleContentDrawer(les.id, 'QUIZ')}
+                                    onClick={() => {
+                                      if (isDrawerOpen) {
+                                        setOpenContentDrawerId(null);
+                                      } else {
+                                        toggleContentDrawer(itemKey, 'QUIZ');
+                                      }
+                                    }}
                                     className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
                                       isDrawerOpen
                                         ? 'bg-purple-900 text-white'
@@ -1115,7 +1171,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteLesson(section.id, les.id)}
+                                    onClick={() => handleDeleteLesson(secKey, itemKey)}
                                     className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
                                     title="Delete Quiz"
                                   >
@@ -1271,7 +1327,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                   const nextQuestions = qConf.questions.filter(
                                                     (_, idx) => idx !== qIdx
                                                   );
-                                                  handleUpdateLessonInline(section.id, les.id, {
+                                                  handleUpdateLessonInline(secKey, itemKey, {
                                                     quizData: { ...qConf, questions: nextQuestions }
                                                   });
                                                 }}
@@ -1290,7 +1346,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             onChange={(e) => {
                                               const nextQ = [...qConf.questions];
                                               nextQ[qIdx] = { ...q, question: e.target.value };
-                                              handleUpdateLessonInline(section.id, les.id, {
+                                              handleUpdateLessonInline(secKey, itemKey, {
                                                 quizData: { ...qConf, questions: nextQ }
                                               });
                                             }}
@@ -1313,12 +1369,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                 >
                                                   <input
                                                     type="radio"
-                                                    name={`les-q-${les.id}-${qIdx}`}
+                                                    name={`les-q-${itemKey}-${qIdx}`}
                                                     checked={isCorrect}
                                                     onChange={() => {
                                                       const nextQ = [...qConf.questions];
                                                       nextQ[qIdx] = { ...q, correctIndex: oIdx };
-                                                      handleUpdateLessonInline(section.id, les.id, {
+                                                      handleUpdateLessonInline(secKey, itemKey, {
                                                         quizData: { ...qConf, questions: nextQ }
                                                       });
                                                     }}
@@ -1333,7 +1389,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                       nextOpts[oIdx] = e.target.value;
                                                       const nextQ = [...qConf.questions];
                                                       nextQ[qIdx] = { ...q, options: nextOpts };
-                                                      handleUpdateLessonInline(section.id, les.id, {
+                                                      handleUpdateLessonInline(secKey, itemKey, {
                                                         quizData: { ...qConf, questions: nextQ }
                                                       });
                                                     }}
@@ -1356,7 +1412,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             onChange={(e) => {
                                               const nextQ = [...qConf.questions];
                                               nextQ[qIdx] = { ...q, explanation: e.target.value };
-                                              handleUpdateLessonInline(section.id, les.id, {
+                                              handleUpdateLessonInline(secKey, itemKey, {
                                                 quizData: { ...qConf, questions: nextQ }
                                               });
                                             }}
@@ -1385,7 +1441,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                 }
                                               ]
                                             };
-                                            handleUpdateLessonInline(section.id, les.id, {
+                                            handleUpdateLessonInline(secKey, itemKey, {
                                               quizData: nextQ,
                                               type: 'QUIZ'
                                             });
@@ -1404,7 +1460,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            handleUpdateLessonInline(section.id, les.id, {
+                                            handleUpdateLessonInline(secKey, itemKey, {
                                               quizData: qConf,
                                               type: 'QUIZ'
                                             });
@@ -1433,7 +1489,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       // 2. STANDARD LECTURE ROW (Lecture {num}, Title input, Free Preview, Delete - No Edit button!)
                       if (isLectureItem) {
                         return (
-                          <div key={les.id} className="space-y-2">
+                          <div key={itemKey} className="space-y-2">
                             <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
                               {/* Lecture Top Bar */}
                               <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -1443,7 +1499,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <button
                                       type="button"
                                       disabled={lIdx === 0}
-                                      onClick={() => moveLesson(section.id, lIdx, 'up')}
+                                      onClick={() => moveLesson(secKey, lIdx, 'up')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                       title="Move Lecture Up"
                                     >
@@ -1452,7 +1508,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <button
                                       type="button"
                                       disabled={lIdx === section.lessons.length - 1}
-                                      onClick={() => moveLesson(section.id, lIdx, 'down')}
+                                      onClick={() => moveLesson(secKey, lIdx, 'down')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                       title="Move Lecture Down"
                                     >
@@ -1486,10 +1542,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       type="text"
                                       value={les.title}
                                       onChange={(e) =>
-                                        handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                        handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                       }
                                       onBlur={() =>
-                                        handleUpdateLessonInline(section.id, les.id, { title: cleanLectureTitle(les.title) })
+                                        handleUpdateLessonInline(secKey, itemKey, { title: cleanLectureTitle(les.title) })
                                       }
                                       placeholder="Lecture Title (e.g. Overview & Deep Dive)"
                                       className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
@@ -1511,8 +1567,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           type="button"
                                           onClick={() =>
                                             setVideoModalTarget({
-                                              sectionId: section.id,
-                                              lessonId: les.id,
+                                              sectionId: secKey,
+                                              lessonId: itemKey,
                                               title: les.title || `Lecture ${itemMeta.num}`
                                             })
                                           }
@@ -1524,7 +1580,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            handleUpdateLessonInline(section.id, les.id, {
+                                            handleUpdateLessonInline(secKey, itemKey, {
                                               videoUrl: '',
                                               videoFileName: '',
                                               clearVideo: true,
@@ -1542,8 +1598,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         type="button"
                                         onClick={() =>
                                           setVideoModalTarget({
-                                            sectionId: section.id,
-                                            lessonId: les.id,
+                                            sectionId: secKey,
+                                            lessonId: itemKey,
                                             title: les.title || `Lecture ${itemMeta.num}`
                                           })
                                         }
@@ -1562,7 +1618,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       type="checkbox"
                                       checked={!!les.isFree}
                                       onChange={(e) =>
-                                        handleUpdateLessonInline(section.id, les.id, {
+                                        handleUpdateLessonInline(secKey, itemKey, {
                                           isFree: e.target.checked
                                         })
                                       }
@@ -1576,7 +1632,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteLesson(section.id, les.id)}
+                                    onClick={() => handleDeleteLesson(secKey, itemKey)}
                                     className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
                                     title="Delete Lecture"
                                   >
@@ -1591,7 +1647,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                       // 3. WRITTEN ARTICLE ROW (Article {num}, Title input, Badge, Free Preview, Edit Article button & Delete)
                       return (
-                        <div key={les.id} className="space-y-2">
+                        <div key={itemKey} className="space-y-2">
                           <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
                             {/* Article Top Bar */}
                             <div className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -1601,7 +1657,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <button
                                     type="button"
                                     disabled={lIdx === 0}
-                                    onClick={() => moveLesson(section.id, lIdx, 'up')}
+                                    onClick={() => moveLesson(secKey, lIdx, 'up')}
                                     className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                     title="Move Article Up"
                                   >
@@ -1610,7 +1666,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <button
                                     type="button"
                                     disabled={lIdx === section.lessons.length - 1}
-                                    onClick={() => moveLesson(section.id, lIdx, 'down')}
+                                    onClick={() => moveLesson(secKey, lIdx, 'down')}
                                     className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                     title="Move Article Down"
                                   >
@@ -1644,10 +1700,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     type="text"
                                     value={les.title}
                                     onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, { title: e.target.value })
+                                      handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                     }
                                     onBlur={() =>
-                                      handleUpdateLessonInline(section.id, les.id, { title: cleanLectureTitle(les.title) })
+                                      handleUpdateLessonInline(secKey, itemKey, { title: cleanLectureTitle(les.title) })
                                     }
                                     placeholder="Article Title (e.g. Introduction & Key Concepts)"
                                     className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
@@ -1658,7 +1714,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                                   <button
                                     type="button"
-                                    onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
+                                    onClick={() => setEditingLesson({ sectionId: secKey, lesson: les })}
                                     className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-950 px-2 py-0.5 rounded border border-amber-300 cursor-pointer transition-colors"
                                     title="Click to edit article headings & text"
                                   >
@@ -1677,7 +1733,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     type="checkbox"
                                     checked={!!les.isFree}
                                     onChange={(e) =>
-                                      handleUpdateLessonInline(section.id, les.id, {
+                                      handleUpdateLessonInline(secKey, itemKey, {
                                         isFree: e.target.checked
                                       })
                                     }
@@ -1691,7 +1747,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                               <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                 <button
                                   type="button"
-                                  onClick={() => setEditingLesson({ sectionId: section.id, lesson: les })}
+                                  onClick={() => setEditingLesson({ sectionId: secKey, lesson: les })}
                                   className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                                   title="Edit article headings, formatted content, or attached handouts"
                                 >
@@ -1700,7 +1756,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteLesson(section.id, les.id)}
+                                  onClick={() => handleDeleteLesson(secKey, itemKey)}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
                                   title="Delete Article"
                                 >
@@ -1720,7 +1776,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCreateLesson(section.id, 'VIDEO', false)}
+                      onClick={() => handleCreateLesson(secKey, 'VIDEO', false)}
                       className="px-3.5 py-2 bg-blue-50 border border-blue-400 hover:bg-blue-100 text-blue-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                       title="Add a lecture"
                     >
@@ -1729,7 +1785,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleCreateLesson(section.id, 'TEXT', true)}
+                      onClick={() => handleCreateLesson(secKey, 'TEXT', true)}
                       className="px-3.5 py-2 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                       title="Add a written article with headings and paragraphs"
                     >
@@ -1738,7 +1794,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleCreateLesson(section.id, 'QUIZ', false)}
+                      onClick={() => handleCreateLesson(secKey, 'QUIZ', false)}
                       className="px-3.5 py-2 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                       title="Add a knowledge quiz"
                     >
@@ -1747,7 +1803,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleCreateFinalAssignment(section.id)}
+                      onClick={() => handleCreateFinalAssignment(secKey)}
                       className={`px-3.5 py-2 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs ${
                         hasFinalAssignment
                           ? 'bg-amber-50/70 border border-amber-300 text-amber-900 hover:bg-amber-100'
