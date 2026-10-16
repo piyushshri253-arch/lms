@@ -10,7 +10,9 @@ interface VideoPlayerProps {
   thumbnail?: string;
   duration?: string;
   isFree?: boolean;
+  autoPlay?: boolean;
   onLessonComplete?: () => void;
+  onVideoEnded?: () => void;
   onProgressUpdate?: (watchedSeconds: number, percent: number) => void;
 }
 
@@ -26,7 +28,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   thumbnail,
   duration = '12:00',
   isFree = false,
+  autoPlay = false,
   onLessonComplete,
+  onVideoEnded,
   onProgressUpdate
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -246,6 +250,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       isMounted = false;
     };
   }, [lessonId, videoUrl, isFree]);
+
+  // Handle Auto-Play when switched to from another lesson or enabled
+  useEffect(() => {
+    if (autoPlay && resolvedVideoUrl) {
+      let isMounted = true;
+      const v = videoRef.current;
+      if (!v) return;
+
+      const triggerAutoPlay = async () => {
+        try {
+          if (!isMounted) return;
+          isPlayPendingRef.current = true;
+          await v.play();
+          if (isMounted) setIsPlaying(true);
+        } catch (err: any) {
+          if (err?.name !== 'AbortError') {
+            console.log('Autoplay deferred or blocked by browser policy:', err?.message);
+          }
+        } finally {
+          isPlayPendingRef.current = false;
+        }
+      };
+
+      const timer = setTimeout(triggerAutoPlay, 150);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
+    }
+  }, [resolvedVideoUrl, autoPlay, lessonId]);
 
   // Handle Video Time Updates
   const handleTimeUpdate = () => {
@@ -482,9 +516,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 setVideoError('Video format or stream could not be loaded. Please ensure video source is valid.');
               }
             }}
+            autoPlay={autoPlay}
             onEnded={() => {
               setIsPlaying(false);
               onLessonComplete?.();
+              onVideoEnded?.();
             }}
             className={`w-full object-contain cursor-pointer transition-all ${
               isFullscreen

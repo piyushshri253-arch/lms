@@ -38,6 +38,8 @@ export default function LearnPlayerPage() {
   const [isProgressDropdownOpen, setIsProgressDropdownOpen] = useState(false);
   const [openResourceMenuId, setOpenResourceMenuId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [autoPlayNextEnabled, setAutoPlayNextEnabled] = useState(true);
+  const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
 
   // Close resource dropdowns on click outside
   useEffect(() => {
@@ -324,22 +326,76 @@ export default function LearnPlayerPage() {
     );
   };
 
-  const handleSelectLesson = (lessonId: string) => {
+  const handleSelectLesson = (lessonId: string, autoPlay = false) => {
+    setShouldAutoPlay(autoPlay);
     setActiveLessonId(lessonId);
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', `?lessonId=${lessonId}#${playerTab}`);
+    }
+    const targetSection = allSections.find((sec: any) =>
+      (sec.lessons || []).some((l: any) => l.id === lessonId)
+    );
+    if (targetSection) {
+      setExpandedSectionIds((prev) =>
+        prev.includes(targetSection.id) ? prev : [...prev, targetSection.id]
+      );
     }
   };
 
   const handleNextLesson = () => {
     if (currentIndex < allLessons.length - 1) {
-      handleSelectLesson(allLessons[currentIndex + 1].id);
+      handleSelectLesson(allLessons[currentIndex + 1].id, true);
     }
   };
 
   const handlePrevLesson = () => {
     if (currentIndex > 0) {
-      handleSelectLesson(allLessons[currentIndex - 1].id);
+      handleSelectLesson(allLessons[currentIndex - 1].id, false);
+    }
+  };
+
+  // Automatically advance to the next lecture when the current video finishes
+  const handleVideoEnded = async () => {
+    const currentId = activeLesson?.id;
+    if (currentId && isEnrolled && !completedLessonIds.includes(currentId)) {
+      try {
+        const res = await fetch(`/api/lessons/${currentId}/progress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: true })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (data.completedLessonIds) setCompletedLessonIds(data.completedLessonIds);
+          else setCompletedLessonIds((prev) => [...prev, currentId]);
+          if (data.progressPercent !== undefined) setProgressPercent(data.progressPercent);
+          if (data.certificate) {
+            setCertificateData(data.certificate);
+            setIsCertificateOpen(true);
+            confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
+            showToast({ title: 'Course Completed! 🎉', description: 'Your verified certificate is ready.', type: 'success' });
+          }
+        }
+      } catch {
+        // Silently continue if progress call fails
+      }
+    }
+
+    if (autoPlayNextEnabled && currentIndex < allLessons.length - 1) {
+      const nextLesson = allLessons[currentIndex + 1];
+      const nextTitle = lessonDisplayMap.get(nextLesson.id)?.underPlayerTitle || nextLesson.title || 'Next Lecture';
+      showToast({
+        title: 'Opening Next Lecture 🎬',
+        description: nextTitle,
+        type: 'info'
+      });
+      handleSelectLesson(nextLesson.id, true);
+    } else if (currentIndex >= allLessons.length - 1) {
+      showToast({
+        title: 'Course Completed! 🎉',
+        description: 'You have finished all lectures in this course.',
+        type: 'success'
+      });
     }
   };
 
@@ -701,7 +757,9 @@ export default function LearnPlayerPage() {
                   thumbnail={course?.thumbnail || ''}
                   duration={activeLesson?.duration || '10:00'}
                   isFree={!!activeLesson?.isFree}
+                  autoPlay={shouldAutoPlay}
                   onLessonComplete={() => handleToggleLessonComplete(activeLesson?.id)}
+                  onVideoEnded={handleVideoEnded}
                 />
               </div>
             )}
@@ -890,6 +948,25 @@ export default function LearnPlayerPage() {
                   <span>{isCurrentCompleted ? 'Completed' : 'Mark complete'}</span>
                 </button>
               )}
+
+              {/* Autoplay Next Toggle */}
+              <button
+                type="button"
+                onClick={() => setAutoPlayNextEnabled((prev) => !prev)}
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold transition-colors cursor-pointer ${
+                  autoPlayNextEnabled
+                    ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+                title={autoPlayNextEnabled ? 'Autoplay Next Lecture is ON' : 'Autoplay Next Lecture is OFF'}
+              >
+                <Icon
+                  name={autoPlayNextEnabled ? 'play_circle' : 'pause_circle'}
+                  size={15}
+                  className={autoPlayNextEnabled ? 'text-purple-600' : 'text-slate-400'}
+                />
+                <span>Autoplay {autoPlayNextEnabled ? 'ON' : 'OFF'}</span>
+              </button>
 
               {/* Next Lecture */}
               <button
