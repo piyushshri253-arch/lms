@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+export const runtime = 'nodejs';
 import { prisma } from '@/lib/prisma';
 import {
   SUPPORTED_VIDEO_EXTENSIONS,

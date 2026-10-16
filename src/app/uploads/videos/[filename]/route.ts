@@ -4,6 +4,10 @@ import path from 'path';
 import os from 'os';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+export const runtime = 'nodejs';
+
 const MIME_MAP: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.mov': 'video/quicktime',
@@ -86,6 +90,47 @@ async function resolveMediaFile(inputFilename: string): Promise<{
         }
         filePath = tmpPath;
         fileExists = true;
+      }
+    } catch {}
+  }
+
+  // 4. Fallback to VideoUploadChunk table (for large/chunked videos up to 500MB)
+  if (!fileExists) {
+    try {
+      const chunks = await prisma.videoUploadChunk.findMany({
+        where: {
+          OR: [
+            { fileName: safeFilename },
+            { uploadId: safeFilename }
+          ]
+        },
+        orderBy: { chunkIndex: 'asc' },
+        select: { data: true }
+      });
+
+      if (chunks && chunks.length > 0) {
+        const tmpPath = path.join(os.tmpdir(), safeFilename);
+        const tempWritePath = `${tmpPath}.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
+        const writeStream = fs.createWriteStream(tempWritePath);
+        for (const c of chunks) {
+          const chunkBuf = Buffer.from(c.data, 'base64');
+          await new Promise<void>((resolve) => {
+            if (!writeStream.write(chunkBuf)) {
+              writeStream.once('drain', resolve);
+            } else {
+              process.nextTick(resolve);
+            }
+          });
+        }
+        await new Promise<void>((resolve) => writeStream.end(resolve));
+
+        try {
+          await fs.promises.rename(tempWritePath, tmpPath);
+        } catch {
+          await fs.promises.unlink(tempWritePath).catch(() => {});
+        }
+        filePath = tmpPath;
+        fileExists = fs.existsSync(filePath);
       }
     } catch {}
   }

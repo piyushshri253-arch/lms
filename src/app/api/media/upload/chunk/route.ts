@@ -6,7 +6,42 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+export const runtime = 'nodejs';
+
 const DANGEROUS_EXTENSIONS = ['.exe', '.bat', '.cmd', '.sh', '.vbs', '.msi', '.dll', '.com', '.scr', '.pif'];
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const uploadId = (searchParams.get('uploadId') || '').replace(/[^a-zA-Z0-9_\-]/g, '');
+
+    if (!uploadId) {
+      return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
+    }
+
+    const chunks = await prisma.videoUploadChunk.findMany({
+      where: { uploadId },
+      select: { chunkIndex: true, totalChunks: true, sizeBytes: true, fileName: true },
+      orderBy: { chunkIndex: 'asc' }
+    });
+
+    const totalChunks = chunks[0]?.totalChunks || 0;
+    const uploadedIndices = chunks.map((c) => c.chunkIndex);
+
+    return NextResponse.json({
+      success: true,
+      uploadId,
+      totalChunks,
+      uploadedCount: chunks.length,
+      uploadedIndices,
+      isComplete: chunks.length > 0 && chunks.length >= totalChunks
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Status check failed' }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,9 +52,11 @@ export async function POST(req: NextRequest) {
 
     // Resilient fallback for course authoring in local/dev/admin contexts
     if (!user) {
-      const dbUser = await prisma.user.findFirst({
-        where: { role: { in: ['INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'] } }
-      }).catch(() => null);
+      const dbUser = await prisma.user
+        .findFirst({
+          where: { role: { in: ['INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'] } }
+        })
+        .catch(() => null);
 
       if (dbUser) {
         user = {
@@ -43,9 +80,9 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const chunkFile = formData.get('chunk') as File | null;
     const uploadId = (formData.get('uploadId') as string || '').replace(/[^a-zA-Z0-9_\-]/g, '');
-    const chunkIndex = parseInt(formData.get('chunkIndex') as string || '0', 10);
-    const totalChunks = parseInt(formData.get('totalChunks') as string || '1', 10);
-    const originalFileName = (formData.get('fileName') as string || 'video.mp4').trim();
+    const chunkIndex = parseInt((formData.get('chunkIndex') as string) || '0', 10);
+    const totalChunks = parseInt((formData.get('totalChunks') as string) || '1', 10);
+    const originalFileName = ((formData.get('fileName') as string) || 'video.mp4').trim();
     const customTitle = formData.get('title') as string | null;
     const rawLessonId = formData.get('lessonId') as string | null;
     const rawCourseId = formData.get('courseId') as string | null;
@@ -64,95 +101,136 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Temporary chunk staging directory in os.tmpdir()
-    const tempBaseDir = path.join(os.tmpdir(), 'morena_video_chunks');
-    const uploadChunkDir = path.join(tempBaseDir, uploadId);
+    // 1. Read chunk array buffer
+    const chunkArrayBuffer = await chunkFile.arrayBuffer();
+    const chunkBuffer = Buffer.from(chunkArrayBuffer);
+    const chunkBase64 = chunkBuffer.toString('base64');
 
-    if (!fs.existsSync(uploadChunkDir)) {
-      await fs.promises.mkdir(uploadChunkDir, { recursive: true });
-    }
+    // 2. Persist chunk in central database (Supabase PostgreSQL)
+    // This solves the multi-instance serverless problem on Vercel:
+    // Every Vercel container connects to the same database!
+    await prisma.videoUploadChunk.upsert({
+      where: {
+        uploadId_chunkIndex: {
+          uploadId,
+          chunkIndex
+        }
+      },
+      update: {
+        data: chunkBase64,
+        sizeBytes: chunkBuffer.length,
+        fileName: originalFileName,
+        totalChunks
+      },
+      create: {
+        uploadId,
+        chunkIndex,
+        totalChunks,
+        data: chunkBase64,
+        sizeBytes: chunkBuffer.length,
+        fileName: originalFileName
+      }
+    });
 
-    // Write current chunk to disk
-    const chunkBuffer = Buffer.from(await chunkFile.arrayBuffer());
-    const chunkPath = path.join(uploadChunkDir, `chunk_${String(chunkIndex).padStart(5, '0')}`);
-    await fs.promises.writeFile(chunkPath, chunkBuffer);
+    // 3. Local /tmp cache write (best-effort fast caching on current instance)
+    try {
+      const tempBaseDir = path.join(os.tmpdir(), 'morena_video_chunks');
+      const uploadChunkDir = path.join(tempBaseDir, uploadId);
+      if (!fs.existsSync(uploadChunkDir)) {
+        await fs.promises.mkdir(uploadChunkDir, { recursive: true });
+      }
+      const chunkPath = path.join(uploadChunkDir, `chunk_${String(chunkIndex).padStart(5, '0')}`);
+      await fs.promises.writeFile(chunkPath, chunkBuffer);
+    } catch {}
 
-    // If not all chunks have arrived yet, return progress status
-    const existingChunkFiles = await fs.promises.readdir(uploadChunkDir);
-    if (existingChunkFiles.length < totalChunks && chunkIndex < totalChunks - 1) {
+    // 4. Count how many chunks have arrived for this upload in the database
+    const uploadedChunksCount = await prisma.videoUploadChunk.count({
+      where: { uploadId }
+    });
+
+    // If not all chunks have arrived yet, acknowledge progress immediately
+    if (uploadedChunksCount < totalChunks) {
       return NextResponse.json({
         success: true,
         complete: false,
         chunkIndex,
         totalChunks,
-        uploadedChunks: existingChunkFiles.length
+        uploadedChunks: uploadedChunksCount
       });
     }
 
-    // All chunks received! Check and concatenate in numerical order
-    const expectedChunkNames: string[] = [];
+    // 5. All chunks are present in DB! Assemble the final video
+    const allChunks = await prisma.videoUploadChunk.findMany({
+      where: { uploadId },
+      orderBy: { chunkIndex: 'asc' },
+      select: { chunkIndex: true, data: true, sizeBytes: true }
+    });
+
+    // Verify all consecutive chunks exist (0 to totalChunks - 1)
+    const presentIndices = new Set(allChunks.map((c) => c.chunkIndex));
+    const missingIndices: number[] = [];
     for (let i = 0; i < totalChunks; i++) {
-      expectedChunkNames.push(`chunk_${String(i).padStart(5, '0')}`);
-    }
-
-    const allPresent = expectedChunkNames.every((name) => existingChunkFiles.includes(name));
-    if (!allPresent && chunkIndex === totalChunks - 1) {
-      // Fast non-blocking re-check if async write is flushing
-      await new Promise((r) => setTimeout(r, 100));
-      const recheck = await fs.promises.readdir(uploadChunkDir);
-      if (!expectedChunkNames.every((name) => recheck.includes(name))) {
-        return NextResponse.json({
-          success: true,
-          complete: false,
-          chunkIndex,
-          totalChunks,
-          uploadedChunks: recheck.length,
-          message: 'Waiting for remaining chunks to flush.'
-        });
+      if (!presentIndices.has(i)) {
+        missingIndices.push(i);
       }
     }
 
-    // Assemble final video buffer
-    const buffers: Buffer[] = [];
-    for (const chunkName of expectedChunkNames) {
-      const p = path.join(uploadChunkDir, chunkName);
-      if (fs.existsSync(p)) {
-        buffers.push(await fs.promises.readFile(p));
-      }
+    if (missingIndices.length > 0) {
+      return NextResponse.json({
+        success: true,
+        complete: false,
+        chunkIndex,
+        totalChunks,
+        uploadedChunks: allChunks.length,
+        missingChunks: missingIndices,
+        message: 'Waiting for remaining chunks to arrive.'
+      });
     }
-    const finalBuffer = Buffer.concat(buffers);
+
+    // Combine all chunks into final Buffer
+    const bufferParts = allChunks.map((c) => Buffer.from(c.data, 'base64'));
+    const finalBuffer = Buffer.concat(bufferParts);
 
     const rawBaseName = path.parse(originalFileName).name;
-    const cleanBase = rawBaseName
-      .replace(/[^a-zA-Z0-9_\-\.\s]/g, '')
-      .trim()
-      .replace(/\s+/g, '_') || 'lecture_video';
+    const cleanBase =
+      rawBaseName
+        .replace(/[^a-zA-Z0-9_\-\.\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '_') || 'lecture_video';
     const safeFilename = `${Date.now()}_${cleanBase}${ext}`;
     const publicVideoUrl = `/uploads/videos/${safeFilename}`;
 
-    // 1. Write to local public/uploads/videos if possible
+    // Tag all chunk records with the final safeFilename for persistent streaming lookup
+    await prisma.videoUploadChunk
+      .updateMany({
+        where: { uploadId },
+        data: { fileName: safeFilename }
+      })
+      .catch(() => {});
+
+    // Write final video to local storage
     try {
       const uploadDir = ensureVideoUploadDir();
       const filePath = path.join(uploadDir, safeFilename);
       await fs.promises.writeFile(filePath, finalBuffer);
-    } catch {
-      // 2. Fallback to /tmp (Vercel serverless environment)
-      try {
-        const tmpPath = path.join(os.tmpdir(), safeFilename);
-        await fs.promises.writeFile(tmpPath, finalBuffer);
-      } catch {}
-    }
-
-    // Clean up temporary chunks directory
-    try {
-      for (const f of expectedChunkNames) {
-        await fs.promises.unlink(path.join(uploadChunkDir, f)).catch(() => {});
-      }
-      await fs.promises.rmdir(uploadChunkDir).catch(() => {});
     } catch {}
 
-    // Only store lightweight base64 (<= 3 MB) in database to avoid multi-second DB network freezes and 98% hang
-    const base64Data = finalBuffer.length <= 3 * 1024 * 1024 ? finalBuffer.toString('base64') : null;
+    // Also write to os.tmpdir() for instant streaming from current serverless container
+    try {
+      const tmpPath = path.join(os.tmpdir(), safeFilename);
+      await fs.promises.writeFile(tmpPath, finalBuffer);
+    } catch {}
+
+    // Clean up temporary disk chunk directory
+    try {
+      const tempBaseDir = path.join(os.tmpdir(), 'morena_video_chunks');
+      const uploadChunkDir = path.join(tempBaseDir, uploadId);
+      await fs.promises.rm(uploadChunkDir, { recursive: true, force: true }).catch(() => {});
+    } catch {}
+
+    // Only store inline base64 if <= 10MB to keep MediaAsset queries fast
+    // Chunks are already securely preserved in VideoUploadChunk for streaming
+    const base64Data = finalBuffer.length <= 10 * 1024 * 1024 ? finalBuffer.toString('base64') : null;
     const assetName = customTitle || originalFileName.replace(ext, '');
 
     let validCourseId: string | null = null;
@@ -172,6 +250,7 @@ export async function POST(req: NextRequest) {
           include: { section: { include: { course: true } } }
         })
         .catch(() => null);
+
       if (existingLesson) {
         validLessonId = existingLesson.id;
         await prisma.lesson

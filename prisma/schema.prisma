@@ -1181,6 +1181,21 @@ model MediaAsset {
   updatedAt       DateTime      @default(now()) @updatedAt
 }
 
+model VideoUploadChunk {
+  id          String   @id @default(cuid())
+  uploadId    String
+  fileName    String?
+  chunkIndex  Int
+  totalChunks Int
+  data        String   @db.Text
+  sizeBytes   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([uploadId, chunkIndex])
+  @@index([uploadId])
+  @@index([fileName])
+}
+
 model ImpersonationLog {
   id              String   @id @default(cuid())
   superAdminId    String

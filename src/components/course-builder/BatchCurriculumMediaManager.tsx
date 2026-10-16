@@ -201,15 +201,17 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
     };
 
-    const CHUNK_SIZE = Math.round(3.8 * 1024 * 1024); // 3.8 MB chunks (safely below Vercel's 4.5 MB request limit)
+    const CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5 MB chunks (safe against Vercel 4.5MB ceiling & mobile networks)
     const file = task.file;
     const totalSize = file.size;
 
-    // Use chunked upload for files larger than 3.5 MB to guarantee smooth, reliable uploads on Vercel
-    if (totalSize > 3.5 * 1024 * 1024) {
+    // Use chunked upload for files larger than 2 MB to guarantee smooth, reliable uploads on Vercel
+    if (totalSize > 2 * 1024 * 1024) {
       const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
       const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       let chunkIdx = 0;
+      let chunkRetryCount = 0;
+      const MAX_CHUNK_RETRIES = 3;
       let aborted = false;
 
       const uploadChunk = () => {
@@ -252,6 +254,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
+            chunkRetryCount = 0;
             let resData: any = {};
             try {
               resData = JSON.parse(xhr.responseText);
@@ -259,29 +262,59 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
             if (resData.complete && resData.videoUrl) {
               finishTaskWithSuccess(resData.videoUrl, resData.fileName || file.name);
-            } else {
+            } else if (chunkIdx < totalChunks - 1) {
               chunkIdx++;
               uploadChunk();
+            } else {
+              // Last chunk processed: wait briefly and retry completion check
+              setTimeout(() => {
+                if (!aborted) {
+                  uploadChunk();
+                }
+              }, 1200);
             }
           } else {
+            // Auto-retry transient network/server hiccups up to 3 times before failing
+            if (chunkRetryCount < MAX_CHUNK_RETRIES && (xhr.status >= 500 || xhr.status === 0 || xhr.status === 408)) {
+              chunkRetryCount++;
+              setTimeout(uploadChunk, 1500);
+              return;
+            }
+
+            let errorDetail = '';
+            try {
+              const parsed = JSON.parse(xhr.responseText);
+              errorDetail = parsed.error || parsed.message || '';
+            } catch {
+              if (xhr.status === 413) errorDetail = 'Payload exceeded server limit';
+              else if (xhr.status === 504) errorDetail = 'Server timed out';
+            }
+            const errSummary = errorDetail ? ` (${errorDetail})` : ` (Status ${xhr.status})`;
+
             aborted = true;
             inFlightTaskIdsRef.current.delete(task.id);
             setTasks((prev) =>
               prev.map((t) =>
                 t.id === task.id
-                  ? { ...t, status: 'ERROR', errorMessage: `Upload failed with status ${xhr.status}` }
+                  ? { ...t, status: 'ERROR', errorMessage: `Upload failed${errSummary}` }
                   : t
               )
             );
             showToast({
               title: 'Upload Error',
-              description: `Server could not process chunk of "${task.file.name}".`,
+              description: `Could not process "${task.file.name}"${errSummary}.`,
               type: 'error'
             });
           }
         };
 
         xhr.onerror = () => {
+          if (chunkRetryCount < MAX_CHUNK_RETRIES) {
+            chunkRetryCount++;
+            setTimeout(uploadChunk, 1500);
+            return;
+          }
+
           aborted = true;
           inFlightTaskIdsRef.current.delete(task.id);
           setTasks((prev) =>
@@ -299,6 +332,12 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         };
 
         xhr.ontimeout = () => {
+          if (chunkRetryCount < MAX_CHUNK_RETRIES) {
+            chunkRetryCount++;
+            setTimeout(uploadChunk, 1500);
+            return;
+          }
+
           aborted = true;
           inFlightTaskIdsRef.current.delete(task.id);
           setTasks((prev) =>
