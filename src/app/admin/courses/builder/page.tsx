@@ -22,6 +22,7 @@ import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCu
 import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
 
 const getDefaultCourseState = () => ({
+  id: '',
   title: '',
   slug: '',
   shortDescription: '',
@@ -38,20 +39,9 @@ const getDefaultCourseState = () => ({
   status: 'DRAFT' as const,
   accessType: 'LIFETIME',
   accessDays: null,
-  whatYouWillLearn: [
-    'Master dynamic classroom engagement techniques and pedagogical best practices',
-    'Foster inclusive learning environments for early years and primary students',
-    'Implement formative assessment strategies to measure holistic student growth'
-  ],
-  requirements: [
-    'Passion for transformative education and classroom leadership',
-    'Basic familiarity with primary school curriculum principles'
-  ],
-  targetAudience: [
-    'Early Childhood Educators',
-    'Primary & Secondary Teachers',
-    'School Principals & Academic Coordinators'
-  ],
+  whatYouWillLearn: [] as string[],
+  requirements: [] as string[],
+  targetAudience: [] as string[],
   seoTitle: '',
   seoDescription: '',
   sections: [
@@ -59,16 +49,16 @@ const getDefaultCourseState = () => ({
       id: `sec-${Date.now()}-1`,
       clientKey: `sec-${Date.now()}-1`,
       tempId: `sec-${Date.now()}-1`,
-      title: 'Foundations & Pedagogy Setup',
-      description: 'Core pedagogical frameworks, active classroom strategies, and foundational orientation.',
+      title: '',
+      description: '',
       order: 1,
       lessons: [
         {
           id: `les-${Date.now()}-1`,
           clientKey: `les-${Date.now()}-1`,
           tempId: `les-${Date.now()}-1`,
-          title: 'Welcome & Course Orientation',
-          description: 'Introduction to the course structure and key learning outcomes.',
+          title: '',
+          description: '',
           type: 'VIDEO' as const,
           duration: '10:00',
           durationSeconds: 600,
@@ -97,8 +87,17 @@ function CourseBuilderContent() {
   const editSlugOrId =
     searchParams.get('slug') || searchParams.get('courseId') || searchParams.get('id') || '';
 
-  const draftStorageKey = `morena_course_builder_draft_${editSlugOrId || 'new'}`;
-  const excelStorageKey = `morena_uploaded_excel_${editSlugOrId || 'new'}`;
+  const [activeCourseId, setActiveCourseId] = useState<string>(editSlugOrId);
+
+  useEffect(() => {
+    if (editSlugOrId && editSlugOrId !== activeCourseId) {
+      setActiveCourseId(editSlugOrId);
+    }
+  }, [editSlugOrId]);
+
+  const effectiveCourseId = activeCourseId || editSlugOrId;
+  const draftStorageKey = effectiveCourseId ? `morena_course_builder_draft_${effectiveCourseId}` : 'morena_course_builder_draft_new';
+  const excelStorageKey = effectiveCourseId ? `morena_uploaded_excel_${effectiveCourseId}` : 'morena_uploaded_excel_new';
 
   const [uploadedExcel, setUploadedExcel] = useState<UploadedExcelRecord | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -188,8 +187,69 @@ function CourseBuilderContent() {
     }
   }, [currentUser, router]);
 
+  // Start Fresh / Clear form handler
+  const handleStartFreshCourse = (showConfirm = true) => {
+    if (showConfirm && courseState.title && !confirm('Are you sure you want to start a new course? Any unsaved changes on the current form will be cleared.')) {
+      return;
+    }
+    try {
+      localStorage.removeItem('morena_course_builder_draft_new');
+      localStorage.removeItem('morena_uploaded_excel_new');
+      localStorage.removeItem('morena_course_builder_live_preview');
+      if (courseState.id) localStorage.removeItem(`morena_course_builder_draft_${courseState.id}`);
+      if (courseState.slug) localStorage.removeItem(`morena_course_builder_draft_${courseState.slug}`);
+      if (activeCourseId) localStorage.removeItem(`morena_course_builder_draft_${activeCourseId}`);
+    } catch {}
+
+    const cleanDefault = getDefaultCourseState();
+    courseStateRef.current = cleanDefault;
+    setCourseState(cleanDefault);
+    setCurrentStep(0);
+    setUploadedExcel(null);
+    lastSavedPayloadRef.current = '';
+    loadedCourseIdRef.current = null;
+    setActiveCourseId('');
+
+    if (typeof window !== 'undefined') {
+      const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
+    showToast({
+      title: 'Blank Form Ready 📝',
+      description: 'Course builder reset. You can now create a brand new course!',
+      type: 'success'
+    });
+  };
+
   // Load existing course if editing, or restore unsaved draft from localStorage so fields never disappear!
   useEffect(() => {
+    const isFreshNew = searchParams.get('new') === 'true' || searchParams.get('fresh') === 'true';
+    if (isFreshNew) {
+      try {
+        localStorage.removeItem('morena_course_builder_draft_new');
+        localStorage.removeItem('morena_uploaded_excel_new');
+        localStorage.removeItem('morena_course_builder_live_preview');
+      } catch {}
+
+      const cleanDefault = getDefaultCourseState();
+      courseStateRef.current = cleanDefault;
+      setCourseState(cleanDefault);
+      setCurrentStep(0);
+      setUploadedExcel(null);
+      lastSavedPayloadRef.current = '';
+      loadedCourseIdRef.current = null;
+      setActiveCourseId('');
+
+      if (typeof window !== 'undefined') {
+        const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
+        window.history.replaceState({}, '', cleanUrl);
+      }
+      setHasLoadedInitial(true);
+      setIsLoading(false);
+      return;
+    }
+
     if (editSlugOrId) {
       // If this course is already loaded into memory or is currently being authored, do not re-fetch from server!
       if (loadedCourseIdRef.current === editSlugOrId || (courseStateRef.current.id && courseStateRef.current.id === editSlugOrId)) {
@@ -200,13 +260,23 @@ function CourseBuilderContent() {
       loadedCourseIdRef.current = editSlugOrId;
       loadCourse(editSlugOrId);
     } else {
+      // In new course mode (!editSlugOrId), purge any stale bulk import or covid drafts
       try {
-        const savedDraftRaw = localStorage.getItem(draftStorageKey);
+        const savedDraftRaw = localStorage.getItem('morena_course_builder_draft_new');
         if (savedDraftRaw) {
           const parsed = JSON.parse(savedDraftRaw);
-          if (parsed && typeof parsed === 'object' && parsed.courseState) {
-            // Only restore if this is an unsaved new course that was NOT previously assigned a DB ID
-            // If it already had an ID or wasn't in DRAFT, start clean so "Create Course" is a fresh form
+          const isCovid = /covid/i.test(parsed?.courseState?.title || '') ||
+            parsed?.courseState?.sections?.some((s: any) => /covid/i.test(s?.title || ''));
+          const isLargeBulkImport = parsed?.courseState?.sections && parsed.courseState.sections.length > 2;
+
+          if (isCovid || isLargeBulkImport || parsed?.courseState?.id) {
+            // Immediately purge stale/bulk drafts
+            localStorage.removeItem('morena_course_builder_draft_new');
+            localStorage.removeItem('morena_uploaded_excel_new');
+            const cleanDefault = getDefaultCourseState();
+            courseStateRef.current = cleanDefault;
+            setCourseState(cleanDefault);
+          } else if (parsed && typeof parsed === 'object' && parsed.courseState) {
             if (!parsed.courseState.id && parsed.courseState.title && parsed.courseState.status === 'DRAFT') {
               setCourseState((prev) => ({
                 ...prev,
@@ -216,7 +286,7 @@ function CourseBuilderContent() {
                 setCurrentStep(parsed.currentStep);
               }
             } else {
-              localStorage.removeItem(draftStorageKey);
+              localStorage.removeItem('morena_course_builder_draft_new');
             }
           }
         }
@@ -225,7 +295,7 @@ function CourseBuilderContent() {
       }
       setHasLoadedInitial(true);
     }
-  }, [editSlugOrId]);
+  }, [editSlugOrId, searchParams]);
 
   // Continuously save draft state to localStorage on every change so clicking Preview or refreshing NEVER loses work!
   useEffect(() => {
@@ -573,6 +643,11 @@ function CourseBuilderContent() {
         if (responseData?.course?.id) {
           savedCourseId = responseData.course.id;
           loadedCourseIdRef.current = savedCourseId;
+          setActiveCourseId(savedCourseId);
+          try {
+            localStorage.removeItem('morena_course_builder_draft_new');
+            localStorage.removeItem('morena_uploaded_excel_new');
+          } catch {}
         }
         if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       } else {
@@ -598,6 +673,11 @@ function CourseBuilderContent() {
         if (responseData?.course?.id) {
           savedCourseId = responseData.course.id;
           loadedCourseIdRef.current = savedCourseId;
+          setActiveCourseId(savedCourseId);
+          try {
+            localStorage.removeItem('morena_course_builder_draft_new');
+            localStorage.removeItem('morena_uploaded_excel_new');
+          } catch {}
         }
         if (responseData?.course?.slug) savedSlug = responseData.course.slug;
       }
@@ -1206,6 +1286,16 @@ function CourseBuilderContent() {
         >
           <Icon name="arrow_back" size={16} />
           <span>Previous Step</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStartFreshCourse(true)}
+          className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+          title="Clear form and start a clean brand new course"
+        >
+          <Icon name="restart_alt" size={16} />
+          <span>New Course</span>
         </button>
       </div>
 

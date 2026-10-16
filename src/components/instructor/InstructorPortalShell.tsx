@@ -114,9 +114,9 @@ function InstructorPortalShellInner({
     },
     {
       label: 'Create Course',
-      href: '/instructor/courses/builder',
+      href: '/instructor/courses/builder?new=true',
       icon: PlusCircle,
-      isActive: pathname === '/instructor/courses/builder'
+      isActive: pathname === '/instructor/courses/builder' && !searchParams?.get('courseId') && !searchParams?.get('id') && !searchParams?.get('slug')
     },
     {
       label: 'Course Versions',
