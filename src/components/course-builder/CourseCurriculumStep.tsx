@@ -1552,9 +1552,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     />
                                   </div>
 
-                                  {/* Attached Video Badge or Upload Button */}
-                                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                    {les.videoUrl ? (
+                                  {/* Attached Video Badge (Only if video already uploaded via Media Studio) */}
+                                  {les.videoUrl && (
+                                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                                       <div className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-blue-50 text-blue-950 px-2 py-0.5 rounded border border-blue-300 shadow-2xs">
                                         <Icon name="play_circle" size={13} className="text-blue-600" />
                                         <span className="truncate max-w-[130px]">
@@ -1563,20 +1563,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         <span className="text-[10px] text-blue-700 font-semibold">
                                           ({les.duration || '10:00'})
                                         </span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setVideoModalTarget({
-                                              sectionId: secKey,
-                                              lessonId: itemKey,
-                                              title: les.title || `Lecture ${itemMeta.num}`
-                                            })
-                                          }
-                                          className="text-blue-800 hover:text-blue-950 hover:underline cursor-pointer ml-0.5 text-[10px]"
-                                          title="Replace or change video"
-                                        >
-                                          Change
-                                        </button>
                                         <button
                                           type="button"
                                           onClick={() =>
@@ -1593,24 +1579,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           ✕
                                         </button>
                                       </div>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setVideoModalTarget({
-                                            sectionId: secKey,
-                                            lessonId: itemKey,
-                                            title: les.title || `Lecture ${itemMeta.num}`
-                                          })
-                                        }
-                                        className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-950 px-2.5 py-1 rounded border border-blue-300 cursor-pointer transition-colors shadow-2xs"
-                                        title="Attach Video (Upload MP4 from computer, paste URL, or choose from media library)"
-                                      >
-                                        <Icon name="videocam" size={13} className="text-blue-700" />
-                                        <span>+ Attach Video</span>
-                                      </button>
-                                    )}
-                                  </div>
+                                    </div>
+                                  )}
 
                                   {/* Free Preview Checkbox */}
                                   <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
