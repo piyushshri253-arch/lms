@@ -460,6 +460,34 @@ export default function LearnPlayerPage() {
     }
   };
 
+  // Automatically advance to the next lecture after student marks an article/reading guide as read
+  const handleArticleAdvance = async () => {
+    const currentId = activeLesson?.id;
+    if (currentId && isEnrolled && !completedLessonIds.includes(currentId)) {
+      await handleMarkLessonComplete(currentId);
+    }
+
+    if (currentIndex < allLessons.length - 1) {
+      const nextLesson = allLessons[currentIndex + 1];
+      const nextTitle =
+        lessonDisplayMap.get(nextLesson.id)?.underPlayerTitle || nextLesson.title || 'Next Lecture';
+      showToast({
+        title: 'Article Completed ✓',
+        description: `Advancing to ${nextTitle}`,
+        type: 'success'
+      });
+      setTimeout(() => {
+        handleSelectLesson(nextLesson.id, true);
+      }, 350);
+    } else {
+      showToast({
+        title: 'Course Completed! 🎉',
+        description: 'You have finished all curriculum items in this course.',
+        type: 'success'
+      });
+    }
+  };
+
   const isTogglingRef = React.useRef(false);
   const handleToggleLessonComplete = async (targetLessonId?: string) => {
     const lId = targetLessonId || activeLesson?.id;
@@ -842,7 +870,13 @@ export default function LearnPlayerPage() {
                   allowDownload={Boolean(activeLesson?.allowDownload)}
                   duration={activeLesson?.duration}
                   isCompleted={isCurrentCompleted}
-                  onComplete={() => handleMarkLessonComplete(activeLesson?.id)}
+                  hasNextLesson={currentIndex < allLessons.length - 1}
+                  nextLessonTitle={
+                    currentIndex < allLessons.length - 1
+                      ? lessonDisplayMap.get(allLessons[currentIndex + 1].id)?.underPlayerTitle || allLessons[currentIndex + 1].title
+                      : undefined
+                  }
+                  onComplete={handleArticleAdvance}
                 />
               </div>
             ) : (

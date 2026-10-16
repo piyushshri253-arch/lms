@@ -918,7 +918,13 @@ function CourseStudentPreviewInner() {
                       allowDownload={Boolean(activeLesson.allowDownload)}
                       duration={activeLesson.duration}
                       isCompleted={false}
-                      onComplete={() => {}}
+                      hasNextLesson={allLessons.findIndex((l) => l.id === activeLesson.id) < allLessons.length - 1}
+                      onComplete={() => {
+                        const idx = allLessons.findIndex((l) => l.id === activeLesson.id);
+                        if (idx >= 0 && idx < allLessons.length - 1) {
+                          setActiveLessonId(allLessons[idx + 1].id);
+                        }
+                      }}
                     />
                   ) : (
                     <VideoPlayer

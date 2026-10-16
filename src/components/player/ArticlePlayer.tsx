@@ -14,6 +14,8 @@ interface ArticlePlayerProps {
   allowDownload?: boolean;
   duration?: string;
   isCompleted?: boolean;
+  hasNextLesson?: boolean;
+  nextLessonTitle?: string;
   onComplete: () => void;
 }
 
@@ -27,6 +29,8 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
   allowDownload = false,
   duration = '05:00',
   isCompleted,
+  hasNextLesson = false,
+  nextLessonTitle,
   onComplete
 }) => {
   const [resolvedPdfUrl, setResolvedPdfUrl] = useState<string | null>(pdfUrl || null);
@@ -34,10 +38,19 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
   const [canDownloadPdf, setCanDownloadPdf] = useState<boolean>(allowDownload);
   const [canDownloadFile, setCanDownloadFile] = useState<boolean>(allowDownload);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [isAdvancing, setIsAdvancing] = useState<boolean>(false);
   const [watermark, setWatermark] = useState<{ enabled: boolean; text: string }>({
     enabled: true,
     text: 'Protected Document • Morena LMS DRM'
   });
+
+  const handleCompleteAndNext = () => {
+    setIsAdvancing(true);
+    onComplete();
+    setTimeout(() => {
+      setIsAdvancing(false);
+    }, 2000);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -78,7 +91,7 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [lessonId, pdfUrl, fileUrl]);
+  }, [lessonId, pdfUrl, fileUrl, type]);
 
   if (accessError) {
     return (
@@ -123,15 +136,26 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
 
         <button
           type="button"
-          onClick={onComplete}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ${
+          onClick={handleCompleteAndNext}
+          disabled={isAdvancing}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ${
             isCompleted
-              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
               : 'bg-primary text-on-primary hover:bg-primary-container'
           }`}
         >
-          <Icon name="check_circle" size={16} fill={isCompleted} />
-          <span>{isCompleted ? 'Completed ✓' : 'Mark as Read'}</span>
+          <Icon name={isCompleted ? 'check_circle' : isAdvancing ? 'hourglass_top' : 'task_alt'} size={16} fill={isCompleted} />
+          <span>
+            {isAdvancing
+              ? 'Opening Next... 🚀'
+              : isCompleted
+              ? hasNextLesson
+                ? 'Completed ✓ (Next →)'
+                : 'Completed ✓'
+              : hasNextLesson
+              ? 'Mark as Read & Next →'
+              : 'Mark as Read'}
+          </span>
         </button>
       </div>
 
@@ -218,6 +242,41 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
           )}
         </div>
       )}
+
+      {/* Bottom Completion & Next Lecture Action Bar */}
+      <div className="pt-6 border-t border-outline-variant flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+        <div className="text-xs text-on-surface-variant flex items-center gap-2">
+          <Icon name="auto_stories" size={18} className="text-primary shrink-0" />
+          <span>
+            {isCompleted
+              ? 'You have finished reading this lecture.'
+              : 'Finished reading this guide? Mark it as complete to continue.'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={handleCompleteAndNext}
+          disabled={isAdvancing}
+          className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+            isCompleted
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+              : 'bg-primary text-on-primary hover:bg-primary-container'
+          }`}
+        >
+          <Icon name={isCompleted ? 'check_circle' : isAdvancing ? 'hourglass_top' : 'task_alt'} size={16} fill={isCompleted} />
+          <span>
+            {isAdvancing
+              ? 'Opening Next... 🚀'
+              : isCompleted
+              ? hasNextLesson
+                ? 'Next Lecture →'
+                : 'Completed ✓'
+              : hasNextLesson
+              ? 'Mark as Read & Next Lecture →'
+              : 'Mark as Read'}
+          </span>
+        </button>
+      </div>
     </div>
   );
 };
