@@ -101,6 +101,7 @@ export async function GET(
     let isEnrolled = false;
     let completedLessonIds: string[] = [];
 
+    let userCertificate: any = null;
     if (currentUser) {
       const [enrollment, entitlement] = await Promise.all([
         prisma.enrollment.findFirst({
@@ -119,7 +120,7 @@ export async function GET(
       ]);
 
       let isEnrollmentValid =
-        (!!enrollment && enrollment.status === 'ACTIVE') ||
+        (!!enrollment && (enrollment.status === 'ACTIVE' || enrollment.status === 'COMPLETED')) ||
         (!!entitlement && (!entitlement.expiresAt || new Date() < new Date(entitlement.expiresAt)));
       if (
         isEnrollmentValid &&
@@ -155,6 +156,25 @@ export async function GET(
           select: { lessonId: true }
         });
         completedLessonIds = progress.map((p) => p.lessonId);
+
+        const existingCert = await prisma.certificate.findUnique({
+          where: {
+            userId_courseId: {
+              userId: currentUser.id,
+              courseId: course.id
+            }
+          }
+        });
+
+        if (existingCert) {
+          userCertificate = {
+            id: existingCert.id,
+            certificateNumber: existingCert.certificateNumber,
+            issuedAt: existingCert.issuedAt?.toISOString(),
+            status: existingCert.status,
+            url: `/certificate/${existingCert.certificateNumber}`
+          };
+        }
       }
     }
 
@@ -399,7 +419,8 @@ export async function GET(
       versionState,
       isEnrolled: isEnrolled && !hasNewerVersion,
       hasEnrolledPreviousVersion: hasNewerVersion,
-      completedLessonIds
+      completedLessonIds,
+      certificate: userCertificate
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

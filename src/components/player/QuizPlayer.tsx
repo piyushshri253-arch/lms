@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { QuizConfig } from '@/components/course-builder/CourseCurriculumStep';
+import { useApp } from '@/context/AppContext';
 import confetti from 'canvas-confetti';
 
 interface QuizPlayerProps {
@@ -10,7 +11,16 @@ interface QuizPlayerProps {
   lessonId?: string;
   quizData?: QuizConfig | string | null;
   isFinalAssignment?: boolean;
+  certificateNumber?: string;
   onPass?: () => void;
+  onPassResult?: (result: {
+    scorePercent: number;
+    passingScore: number;
+    correctCount: number;
+    totalQuestions: number;
+    passed: boolean;
+    certificate?: { certificateNumber: string; url: string } | null;
+  }) => void;
   onAutoAdvanceNext?: () => void;
   onClaimCertificate?: () => void;
 }
@@ -20,7 +30,9 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
   lessonId,
   quizData,
   isFinalAssignment = false,
+  certificateNumber,
   onPass,
+  onPassResult,
   onAutoAdvanceNext,
   onClaimCertificate
 }) => {
@@ -69,8 +81,29 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
   const [earnedPointsState, setEarnedPointsState] = useState<number>(0);
   const [totalPointsState, setTotalPointsState] = useState<number>(0);
   const [correctCountState, setCorrectCountState] = useState<number>(0);
+  const { showToast } = useApp();
+  const [copiedCertLink, setCopiedCertLink] = useState<boolean>(false);
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
+
+  const certNumber = certificateNumber || 'MT-2026-FINAL';
+  const certificateFullUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/certificate/${certNumber}`
+      : `/certificate/${certNumber}`;
+
+  const handleCopyCertificateLink = () => {
+    if (typeof window !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(certificateFullUrl);
+      setCopiedCertLink(true);
+      showToast({
+        title: 'Certificate Link Copied! 📋',
+        description: 'Shareable certificate verification link copied to clipboard.',
+        type: 'success'
+      });
+      setTimeout(() => setCopiedCertLink(false), 3000);
+    }
+  };
 
   // 5-second countdown timer when student passes
   useEffect(() => {
@@ -162,6 +195,14 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
               if (serverPassed) {
                 confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
                 onPass?.();
+                onPassResult?.({
+                  scorePercent: serverScore,
+                  passingScore,
+                  correctCount,
+                  totalQuestions: questions.length,
+                  passed: true,
+                  certificate: data.attempt?.certificate || null
+                });
                 if (!isFinalAssignment) {
                   setAutoAdvanceCountdown(5);
                   setIsTimerPaused(false);
@@ -192,6 +233,13 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
       if (calculatedPassed) {
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         onPass?.();
+        onPassResult?.({
+          scorePercent: calculatedPercent,
+          passingScore,
+          correctCount,
+          totalQuestions: questions.length,
+          passed: true
+        });
         if (!isFinalAssignment) {
           setAutoAdvanceCountdown(5);
           setIsTimerPaused(false);
@@ -230,6 +278,13 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
       if (isPassing) {
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         onPass?.();
+        onPassResult?.({
+          scorePercent: percent,
+          passingScore,
+          correctCount,
+          totalQuestions: questions.length,
+          passed: true
+        });
         if (!isFinalAssignment) {
           setAutoAdvanceCountdown(5);
           setIsTimerPaused(false);
@@ -401,6 +456,21 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                   >
                     Review Answers
                   </button>
+
+                  {/* Copy Certificate Link */}
+                  <button
+                    type="button"
+                    onClick={handleCopyCertificateLink}
+                    className={`px-4 py-2 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
+                      copiedCertLink
+                        ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    <Icon name={copiedCertLink ? 'check' : 'content_copy'} size={15} />
+                    <span>{copiedCertLink ? 'Link Copied! ✓' : 'Copy Certificate Link'}</span>
+                  </button>
+
                   {onClaimCertificate && (
                     <button
                       type="button"

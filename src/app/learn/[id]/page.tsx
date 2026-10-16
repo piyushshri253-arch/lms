@@ -10,6 +10,7 @@ import { LessonTabs, PlayerTab } from '@/components/player/LessonTabs';
 import { Icon } from '@/components/ui/Icon';
 import { AiLessonTutorDrawer } from '@/components/player/AiLessonTutorDrawer';
 import { CertificateModal } from '@/components/student/CertificateModal';
+import { FinalAssessmentSuccessModal } from '@/components/student/FinalAssessmentSuccessModal';
 import { useApp } from '@/context/AppContext';
 import confetti from 'canvas-confetti';
 import { cleanSectionTitle, cleanLessonTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
@@ -32,6 +33,13 @@ export default function LearnPlayerPage() {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [isCertificateOpen, setIsCertificateOpen] = useState(false);
   const [certificateData, setCertificateData] = useState<any>(null);
+  const [isFinalSuccessModalOpen, setIsFinalSuccessModalOpen] = useState(false);
+  const [finalScoreDetails, setFinalScoreDetails] = useState<{
+    scorePercent: number;
+    passingScore?: number;
+    correctCount: number;
+    totalQuestions: number;
+  } | null>(null);
   const [playerTab, setPlayerTab] = useState<PlayerTab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileCurriculumOpen, setIsMobileCurriculumOpen] = useState(false);
@@ -187,6 +195,10 @@ export default function LearnPlayerPage() {
           const tot = allLessonsList.length || 1;
           setProgressPercent(Math.min(100, Math.round((comp / tot) * 100)));
         }
+
+        if (data.certificate) {
+          setCertificateData(data.certificate);
+        }
       } else {
         router.replace('/courses');
       }
@@ -270,10 +282,16 @@ export default function LearnPlayerPage() {
   }, [hasValidVideo, hasArticleContent, hasQuizQuestions, hasPdfContent]);
 
   const finalAssignmentLesson = useMemo(() => {
-    return allLessons.find((l: any) =>
+    const explicit = allLessons.find((l: any) =>
       Boolean(l.isFinalAssignment) ||
-      (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
-    ) || null;
+      (l.type === 'QUIZ' && /final\s*(assignment|assessment|exam|test|quiz)/i.test(l.title || ''))
+    );
+    if (explicit) return explicit;
+    const allQuizzes = allLessons.filter((l: any) => l.type === 'QUIZ' || l.quizData);
+    if (allQuizzes.length > 0) {
+      return allQuizzes[allQuizzes.length - 1];
+    }
+    return null;
   }, [allLessons]);
 
   const hasPassedFinalAssignment = useMemo(() => {
@@ -283,11 +301,20 @@ export default function LearnPlayerPage() {
 
   const isCurrentFinalAssignment = useMemo(() => {
     if (!activeLesson) return false;
-    return Boolean(
+    const isExplicit = Boolean(
       activeLesson.isFinalAssignment ||
-      (activeLesson.type === 'QUIZ' && /final\s+assignment/i.test(activeLesson.title || ''))
+      (activeLesson.type === 'QUIZ' && /final\s*(assignment|assessment|exam|test|quiz)/i.test(activeLesson.title || ''))
     );
-  }, [activeLesson]);
+    if (isExplicit) return true;
+
+    if (activeLesson.type === 'QUIZ' || activeLesson.quizData) {
+      const allQuizzes = allLessons.filter((l: any) => l.type === 'QUIZ' || l.quizData);
+      const isLastQuiz = allQuizzes.length > 0 && allQuizzes[allQuizzes.length - 1].id === activeLesson.id;
+      const isLastLesson = allLessons.length > 0 && allLessons[allLessons.length - 1].id === activeLesson.id;
+      return isLastQuiz || isLastLesson;
+    }
+    return false;
+  }, [activeLesson, allLessons]);
 
   const currentIndex = allLessons.findIndex((l: any) => l.id === activeLesson?.id);
   const isCurrentCompleted = activeLesson?.id ? completedLessonIds.includes(activeLesson.id) : false;
@@ -395,14 +422,16 @@ export default function LearnPlayerPage() {
         if (data.progressPercent !== undefined) setProgressPercent(data.progressPercent);
         if (data.certificate) {
           setCertificateData(data.certificate);
-          setIsCertificateOpen(true);
-          confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
           showToast({ title: 'Course Completed! 🎉', description: 'Your verified certificate is ready.', type: 'success' });
+          return data.certificate;
         } else {
           showToast({ title: 'Lecture Completed ✓', type: 'info' });
         }
+        return null;
       }
+      return null;
     } catch {
+      return null;
       // Silently handle
     } finally {
       setTimeout(() => {
@@ -533,8 +562,6 @@ export default function LearnPlayerPage() {
 
       if (data.certificate) {
         setCertificateData(data.certificate);
-        setIsCertificateOpen(true);
-        confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
         showToast({ title: 'Course Completed! 🎉', description: 'Your verified certificate is ready.', type: 'success' });
       } else {
         showToast({
@@ -845,9 +872,17 @@ export default function LearnPlayerPage() {
                   lessonId={activeLesson?.id}
                   quizData={activeLesson?.quizData}
                   isFinalAssignment={isCurrentFinalAssignment}
+                  certificateNumber={certificateData?.certificateNumber || course?.certificates?.[0]?.certificateNumber}
                   onPass={() => {
                     handleMarkLessonComplete(activeLesson?.id);
+                  }}
+                  onPassResult={(result) => {
+                    if (result.certificate) {
+                      setCertificateData(result.certificate);
+                    }
                     if (isCurrentFinalAssignment) {
+                      setFinalScoreDetails(result);
+                      setIsFinalSuccessModalOpen(true);
                       confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
                     }
                   }}
@@ -1821,6 +1856,25 @@ export default function LearnPlayerPage() {
           </div>
         </div>
       )}
+
+      {/* Final Assessment Celebration & Score Modal */}
+      <FinalAssessmentSuccessModal
+        isOpen={isFinalSuccessModalOpen}
+        onClose={() => setIsFinalSuccessModalOpen(false)}
+        scorePercent={finalScoreDetails?.scorePercent || 100}
+        passingScore={finalScoreDetails?.passingScore || 70}
+        correctCount={finalScoreDetails?.correctCount || 0}
+        totalQuestions={finalScoreDetails?.totalQuestions || 0}
+        certificateNumber={certificateData?.certificateNumber || course?.certificates?.[0]?.certificateNumber}
+        courseTitle={course?.title}
+        onViewCertificate={() => {
+          setIsFinalSuccessModalOpen(false);
+          setIsCertificateOpen(true);
+        }}
+        onReviewAnswers={() => {
+          setIsFinalSuccessModalOpen(false);
+        }}
+      />
 
       {/* Verified Certificate Modal */}
       <CertificateModal
