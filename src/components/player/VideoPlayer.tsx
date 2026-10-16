@@ -36,6 +36,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isPlayPendingRef = useRef(false);
+  const hasTriggeredCompleteRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -281,6 +282,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [resolvedVideoUrl, autoPlay, lessonId]);
 
+  useEffect(() => {
+    hasTriggeredCompleteRef.current = false;
+  }, [lessonId, resolvedVideoUrl]);
+
   // Handle Video Time Updates
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -292,8 +297,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const percent = Math.min(100, Math.round((cur / dur) * 100));
         onProgressUpdate?.(cur, percent);
 
-        // Auto trigger complete at 90%
-        if (percent >= 90 && onLessonComplete) {
+        // Auto trigger complete at 90% exactly once per lecture
+        if (percent >= 90 && onLessonComplete && !hasTriggeredCompleteRef.current) {
+          hasTriggeredCompleteRef.current = true;
           onLessonComplete();
         }
       }
@@ -519,7 +525,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             autoPlay={autoPlay}
             onEnded={() => {
               setIsPlaying(false);
-              onLessonComplete?.();
+              if (!hasTriggeredCompleteRef.current) {
+                hasTriggeredCompleteRef.current = true;
+                onLessonComplete?.();
+              }
               onVideoEnded?.();
             }}
             className={`w-full object-contain cursor-pointer transition-all ${

@@ -374,31 +374,48 @@ export default function LearnPlayerPage() {
     }
   };
 
+  // Mark lesson as completed without toggling (idempotent - safe for auto-triggers like video completion)
+  const isMarkingCompleteRef = React.useRef<Record<string, boolean>>({});
+  const handleMarkLessonComplete = async (targetLessonId?: string) => {
+    const lId = targetLessonId || activeLesson?.id;
+    if (!lId || !isEnrolled) return;
+    if (completedLessonIds.includes(lId) || isMarkingCompleteRef.current[lId]) return;
+
+    isMarkingCompleteRef.current[lId] = true;
+    try {
+      const res = await fetch(`/api/lessons/${lId}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: true })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.completedLessonIds) setCompletedLessonIds(data.completedLessonIds);
+        else setCompletedLessonIds((prev) => [...prev, lId]);
+        if (data.progressPercent !== undefined) setProgressPercent(data.progressPercent);
+        if (data.certificate) {
+          setCertificateData(data.certificate);
+          setIsCertificateOpen(true);
+          confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
+          showToast({ title: 'Course Completed! 🎉', description: 'Your verified certificate is ready.', type: 'success' });
+        } else {
+          showToast({ title: 'Lecture Completed ✓', type: 'info' });
+        }
+      }
+    } catch {
+      // Silently handle
+    } finally {
+      setTimeout(() => {
+        delete isMarkingCompleteRef.current[lId];
+      }, 1000);
+    }
+  };
+
   // Automatically advance to the next lecture when the current video finishes
   const handleVideoEnded = async () => {
     const currentId = activeLesson?.id;
     if (currentId && isEnrolled && !completedLessonIds.includes(currentId)) {
-      try {
-        const res = await fetch(`/api/lessons/${currentId}/progress`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ completed: true })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          if (data.completedLessonIds) setCompletedLessonIds(data.completedLessonIds);
-          else setCompletedLessonIds((prev) => [...prev, currentId]);
-          if (data.progressPercent !== undefined) setProgressPercent(data.progressPercent);
-          if (data.certificate) {
-            setCertificateData(data.certificate);
-            setIsCertificateOpen(true);
-            confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
-            showToast({ title: 'Course Completed! 🎉', description: 'Your verified certificate is ready.', type: 'success' });
-          }
-        }
-      } catch {
-        // Silently continue if progress call fails
-      }
+      await handleMarkLessonComplete(currentId);
     }
 
     if (autoPlayNextEnabled && currentIndex < allLessons.length - 1) {
@@ -423,7 +440,7 @@ export default function LearnPlayerPage() {
   const handleQuizAdvance = () => {
     const currentId = activeLesson?.id;
     if (currentId && !completedLessonIds.includes(currentId)) {
-      handleToggleLessonComplete(currentId);
+      handleMarkLessonComplete(currentId);
     }
     if (currentIndex < allLessons.length - 1) {
       const nextLesson = allLessons[currentIndex + 1];
@@ -443,6 +460,7 @@ export default function LearnPlayerPage() {
     }
   };
 
+  const isTogglingRef = React.useRef(false);
   const handleToggleLessonComplete = async (targetLessonId?: string) => {
     const lId = targetLessonId || activeLesson?.id;
     if (!lId) return;
@@ -455,6 +473,9 @@ export default function LearnPlayerPage() {
       });
       return;
     }
+
+    if (isTogglingRef.current) return;
+    isTogglingRef.current = true;
 
     const isCompleted = completedLessonIds.includes(lId);
 
@@ -495,6 +516,10 @@ export default function LearnPlayerPage() {
       }
     } catch (err: any) {
       showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setTimeout(() => {
+        isTogglingRef.current = false;
+      }, 500);
     }
   };
 
@@ -793,7 +818,7 @@ export default function LearnPlayerPage() {
                   quizData={activeLesson?.quizData}
                   isFinalAssignment={isCurrentFinalAssignment}
                   onPass={() => {
-                    handleToggleLessonComplete(activeLesson?.id);
+                    handleMarkLessonComplete(activeLesson?.id);
                     if (isCurrentFinalAssignment) {
                       confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
                     }
@@ -817,7 +842,7 @@ export default function LearnPlayerPage() {
                   allowDownload={Boolean(activeLesson?.allowDownload)}
                   duration={activeLesson?.duration}
                   isCompleted={isCurrentCompleted}
-                  onComplete={() => handleToggleLessonComplete(activeLesson?.id)}
+                  onComplete={() => handleMarkLessonComplete(activeLesson?.id)}
                 />
               </div>
             ) : (
@@ -837,7 +862,7 @@ export default function LearnPlayerPage() {
                   duration={activeLesson?.duration || '10:00'}
                   isFree={!!activeLesson?.isFree}
                   autoPlay={shouldAutoPlay}
-                  onLessonComplete={() => handleToggleLessonComplete(activeLesson?.id)}
+                  onLessonComplete={() => handleMarkLessonComplete(activeLesson?.id)}
                   onVideoEnded={handleVideoEnded}
                 />
               </div>
