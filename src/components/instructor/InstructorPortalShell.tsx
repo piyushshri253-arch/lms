@@ -27,7 +27,6 @@ import {
   Sparkles,
   FileQuestion,
   Database,
-  ClipboardList,
   MessageSquare,
   Megaphone,
   GitBranch,
@@ -153,12 +152,6 @@ function InstructorPortalShellInner({
       href: '/instructor/quizzes',
       icon: FileQuestion,
       isActive: pathname?.startsWith('/instructor/quizzes') || false
-    },
-    {
-      label: 'Assignments',
-      href: '/instructor/assignments',
-      icon: ClipboardList,
-      isActive: pathname?.startsWith('/instructor/assignments') || false
     },
     {
       label: 'Student Q&A',
