@@ -177,6 +177,11 @@ export async function GET() {
           branchName: '',
           upiId: '',
           panNumber: '',
+          panDocUrl: '',
+          aadhaarNumber: '',
+          aadhaarDocUrl: '',
+          bankProofUrl: '',
+          panVerifiedName: '',
           rejectionReason: ''
         }
       });
@@ -195,6 +200,11 @@ export async function GET() {
         branchName: bank.branchName || '',
         upiId: bank.upiId || '',
         panNumber: bank.panNumber || '',
+        panDocUrl: bank.panDocUrl || '',
+        aadhaarNumber: bank.aadhaarNumber || '',
+        aadhaarDocUrl: bank.aadhaarDocUrl || '',
+        bankProofUrl: bank.bankProofUrl || '',
+        panVerifiedName: bank.panVerifiedName || '',
         status: bank.status,
         rejectionReason: bank.rejectionReason || '',
         verifiedByName: bank.verifiedByName || '',
@@ -237,7 +247,11 @@ export async function POST(req: NextRequest) {
       accountType,
       branchName,
       upiId,
-      panNumber
+      panNumber,
+      panDocUrl,
+      aadhaarNumber,
+      aadhaarDocUrl,
+      bankProofUrl
     } = body;
 
     if (!accountHolderName || !String(accountHolderName).trim()) {
@@ -293,40 +307,81 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Bank Name is required.' }, { status: 400 });
     }
 
-    // Verify that if user manually typed a different bank name than the IFSC's actual bank, it doesn't conflict
-    if (ifscVerification.bank && bankName && String(bankName).trim().length > 2) {
-      const enteredLower = String(bankName).trim().toLowerCase();
-      const officialLower = ifscVerification.bank.toLowerCase();
-      const ifscPrefix = cleanIfsc.slice(0, 4).toLowerCase();
-      const wordsMatch =
-        officialLower.includes(enteredLower) ||
-        enteredLower.includes(officialLower) ||
-        enteredLower.includes(ifscPrefix) ||
-        officialLower
-          .split(/\s+/)
-          .filter((w) => w.length > 3 && w !== 'bank' && w !== 'india' && w !== 'limited')
-          .some((w) => enteredLower.includes(w));
+    // 4. Strict Indian ITD PAN Number Validation & Surname Ownership Matching
+    const cleanPan = panNumber ? String(panNumber).trim().toUpperCase() : '';
+    if (!cleanPan || !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanPan)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid 10-character Permanent Account Number (PAN), e.g. ABCPS1234F.' },
+        { status: 400 }
+      );
+    }
 
-      if (!wordsMatch) {
+    // Character 4: Entity Status check (Must be 'P' for Individual, or 'C'/'F'/'H')
+    const fourthChar = cleanPan[3];
+    if (!['P', 'C', 'H', 'F', 'T', 'A'].includes(fourthChar)) {
+      return NextResponse.json(
+        { error: `Invalid 4th character ("${fourthChar}") in PAN. For instructor payouts, 4th letter must be "P" (Individual).` },
+        { status: 400 }
+      );
+    }
+
+    // Character 5: Must match applicant's Surname / Last Name initial
+    const fifthChar = cleanPan[4];
+    const nameTokens = normalizePersonName(registeredInstructorName);
+    if (nameTokens.length > 0) {
+      const surname = nameTokens[nameTokens.length - 1]; // e.g. "sharma"
+      const expectedSurnameChar = surname[0].toUpperCase();
+      const isSurnameMatch = fifthChar === expectedSurnameChar;
+      const isAnyInitialMatch = nameTokens.some((t) => t[0].toUpperCase() === fifthChar);
+
+      if (!isSurnameMatch && !isAnyInitialMatch) {
         return NextResponse.json(
           {
-            error: `Bank Name & IFSC Mismatch: IFSC "${cleanIfsc}" belongs to "${ifscVerification.bank}" (${ifscVerification.branch}), not "${bankName}".`
+            error: `PAN Card Ownership Mismatch: The 5th character of this PAN ("${fifthChar}") does not match your registered surname "${surname.toUpperCase()}". PAN Card must belong to "${registeredInstructorName}".`
           },
           { status: 400 }
         );
       }
     }
 
-    // 4. Validate PAN Number (Required for tax/TDS compliance & identity verification)
-    const cleanPan = panNumber ? String(panNumber).trim().toUpperCase() : '';
-    if (!cleanPan || !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanPan)) {
+    // 5. Aadhaar Number Validation (12 Digits)
+    const cleanAadhaar = String(aadhaarNumber || '').replace(/[^0-9]/g, '');
+    if (!cleanAadhaar || cleanAadhaar.length !== 12) {
       return NextResponse.json(
-        { error: 'Please enter a valid 10-character Permanent Account Number (PAN), e.g. ABCDE1234F.' },
+        { error: 'Please enter a valid 12-digit Aadhaar Card Number.' },
+        { status: 400 }
+      );
+    }
+    if (/^(\d)\1+$/.test(cleanAadhaar) || '123456789012'.includes(cleanAadhaar)) {
+      return NextResponse.json(
+        { error: 'Invalid Aadhaar Number: Dummy or sequential numbers are not allowed.' },
         { status: 400 }
       );
     }
 
-    // 5. Validate UPI ID format if provided
+    // 6. Mandatory KYC Verification Document Uploads
+    if (!panDocUrl || !String(panDocUrl).trim()) {
+      return NextResponse.json(
+        { error: 'PAN Card Photo is mandatory for KYC and tax verification. Please upload a clear photo of your PAN Card.' },
+        { status: 400 }
+      );
+    }
+
+    if (!aadhaarDocUrl || !String(aadhaarDocUrl).trim()) {
+      return NextResponse.json(
+        { error: 'Aadhaar Card Photo is mandatory for identity verification. Please upload a clear photo of your Aadhaar Card.' },
+        { status: 400 }
+      );
+    }
+
+    if (!bankProofUrl || !String(bankProofUrl).trim()) {
+      return NextResponse.json(
+        { error: 'Bank Proof is mandatory. Please upload a photo of your Bank Passbook front page or a Cancelled Cheque.' },
+        { status: 400 }
+      );
+    }
+
+    // 7. Validate UPI ID format if provided
     const cleanUpi = upiId ? String(upiId).trim() : '';
     if (cleanUpi && !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(cleanUpi)) {
       return NextResponse.json(
@@ -350,6 +405,11 @@ export async function POST(req: NextRequest) {
         branchName: finalBranchName || null,
         upiId: cleanUpi || null,
         panNumber: cleanPan,
+        panDocUrl: String(panDocUrl).trim(),
+        aadhaarNumber: cleanAadhaar,
+        aadhaarDocUrl: String(aadhaarDocUrl).trim(),
+        bankProofUrl: String(bankProofUrl).trim(),
+        panVerifiedName: registeredInstructorName.toUpperCase(),
         status: 'PENDING_VERIFICATION',
         rejectionReason: null,
         rejectedAt: null
@@ -364,6 +424,11 @@ export async function POST(req: NextRequest) {
         branchName: finalBranchName || null,
         upiId: cleanUpi || null,
         panNumber: cleanPan,
+        panDocUrl: String(panDocUrl).trim(),
+        aadhaarNumber: cleanAadhaar,
+        aadhaarDocUrl: String(aadhaarDocUrl).trim(),
+        bankProofUrl: String(bankProofUrl).trim(),
+        panVerifiedName: registeredInstructorName.toUpperCase(),
         status: 'PENDING_VERIFICATION',
         rejectionReason: null,
         rejectedAt: null
@@ -375,7 +440,7 @@ export async function POST(req: NextRequest) {
       { bankName: saved.bankName, accountNumberMasked: saved.accountNumberMasked, ifscCode: saved.ifscCode }
     ).catch(() => {});
 
-    // Notify Super Admins & Admins to verify bank account
+    // Notify Super Admins & Admins to verify bank account with KYC docs
     try {
       const admins = await prisma.user.findMany({
         where: { role: { in: ['SUPER_ADMIN', 'LMS_ADMIN', 'ADMIN'] } },
@@ -385,8 +450,8 @@ export async function POST(req: NextRequest) {
         await prisma.notification.create({
           data: {
             userId: admin.id,
-            title: `Bank Verification Needed: ${registeredInstructorName}`,
-            message: `Instructor ${registeredInstructorName} (${session.email}) submitted verified IFSC bank account (${saved.bankName} - ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}, PAN: ${saved.panNumber}) for payout approval.`,
+            title: `Bank & KYC Verification Needed: ${registeredInstructorName}`,
+            message: `Instructor ${registeredInstructorName} (${session.email}) submitted bank account (${saved.bankName} - ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}, PAN: ${saved.panNumber}) along with PAN, Aadhaar & Bank Proof documents for payout approval.`,
             type: 'ACCOUNT',
             link: '/super-admin/users'
           }
@@ -400,13 +465,13 @@ export async function POST(req: NextRequest) {
       action: 'INSTRUCTOR_SUBMITTED_BANK_ACCOUNT',
       entity: 'InstructorBankAccount',
       entityId: saved.id,
-      description: `Instructor "${registeredInstructorName}" submitted bank account (${saved.bankName} ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}) after passing ownership & RBI IFSC checks.`,
+      description: `Instructor "${registeredInstructorName}" submitted bank account (${saved.bankName} ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}) with PAN (${saved.panNumber}), Aadhaar & Bank Proof KYC documents.`,
       req
     }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      message: `Bank details verified (${saved.bankName}, ${finalBranchName}) & submitted for Admin approval!`,
+      message: `Bank details & KYC documents verified and submitted for Admin approval!`,
       bankAccount: {
         id: saved.id,
         accountHolderName: saved.accountHolderName,
@@ -417,6 +482,11 @@ export async function POST(req: NextRequest) {
         branchName: saved.branchName || '',
         upiId: saved.upiId || '',
         panNumber: saved.panNumber || '',
+        panDocUrl: saved.panDocUrl || '',
+        aadhaarNumber: saved.aadhaarNumber || '',
+        aadhaarDocUrl: saved.aadhaarDocUrl || '',
+        bankProofUrl: saved.bankProofUrl || '',
+        panVerifiedName: saved.panVerifiedName || '',
         status: saved.status,
         rejectionReason: '',
         updatedAt: saved.updatedAt

@@ -1998,6 +1998,11 @@ model InstructorBankAccount {
   branchName          String?
   upiId               String?
   panNumber           String?
+  panDocUrl           String?
+  aadhaarNumber       String?
+  aadhaarDocUrl       String?
+  bankProofUrl        String?
+  panVerifiedName     String?
   status              String             @default("PENDING_VERIFICATION") // NOT_ADDED, PENDING_VERIFICATION, VERIFIED, REJECTED, DISABLED
   rejectionReason     String?
   verifiedById        String?

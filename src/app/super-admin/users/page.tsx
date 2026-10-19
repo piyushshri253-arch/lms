@@ -590,7 +590,71 @@ export default function SuperAdminUsersManagementPage() {
                         {selectedUser.bankAccount.panNumber || '—'}
                       </span>
                     </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                        Aadhaar Number
+                      </span>
+                      <span className="font-mono text-slate-700">
+                        {selectedUser.bankAccount.aadhaarNumber ? `XXXX XXXX ${selectedUser.bankAccount.aadhaarNumber.slice(-4)}` : '—'}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* KYC Verification Proof Documents */}
+                  {(selectedUser.bankAccount.panDocUrl || selectedUser.bankAccount.aadhaarDocUrl || selectedUser.bankAccount.bankProofUrl) && (
+                    <div className="p-3 rounded-xl bg-slate-100/70 border border-slate-200 space-y-2">
+                      <span className="text-slate-600 block text-[10px] uppercase font-extrabold tracking-wider">
+                        KYC Proof Documents Submitted by Instructor:
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {selectedUser.bankAccount.panDocUrl && (
+                          <a
+                            href={selectedUser.bankAccount.panDocUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg bg-white border border-slate-200 hover:border-violet-400 text-center space-y-1 block group transition"
+                          >
+                            <img
+                              src={selectedUser.bankAccount.panDocUrl}
+                              alt="PAN Card"
+                              className="w-full h-16 object-cover rounded-md group-hover:opacity-90"
+                            />
+                            <span className="text-[10px] font-bold text-slate-800 block truncate">PAN Photo ↗</span>
+                          </a>
+                        )}
+                        {selectedUser.bankAccount.aadhaarDocUrl && (
+                          <a
+                            href={selectedUser.bankAccount.aadhaarDocUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg bg-white border border-slate-200 hover:border-violet-400 text-center space-y-1 block group transition"
+                          >
+                            <img
+                              src={selectedUser.bankAccount.aadhaarDocUrl}
+                              alt="Aadhaar Card"
+                              className="w-full h-16 object-cover rounded-md group-hover:opacity-90"
+                            />
+                            <span className="text-[10px] font-bold text-slate-800 block truncate">Aadhaar Photo ↗</span>
+                          </a>
+                        )}
+                        {selectedUser.bankAccount.bankProofUrl && (
+                          <a
+                            href={selectedUser.bankAccount.bankProofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg bg-white border border-slate-200 hover:border-violet-400 text-center space-y-1 block group transition"
+                          >
+                            <img
+                              src={selectedUser.bankAccount.bankProofUrl}
+                              alt="Bank Proof"
+                              className="w-full h-16 object-cover rounded-md group-hover:opacity-90"
+                            />
+                            <span className="text-[10px] font-bold text-slate-800 block truncate">Bank Proof ↗</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2.5 pt-2">
                     <input
