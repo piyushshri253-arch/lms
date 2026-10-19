@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { ArticleContentRenderer } from '@/components/player/ArticleContentRenderer';
+import { GrammarHintAssistant } from '@/components/ui/GrammarHintAssistant';
 
 interface RichArticleEditorProps {
   content: string;
@@ -73,14 +74,19 @@ export const RichArticleEditor: React.FC<RichArticleEditorProps> = ({
     <div className="border border-slate-300 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 shadow-xs overflow-hidden flex flex-col">
       {/* 1. TOP HEADER & VIEW MODE BAR */}
       <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <span className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5 uppercase tracking-wide">
             <span>📝</span>
             <span>Rich Article &amp; Lecture Editor</span>
           </span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold ml-1">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold ml-1 hidden sm:inline-block">
             Student Headings &amp; Paragraphs Ready
           </span>
+          <GrammarHintAssistant
+            text={content}
+            onApplyCorrection={onChange}
+            fieldName="Article Content"
+          />
         </div>
 
         {/* View Switcher: Write / Live Preview / Split */}

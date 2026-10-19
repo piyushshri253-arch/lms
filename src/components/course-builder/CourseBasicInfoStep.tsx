@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { GrammarHintAssistant } from '@/components/ui/GrammarHintAssistant';
 
 interface CourseBasicInfoProps {
   data: {
@@ -133,9 +134,24 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Course Title *
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                Course Title *
+              </label>
+              <GrammarHintAssistant
+                text={data.title}
+                onApplyCorrection={(corrected) => {
+                  onChange('title', corrected);
+                  if (!data.slug || data.slug.startsWith('course-')) {
+                    onChange(
+                      'slug',
+                      corrected.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+                    );
+                  }
+                }}
+                fieldName="Course Title"
+              />
+            </div>
             <input
               type="text"
               required
@@ -275,9 +291,16 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Short Description / Subtitle
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                Short Description / Subtitle
+              </label>
+              <GrammarHintAssistant
+                text={data.shortDescription}
+                onApplyCorrection={(corrected) => onChange('shortDescription', corrected)}
+                fieldName="Short Description"
+              />
+            </div>
             <input
               type="text"
               value={data.shortDescription}
@@ -288,9 +311,16 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Full Course Description &amp; Syllabus Overview *
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                Full Course Description &amp; Syllabus Overview *
+              </label>
+              <GrammarHintAssistant
+                text={data.description}
+                onApplyCorrection={(corrected) => onChange('description', corrected)}
+                fieldName="Course Description"
+              />
+            </div>
             <textarea
               rows={5}
               required
@@ -315,25 +345,36 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
             <p className="text-[11px] text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
           </div>
 
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newLearnPoint}
-              onChange={(e) => setNewLearnPoint(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' &&
-                (e.preventDefault(), addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint))
-              }
-              placeholder="Add key takeaway..."
-              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={() => addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint)}
-              className="px-3 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl cursor-pointer"
-            >
-              Add
-            </button>
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newLearnPoint}
+                onChange={(e) => setNewLearnPoint(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' &&
+                  (e.preventDefault(), addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint))
+                }
+                placeholder="Add key takeaway..."
+                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint)}
+                className="px-3 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Add
+              </button>
+            </div>
+            {newLearnPoint.trim().length > 3 && (
+              <div className="flex justify-end">
+                <GrammarHintAssistant
+                  text={newLearnPoint}
+                  onApplyCorrection={(corrected) => setNewLearnPoint(corrected)}
+                  fieldName="Learning Outcome"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">

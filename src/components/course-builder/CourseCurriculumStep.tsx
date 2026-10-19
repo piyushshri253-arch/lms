@@ -8,6 +8,7 @@ import { AiCourseGeneratorModal } from '@/components/ai/AiCourseGeneratorModal';
 import { useApp } from '@/context/AppContext';
 import { cleanModuleTitle, cleanLectureTitle, cleanQuizTitle } from '@/lib/course-excel';
 import { RichArticleEditor } from './RichArticleEditor';
+import { GrammarHintAssistant } from '@/components/ui/GrammarHintAssistant';
 
 export interface QuizQuestion {
   id: string;
@@ -1671,7 +1672,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   </span>
 
                                   {/* Inline Title Input */}
-                                  <div className="flex-1 min-w-[160px]">
+                                  <div className="flex-1 min-w-[160px] flex items-center gap-1.5">
                                     <input
                                       type="text"
                                       value={les.title}
@@ -1684,6 +1685,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       placeholder="Lecture Title (e.g. Overview & Deep Dive)"
                                       className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
                                     />
+                                    {les.title && les.title.trim().length > 3 && (
+                                      <GrammarHintAssistant
+                                        text={les.title}
+                                        onApplyCorrection={(corrected) =>
+                                          handleUpdateLessonInline(secKey, itemKey, { title: cleanLectureTitle(corrected) })
+                                        }
+                                        fieldName="Lecture Title"
+                                        compact
+                                      />
+                                    )}
                                   </div>
 
                                   {/* Attached Video Badge (Only if video already uploaded via Media Studio) */}
@@ -2015,9 +2026,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           >
             <form onSubmit={handleAddSection} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-                  Module {activeModNum} Title *
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                    Module {activeModNum} Title *
+                  </label>
+                  <GrammarHintAssistant
+                    text={newSectionTitle}
+                    onApplyCorrection={(corrected) => setNewSectionTitle(corrected)}
+                    fieldName="Module Title"
+                  />
+                </div>
                 <input
                   type="text"
                   required
@@ -2139,9 +2157,16 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
         {/* Title & Duration */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2 space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-              Article Title *
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+                Article Title *
+              </label>
+              <GrammarHintAssistant
+                text={formData.title}
+                onApplyCorrection={(corrected) => setFormData((prev) => ({ ...prev, title: corrected }))}
+                fieldName="Article Title"
+              />
+            </div>
             <input
               type="text"
               required
@@ -2167,9 +2192,16 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
 
         {/* Lesson Description */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
-            Article Description / Overview
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Article Description / Overview
+            </label>
+            <GrammarHintAssistant
+              text={formData.description || ''}
+              onApplyCorrection={(corrected) => setFormData((prev) => ({ ...prev, description: corrected }))}
+              fieldName="Article Description"
+            />
+          </div>
           <textarea
             rows={2}
             value={formData.description || ''}
