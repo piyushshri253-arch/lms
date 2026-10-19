@@ -322,7 +322,7 @@ export function downloadCourseExcelTemplate() {
     ],
     [
       '',
-      'Module 1 Knowledge Assessment',
+      'Web Architecture & Modern AI Assessment',
       'QUIZ',
       '10:00',
       'No',
@@ -353,6 +353,14 @@ export function downloadCourseExcelTemplate() {
       '# State Management Guide\nDetailed explanation of modern React 19 state patterns with practical code examples and edge cases.'
     ],
     [
+      '',
+      'Next.js & React 19 Component Test',
+      'QUIZ',
+      '10:00',
+      'No',
+      ''
+    ],
+    [
       'Backend APIs & Database Architecture',
       'Relational Database Modeling with PostgreSQL & Prisma',
       'LECTURE',
@@ -367,6 +375,14 @@ export function downloadCourseExcelTemplate() {
       '05:00',
       'No',
       '# Database Schema Cheatsheet\nPostgreSQL table schemas, relationships, indexing rules, and migration best practices.'
+    ],
+    [
+      '',
+      'Database & API Architecture Quiz',
+      'QUIZ',
+      '10:00',
+      'No',
+      ''
     ],
     [
       'Course Completion & Certification',
@@ -1252,6 +1268,8 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           'module'
         );
         const lessonTypeRaw = findField([
+          'content type (lecture / article / quiz / final assignment) *',
+          'content type (lecture / article / quiz / final assignment)',
           'content type (lecture / article / quiz) *',
           'content type (lecture / article / quiz)',
           'content type',
@@ -1261,7 +1279,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           'lecture type',
           'type',
           'format'
-        ], 'type') || 'LECTURE';
+        ], 'type');
         const durationStr = findField(['duration (mm:ss)', 'lesson duration', 'duration', 'time', 'length'], 'duration') || '10:00';
         const isFreeRaw = findField(['free preview (yes / no)', 'free preview (yes/no)', 'is preview free (yes/no)', 'is preview free', 'is free', 'preview free', 'free preview', 'preview']);
         const isFree = /yes|true|1|free/i.test(isFreeRaw);
@@ -1326,17 +1344,19 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
 
         // 2. Lecture / Lesson Creation:
         if (rawLessonTitle || lessonDesc || durationStr) {
-          const isFinalAssignment =
-            /final\s*assignment/i.test(lessonTypeRaw) ||
-            /final\s*assignment/i.test(rawLessonTitle);
-          const isQuiz =
-            isFinalAssignment ||
-            /quiz|assessment|exam|test/i.test(lessonTypeRaw) ||
-            /quiz|assessment|exam|test/i.test(rawLessonTitle);
-          const isText =
-            !isQuiz && /article|text|written|reading|note/i.test(lessonTypeRaw);
-          const isPdf =
-            !isQuiz && !isText && /pdf|doc|file|handout/i.test(lessonTypeRaw);
+          const typeUpper = (lessonTypeRaw || '').toUpperCase();
+          const isExplicitFinal = /final\s*assignment/i.test(typeUpper);
+          const isExplicitQuiz = isExplicitFinal || /quiz|assessment|mcq|exam/i.test(typeUpper);
+          const isExplicitArticle = !isExplicitFinal && !isExplicitQuiz && /article|text|written|note|reading/i.test(typeUpper);
+          const isExplicitLecture = !isExplicitFinal && !isExplicitQuiz && !isExplicitArticle && /lecture|video/i.test(typeUpper);
+
+          // Only fall back to title heuristics if Content Type column was blank/unspecified
+          const hasExplicitType = isExplicitFinal || isExplicitQuiz || isExplicitArticle || isExplicitLecture;
+
+          const isFinalAssignment = isExplicitFinal || /final\s*assignment/i.test(rawLessonTitle);
+          const isQuiz = isFinalAssignment || isExplicitQuiz || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
+          const isText = !isFinalAssignment && !isQuiz && (isExplicitArticle || (!hasExplicitType && /article|notes|reading/i.test(rawLessonTitle)));
+          const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
 
           const finalLessonTitle = isFinalAssignment
             ? 'Final Assignment'

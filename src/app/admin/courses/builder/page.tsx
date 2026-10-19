@@ -1276,11 +1276,20 @@ function CourseBuilderContent() {
       }
 
       const modulesCount = parsed.sections?.length || 0;
-      const lessonsCount = (parsed.sections || []).reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
+      let totalLecs = 0;
+      let totalArts = 0;
+      let totalQzs = 0;
+      (parsed.sections || []).forEach((sec) => {
+        (sec.lessons || []).forEach((l) => {
+          if (l.type === 'QUIZ') totalQzs += 1;
+          else if (l.type === 'TEXT') totalArts += 1;
+          else totalLecs += 1;
+        });
+      });
 
       showToast({
         title: 'Course Auto-Filled from Excel! 🚀',
-        description: `"${file.name}" uploaded successfully! ${modulesCount} modules and ${lessonsCount} lessons imported.`,
+        description: `"${file.name}" uploaded successfully! ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, and ${totalQzs} quizzes imported.`,
         type: 'success'
       });
     } catch (err: any) {

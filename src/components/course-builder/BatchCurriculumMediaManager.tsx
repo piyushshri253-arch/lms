@@ -978,29 +978,39 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     return 0;
   };
 
-  // Global continuous numbering for lectures, articles, and quizzes across all modules
+  // Per-module numbering for lectures, articles, and quizzes
   const itemNumbering = useMemo(() => {
-    let lectureCount = 0;
-    let articleCount = 0;
-    let quizCount = 0;
-    const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string }> = {};
+    let totalLectures = 0;
+    let totalArticles = 0;
+    let totalQuizzes = 0;
+    const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string; moduleNum: number }> = {};
 
-    (sections || []).forEach((sec) => {
+    (sections || []).forEach((sec, sIdx) => {
+      let moduleLectures = 0;
+      let moduleArticles = 0;
+      let moduleQuizzes = 0;
+      const moduleNum = sIdx + 1;
+
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
-          quizCount += 1;
-          map[les.id] = { type: 'QUIZ', num: quizCount, label: `Quiz ${quizCount}` };
+          totalQuizzes += 1;
+          moduleQuizzes += 1;
+          const isFinal = les.isFinalAssignment || /final\s+assignment/i.test(les.title || '');
+          const label = isFinal ? 'Final Assignment' : `Quiz ${moduleQuizzes}`;
+          map[les.id] = { type: 'QUIZ', num: moduleQuizzes, label, moduleNum };
         } else if (les.type === 'TEXT') {
-          articleCount += 1;
-          map[les.id] = { type: 'ARTICLE', num: articleCount, label: `Article ${articleCount}` };
+          totalArticles += 1;
+          moduleArticles += 1;
+          map[les.id] = { type: 'ARTICLE', num: moduleArticles, label: `Article ${moduleArticles}`, moduleNum };
         } else {
-          lectureCount += 1;
-          map[les.id] = { type: 'LECTURE', num: lectureCount, label: `Lecture ${lectureCount}` };
+          totalLectures += 1;
+          moduleLectures += 1;
+          map[les.id] = { type: 'LECTURE', num: moduleLectures, label: `Lecture ${moduleLectures}`, moduleNum };
         }
       });
     });
 
-    return { map, totalLectures: lectureCount, totalArticles: articleCount, totalQuizzes: quizCount };
+    return { map, totalLectures, totalArticles, totalQuizzes };
   }, [sections]);
 
   // Stats calculation

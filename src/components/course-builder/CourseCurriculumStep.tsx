@@ -196,33 +196,42 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     }
   };
 
-  // Continuous global item numbering across all modules:
-  // - Lectures: Lecture 1, Lecture 2, ...
-  // - Articles: Article 1, Article 2, ...
-  // - Quizzes: Quiz 1, Quiz 2, ...
+  // Per-module item numbering across curriculum:
+  // - Inside each Module: Lecture 1, 2... Article 1, 2... Quiz 1, 2...
+  // - Top bar badges display overall course totals: totalLectures, totalArticles, totalQuizzes
   const itemNumbering = useMemo(() => {
-    let lectureCount = 0;
-    let articleCount = 0;
-    let quizCount = 0;
-    const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string }> = {};
+    let totalLectures = 0;
+    let totalArticles = 0;
+    let totalQuizzes = 0;
+    const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string; moduleNum: number }> = {};
 
-    (sections || []).forEach((sec) => {
+    (sections || []).forEach((sec, sIdx) => {
+      let moduleLectures = 0;
+      let moduleArticles = 0;
+      let moduleQuizzes = 0;
+      const moduleNum = sIdx + 1;
+
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
-          quizCount += 1;
-          const entry = { type: 'QUIZ' as const, num: quizCount, label: `Quiz ${quizCount}` };
+          totalQuizzes += 1;
+          moduleQuizzes += 1;
+          const isFinal = les.isFinalAssignment || /final\s+assignment/i.test(les.title || '');
+          const label = isFinal ? 'Final Assignment' : `Quiz ${moduleQuizzes}`;
+          const entry = { type: 'QUIZ' as const, num: moduleQuizzes, label, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
         } else if (les.type === 'TEXT') {
-          articleCount += 1;
-          const entry = { type: 'ARTICLE' as const, num: articleCount, label: `Article ${articleCount}` };
+          totalArticles += 1;
+          moduleArticles += 1;
+          const entry = { type: 'ARTICLE' as const, num: moduleArticles, label: `Article ${moduleArticles}`, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
         } else {
-          lectureCount += 1;
-          const entry = { type: 'LECTURE' as const, num: lectureCount, label: `Lecture ${lectureCount}` };
+          totalLectures += 1;
+          moduleLectures += 1;
+          const entry = { type: 'LECTURE' as const, num: moduleLectures, label: `Lecture ${moduleLectures}`, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
@@ -230,7 +239,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       });
     });
 
-    return { map, totalLectures: lectureCount, totalArticles: articleCount, totalQuizzes: quizCount };
+    return { map, totalLectures, totalArticles, totalQuizzes };
   }, [sections]);
 
   // Direct 1-Click PDF File Upload from System (PC/Laptop) or Mobile Phone
@@ -467,7 +476,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     showToast({ title: 'Module Removed', type: 'info' });
   };
 
-  // Add / Create Lesson or Quiz (Lecture 1, 2, 3, 4 continuous across modules; Quiz 1, 2 sequential)
+  // Add / Create Lesson or Quiz (Per-module numbering: Lecture 1, 2... Quiz 1, 2...)
   const handleCreateLesson = (
     sectionId: string,
     type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD',
@@ -478,25 +487,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
 
-    // Count existing non-quiz, non-text lectures across the entire course
-    const totalLecturesCount = sections.reduce(
-      (acc, s) => acc + (s.lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT').length,
-      0
-    );
-    // Count existing written articles across the entire course
-    const totalArticlesCount = sections.reduce(
-      (acc, s) => acc + (s.lessons || []).filter((l) => l.type === 'TEXT').length,
-      0
-    );
-    // Count existing quizzes across the entire course
-    const totalQuizzesCount = sections.reduce(
-      (acc, s) => acc + (s.lessons || []).filter((l) => l.type === 'QUIZ').length,
-      0
-    );
+    // Count existing non-quiz, non-text lectures inside target module
+    const moduleLecturesCount = (targetSec.lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT').length;
+    // Count existing written articles inside target module
+    const moduleArticlesCount = (targetSec.lessons || []).filter((l) => l.type === 'TEXT').length;
+    // Count existing quizzes inside target module
+    const moduleQuizzesCount = (targetSec.lessons || []).filter((l) => l.type === 'QUIZ').length;
 
-    const nextLectureNum = totalLecturesCount + 1;
-    const nextArticleNum = totalArticlesCount + 1;
-    const nextQuizNum = totalQuizzesCount + 1;
+    const nextLectureNum = moduleLecturesCount + 1;
+    const nextArticleNum = moduleArticlesCount + 1;
+    const nextQuizNum = moduleQuizzesCount + 1;
     const quizTitle = `Quiz ${nextQuizNum}`;
     const articleTitle = `Article ${nextArticleNum}`;
     const lectureTitle = `Lecture ${nextLectureNum}`;
