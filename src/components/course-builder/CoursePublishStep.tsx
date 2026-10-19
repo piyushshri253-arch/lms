@@ -123,7 +123,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         : finalAssignmentLesson
         ? 'Final Assignment exists but has no questions yet. Add questions in Curriculum.'
         : 'Every course requires a Final Assignment before it can be submitted for approval.',
-      step: 1
+      step: 3
     },
     {
       id: 'quiz_even_rule',
@@ -132,7 +132,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
       message: hasEvenQuizQuestions
         ? 'All quizzes contain an even number of questions (2, 4, 6, 8, ...).'
         : `"${oddQuizFound?.title}" has ${oddQuizFound?.count} questions. All quizzes must have an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Odd counts are not accepted.`,
-      step: 1
+      step: oddQuizFound?.title?.toLowerCase().includes('final assignment') ? 3 : 1
     },
     {
       id: 'thumbnail',
@@ -149,7 +149,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         courseData.price === 0
           ? 'Configured as Free Course.'
           : `Priced at ${courseData.currency === 'USD' ? '$' : '₹'}${courseData.price} (${courseData.currency || 'INR'}).`,
-      step: 3
+      step: 4
     }
   ];
 

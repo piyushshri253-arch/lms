@@ -9,6 +9,7 @@ import { CourseBasicInfoStep } from '@/components/course-builder/CourseBasicInfo
 import { CourseMediaStep } from '@/components/course-builder/CourseMediaStep';
 import { CourseCurriculumStep, BuilderSection, getLessonResourcesList, LessonResourceItem } from '@/components/course-builder/CourseCurriculumStep';
 import { CoursePricingStep } from '@/components/course-builder/CoursePricingStep';
+import { CourseFinalAssignmentStep } from '@/components/course-builder/CourseFinalAssignmentStep';
 import { CoursePublishStep } from '@/components/course-builder/CoursePublishStep';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ArticlePlayer } from '@/components/player/ArticlePlayer';
@@ -982,7 +983,11 @@ function CourseBuilderContent() {
                 description: `Quiz "${les.title || 'Untitled Quiz'}" in section "${sec.title}" has ${qCount} question(s). Odd counts are NOT accepted. Quizzes must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10).`,
                 type: 'error'
               });
-              setCurrentStep(2); // Jump to Curriculum tab
+              if (les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')) {
+                setCurrentStep(3); // Jump to Final Assignment tab
+              } else {
+                setCurrentStep(1); // Jump to Curriculum tab
+              }
               setIsPublishing(false);
               return;
             }
@@ -1121,8 +1126,9 @@ function CourseBuilderContent() {
     { title: '1. Basic Information', icon: 'info' },
     { title: '2. Course Curriculum', icon: 'view_timeline' },
     { title: '3. Media & Thumbnail', icon: 'image' },
-    { title: '4. Pricing & Access', icon: 'payments' },
-    { title: isInstructor ? '5. Review & Submit' : '5. Publish & Review', icon: 'verified' }
+    { title: '4. Final Assignment', icon: 'workspace_premium' },
+    { title: '5. Pricing & Access', icon: 'payments' },
+    { title: isInstructor ? '6. Review & Submit' : '6. Publish & Review', icon: 'verified' }
   ];
 
   // Flatten all lessons & subLessons for the live preview player
@@ -1623,7 +1629,7 @@ function CourseBuilderContent() {
       </div>
 
       {/* Step Navigation Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant/70">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-surface-container-lowest p-2 rounded-2xl border border-outline-variant/70">
         {steps.map((s, idx) => {
           const isActive = currentStep === idx;
           const isDone = currentStep > idx;
@@ -1722,8 +1728,18 @@ function CourseBuilderContent() {
         </div>
       )}
 
-      {/* Step 4: Pricing */}
+      {/* Step 4: Final Assignment (Certificate Gate & Exam Studio) */}
       {currentStep === 3 && (
+        <CourseFinalAssignmentStep
+          sections={courseState.sections || []}
+          onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
+          courseTitle={courseState.title}
+          onJumpToStep={(stepIdx) => setCurrentStep(stepIdx)}
+        />
+      )}
+
+      {/* Step 5: Pricing & Access */}
+      {currentStep === 4 && (
         <CoursePricingStep
           price={courseState.price}
           discountPrice={courseState.discountPrice}
@@ -1734,8 +1750,8 @@ function CourseBuilderContent() {
         />
       )}
 
-      {/* Step 5: Publish & Pre-flight Checklist */}
-      {currentStep === 4 && (
+      {/* Step 6: Publish & Pre-flight Checklist */}
+      {currentStep === 5 && (
         <CoursePublishStep
           courseData={courseState}
           userRole={currentUser?.role}
