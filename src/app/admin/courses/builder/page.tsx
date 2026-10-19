@@ -1555,45 +1555,40 @@ function CourseBuilderContent() {
               />
             </label>
           ) : (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-emerald-950 dark:text-emerald-100 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150 shrink-0">
-              {/* File Icon & Name */}
-              <div className="flex items-center gap-1.5 min-w-0 pr-0.5">
-                <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <Icon name="description" size={14} />
+            <div className="h-[38px] flex items-center gap-1.5 px-2.5 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-emerald-950 dark:text-emerald-100 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150 shrink-0">
+              {/* File Icon & Truncated Name */}
+              <div
+                className="flex items-center gap-1.5 min-w-0 cursor-default"
+                title={`${uploadedExcel.fileName} ${uploadedExcel.fileSize ? `(${(uploadedExcel.fileSize / 1024).toFixed(0)} KB)` : ''}`}
+              >
+                <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <Icon name="description" size={13} />
                 </div>
-                <span
-                  className="font-bold text-xs truncate max-w-[130px] sm:max-w-[200px] text-emerald-900 dark:text-emerald-100"
-                  title={uploadedExcel.fileName}
-                >
+                <span className="font-bold text-xs truncate max-w-[70px] sm:max-w-[80px] text-emerald-900 dark:text-emerald-100">
                   {uploadedExcel.fileName}
                 </span>
-                {uploadedExcel.fileSize ? (
-                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono shrink-0 hidden md:inline">
-                    ({(uploadedExcel.fileSize / 1024).toFixed(0)} KB)
-                  </span>
-                ) : null}
               </div>
 
-              <span className="h-4 w-px bg-emerald-300 dark:bg-emerald-700/80 shrink-0" />
+              <span className="h-3.5 w-px bg-emerald-300 dark:bg-emerald-700/80 shrink-0 mx-0.5" />
 
               {/* Icon-Only Download Button */}
               <button
                 type="button"
                 onClick={handleDownloadUploadedExcel}
-                className="w-7 h-7 bg-white dark:bg-emerald-900/90 hover:bg-emerald-100 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-lg border border-emerald-300 dark:border-emerald-600/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
+                className="w-6 h-6 bg-white dark:bg-emerald-900/90 hover:bg-emerald-100 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-md border border-emerald-300 dark:border-emerald-600/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title={`Download ${uploadedExcel.fileName}`}
               >
-                <Icon name="download" size={15} className="text-emerald-700 dark:text-emerald-300" />
+                <Icon name="download" size={13} className="text-emerald-700 dark:text-emerald-300" />
               </button>
 
               {/* Icon-Only Replace Button */}
               <label
-                className="w-7 h-7 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
+                className="w-6 h-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title="Replace with another Excel spreadsheet"
               >
                 <Icon
                   name={isImportingExcel ? 'sync' : 'swap_horiz'}
-                  size={15}
+                  size={13}
                   className={isImportingExcel ? 'animate-spin' : ''}
                 />
                 <input
@@ -1609,10 +1604,10 @@ function CourseBuilderContent() {
               <button
                 type="button"
                 onClick={handleRemoveUploadedExcel}
-                className="w-7 h-7 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 rounded-lg border border-rose-200 dark:border-rose-800/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
+                className="w-6 h-6 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 rounded-md border border-rose-200 dark:border-rose-800/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title="Delete uploaded template file and revert to upload button"
               >
-                <Icon name="delete_outline" size={15} className="text-rose-600 dark:text-rose-400" />
+                <Icon name="delete_outline" size={13} className="text-rose-600 dark:text-rose-400" />
               </button>
             </div>
           )}
