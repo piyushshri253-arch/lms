@@ -978,7 +978,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     return 0;
   };
 
-  // Per-module numbering for lectures, articles, and quizzes
+  // Continuous global numbering for lectures, articles, and quizzes across modules
   const itemNumbering = useMemo(() => {
     let totalLectures = 0;
     let totalArticles = 0;
@@ -986,26 +986,20 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string; moduleNum: number }> = {};
 
     (sections || []).forEach((sec, sIdx) => {
-      let moduleLectures = 0;
-      let moduleArticles = 0;
-      let moduleQuizzes = 0;
       const moduleNum = sIdx + 1;
 
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           totalQuizzes += 1;
-          moduleQuizzes += 1;
           const isFinal = les.isFinalAssignment || /final\s+assignment/i.test(les.title || '');
-          const label = isFinal ? 'Final Assignment' : `Quiz ${moduleQuizzes}`;
-          map[les.id] = { type: 'QUIZ', num: moduleQuizzes, label, moduleNum };
+          const label = isFinal ? 'Final Assignment' : `Quiz ${totalQuizzes}`;
+          map[les.id] = { type: 'QUIZ', num: totalQuizzes, label, moduleNum };
         } else if (les.type === 'TEXT') {
           totalArticles += 1;
-          moduleArticles += 1;
-          map[les.id] = { type: 'ARTICLE', num: moduleArticles, label: `Article ${moduleArticles}`, moduleNum };
+          map[les.id] = { type: 'ARTICLE', num: totalArticles, label: `Article ${totalArticles}`, moduleNum };
         } else {
           totalLectures += 1;
-          moduleLectures += 1;
-          map[les.id] = { type: 'LECTURE', num: moduleLectures, label: `Lecture ${moduleLectures}`, moduleNum };
+          map[les.id] = { type: 'LECTURE', num: totalLectures, label: `Lecture ${totalLectures}`, moduleNum };
         }
       });
     });

@@ -196,8 +196,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     }
   };
 
-  // Per-module item numbering across curriculum:
-  // - Inside each Module: Lecture 1, 2... Article 1, 2... Quiz 1, 2...
+  // Continuous global item numbering across modules:
+  // - Module 1: Lecture 1, 2, 3... Article 1... Quiz 1...
+  // - Module 2: Lecture 4, 5... Article 2... Quiz 2...
   // - Top bar badges display overall course totals: totalLectures, totalArticles, totalQuizzes
   const itemNumbering = useMemo(() => {
     let totalLectures = 0;
@@ -206,32 +207,26 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const map: Record<string, { type: 'LECTURE' | 'ARTICLE' | 'QUIZ'; num: number; label: string; moduleNum: number }> = {};
 
     (sections || []).forEach((sec, sIdx) => {
-      let moduleLectures = 0;
-      let moduleArticles = 0;
-      let moduleQuizzes = 0;
       const moduleNum = sIdx + 1;
 
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           totalQuizzes += 1;
-          moduleQuizzes += 1;
           const isFinal = les.isFinalAssignment || /final\s+assignment/i.test(les.title || '');
-          const label = isFinal ? 'Final Assignment' : `Quiz ${moduleQuizzes}`;
-          const entry = { type: 'QUIZ' as const, num: moduleQuizzes, label, moduleNum };
+          const label = isFinal ? 'Final Assignment' : `Quiz ${totalQuizzes}`;
+          const entry = { type: 'QUIZ' as const, num: totalQuizzes, label, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
         } else if (les.type === 'TEXT') {
           totalArticles += 1;
-          moduleArticles += 1;
-          const entry = { type: 'ARTICLE' as const, num: moduleArticles, label: `Article ${moduleArticles}`, moduleNum };
+          const entry = { type: 'ARTICLE' as const, num: totalArticles, label: `Article ${totalArticles}`, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
         } else {
           totalLectures += 1;
-          moduleLectures += 1;
-          const entry = { type: 'LECTURE' as const, num: moduleLectures, label: `Lecture ${moduleLectures}`, moduleNum };
+          const entry = { type: 'LECTURE' as const, num: totalLectures, label: `Lecture ${totalLectures}`, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
@@ -487,16 +482,23 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const targetSec = sections[sIdx];
     const moduleNum = sIdx + 1;
 
-    // Count existing non-quiz, non-text lectures inside target module
+    // Count preceding and module items for continuous sequential numbering
+    let precedingLectures = 0;
+    let precedingArticles = 0;
+    let precedingQuizzes = 0;
+    for (let i = 0; i < sIdx; i++) {
+      precedingLectures += (sections[i].lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT').length;
+      precedingArticles += (sections[i].lessons || []).filter((l) => l.type === 'TEXT').length;
+      precedingQuizzes += (sections[i].lessons || []).filter((l) => l.type === 'QUIZ').length;
+    }
+
     const moduleLecturesCount = (targetSec.lessons || []).filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT').length;
-    // Count existing written articles inside target module
     const moduleArticlesCount = (targetSec.lessons || []).filter((l) => l.type === 'TEXT').length;
-    // Count existing quizzes inside target module
     const moduleQuizzesCount = (targetSec.lessons || []).filter((l) => l.type === 'QUIZ').length;
 
-    const nextLectureNum = moduleLecturesCount + 1;
-    const nextArticleNum = moduleArticlesCount + 1;
-    const nextQuizNum = moduleQuizzesCount + 1;
+    const nextLectureNum = precedingLectures + moduleLecturesCount + 1;
+    const nextArticleNum = precedingArticles + moduleArticlesCount + 1;
+    const nextQuizNum = precedingQuizzes + moduleQuizzesCount + 1;
     const quizTitle = `Quiz ${nextQuizNum}`;
     const articleTitle = `Article ${nextArticleNum}`;
     const lectureTitle = `Lecture ${nextLectureNum}`;

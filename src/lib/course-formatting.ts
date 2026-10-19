@@ -60,17 +60,16 @@ export interface FormattedLessonItem {
 }
 
 /**
- * Generates per-module numbering for lectures (Lecture 1, 2, 3...),
- * articles (Article 1, 2, 3...), and quizzes (Quiz 1, 2...) within sections/modules.
+ * Generates continuous course-wide numbering for lectures (Lecture 1, 2, 3...),
+ * articles (Article 1, 2, 3...), and quizzes (Quiz 1, 2...) across sections/modules.
  */
 export function generateCurriculumDisplayMap(sections: any[]): Map<string, FormattedLessonItem> {
   const map = new Map<string, FormattedLessonItem>();
+  let lectureCounter = 0;
+  let articleCounter = 0;
+  let quizCounter = 0;
 
   (sections || []).forEach((sec: any) => {
-    let lectureCounter = 0;
-    let articleCounter = 0;
-    let quizCounter = 0;
-
     (sec.lessons || []).forEach((les: any) => {
       const isFinalAssignment = Boolean(
         les.isFinalAssignment ||
