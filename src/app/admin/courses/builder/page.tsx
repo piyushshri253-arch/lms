@@ -100,6 +100,9 @@ function CourseBuilderContent() {
   const excelStorageKey = effectiveCourseId ? `morena_uploaded_excel_${effectiveCourseId}` : 'morena_uploaded_excel_new';
 
   const [uploadedExcel, setUploadedExcel] = useState<UploadedExcelRecord | null>(null);
+  const uploadedExcelRef = React.useRef<UploadedExcelRecord | null>(uploadedExcel);
+  uploadedExcelRef.current = uploadedExcel;
+
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(!!editSlugOrId);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -126,19 +129,40 @@ function CourseBuilderContent() {
   // Load cached uploaded excel file on mount or when course changes
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(excelStorageKey);
+      let raw = localStorage.getItem(excelStorageKey);
+      if (!raw && effectiveCourseId) {
+        // Fallback: check if previously uploaded under 'new'
+        raw = localStorage.getItem('morena_uploaded_excel_new');
+        if (raw) {
+          try {
+            localStorage.setItem(excelStorageKey, raw);
+          } catch {}
+        }
+      }
+
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.fileName) {
           setUploadedExcel(parsed);
+          return;
         }
-      } else {
-        setUploadedExcel(null);
       }
+
+      // CRITICAL FIX: If uploadedExcel is already present in state for this active editing session,
+      // DO NOT reset it to null when effectiveCourseId or excelStorageKey changes during background auto-save!
+      setUploadedExcel((prev) => {
+        if (prev && prev.fileName) {
+          try {
+            localStorage.setItem(excelStorageKey, JSON.stringify(prev));
+          } catch {}
+          return prev;
+        }
+        return null;
+      });
     } catch {
       // Ignore parse error
     }
-  }, [excelStorageKey]);
+  }, [excelStorageKey, effectiveCourseId]);
 
   // Full Course Form State
   const [courseState, setCourseState] = useState<{
@@ -902,6 +926,13 @@ function CourseBuilderContent() {
                 updatedAt: Date.now()
               })
             );
+            if (uploadedExcelRef.current) {
+              const excelJson = JSON.stringify(uploadedExcelRef.current);
+              localStorage.setItem(`morena_uploaded_excel_${savedCourseId}`, excelJson);
+              if (savedSlug) {
+                localStorage.setItem(`morena_uploaded_excel_${savedSlug}`, excelJson);
+              }
+            }
           } catch {}
         }
 
@@ -1220,13 +1251,27 @@ function CourseBuilderContent() {
         fileData: fileBase64
       };
       setUploadedExcel(newRecord);
+      uploadedExcelRef.current = newRecord;
 
       try {
-        localStorage.setItem(excelStorageKey, JSON.stringify(newRecord));
+        const fullJson = JSON.stringify(newRecord);
+        localStorage.setItem(excelStorageKey, fullJson);
+        localStorage.setItem('morena_uploaded_excel_new', fullJson);
+        if (effectiveCourseId) {
+          localStorage.setItem(`morena_uploaded_excel_${effectiveCourseId}`, fullJson);
+        }
+        if (courseStateRef.current.id) {
+          localStorage.setItem(`morena_uploaded_excel_${courseStateRef.current.id}`, fullJson);
+        }
+        if (courseStateRef.current.slug) {
+          localStorage.setItem(`morena_uploaded_excel_${courseStateRef.current.slug}`, fullJson);
+        }
       } catch (storageErr) {
         console.warn('Could not cache full file in localStorage, caching metadata only:', storageErr);
         try {
-          localStorage.setItem(excelStorageKey, JSON.stringify({ ...newRecord, fileData: '' }));
+          const metaOnly = JSON.stringify({ ...newRecord, fileData: '' });
+          localStorage.setItem(excelStorageKey, metaOnly);
+          localStorage.setItem('morena_uploaded_excel_new', metaOnly);
         } catch {}
       }
 
@@ -1287,8 +1332,13 @@ function CourseBuilderContent() {
 
   const handleRemoveUploadedExcel = () => {
     setUploadedExcel(null);
+    uploadedExcelRef.current = null;
     try {
       localStorage.removeItem(excelStorageKey);
+      localStorage.removeItem('morena_uploaded_excel_new');
+      if (effectiveCourseId) localStorage.removeItem(`morena_uploaded_excel_${effectiveCourseId}`);
+      if (courseStateRef.current.id) localStorage.removeItem(`morena_uploaded_excel_${courseStateRef.current.id}`);
+      if (courseStateRef.current.slug) localStorage.removeItem(`morena_uploaded_excel_${courseStateRef.current.slug}`);
     } catch {}
     showToast({
       title: 'File Removed',
@@ -1526,28 +1576,26 @@ function CourseBuilderContent() {
 
               <span className="h-4 w-px bg-emerald-300 dark:bg-emerald-700/80 shrink-0" />
 
-              {/* Small Download Button */}
+              {/* Icon-Only Download Button */}
               <button
                 type="button"
                 onClick={handleDownloadUploadedExcel}
-                className="px-2 py-1 bg-white dark:bg-emerald-900/90 hover:bg-emerald-100 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-200 font-bold text-[11px] rounded-lg border border-emerald-300 dark:border-emerald-600/80 shadow-2xs flex items-center gap-1 cursor-pointer transition-all hover:scale-105 shrink-0"
+                className="w-7 h-7 bg-white dark:bg-emerald-900/90 hover:bg-emerald-100 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-lg border border-emerald-300 dark:border-emerald-600/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title={`Download ${uploadedExcel.fileName}`}
               >
-                <Icon name="download" size={13} className="text-emerald-700 dark:text-emerald-300" />
-                <span>Download</span>
+                <Icon name="download" size={15} className="text-emerald-700 dark:text-emerald-300" />
               </button>
 
-              {/* Small Replace Button */}
+              {/* Icon-Only Replace Button */}
               <label
-                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all hover:scale-105 shrink-0"
+                className="w-7 h-7 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title="Replace with another Excel spreadsheet"
               >
                 <Icon
                   name={isImportingExcel ? 'sync' : 'swap_horiz'}
-                  size={13}
+                  size={15}
                   className={isImportingExcel ? 'animate-spin' : ''}
                 />
-                <span>{isImportingExcel ? 'Replacing...' : 'Replace'}</span>
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv"
@@ -1557,15 +1605,14 @@ function CourseBuilderContent() {
                 />
               </label>
 
-              {/* Small Del / Delete Button */}
+              {/* Icon-Only Del / Delete Button */}
               <button
                 type="button"
                 onClick={handleRemoveUploadedExcel}
-                className="px-2 py-1 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 font-bold text-[11px] rounded-lg border border-rose-200 dark:border-rose-800/80 shadow-2xs flex items-center gap-1 cursor-pointer transition-all hover:scale-105 shrink-0"
+                className="w-7 h-7 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 rounded-lg border border-rose-200 dark:border-rose-800/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title="Delete uploaded template file and revert to upload button"
               >
-                <Icon name="delete_outline" size={13} className="text-rose-600 dark:text-rose-400" />
-                <span>Del</span>
+                <Icon name="delete_outline" size={15} className="text-rose-600 dark:text-rose-400" />
               </button>
             </div>
           )}
