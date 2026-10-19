@@ -38,6 +38,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: You can only edit quizzes for your own courses.' }, { status: 403 });
     }
 
+    if (Array.isArray(questions) && questions.length > 0) {
+      if (questions.length < 2 || questions.length % 2 !== 0) {
+        return NextResponse.json(
+          {
+            error: `Quiz must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Currently received: ${questions.length} question(s). Odd numbers of questions are not accepted.`
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Upsert Quiz and replace questions/options atomically
     const quiz = await prisma.$transaction(async (tx) => {
       // 1. Delete existing quiz if any

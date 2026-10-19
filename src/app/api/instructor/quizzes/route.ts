@@ -276,14 +276,31 @@ export async function POST(req: NextRequest) {
 
     if (targetStatus === 'PUBLISHED' && (!Array.isArray(questions) || questions.length === 0)) {
       return NextResponse.json(
-        { error: 'A quiz must have at least 1 valid question before publishing.' },
+        { error: 'A quiz must have at least 2 questions before publishing.' },
         { status: 400 }
       );
+    }
+
+    if (Array.isArray(questions) && questions.length > 0) {
+      if (questions.length < 2 || questions.length % 2 !== 0) {
+        return NextResponse.json(
+          {
+            error: `Quiz must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Currently received: ${questions.length} question(s). Odd numbers of questions are not accepted.`
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate every question
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      if (q.marks !== undefined && (isNaN(Number(q.marks)) || Number(q.marks) <= 0)) {
+        return NextResponse.json(
+          { error: `Question #${i + 1} must have a valid positive marks value (e.g. 10 marks).` },
+          { status: 400 }
+        );
+      }
       if (!q.question || !String(q.question).trim()) {
         return NextResponse.json(
           { error: `Question #${i + 1} is missing question text.` },

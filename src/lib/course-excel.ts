@@ -420,7 +420,8 @@ export function downloadCourseExcelTemplate() {
       'Option D *',
       'Correct Option (A/B/C/D) *',
       'Explanation (Why this option is correct)',
-      'Passing Score (%)'
+      'Passing Score (%)',
+      'Marks / Points (e.g. 10)'
     ],
     [
       'Module 1',
@@ -433,7 +434,8 @@ export function downloadCourseExcelTemplate() {
       'SMTP',
       'B',
       'HTTPS encrypts communication between the client browser and web server using TLS/SSL.',
-      70
+      70,
+      10
     ],
     [
       '',
@@ -446,7 +448,8 @@ export function downloadCourseExcelTemplate() {
       'Chakra',
       'C',
       'Google open-source V8 engine compiles JavaScript directly to native machine code.',
-      70
+      70,
+      10
     ],
     [
       'Module 2',
@@ -459,7 +462,8 @@ export function downloadCourseExcelTemplate() {
       'useContext',
       'B',
       'useState is the standard React hook for managing stateful values in functional components.',
-      70
+      70,
+      10
     ],
     [
       '',
@@ -472,7 +476,8 @@ export function downloadCourseExcelTemplate() {
       'useReducer',
       'A',
       'useEffect manages lifecycle side effects in React function components.',
-      70
+      70,
+      10
     ],
     [
       'Module 3',
@@ -485,7 +490,8 @@ export function downloadCourseExcelTemplate() {
       'JSON',
       'C',
       'SQL (Structured Query Language) is the standard query language for relational databases like PostgreSQL.',
-      70
+      70,
+      10
     ],
     [
       '',
@@ -498,7 +504,8 @@ export function downloadCourseExcelTemplate() {
       'SELECT',
       'A',
       'The WHERE clause filters rows satisfying given Boolean conditions.',
-      70
+      70,
+      10
     ],
     [
       'Course Completion & Certification',
@@ -511,7 +518,8 @@ export function downloadCourseExcelTemplate() {
       'Static HTML only',
       'B',
       'Modern web systems use structured client-server architecture with protected API boundaries.',
-      80
+      80,
+      10
     ],
     [
       '',
@@ -524,7 +532,8 @@ export function downloadCourseExcelTemplate() {
       'Random IDs without indexes',
       'B',
       'Foreign key constraints enforce relational integrity between parent and child tables.',
-      80
+      80,
+      10
     ],
     [
       '',
@@ -537,7 +546,22 @@ export function downloadCourseExcelTemplate() {
       'It allows unrestricted CORS access',
       'B',
       'HTTPS uses TLS to encrypt payload data, protecting passwords and auth tokens from eavesdropping.',
-      80
+      80,
+      10
+    ],
+    [
+      '',
+      '',
+      4,
+      'Which HTTP method is idempotent and conventionally used to replace or update a full resource in REST APIs?',
+      'POST',
+      'PUT',
+      'DELETE',
+      'PATCH',
+      'B',
+      'PUT is an idempotent HTTP verb used for full resource updates.',
+      80,
+      10
     ]
   ];
 
@@ -557,7 +581,7 @@ export function downloadCourseExcelTemplate() {
         else if (cIdx >= 4 && cIdx <= 7) wsQuizzes[cellRef].s = styles.cellNormal;
         else if (cIdx === 8) wsQuizzes[cellRef].s = styles.boldCenter;
         else if (cIdx === 9) wsQuizzes[cellRef].s = styles.cellNormal;
-        else if (cIdx === 10) wsQuizzes[cellRef].s = styles.centerNormal;
+        else if (cIdx === 10 || cIdx === 11) wsQuizzes[cellRef].s = styles.centerNormal;
       }
     }
   });
@@ -573,7 +597,8 @@ export function downloadCourseExcelTemplate() {
     { wch: 26 }, // Option D
     { wch: 26 }, // Correct Option
     { wch: 65 }, // Explanation
-    { wch: 18 }  // Passing Score (%)
+    { wch: 18 }, // Passing Score (%)
+    { wch: 22 }  // Marks / Points (e.g. 10)
   ];
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
 
@@ -607,8 +632,8 @@ export function buildGuideInstructionsSheet(styles: any) {
       'Every course MUST have a "Final Assignment" at the end of the curriculum before it can be submitted for approval!\n• Content Type: FINAL ASSIGNMENT (or name the topic "Final Assignment").\n• Questions & Passing Score: Add comprehensive questions in the "Quizzes & MCQs" tab with your desired Passing Score (%) (e.g. 75% or 80%).\n• Certificate Eligibility: When a student passes this Final Assignment, they immediately unlock the official verifiable Certificate of Completion. If they score below the passing score, they receive retake and review options.'
     ],
     [
-      '💯 STEP 4: Quiz Passing Score (%) & Auto-Advance Behavior',
-      'Set the "Passing Score (%)" for every Quiz and Final Assignment in the "Quizzes & MCQs" tab (Column K):\n• When a Student PASSES (Score >= Passing Score): Their score is shown on screen, and after 5 seconds the player automatically advances to the next lecture (or triggers certificate celebration for the Final Assignment)!\n• When a Student FAILS (Score < Passing Score): The score remains on screen with a full question breakdown and a Retake Quiz button; the player does NOT automatically jump to the next lecture.'
+      '💯 STEP 4: Quiz Passing Score, Even Questions Rule & Marks per Question',
+      'In the "Quizzes & MCQs" tab:\n• EVEN NUMBER OF QUESTIONS RULE: Every Quiz and Final Assignment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts (like 1, 3, 5, 7) are strictly NOT accepted and cannot be published!\n• MARKS PER QUESTION: Specify individual marks in Column L (default 10 marks per question).\n• PASSING SCORE (%): Set the passing percentage in Column K (e.g. 70% or 80%). When a student passes, the player automatically advances; when they score below, they receive retake options.'
     ],
     [
       '📹 STEP 5: Bulk Video Uploading (Supports up to 500 MB / 300 MB Videos)',
@@ -923,7 +948,8 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       'Option D *',
       'Correct Option (A/B/C/D) *',
       'Explanation (Why this option is correct)',
-      'Passing Score (%)'
+      'Passing Score (%)',
+      'Marks / Points'
     ]
   ];
 
@@ -952,7 +978,8 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
             opts[3] || '',
             letter,
             q.explanation || '',
-            qIdx === 0 ? passingScore : ''
+            qIdx === 0 ? passingScore : '',
+            q.points || 10
           ]);
         });
       }
@@ -960,7 +987,8 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   });
 
   if (quizzesAOA.length === 1) {
-    quizzesAOA.push(['Module 1', 'Sample Knowledge Check', 1, 'Sample Question?', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A', 'Correct answer', 70]);
+    quizzesAOA.push(['Module 1', 'Sample Knowledge Check', 1, 'Sample Question 1?', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A', 'Correct answer', 70, 10]);
+    quizzesAOA.push(['', '', 2, 'Sample Question 2?', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'B', 'Correct answer', 70, 10]);
   }
 
   const wsQuizzes = XLSX.utils.aoa_to_sheet(quizzesAOA);
@@ -973,13 +1001,13 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
         wsQuizzes[cellRef].s = styles.headerPurple;
       } else {
         if (cIdx === 0 || cIdx === 1 || cIdx === 3) wsQuizzes[cellRef].s = styles.boldTopic;
-        else if (cIdx === 2 || cIdx === 8 || cIdx === 10) wsQuizzes[cellRef].s = styles.boldCenter;
+        else if (cIdx === 2 || cIdx === 8 || cIdx === 10 || cIdx === 11) wsQuizzes[cellRef].s = styles.boldCenter;
         else wsQuizzes[cellRef].s = styles.cellNormal;
       }
     }
   });
 
-  wsQuizzes['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }];
+  wsQuizzes['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
 
   // 4. Append User Guide & Format Instructions Sheet
@@ -1413,6 +1441,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         const correctRaw = findQField(['correct option (a/b/c/d)', 'correct option', 'correct answer', 'answer', 'correct key', 'correct'], 'correct');
         const explanation = findQField(['explanation', 'explanation (optional)', 'rationale', 'solution'], 'explanation');
         const passScoreRaw = findQField(['passing score (%)', 'passing score', 'pass %', 'passing grade'], 'pass');
+        const pointsRaw = findQField(['marks / points (e.g. 10)', 'marks / points', 'marks', 'points', 'mark', 'point', 'score per question', 'score'], 'mark');
 
         if (!questionText && !optA && !optB) return; // Skip empty row
 
@@ -1576,13 +1605,18 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           correctIndex = 0;
         }
 
+        const points =
+          pointsRaw && !isNaN(parseInt(pointsRaw, 10)) && parseInt(pointsRaw, 10) > 0
+            ? parseInt(pointsRaw, 10)
+            : 10;
+
         const newQuestion = {
           id: `q-${Date.now()}-${rowIdx + 1}-${Math.random().toString(36).substring(2, 6)}`,
           question: questionText || `Question ${rowIdx + 1}`,
           options,
           correctIndex,
           explanation: explanation || '',
-          points: 1
+          points
         };
 
         if (!quizLesson.quizData || typeof quizLesson.quizData === 'string') {

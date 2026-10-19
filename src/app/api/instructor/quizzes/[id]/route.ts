@@ -328,9 +328,20 @@ export async function PUT(
 
     if (targetStatus === 'PUBLISHED' && (!Array.isArray(questions) || questions.length === 0)) {
       return NextResponse.json(
-        { error: 'Quiz must have at least one valid question before publishing.' },
+        { error: 'Quiz must have at least 2 questions before publishing.' },
         { status: 400 }
       );
+    }
+
+    if (Array.isArray(questions) && questions.length > 0) {
+      if (questions.length < 2 || questions.length % 2 !== 0) {
+        return NextResponse.json(
+          {
+            error: `Quiz must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Currently received: ${questions.length} question(s). Odd numbers of questions are not accepted.`
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const questionMetaMap: QuizExtendedMeta['questionMeta'] = {};

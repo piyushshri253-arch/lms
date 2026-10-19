@@ -47,6 +47,27 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
     )
   );
 
+  // Check that all quizzes have an even number of questions (2, 4, 6, 8...) and none are odd
+  const quizLessons = allLessons.filter((l: any) => l.type === 'QUIZ' || l.quizData);
+  let oddQuizFound: { title: string; count: number } | null = null;
+  for (const ql of quizLessons) {
+    let qCount = 0;
+    if (ql.quizData && typeof ql.quizData === 'object' && Array.isArray(ql.quizData.questions)) {
+      qCount = ql.quizData.questions.length;
+    } else if (typeof ql.quizData === 'string') {
+      try {
+        const parsed = JSON.parse(ql.quizData);
+        if (Array.isArray(parsed?.questions)) qCount = parsed.questions.length;
+      } catch {}
+    }
+    if (qCount > 0 && qCount % 2 !== 0) {
+      oddQuizFound = { title: ql.title || 'Quiz', count: qCount };
+      break;
+    }
+  }
+
+  const hasEvenQuizQuestions = !oddQuizFound;
+
   const checklist: ChecklistItem[] = [
     {
       id: 'title',
@@ -100,8 +121,17 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               : 70
           }% passing threshold.`
         : finalAssignmentLesson
-        ? 'Final Assignment exists but has no questions yet. Add at least 1 question in Curriculum.'
+        ? 'Final Assignment exists but has no questions yet. Add questions in Curriculum.'
         : 'Every course requires a Final Assignment before it can be submitted for approval.',
+      step: 1
+    },
+    {
+      id: 'quiz_even_rule',
+      label: 'Quiz Even Questions Rule',
+      passed: hasEvenQuizQuestions,
+      message: hasEvenQuizQuestions
+        ? 'All quizzes contain an even number of questions (2, 4, 6, 8, ...).'
+        : `"${oddQuizFound?.title}" has ${oddQuizFound?.count} questions. All quizzes must have an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Odd counts are not accepted.`,
       step: 1
     },
     {

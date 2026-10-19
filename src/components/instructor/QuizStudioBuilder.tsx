@@ -99,7 +99,23 @@ export default function QuizStudioBuilder({ quizId }: { quizId?: string }) {
       id: `q_${Date.now()}_1`,
       question: '',
       type: 'SINGLE_CHOICE',
-      marks: 5,
+      marks: 10,
+      explanation: '',
+      imageUrl: '',
+      difficulty: 'MEDIUM',
+      topic: 'General',
+      options: [
+        { id: 'opt_1', text: '', isCorrect: true },
+        { id: 'opt_2', text: '', isCorrect: false },
+        { id: 'opt_3', text: '', isCorrect: false },
+        { id: 'opt_4', text: '', isCorrect: false }
+      ]
+    },
+    {
+      id: `q_${Date.now()}_2`,
+      question: '',
+      type: 'SINGLE_CHOICE',
+      marks: 10,
       explanation: '',
       imageUrl: '',
       difficulty: 'MEDIUM',
@@ -227,12 +243,54 @@ export default function QuizStudioBuilder({ quizId }: { quizId?: string }) {
         id: newId,
         question: '',
         type: qType,
-        marks: 5,
+        marks: 10,
         explanation: '',
         imageUrl: '',
         difficulty: 'MEDIUM',
         topic: 'General',
         options: defaultOptions
+      }
+    ]);
+  };
+
+  const addQuestionPair = (qType: QuestionDraft['type'] = 'SINGLE_CHOICE') => {
+    const id1 = `q_${Date.now()}_1`;
+    const id2 = `q_${Date.now() + 1}_2`;
+    const defaultOptions1 = [
+      { id: `${id1}_opt_1`, text: '', isCorrect: true },
+      { id: `${id1}_opt_2`, text: '', isCorrect: false },
+      { id: `${id1}_opt_3`, text: '', isCorrect: false },
+      { id: `${id1}_opt_4`, text: '', isCorrect: false }
+    ];
+    const defaultOptions2 = [
+      { id: `${id2}_opt_1`, text: '', isCorrect: true },
+      { id: `${id2}_opt_2`, text: '', isCorrect: false },
+      { id: `${id2}_opt_3`, text: '', isCorrect: false },
+      { id: `${id2}_opt_4`, text: '', isCorrect: false }
+    ];
+    setQuestions((prev) => [
+      ...prev,
+      {
+        id: id1,
+        question: '',
+        type: qType,
+        marks: 10,
+        explanation: '',
+        imageUrl: '',
+        difficulty: 'MEDIUM',
+        topic: 'General',
+        options: defaultOptions1
+      },
+      {
+        id: id2,
+        question: '',
+        type: qType,
+        marks: 10,
+        explanation: '',
+        imageUrl: '',
+        difficulty: 'MEDIUM',
+        topic: 'General',
+        options: defaultOptions2
       }
     ]);
   };
@@ -255,11 +313,15 @@ export default function QuizStudioBuilder({ quizId }: { quizId?: string }) {
   };
 
   const removeQuestion = (index: number) => {
-    if (questions.length <= 1) {
-      setErrorMsg('Quiz must contain at least 1 question.');
+    if (questions.length <= 2) {
+      setErrorMsg('Quiz must contain at least 2 questions (Even Count Rule).');
       return;
     }
-    setQuestions(questions.filter((_, i) => i !== index));
+    const next = questions.filter((_, i) => i !== index);
+    setQuestions(next);
+    if (next.length % 2 !== 0) {
+      setErrorMsg(`Quiz now has an ODD number of questions (${next.length}). You must have an EVEN number of questions (2, 4, 6, 8, 10) to save.`);
+    }
   };
 
   const moveQuestion = (index: number, direction: 'UP' | 'DOWN') => {
@@ -455,13 +517,19 @@ export default function QuizStudioBuilder({ quizId }: { quizId?: string }) {
       setErrorMsg('Please select a Course owned by you.');
       return;
     }
-    if (questions.length === 0) {
-      setErrorMsg('Please add at least 1 question.');
+    if (questions.length < 2 || questions.length % 2 !== 0) {
+      setErrorMsg(
+        `Quiz must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Currently has ${questions.length} question(s). Odd numbers of questions are NOT accepted.`
+      );
       return;
     }
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      if (!q.marks || Number(q.marks) <= 0) {
+        setErrorMsg(`Question #${i + 1} must have a valid positive marks value (e.g. 10 marks).`);
+        return;
+      }
       if (!q.question.trim()) {
         setErrorMsg(`Question #${i + 1} cannot be empty.`);
         return;
@@ -1088,13 +1156,22 @@ export default function QuizStudioBuilder({ quizId }: { quizId?: string }) {
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    2. Questions Studio ({questions.length} Questions • {totalMarksCalculated}{' '}
-                    Marks)
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Add Single Choice (MCQ), Multiple Answer, or True/False questions, or import
-                    from your reusable Question Bank.
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg font-bold text-slate-900">
+                      2. Questions Studio ({questions.length} Questions • {totalMarksCalculated} Marks)
+                    </h2>
+                    {questions.length >= 2 && questions.length % 2 === 0 ? (
+                      <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        ✓ Even Questions Count ({questions.length} Qs)
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">
+                        ⚠️ Odd Count ({questions.length} Qs) — Even Required (2, 4, 6, 8, ...)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Rule: Quizzes must contain an <strong>even number of questions</strong> (2, 4, 6, 8, 10). Each question carries individual marks (default 10).
                   </p>
                 </div>
 
@@ -1102,34 +1179,43 @@ export default function QuizStudioBuilder({ quizId }: { quizId?: string }) {
                   <button
                     type="button"
                     onClick={openQuestionBankDrawer}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 text-xs font-bold transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 text-xs font-bold transition"
                   >
                     <Database className="w-3.5 h-3.5" />
-                    + Import from Question Bank
+                    + Import Bank
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => addQuestionPair('SINGLE_CHOICE')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-sm transition"
+                  >
+                    <CircleDot className="w-3.5 h-3.5" />
+                    + Add 2 Questions (Even Pair)
                   </button>
 
                   <button
                     type="button"
                     onClick={() => addQuestion('SINGLE_CHOICE')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition"
                   >
                     <CircleDot className="w-3.5 h-3.5" />
-                    + Single Choice (MCQ)
+                    + Single (MCQ)
                   </button>
 
                   <button
                     type="button"
                     onClick={() => addQuestion('MULTIPLE_ANSWER')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition"
                   >
                     <CheckSquare className="w-3.5 h-3.5" />
-                    + Multiple Answer
+                    + Multi-Answer
                   </button>
 
                   <button
                     type="button"
                     onClick={() => addQuestion('TRUE_FALSE')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition"
                   >
                     <ToggleLeft className="w-3.5 h-3.5" />
                     + True / False

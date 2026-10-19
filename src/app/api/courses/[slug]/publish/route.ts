@@ -83,6 +83,30 @@ export async function POST(
       )
     );
 
+    // Strict Validation: Every quiz in the course must contain an EVEN number of questions (2, 4, 6, ...)
+    let oddQuizLessonTitle = '';
+    let oddQuizCount = 0;
+    for (const l of allLessons) {
+      if (l.type === 'QUIZ' || l.quizData) {
+        let qCount = 0;
+        try {
+          if (l.quizData) {
+            const parsed = typeof l.quizData === 'string' ? JSON.parse(l.quizData) : l.quizData;
+            if (Array.isArray(parsed?.questions)) {
+              qCount = parsed.questions.length;
+            }
+          }
+        } catch {}
+        if (qCount > 0 && qCount % 2 !== 0) {
+          oddQuizLessonTitle = l.title || 'Quiz';
+          oddQuizCount = qCount;
+          break;
+        }
+      }
+    }
+
+    const quizzesEvenPassed = !oddQuizLessonTitle;
+
     // Flexible, realistic validation rules
     const checklist = [
       {
@@ -120,6 +144,15 @@ export async function POST(
         message: hasValidFinalAssignment
           ? 'Mandatory Final Assignment configured.'
           : 'Every course requires a Final Assignment before it can be submitted for review or approval.',
+        step: 2
+      },
+      {
+        id: 'quiz_even_rule',
+        label: 'Quiz Even Questions Rule',
+        passed: quizzesEvenPassed,
+        message: quizzesEvenPassed
+          ? 'All quizzes contain an even number of questions (2, 4, 6, 8, ...).'
+          : `"${oddQuizLessonTitle}" has ${oddQuizCount} questions. All quizzes must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Odd counts are not accepted.`,
         step: 2
       },
       {

@@ -509,11 +509,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         attemptLimit: 0,
         questions: [
           {
-            id: `q-${Date.now()}`,
-            question: `Assessment question for ${quizTitle}...`,
+            id: `q-${Date.now()}-1`,
+            question: `Assessment question 1 for ${quizTitle}...`,
             options: ['Option A', 'Option B', 'Option C', 'Option D'],
             correctIndex: 0,
-            explanation: 'Explanation for the correct answer.',
+            explanation: 'Explanation for correct answer to question 1.',
+            points: 10
+          },
+          {
+            id: `q-${Date.now()}-2`,
+            question: `Assessment question 2 for ${quizTitle}...`,
+            options: ['Option A', 'Option B', 'Option C', 'Option D'],
+            correctIndex: 0,
+            explanation: 'Explanation for correct answer to question 2.',
             points: 10
           }
         ]
@@ -601,11 +609,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       attemptLimit: 0,
       questions: [
         {
-          id: `q-${Date.now()}`,
+          id: `q-${Date.now()}-1`,
           question: 'Final comprehensive assessment question 1...',
           options: ['Option A', 'Option B', 'Option C', 'Option D'],
           correctIndex: 0,
-          explanation: 'Comprehensive explanation for the correct answer.',
+          explanation: 'Comprehensive explanation for correct answer to question 1.',
+          points: 10
+        },
+        {
+          id: `q-${Date.now()}-2`,
+          question: 'Final comprehensive assessment question 2...',
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctIndex: 0,
+          explanation: 'Comprehensive explanation for correct answer to question 2.',
           points: 10
         }
       ]
@@ -1208,12 +1224,39 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       </p>
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                      {/* Total Marks Summary Badge */}
+                                      {(() => {
+                                        const totalQuizMarks = qConf.questions.reduce((sum, q) => sum + (Number(q.points) || 10), 0);
+                                        const isEvenQuestions = qConf.questions.length >= 2 && qConf.questions.length % 2 === 0;
+
+                                        return (
+                                          <div className="flex items-center gap-2">
+                                            <span className="px-2.5 py-1 text-xs font-black rounded-lg bg-purple-100 text-purple-900 border border-purple-200 shadow-2xs">
+                                              Total: {totalQuizMarks} Marks
+                                            </span>
+
+                                            {/* Even vs Odd Badge */}
+                                            {isEvenQuestions ? (
+                                              <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-2xs">
+                                                <Icon name="check_circle" size={13} className="text-emerald-600" />
+                                                <span>✓ Even Count ({qConf.questions.length} Qs)</span>
+                                              </span>
+                                            ) : (
+                                              <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-rose-50 text-rose-800 border border-rose-300 flex items-center gap-1 shadow-2xs animate-pulse">
+                                                <Icon name="warning" size={13} className="text-rose-600" />
+                                                <span>⚠️ Odd Count ({qConf.questions.length} Qs) — Even Required</span>
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+
                                       {/* Passing Score Input */}
                                       <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 shadow-2xs">
                                         <div className="flex items-center gap-1 text-[11px] font-extrabold text-purple-950">
                                           <Icon name="verified" size={14} className="text-purple-600" />
-                                          <span>Passing Score:</span>
+                                          <span>Passing:</span>
                                         </div>
                                         <input
                                           type="number"
@@ -1233,7 +1276,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                       <button
                                         type="button"
-                                        onClick={() => setOpenContentDrawerId(null)}
+                                        onClick={() => {
+                                          if (qConf.questions.length > 0 && qConf.questions.length % 2 !== 0) {
+                                            showToast({
+                                              title: 'Even Count Reminder ⚠️',
+                                              description: `Quiz has ${qConf.questions.length} question(s). Only EVEN question counts (2, 4, 6, 8, 10) are accepted when publishing.`,
+                                              type: 'info'
+                                            });
+                                          }
+                                          setOpenContentDrawerId(null);
+                                        }}
                                         className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 rounded bg-white cursor-pointer"
                                       >
                                         ✕ Close
@@ -1241,12 +1293,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     </div>
                                   </div>
 
-                                  {/* Passing Rule Note */}
-                                  <div className="p-2.5 rounded-lg bg-purple-50/70 border border-purple-200/80 text-[11px] text-purple-900 flex items-center gap-2">
-                                    <Icon name="info" size={15} className="text-purple-600 shrink-0" />
-                                    <span>
-                                      <strong>Auto-Progression Rule:</strong> Students who score <strong>{qConf.passingScore ?? 70}% or higher</strong> will see their score for 5 seconds and automatically advance to the next lecture. Students who score below this threshold will see their failure score and must retake the quiz to proceed.
-                                    </span>
+                                  {/* Passing Rule & Even Count Note */}
+                                  <div className="p-2.5 rounded-lg bg-purple-50/70 border border-purple-200/80 text-[11px] text-purple-900 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <Icon name="info" size={15} className="text-purple-600 shrink-0" />
+                                      <span>
+                                        <strong>Rules:</strong> Each question carries custom marks (default 10). Quizzes must contain an <strong>EVEN number of questions (2, 4, 6, 8, 10)</strong>. Odd question counts cannot be saved. Passing score is <strong>{qConf.passingScore ?? 70}%</strong>.
+                                      </span>
+                                    </div>
                                   </div>
 
                                   {/* Questions List */}
@@ -1259,7 +1313,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         No questions added yet to Quiz {itemMeta.num}
                                       </p>
                                       <p className="text-[11px] text-slate-500">
-                                        Add questions to test student mastery after completing Module {moduleNum}.
+                                        Quizzes require an even number of questions (2, 4, 6, 8...) with individual marks per question.
                                       </p>
                                       <button
                                         type="button"
@@ -1274,6 +1328,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                 correctIndex: 0,
                                                 explanation: '',
                                                 points: 10
+                                              },
+                                              {
+                                                id: `q-${Date.now()}-2`,
+                                                question: '',
+                                                options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                correctIndex: 0,
+                                                explanation: '',
+                                                points: 10
                                               }
                                             ]
                                           };
@@ -1281,11 +1343,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             quizData: nextQ,
                                             type: 'QUIZ'
                                           });
+                                          showToast({
+                                            title: '2 Questions Initialized (Even Count) ✓',
+                                            description: 'Added Question 1 and Question 2 with 10 marks each.',
+                                            type: 'success'
+                                          });
                                         }}
                                         className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
                                       >
                                         <Icon name="add" size={14} />
-                                        <span>+ Add Question 1</span>
+                                        <span>+ Add Initial Questions (2 Questions - Even Count)</span>
                                       </button>
                                     </div>
                                   ) : (
@@ -1305,21 +1372,22 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                               </span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                              <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                                                <span>Points:</span>
+                                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-purple-200 rounded-lg shadow-2xs">
+                                                <span className="text-[11px] font-black text-purple-900">Marks:</span>
                                                 <input
                                                   type="number"
                                                   min={1}
-                                                  value={q.points || 10}
+                                                  value={q.points ?? 10}
                                                   onChange={(e) => {
                                                     const nextQ = [...qConf.questions];
-                                                    nextQ[qIdx] = { ...q, points: Number(e.target.value) || 10 };
+                                                    nextQ[qIdx] = { ...q, points: Math.max(1, Number(e.target.value) || 1) };
                                                     handleUpdateLessonInline(section.id, les.id, {
                                                       quizData: { ...qConf, questions: nextQ }
                                                     });
                                                   }}
-                                                  className="w-12 px-1.5 py-0.5 bg-white border border-slate-300 rounded text-center text-xs font-bold text-slate-800"
+                                                  className="w-12 px-1 text-center text-xs font-black text-purple-900 border-b border-purple-400 focus:outline-none"
                                                 />
+                                                <span className="text-[10px] font-bold text-purple-700">pts</span>
                                               </div>
                                               <button
                                                 type="button"
@@ -1330,6 +1398,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                   handleUpdateLessonInline(secKey, itemKey, {
                                                     quizData: { ...qConf, questions: nextQuestions }
                                                   });
+                                                  if (nextQuestions.length > 0 && nextQuestions.length % 2 !== 0) {
+                                                    showToast({
+                                                      title: 'Odd Questions Count ⚠️',
+                                                      description: `Quiz now has ${nextQuestions.length} question(s). Remember: quizzes must have an EVEN number of questions (2, 4, 6, 8) to save.`,
+                                                      type: 'info'
+                                                    });
+                                                  }
                                                 }}
                                                 className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
                                                 title="Delete Question"
@@ -1454,12 +1529,71 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-200"
                                         >
                                           <Icon name="add" size={14} />
-                                          <span>+ Add Another Question</span>
+                                          <span>+ Add 1 Question</span>
                                         </button>
 
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            const baseLen = qConf.questions.length;
+                                            const nextQ: QuizConfig = {
+                                              ...qConf,
+                                              questions: [
+                                                ...qConf.questions,
+                                                {
+                                                  id: `q-${Date.now()}-${baseLen + 1}`,
+                                                  question: '',
+                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                  correctIndex: 0,
+                                                  explanation: '',
+                                                  points: 10
+                                                },
+                                                {
+                                                  id: `q-${Date.now()}-${baseLen + 2}`,
+                                                  question: '',
+                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                  correctIndex: 0,
+                                                  explanation: '',
+                                                  points: 10
+                                                }
+                                              ]
+                                            };
+                                            handleUpdateLessonInline(secKey, itemKey, {
+                                              quizData: nextQ,
+                                              type: 'QUIZ'
+                                            });
+                                            showToast({
+                                              title: 'Added 2 Questions (Even Pair) ✓',
+                                              description: `Added questions ${baseLen + 1} & ${baseLen + 2} with 10 marks each. Total: ${nextQ.questions.length} questions.`,
+                                              type: 'success'
+                                            });
+                                          }}
+                                          className="px-3.5 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-extrabold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-300"
+                                        >
+                                          <Icon name="library_add" size={14} />
+                                          <span>+ Add 2 Questions (Even Pair)</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (qConf.questions.length === 0) {
+                                              showToast({
+                                                title: 'No Questions in Quiz ⚠️',
+                                                description: 'Please add at least 2 questions to this quiz.',
+                                                type: 'error'
+                                              });
+                                              return;
+                                            }
+                                            if (qConf.questions.length % 2 !== 0) {
+                                              showToast({
+                                                title: 'Even Number of Questions Required! ⚠️',
+                                                description: `Quiz has ${qConf.questions.length} question(s). Odd numbers (like 1, 3, 5) are NOT accepted. Quizzes must contain an EVEN number of questions (e.g., 2, 4, 6, 8, 10). Please add or remove a question.`,
+                                                type: 'error'
+                                              });
+                                              return;
+                                            }
+                                            const totalQuizMarks = qConf.questions.reduce((sum, q) => sum + (Number(q.points) || 10), 0);
                                             handleUpdateLessonInline(secKey, itemKey, {
                                               quizData: qConf,
                                               type: 'QUIZ'
@@ -1467,7 +1601,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                             setOpenContentDrawerId(null);
                                             showToast({
                                               title: 'Quiz Saved Successfully! ✓',
-                                              description: `"${les.title || `Quiz ${itemMeta.num}`}" saved with ${qConf.questions.length} questions.`,
+                                              description: `"${les.title || `Quiz ${itemMeta.num}`}" saved with ${qConf.questions.length} questions (${totalQuizMarks} total marks).`,
                                               type: 'success'
                                             });
                                           }}

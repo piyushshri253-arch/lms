@@ -931,6 +931,34 @@ function CourseBuilderContent() {
   const handlePublishCourse = async () => {
     setIsPublishing(true);
     try {
+      // Strict Validation: Quizzes must contain an EVEN number of questions (2, 4, 6, 8, ...)
+      const currentState = courseStateRef.current;
+      for (const sec of currentState.sections || []) {
+        for (const les of sec.lessons || []) {
+          if (les.type === 'QUIZ' || les.quizData) {
+            let qCount = 0;
+            if (les.quizData && typeof les.quizData === 'object' && Array.isArray((les.quizData as any).questions)) {
+              qCount = (les.quizData as any).questions.length;
+            } else if (typeof les.quizData === 'string') {
+              try {
+                const parsed = JSON.parse(les.quizData);
+                if (Array.isArray(parsed?.questions)) qCount = parsed.questions.length;
+              } catch {}
+            }
+            if (qCount > 0 && qCount % 2 !== 0) {
+              showToast({
+                title: 'Even Questions Rule Violation ⚠️',
+                description: `Quiz "${les.title || 'Untitled Quiz'}" in section "${sec.title}" has ${qCount} question(s). Odd counts are NOT accepted. Quizzes must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10).`,
+                type: 'error'
+              });
+              setCurrentStep(2); // Jump to Curriculum tab
+              setIsPublishing(false);
+              return;
+            }
+          }
+        }
+      }
+
       const isInstructor = currentUser?.role === 'INSTRUCTOR';
       const isApprovalSubmit = isInstructor && courseState.status !== 'APPROVED';
 
