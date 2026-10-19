@@ -64,7 +64,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     preventRightClick: true,
     disablePictureInPicture: true
   });
-  const [watermarkPosIndex, setWatermarkPosIndex] = useState(0);
+
 
   // Helper to check whether browser is in native fullscreen mode
   const isBrowserFullscreen = (): boolean => {
@@ -172,13 +172,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isFullscreen, isMuted, playbackRate]);
 
-  // Rotate anti-piracy watermark position every 18 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWatermarkPosIndex((prev) => (prev + 1) % 4);
-    }, 18000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   // Reset player error and playback state when switching lectures
   useEffect(() => {
@@ -415,13 +409,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const googleDriveId = !youtubeId && !vimeoId ? extractGoogleDriveId(resolvedVideoUrl) : null;
   const isEmbed = Boolean(youtubeId || vimeoId || googleDriveId);
 
-  const watermarkPositionClasses = [
-    'bottom-14 right-6',
-    'top-14 right-6',
-    'bottom-14 left-6',
-    'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
-  ][watermarkPosIndex];
-
   if (streamError) {
     return (
       <div className="w-full max-w-[1000px] mx-auto bg-slate-950 rounded-2xl aspect-video relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-8 text-center space-y-4 select-none">
@@ -618,30 +605,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Floating Quality Badge */}
-      {!isEmbed && (
-        <div className="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-semibold text-white/90 border border-white/10 flex items-center gap-1.5 pointer-events-none">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>1080p HD Stream</span>
-        </div>
-      )}
-
-      {/* Signed Private Stream Security Badge */}
-      {!isEmbed && securityPolicy.signedUrlEnabled && (
-        <div className="absolute top-4 right-4 z-20 bg-emerald-950/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 pointer-events-none">
-          <Icon name="verified_user" size={12} />
-          <span>Signed DRM Stream</span>
-        </div>
-      )}
-
-      {/* Dynamic Anti-Piracy Watermark */}
-      {watermark.enabled && watermark.text && (
-        <div
-          className={`absolute ${watermarkPositionClasses} z-20 pointer-events-none transition-all duration-1000 px-3 py-1 rounded-lg bg-black/25 backdrop-blur-[2px] border border-white/5 text-[10px] font-mono font-semibold text-white/45 tracking-wide select-none`}
-        >
-          {watermark.text}
-        </div>
-      )}
 
       {/* Custom Overlay Controls (for direct video / audio files) */}
       {!isEmbed && resolvedVideoUrl && !resolvedVideoUrl.startsWith('blob:') && (

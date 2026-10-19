@@ -220,11 +220,7 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
                 title={title}
                 className="w-full h-full border-0"
               />
-              {watermark.enabled && (
-                <div className="absolute bottom-4 right-4 z-20 pointer-events-none px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-xs border border-white/10 text-[10px] font-mono text-white/75 select-none">
-                  {watermark.text}
-                </div>
-              )}
+
             </div>
           )}
         </div>
@@ -234,12 +230,7 @@ export const ArticlePlayer: React.FC<ArticlePlayerProps> = ({
       {type === 'TEXT' && (
         <div className="max-w-none space-y-4 text-xs sm:text-sm leading-relaxed text-on-surface relative">
           <ArticleContentRenderer content={content} />
-          {watermark.enabled && (
-            <div className="pt-4 border-t border-outline-variant/40 text-[10px] font-mono text-on-surface-variant/60 flex items-center justify-between">
-              <span>Licensed to: {watermark.text}</span>
-              <span>Do Not Redistribute</span>
-            </div>
-          )}
+
         </div>
       )}
 
