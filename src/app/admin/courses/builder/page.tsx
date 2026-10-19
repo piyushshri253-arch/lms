@@ -1555,40 +1555,32 @@ function CourseBuilderContent() {
               />
             </label>
           ) : (
-            <div className="h-[38px] flex items-center gap-1.5 px-2.5 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-emerald-950 dark:text-emerald-100 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150 shrink-0">
-              {/* File Icon & Truncated Name */}
-              <div
-                className="flex items-center gap-1.5 min-w-0 cursor-default"
-                title={`${uploadedExcel.fileName} ${uploadedExcel.fileSize ? `(${(uploadedExcel.fileSize / 1024).toFixed(0)} KB)` : ''}`}
-              >
-                <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <Icon name="description" size={13} />
-                </div>
-                <span className="font-bold text-xs truncate max-w-[70px] sm:max-w-[80px] text-emerald-900 dark:text-emerald-100">
-                  {uploadedExcel.fileName}
-                </span>
-              </div>
-
-              <span className="h-3.5 w-px bg-emerald-300 dark:bg-emerald-700/80 shrink-0 mx-0.5" />
-
-              {/* Icon-Only Download Button */}
+            <div className="h-[38px] flex items-center gap-2 px-3 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-emerald-950 dark:text-emerald-100 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150 shrink-0">
+              {/* File Icon & Name (Click to Download) */}
               <button
                 type="button"
                 onClick={handleDownloadUploadedExcel}
-                className="w-6 h-6 bg-white dark:bg-emerald-900/90 hover:bg-emerald-100 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-md border border-emerald-300 dark:border-emerald-600/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
-                title={`Download ${uploadedExcel.fileName}`}
+                className="flex items-center gap-1.5 min-w-0 cursor-pointer group text-left"
+                title={`Click to download "${uploadedExcel.fileName}" ${uploadedExcel.fileSize ? `(${(uploadedExcel.fileSize / 1024).toFixed(0)} KB)` : ''}`}
               >
-                <Icon name="download" size={13} className="text-emerald-700 dark:text-emerald-300" />
+                <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Icon name="description" size={13} />
+                </div>
+                <span className="font-bold text-xs truncate max-w-[110px] sm:max-w-[150px] text-emerald-900 dark:text-emerald-100 group-hover:underline">
+                  {uploadedExcel.fileName}
+                </span>
               </button>
 
-              {/* Icon-Only Replace Button */}
+              <span className="h-4 w-px bg-emerald-300 dark:bg-emerald-700/80 shrink-0 mx-0.5" />
+
+              {/* Replace Icon Button */}
               <label
-                className="w-6 h-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
+                className="w-7 h-7 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
                 title="Replace with another Excel spreadsheet"
               >
                 <Icon
                   name={isImportingExcel ? 'sync' : 'swap_horiz'}
-                  size={13}
+                  size={15}
                   className={isImportingExcel ? 'animate-spin' : ''}
                 />
                 <input
@@ -1599,16 +1591,6 @@ function CourseBuilderContent() {
                   className="hidden"
                 />
               </label>
-
-              {/* Icon-Only Del / Delete Button */}
-              <button
-                type="button"
-                onClick={handleRemoveUploadedExcel}
-                className="w-6 h-6 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 rounded-md border border-rose-200 dark:border-rose-800/80 shadow-2xs flex items-center justify-center cursor-pointer transition-all hover:scale-110 shrink-0"
-                title="Delete uploaded template file and revert to upload button"
-              >
-                <Icon name="delete_outline" size={13} className="text-rose-600 dark:text-rose-400" />
-              </button>
             </div>
           )}
 
