@@ -435,6 +435,15 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     e.preventDefault();
     if (!newSectionTitle.trim()) return;
 
+    if (isMinorEditMode && !editingSectionId) {
+      showToast({
+        title: 'Module Addition Locked 🔒',
+        description: 'New modules cannot be added in Quick Minor Edit. Only typo and spelling fixes are allowed.',
+        type: 'error'
+      });
+      return;
+    }
+
     const cleanedTitle = cleanModuleTitle(newSectionTitle.trim()) || newSectionTitle.trim();
 
     if (editingSectionId) {
@@ -482,6 +491,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   const handleDeleteSection = (sectionId: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Deletion Locked 🔒',
+        description: 'Modules cannot be deleted in Quick Minor Edit.',
+        type: 'error'
+      });
+      return;
+    }
     if (isModeB && originalSectionIds?.has(sectionId)) {
       showToast({
         title: 'Cannot Delete Live Module',
@@ -501,6 +518,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     type: 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'DOWNLOAD',
     openModal = false
   ) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Item Addition Locked 🔒',
+        description: 'Lectures, articles, and quizzes cannot be added in Quick Minor Edit. Only typo and spelling fixes are allowed.',
+        type: 'error'
+      });
+      return;
+    }
     const sIdx = sections.findIndex((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (sIdx === -1) return;
     const targetSec = sections[sIdx];
@@ -613,6 +638,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   }, [sections]);
 
   const handleCreateFinalAssignment = (sectionId?: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Item Addition Locked 🔒',
+        description: 'Final assignment cannot be added in Quick Minor Edit. Only typo and spelling fixes are allowed.',
+        type: 'error'
+      });
+      return;
+    }
     let targetSectionId = sectionId;
     if (!targetSectionId) {
       if (sections.length === 0) {
@@ -720,6 +753,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Add Sub-Lesson / Sub-Category (e.g., 1.1.1, 1.1.2, 2.1.1)
   const handleAddSubLesson = (sectionId: string, lessonId: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Sub-topic Addition Locked 🔒',
+        description: 'Sub-topics cannot be added in Quick Minor Edit.',
+        type: 'error'
+      });
+      return;
+    }
     const sIdx = sections.findIndex((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (sIdx === -1) return;
     const section = sections[sIdx];
@@ -782,6 +823,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Delete Sub-Lesson
   const handleDeleteSubLesson = (sectionId: string, lessonId: string, subLessonId: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Deletion Locked 🔒',
+        description: 'Sub-topics cannot be deleted in Quick Minor Edit.',
+        type: 'error'
+      });
+      return;
+    }
     onChange(
       sections.map((s, sIdx) => {
         if (s.id !== sectionId && s.clientKey !== sectionId && s.tempId !== sectionId) return s;
@@ -806,6 +855,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Move Sub-Lesson up/down
   const moveSubLesson = (sectionId: string, lessonId: string, subIdx: number, direction: 'up' | 'down') => {
+    if (isMinorEditMode) return;
     const sIdx = sections.findIndex((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (sIdx === -1) return;
     const lIdx = sections[sIdx].lessons.findIndex((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
@@ -892,6 +942,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   const handleDeleteLesson = (sectionId: string, lessonId: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Deletion Locked 🔒',
+        description: 'Lectures, articles, and quizzes cannot be deleted in Quick Minor Edit.',
+        type: 'error'
+      });
+      return;
+    }
     if (isModeB && originalLessonIds?.has(lessonId)) {
       showToast({
         title: 'Cannot Delete Live Lesson',
@@ -924,6 +982,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Reordering helpers
   const moveSection = (index: number, direction: 'up' | 'down') => {
+    if (isMinorEditMode) return;
     const newIdx = direction === 'up' ? index - 1 : index + 1;
     if (newIdx < 0 || newIdx >= sections.length) return;
     const copy = [...sections];
@@ -933,6 +992,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   const moveLesson = (sectionId: string, index: number, direction: 'up' | 'down') => {
+    if (isMinorEditMode) return;
     const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
     if (!sec) return;
     const newIdx = direction === 'up' ? index - 1 : index + 1;
@@ -978,19 +1038,27 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => {
-              setEditingSectionId(null);
-              setNewSectionTitle('');
-              setNewSectionDescription('');
-              setIsAddSectionOpen(true);
-            }}
-            className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto"
-          >
-            <Icon name="add" size={16} />
-            <span>Add Module</span>
-          </button>
+          {!isMinorEditMode && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingSectionId(null);
+                setNewSectionTitle('');
+                setNewSectionDescription('');
+                setIsAddSectionOpen(true);
+              }}
+              className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto"
+            >
+              <Icon name="add" size={16} />
+              <span>Add Module</span>
+            </button>
+          )}
+          {isMinorEditMode && (
+            <span className="px-3.5 py-1.5 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold flex items-center gap-1.5 select-none shadow-2xs">
+              <Icon name="lock" size={14} className="text-amber-600" />
+              <span>Curriculum Structure Locked (Typo &amp; Spelling Edits Only)</span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -1034,7 +1102,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       <div className="flex items-center gap-0.5">
                         <button
                           type="button"
-                          disabled={sIdx === 0 || (isModeB && originalSectionIds?.has(secKey))}
+                          disabled={sIdx === 0 || (isModeB && originalSectionIds?.has(secKey)) || isMinorEditMode}
                           onClick={() => moveSection(sIdx, 'up')}
                           className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                           title="Move Module Up"
@@ -1043,7 +1111,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         </button>
                         <button
                           type="button"
-                          disabled={sIdx === sections.length - 1 || (isModeB && originalSectionIds?.has(secKey))}
+                          disabled={sIdx === sections.length - 1 || (isModeB && originalSectionIds?.has(secKey)) || isMinorEditMode}
                           onClick={() => moveSection(sIdx, 'down')}
                           className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                           title="Move Module Down"
@@ -1076,7 +1144,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      {isModeB && originalSectionIds?.has(secKey) ? (
+                      {isMinorEditMode ? null : isModeB && originalSectionIds?.has(secKey) ? (
                         <span
                           className="px-2.5 py-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md flex items-center gap-1 border border-slate-200 dark:border-slate-700 shadow-2xs select-none"
                           title="Published live module is locked and protected to safeguard enrolled students"
@@ -1140,7 +1208,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <div className="flex items-center gap-0.5">
                                     <button
                                       type="button"
-                                      disabled={lIdx === 0 || isLockedLiveQuiz}
+                                      disabled={lIdx === 0 || isLockedLiveQuiz || isMinorEditMode}
                                       onClick={() => moveLesson(secKey, lIdx, 'up')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Quiz Up"
@@ -1149,7 +1217,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={lIdx === section.lessons.length - 1 || isLockedLiveQuiz}
+                                      disabled={lIdx === section.lessons.length - 1 || isLockedLiveQuiz || isMinorEditMode}
                                       onClick={() => moveLesson(secKey, lIdx, 'down')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Quiz Down"
@@ -1283,7 +1351,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     </button>
                                   )}
 
-                                  {isLockedLiveQuiz || les.isFinalAssignment ? null : (
+                                  {isLockedLiveQuiz || les.isFinalAssignment || isMinorEditMode ? null : (
                                     <button
                                       type="button"
                                       onClick={() => handleDeleteLesson(secKey, itemKey)}
@@ -1489,28 +1557,30 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                                 />
                                                 <span className="text-[10px] font-bold text-purple-700">pts</span>
                                               </div>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  const nextQuestions = qConf.questions.filter(
-                                                    (_, idx) => idx !== qIdx
-                                                  );
-                                                  handleUpdateLessonInline(secKey, itemKey, {
-                                                    quizData: { ...qConf, questions: nextQuestions }
-                                                  });
-                                                  if (nextQuestions.length > 0 && nextQuestions.length % 2 !== 0) {
-                                                    showToast({
-                                                      title: 'Odd Questions Count ⚠️',
-                                                      description: `Quiz now has ${nextQuestions.length} question(s). Remember: quizzes must have an EVEN number of questions (2, 4, 6, 8) to save.`,
-                                                      type: 'info'
+                                              {!isMinorEditMode && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const nextQuestions = qConf.questions.filter(
+                                                      (_, idx) => idx !== qIdx
+                                                    );
+                                                    handleUpdateLessonInline(secKey, itemKey, {
+                                                      quizData: { ...qConf, questions: nextQuestions }
                                                     });
-                                                  }
-                                                }}
-                                                className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
-                                                title="Delete Question"
-                                              >
-                                                <Icon name="delete" size={15} />
-                                              </button>
+                                                    if (nextQuestions.length > 0 && nextQuestions.length % 2 !== 0) {
+                                                      showToast({
+                                                        title: 'Odd Questions Count ⚠️',
+                                                        description: `Quiz now has ${nextQuestions.length} question(s). Remember: quizzes must have an EVEN number of questions (2, 4, 6, 8) to save.`,
+                                                        type: 'info'
+                                                      });
+                                                    }
+                                                  }}
+                                                  className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                                                  title="Delete Question"
+                                                >
+                                                  <Icon name="delete" size={15} />
+                                                </button>
+                                              )}
                                             </div>
                                           </div>
 
@@ -1599,80 +1669,84 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                       {/* Quiz Actions Footer */}
                                       <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-purple-100">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const nextQ: QuizConfig = {
-                                              ...qConf,
-                                              questions: [
-                                                ...qConf.questions,
-                                                {
-                                                  id: `q-${Date.now()}-${qConf.questions.length + 1}`,
-                                                  question: '',
-                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                  correctIndex: 0,
-                                                  explanation: '',
-                                                  points: 10
-                                                }
-                                              ]
-                                            };
-                                            handleUpdateLessonInline(secKey, itemKey, {
-                                              quizData: nextQ,
-                                              type: 'QUIZ'
-                                            });
-                                            showToast({
-                                              title: 'Question Added',
-                                              description: `Question ${nextQ.questions.length} added to ${les.title || `Quiz ${itemMeta.num}`}.`,
-                                              type: 'info'
-                                            });
-                                          }}
-                                          className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-200"
-                                        >
-                                          <Icon name="add" size={14} />
-                                          <span>+ Add 1 Question</span>
-                                        </button>
+                                        {!isMinorEditMode && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const nextQ: QuizConfig = {
+                                                  ...qConf,
+                                                  questions: [
+                                                    ...qConf.questions,
+                                                    {
+                                                      id: `q-${Date.now()}-${qConf.questions.length + 1}`,
+                                                      question: '',
+                                                      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                      correctIndex: 0,
+                                                      explanation: '',
+                                                      points: 10
+                                                    }
+                                                  ]
+                                                };
+                                                handleUpdateLessonInline(secKey, itemKey, {
+                                                  quizData: nextQ,
+                                                  type: 'QUIZ'
+                                                });
+                                                showToast({
+                                                  title: 'Question Added',
+                                                  description: `Question ${nextQ.questions.length} added to ${les.title || `Quiz ${itemMeta.num}`}.`,
+                                                  type: 'info'
+                                                });
+                                              }}
+                                              className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-200"
+                                            >
+                                              <Icon name="add" size={14} />
+                                              <span>+ Add 1 Question</span>
+                                            </button>
 
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const baseLen = qConf.questions.length;
-                                            const nextQ: QuizConfig = {
-                                              ...qConf,
-                                              questions: [
-                                                ...qConf.questions,
-                                                {
-                                                  id: `q-${Date.now()}-${baseLen + 1}`,
-                                                  question: '',
-                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                  correctIndex: 0,
-                                                  explanation: '',
-                                                  points: 10
-                                                },
-                                                {
-                                                  id: `q-${Date.now()}-${baseLen + 2}`,
-                                                  question: '',
-                                                  options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                                                  correctIndex: 0,
-                                                  explanation: '',
-                                                  points: 10
-                                                }
-                                              ]
-                                            };
-                                            handleUpdateLessonInline(secKey, itemKey, {
-                                              quizData: nextQ,
-                                              type: 'QUIZ'
-                                            });
-                                            showToast({
-                                              title: 'Added 2 Questions (Even Pair) ✓',
-                                              description: `Added questions ${baseLen + 1} & ${baseLen + 2} with 10 marks each. Total: ${nextQ.questions.length} questions.`,
-                                              type: 'success'
-                                            });
-                                          }}
-                                          className="px-3.5 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-extrabold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-300"
-                                        >
-                                          <Icon name="library_add" size={14} />
-                                          <span>+ Add 2 Questions (Even Pair)</span>
-                                        </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const baseLen = qConf.questions.length;
+                                                const nextQ: QuizConfig = {
+                                                  ...qConf,
+                                                  questions: [
+                                                    ...qConf.questions,
+                                                    {
+                                                      id: `q-${Date.now()}-${baseLen + 1}`,
+                                                      question: '',
+                                                      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                      correctIndex: 0,
+                                                      explanation: '',
+                                                      points: 10
+                                                    },
+                                                    {
+                                                      id: `q-${Date.now()}-${baseLen + 2}`,
+                                                      question: '',
+                                                      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                                      correctIndex: 0,
+                                                      explanation: '',
+                                                      points: 10
+                                                    }
+                                                  ]
+                                                };
+                                                handleUpdateLessonInline(secKey, itemKey, {
+                                                  quizData: nextQ,
+                                                  type: 'QUIZ'
+                                                });
+                                                showToast({
+                                                  title: 'Added 2 Questions (Even Pair) ✓',
+                                                  description: `Added questions ${baseLen + 1} & ${baseLen + 2} with 10 marks each. Total: ${nextQ.questions.length} questions.`,
+                                                  type: 'success'
+                                                });
+                                              }}
+                                              className="px-3.5 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-extrabold rounded flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-300"
+                                            >
+                                              <Icon name="library_add" size={14} />
+                                              <span>+ Add 2 Questions (Even Pair)</span>
+                                            </button>
+                                          </>
+                                        )}
 
                                         <button
                                           type="button"
@@ -1734,7 +1808,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <div className="flex items-center gap-0.5">
                                     <button
                                       type="button"
-                                      disabled={lIdx === 0 || isLockedLiveLecture}
+                                      disabled={lIdx === 0 || isLockedLiveLecture || isMinorEditMode}
                                       onClick={() => moveLesson(secKey, lIdx, 'up')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Lecture Up"
@@ -1743,7 +1817,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={lIdx === section.lessons.length - 1 || isLockedLiveLecture}
+                                      disabled={lIdx === section.lessons.length - 1 || isLockedLiveLecture || isMinorEditMode}
                                       onClick={() => moveLesson(secKey, lIdx, 'down')}
                                       className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Lecture Down"
@@ -1815,7 +1889,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         <span className="text-[10px] text-blue-700 font-semibold">
                                           ({les.duration || '10:00'})
                                         </span>
-                                        {!isLockedLiveLecture && (
+                                        {!isLockedLiveLecture && !isMinorEditMode && (
                                           <button
                                             type="button"
                                             onClick={() =>
@@ -1841,7 +1915,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <input
                                       type="checkbox"
                                       checked={!!les.isFree}
-                                      disabled={isLockedLiveLecture}
+                                      disabled={isLockedLiveLecture || isMinorEditMode}
                                       onChange={(e) =>
                                         handleUpdateLessonInline(secKey, itemKey, {
                                           isFree: e.target.checked
@@ -1855,7 +1929,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                 {/* Delete button or Lock Badge on Lecture */}
                                 <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                                  {isModeB && originalLessonIds?.has(itemKey) ? (
+                                  {isMinorEditMode ? null : isModeB && originalLessonIds?.has(itemKey) ? (
                                     <span
                                       className="px-2 py-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded flex items-center gap-1 border border-slate-200 dark:border-slate-700 select-none shadow-2xs"
                                       title="Published live lecture cannot be deleted in version updates to protect enrolled students"
@@ -1893,7 +1967,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <div className="flex items-center gap-0.5">
                                   <button
                                     type="button"
-                                    disabled={lIdx === 0 || isLockedLiveArticle}
+                                    disabled={lIdx === 0 || isLockedLiveArticle || isMinorEditMode}
                                     onClick={() => moveLesson(secKey, lIdx, 'up')}
                                     className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                     title="Move Article Up"
@@ -1902,7 +1976,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   </button>
                                   <button
                                     type="button"
-                                    disabled={lIdx === section.lessons.length - 1 || isLockedLiveArticle}
+                                    disabled={lIdx === section.lessons.length - 1 || isLockedLiveArticle || isMinorEditMode}
                                     onClick={() => moveLesson(secKey, lIdx, 'down')}
                                     className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                     title="Move Article Down"
@@ -1980,11 +2054,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 </div>
 
                                 {/* Free Preview Checkbox */}
-                                <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none shrink-0 pl-1">
+                                <label className={`inline-flex items-center gap-1.5 text-xs text-slate-600 ${isLockedLiveArticle || isMinorEditMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} select-none shrink-0 pl-1`}>
                                   <input
                                     type="checkbox"
                                     checked={!!les.isFree}
-                                    disabled={isLockedLiveArticle}
+                                    disabled={isLockedLiveArticle || isMinorEditMode}
                                     onChange={(e) =>
                                       handleUpdateLessonInline(secKey, itemKey, {
                                         isFree: e.target.checked
@@ -2017,14 +2091,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       <Icon name="edit" size={13} />
                                       <span>Edit Article</span>
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteLesson(secKey, itemKey)}
-                                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                                      title="Delete Article"
-                                    >
-                                      <Icon name="delete" size={15} />
-                                    </button>
+                                    {!isMinorEditMode && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteLesson(secKey, itemKey)}
+                                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                        title="Delete Article"
+                                      >
+                                        <Icon name="delete" size={15} />
+                                      </button>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -2035,63 +2111,74 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     })}
 
                   {/* CURRICULUM ITEM FOOTER BAR INSIDE MODULE */}
-                  <div className={`flex flex-wrap items-center gap-2 ${section.lessons.length > 0 ? 'pt-3 border-t border-[#d1d7dc]/60' : 'pt-0.5'}`}>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">
-                      + Add to Module {moduleNum}:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(secKey, 'VIDEO', false)}
-                      className="px-3.5 py-2 bg-blue-50 border border-blue-400 hover:bg-blue-100 text-blue-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Add a lecture"
-                    >
-                      <Icon name="videocam" size={15} />
-                      <span>+ Add Lecture</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(secKey, 'TEXT', true)}
-                      className="px-3.5 py-2 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Add a written article with headings and paragraphs"
-                    >
-                      <Icon name="article" size={15} />
-                      <span>+ Add Article</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCreateLesson(secKey, 'QUIZ', false)}
-                      className="px-3.5 py-2 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Add a knowledge quiz"
-                    >
-                      <Icon name="quiz" size={15} />
-                      <span>+ Add Quiz</span>
-                    </button>
-                    <span className="text-[11px] font-medium text-slate-500 ml-auto hidden sm:inline flex items-center gap-1">
-                      <Icon name="all_inclusive" size={14} className="text-primary" />
-                      <span>Unlimited items per module</span>
-                    </span>
-                  </div>
+                  {isMinorEditMode ? (
+                    <div className="pt-2 pb-1 border-t border-[#d1d7dc]/60 flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-50/70 p-2.5 rounded-lg border border-amber-200">
+                      <Icon name="lock" size={15} className="text-amber-600 shrink-0" />
+                      <span>
+                        Curriculum structure locked in Quick Minor Edit mode (No adding/deleting lectures, articles, or quizzes). Only spelling/typo fixes are allowed.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={`flex flex-wrap items-center gap-2 ${section.lessons.length > 0 ? 'pt-3 border-t border-[#d1d7dc]/60' : 'pt-0.5'}`}>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">
+                        + Add to Module {moduleNum}:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCreateLesson(secKey, 'VIDEO', false)}
+                        className="px-3.5 py-2 bg-blue-50 border border-blue-400 hover:bg-blue-100 text-blue-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Add a lecture"
+                      >
+                        <Icon name="videocam" size={15} />
+                        <span>+ Add Lecture</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCreateLesson(secKey, 'TEXT', true)}
+                        className="px-3.5 py-2 bg-amber-50 border border-amber-400 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Add a written article with headings and paragraphs"
+                      >
+                        <Icon name="article" size={15} />
+                        <span>+ Add Article</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCreateLesson(secKey, 'QUIZ', false)}
+                        className="px-3.5 py-2 bg-purple-50 border border-purple-400 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Add a knowledge quiz"
+                      >
+                        <Icon name="quiz" size={15} />
+                        <span>+ Add Quiz</span>
+                      </button>
+                      <span className="text-[11px] font-medium text-slate-500 ml-auto hidden sm:inline flex items-center gap-1">
+                        <Icon name="all_inclusive" size={14} className="text-primary" />
+                        <span>Unlimited items per module</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
 
           {/* BOTTOM DASHED BUTTON: ADD MODULE */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEditingSectionId(null);
-                setNewSectionTitle('');
-                setNewSectionDescription('');
-                setIsAddSectionOpen(true);
-              }}
-              className="w-full py-4 border-2 border-dashed border-[#2d2f31]/40 hover:border-[#2d2f31] bg-white hover:bg-slate-50 text-[#2d2f31] font-bold text-sm rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
-            >
-              <Icon name="add_circle" size={18} />
-              <span>Add Module</span>
-            </button>
-          </div>
+          {!isMinorEditMode && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSectionId(null);
+                  setNewSectionTitle('');
+                  setNewSectionDescription('');
+                  setIsAddSectionOpen(true);
+                }}
+                className="w-full py-4 border-2 border-dashed border-[#2d2f31]/40 hover:border-[#2d2f31] bg-white hover:bg-slate-50 text-[#2d2f31] font-bold text-sm rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
+              >
+                <Icon name="add_circle" size={18} />
+                <span>Add Module</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -2157,6 +2244,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         <LessonStudioModal
           isOpen={true}
           lesson={editingLesson.lesson}
+          isMinorEditMode={isMinorEditMode}
           onClose={() => setEditingLesson(null)}
           onSave={handleSaveLessonEdit}
         />
@@ -2203,6 +2291,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 interface LessonStudioModalProps {
   isOpen: boolean;
   lesson: BuilderLesson;
+  isMinorEditMode?: boolean;
   onClose: () => void;
   onSave: (lesson: BuilderLesson) => void;
 }
@@ -2210,6 +2299,7 @@ interface LessonStudioModalProps {
 const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
   isOpen,
   lesson,
+  isMinorEditMode = false,
   onClose,
   onSave
 }) => {
@@ -2328,78 +2418,90 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
               📑 Study Resource / Handout (PDF, Doc, Image, or External Link)
             </label>
-            <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
-              isUploadingPdf ? 'bg-rose-400 text-white cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'
-            }`}>
-              <Icon name={isUploadingPdf ? 'sync' : 'attach_file'} size={16} className={isUploadingPdf ? 'animate-spin' : ''} />
-              <span>{isUploadingPdf ? 'Uploading...' : 'Upload File (PDF / Doc / Image)'}</span>
-              <input
-                type="file"
-                disabled={isUploadingPdf}
-                accept=".pdf,.doc,.docx,.txt,.zip,image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  e.target.value = '';
+            {isMinorEditMode ? (
+              <span className="px-2.5 py-1 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded flex items-center gap-1 border border-slate-200 dark:border-slate-700 select-none shadow-2xs">
+                <Icon name="lock" size={13} className="text-slate-400" />
+                <span>Resource Locked</span>
+              </span>
+            ) : (
+              <label className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all ${
+                isUploadingPdf ? 'bg-rose-400 text-white cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'
+              }`}>
+                <Icon name={isUploadingPdf ? 'sync' : 'attach_file'} size={16} className={isUploadingPdf ? 'animate-spin' : ''} />
+                <span>{isUploadingPdf ? 'Uploading...' : 'Upload File (PDF / Doc / Image)'}</span>
+                <input
+                  type="file"
+                  disabled={isUploadingPdf}
+                  accept=".pdf,.doc,.docx,.txt,.zip,image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    e.target.value = '';
 
-                  setIsUploadingPdf(true);
-                  try {
-                    const fd = new FormData();
-                    fd.append('file', f);
-                    const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
-                    const data = await res.json();
-                    if (res.ok && (data?.videoUrl || data?.media?.url)) {
-                      const permanentPdf = data.videoUrl || data.media.url;
-                      setFormData((prev) => ({
-                        ...prev,
-                        pdfUrl: permanentPdf
-                      }));
-                      showToast({
-                        title: 'Resource Attached 🎉',
-                        description: `"${f.name}" attached successfully.`,
-                        type: 'success'
-                      });
-                    } else {
+                    setIsUploadingPdf(true);
+                    try {
+                      const fd = new FormData();
+                      fd.append('file', f);
+                      const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
+                      const data = await res.json();
+                      if (res.ok && (data?.videoUrl || data?.media?.url)) {
+                        const permanentPdf = data.videoUrl || data.media.url;
+                        setFormData((prev) => ({
+                          ...prev,
+                          pdfUrl: permanentPdf
+                        }));
+                        showToast({
+                          title: 'Resource Attached 🎉',
+                          description: `"${f.name}" attached successfully.`,
+                          type: 'success'
+                        });
+                      } else {
+                        setFormData((prev) => ({
+                          ...prev,
+                          pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
+                        }));
+                        showToast({
+                          title: 'Upload Failed',
+                          description: data?.error || 'Could not upload resource file. You can also paste an external web link below.',
+                          type: 'error'
+                        });
+                      }
+                    } catch (err: any) {
                       setFormData((prev) => ({
                         ...prev,
                         pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
                       }));
                       showToast({
-                        title: 'Upload Failed',
-                        description: data?.error || 'Could not upload resource file. You can also paste an external web link below.',
+                        title: 'Upload Error',
+                        description: err?.message || 'Network error during upload.',
                         type: 'error'
                       });
+                    } finally {
+                      setIsUploadingPdf(false);
                     }
-                  } catch (err: any) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      pdfUrl: prev.pdfUrl?.startsWith('blob:') ? '' : prev.pdfUrl
-                    }));
-                    showToast({
-                      title: 'Upload Error',
-                      description: err?.message || 'Network error during upload.',
-                      type: 'error'
-                    });
-                  } finally {
-                    setIsUploadingPdf(false);
-                  }
-                }}
-              />
-            </label>
+                  }}
+                />
+              </label>
+            )}
           </div>
           <input
             type="text"
             value={formData.pdfUrl || ''}
+            readOnly={isMinorEditMode}
+            disabled={isMinorEditMode}
             onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
-            placeholder="https://drive.google.com/... or https://github.com/... or click 'Upload File' above..."
-            className="w-full bg-surface border border-outline-variant rounded-xl p-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
+            placeholder={isMinorEditMode ? "No resource attached (Locked in Quick Minor Edit)" : "https://drive.google.com/... or https://github.com/... or click 'Upload File' above..."}
+            className={`w-full border rounded-xl p-2.5 text-xs font-mono ${
+              isMinorEditMode
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+            }`}
           />
         </div>
 
-
         {/* Free Preview Toggle */}
-        <div className="flex items-center justify-between p-3.5 bg-surface-container-low rounded-2xl border border-outline-variant/60">
+        <div className={`flex items-center justify-between p-3.5 bg-surface-container-low rounded-2xl border border-outline-variant/60 ${isMinorEditMode ? 'opacity-60 cursor-not-allowed' : ''}`}>
           <div>
             <p className="text-xs font-bold text-on-surface">Free Preview Lecture</p>
             <p className="text-[11px] text-on-surface-variant">
@@ -2409,8 +2511,9 @@ const LessonStudioModal: React.FC<LessonStudioModalProps> = ({
           <input
             type="checkbox"
             checked={!!formData.isFree}
+            disabled={isMinorEditMode}
             onChange={(e) => setFormData({ ...formData, isFree: e.target.checked })}
-            className="w-5 h-5 rounded text-primary focus:ring-primary cursor-pointer"
+            className="w-5 h-5 rounded text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed"
           />
         </div>
 

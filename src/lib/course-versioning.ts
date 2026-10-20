@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { createNotification } from '@/lib/notification';
+import { checkTitleMinorSpellingFix } from '@/lib/course-title-validator';
 
 export type ChangeCategory =
   | 'PRICE'
@@ -583,14 +584,14 @@ export function classifyCourseChanges(
     incomingBody.title !== undefined &&
     incomingBody.title.trim() !== liveCourse.title.trim()
   ) {
-    // If title change is massive (>50% length change), classify as Major, else Minor typo fix
     const oldTitle = liveCourse.title.trim();
     const newTitle = incomingBody.title.trim();
-    if (Math.abs(newTitle.length - oldTitle.length) > oldTitle.length * 0.5) {
+    const titleCheck = checkTitleMinorSpellingFix(oldTitle, newTitle);
+    if (!titleCheck.isMinorFix) {
       majorChanges.push({
         category: 'CURRICULUM',
         field: 'title',
-        summary: `Course title significantly renamed to "${newTitle}"`,
+        summary: titleCheck.reason || `Course title significantly renamed to "${newTitle}"`,
         before: oldTitle,
         after: newTitle
       });
@@ -598,7 +599,7 @@ export function classifyCourseChanges(
       minorChanges.push({
         category: 'MINOR',
         field: 'title',
-        summary: `Course title updated to "${newTitle}"`
+        summary: `Course title spelling/typo fix: "${oldTitle}" → "${newTitle}"`
       });
     }
   }
@@ -642,10 +643,13 @@ export function classifyCourseChanges(
     incomingBody.thumbnail !== undefined &&
     incomingBody.thumbnail.trim() !== (liveCourse.thumbnail || '').trim()
   ) {
-    minorChanges.push({
-      category: 'MINOR',
+    // Replacing thumbnail is a visual rebranding/major change that requires a version update
+    majorChanges.push({
+      category: 'CURRICULUM',
       field: 'thumbnail',
-      summary: 'Course thumbnail image presentation updated'
+      summary: 'Course thumbnail replacement (Requires version update)',
+      before: liveCourse.thumbnail ? 'Existing Thumbnail' : 'None',
+      after: 'New Thumbnail'
     });
   }
 
@@ -884,8 +888,9 @@ export async function applyMinorUpdateToLiveCourse(
       title: updates.title !== undefined ? updates.title.trim() : undefined,
       description: updates.description !== undefined ? updates.description : undefined,
       shortDescription: updates.shortDescription !== undefined ? updates.shortDescription : undefined,
-      thumbnail: updates.thumbnail !== undefined ? updates.thumbnail : undefined,
-      banner: updates.banner !== undefined ? updates.banner : undefined,
+      // Thumbnail and Banner are locked in minor edits (rebranding requires version update)
+      thumbnail: undefined,
+      banner: undefined,
       level: updates.level !== undefined ? updates.level : undefined,
       language: updates.language !== undefined ? updates.language : undefined,
       durationHours: updates.durationHours !== undefined ? Number(updates.durationHours) : undefined,

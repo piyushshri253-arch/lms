@@ -10,13 +10,15 @@ interface CourseFinalAssignmentStepProps {
   onChangeSections: (sections: BuilderSection[]) => void;
   courseTitle?: string;
   onJumpToStep?: (stepIndex: number) => void;
+  isMinorEditMode?: boolean;
 }
 
 export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps> = ({
   sections,
   onChangeSections,
   courseTitle,
-  onJumpToStep
+  onJumpToStep,
+  isMinorEditMode = false
 }) => {
   const { showToast } = useApp();
 
@@ -66,6 +68,15 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
 
   // Handler to auto-create the Last Module with Final Assignment
   const handleAddFinalAssignment = () => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Curriculum Locked 🔒',
+        description: 'Cannot add a new final assignment module in Quick Minor Edit mode.',
+        type: 'error'
+      });
+      return;
+    }
+
     // If sections already has modules, append a dedicated last module for certification
     const nextModNum = sections.length + 1;
     const finalModuleTitle = 'Course Completion & Certification';
@@ -161,6 +172,14 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
   // Add 2 Questions (Even Pair)
   const handleAddQuestionPair = () => {
     if (!finalAssignmentInfo) return;
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Questions Locked 🔒',
+        description: 'Cannot add questions in Quick Minor Edit mode. Only spelling fixes are allowed.',
+        type: 'error'
+      });
+      return;
+    }
     const currentQuestions = finalAssignmentInfo.quizConfig.questions || [];
     const baseLen = currentQuestions.length;
 
@@ -196,6 +215,14 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
   // Delete Question
   const handleDeleteQuestion = (qIdx: number) => {
     if (!finalAssignmentInfo) return;
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Questions Locked 🔒',
+        description: 'Cannot delete questions in Quick Minor Edit mode. Only spelling fixes are allowed.',
+        type: 'error'
+      });
+      return;
+    }
     const currentQuestions = finalAssignmentInfo.quizConfig.questions || [];
     const nextQuestions = currentQuestions.filter((_, idx) => idx !== qIdx);
     updateQuizConfig({ questions: nextQuestions });
@@ -212,6 +239,14 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
   // Remove entire Final Assignment
   const handleRemoveFinalAssignment = () => {
     if (!finalAssignmentInfo) return;
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Curriculum Locked 🔒',
+        description: 'Cannot remove final assignment in Quick Minor Edit mode.',
+        type: 'error'
+      });
+      return;
+    }
     const { sectionId, lessonId } = finalAssignmentInfo;
 
     // If the section only has this one final assignment lesson, remove the whole section
@@ -275,7 +310,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
             </div>
           </div>
 
-          {!finalAssignmentInfo && (
+          {!finalAssignmentInfo && !isMinorEditMode && (
             <button
               type="button"
               onClick={handleAddFinalAssignment}
@@ -303,14 +338,21 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
             </p>
           </div>
           <div>
-            <button
-              type="button"
-              onClick={handleAddFinalAssignment}
-              className="px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-amber-500/30 transition-all inline-flex items-center gap-2.5 cursor-pointer transform hover:scale-[1.02]"
-            >
-              <Icon name="add_task" size={20} />
-              <span>+ Add Final Assignment (Auto-creates Last Module)</span>
-            </button>
+            {!isMinorEditMode ? (
+              <button
+                type="button"
+                onClick={handleAddFinalAssignment}
+                className="px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-amber-500/30 transition-all inline-flex items-center gap-2.5 cursor-pointer transform hover:scale-[1.02]"
+              >
+                <Icon name="add_task" size={20} />
+                <span>+ Add Final Assignment (Auto-creates Last Module)</span>
+              </button>
+            ) : (
+              <span className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 inline-flex items-center gap-1.5 select-none">
+                <Icon name="lock" size={14} className="text-slate-400" />
+                <span>Final Assignment Locked (Quick Minor Edit)</span>
+              </span>
+            )}
           </div>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-6 text-[11px] font-bold text-amber-900/70">
             <span className="flex items-center gap-1.5">
@@ -348,14 +390,16 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleRemoveFinalAssignment}
-              className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer self-start sm:self-auto shrink-0 flex items-center gap-1.5"
-            >
-              <Icon name="delete" size={14} />
-              <span>Remove Final Assignment</span>
-            </button>
+            {!isMinorEditMode && (
+              <button
+                type="button"
+                onClick={handleRemoveFinalAssignment}
+                className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer self-start sm:self-auto shrink-0 flex items-center gap-1.5"
+              >
+                <Icon name="delete" size={14} />
+                <span>Remove Final Assignment</span>
+              </button>
+            )}
           </div>
 
           {/* Exam Configuration Card */}
@@ -490,14 +534,16 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleAddQuestionPair}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-            >
-              <Icon name="library_add" size={16} />
-              <span>+ Add 2 Questions (Even Pair)</span>
-            </button>
+            {!isMinorEditMode && (
+              <button
+                type="button"
+                onClick={handleAddQuestionPair}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+              >
+                <Icon name="library_add" size={16} />
+                <span>+ Add 2 Questions (Even Pair)</span>
+              </button>
+            )}
           </div>
 
           {/* Questions List */}
@@ -506,13 +552,15 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
               <p className="text-xs font-bold text-on-surface-variant">
                 No questions added to this final exam yet.
               </p>
-              <button
-                type="button"
-                onClick={handleAddQuestionPair}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl cursor-pointer"
-              >
-                + Add Initial 2 Questions
-              </button>
+              {!isMinorEditMode && (
+                <button
+                  type="button"
+                  onClick={handleAddQuestionPair}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  + Add Initial 2 Questions
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -546,14 +594,16 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
                         <span className="text-[10px] font-bold text-purple-700">pts</span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteQuestion(qIdx)}
-                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                        title="Delete Question"
-                      >
-                        <Icon name="delete" size={16} />
-                      </button>
+                      {!isMinorEditMode && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQuestion(qIdx)}
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Delete Question"
+                        >
+                          <Icon name="delete" size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -645,14 +695,23 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
 
           {/* Bottom Actions */}
           <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant/60">
-            <button
-              type="button"
-              onClick={handleAddQuestionPair}
-              className="px-4 py-2.5 bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs rounded-xl border border-purple-300 transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Icon name="library_add" size={16} />
-              <span>+ Add 2 More Questions (Even Pair)</span>
-            </button>
+            {!isMinorEditMode && (
+              <button
+                type="button"
+                onClick={handleAddQuestionPair}
+                className="px-4 py-2.5 bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs rounded-xl border border-purple-300 transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <Icon name="library_add" size={16} />
+                <span>+ Add 2 More Questions (Even Pair)</span>
+              </button>
+            )}
+
+            {isMinorEditMode && (
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 select-none">
+                <Icon name="lock" size={14} className="text-amber-600 shrink-0" />
+                <span>Final assignment questions locked in Quick Minor Edit. Only typos/spelling fixes are permitted.</span>
+              </div>
+            )}
 
             {onJumpToStep && (
               <button

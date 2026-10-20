@@ -31,6 +31,7 @@ interface BatchCurriculumMediaManagerProps {
   sections: BuilderSection[];
   onChangeSections: (newSections: BuilderSection[]) => void;
   courseTitle?: string;
+  isMinorEditMode?: boolean;
 }
 
 const MAX_CONCURRENT_UPLOADS = 2;
@@ -40,7 +41,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   onClose,
   sections,
   onChangeSections,
-  courseTitle
+  courseTitle,
+  isMinorEditMode = false
 }) => {
   const { showToast } = useApp();
 
@@ -663,6 +665,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     typeLabel: string = 'Resource',
     replaceResourceId?: string
   ) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Resource Protected 🔒',
+        description: 'Resources cannot be uploaded or replaced in Quick Minor Edit mode.',
+        type: 'error'
+      });
+      return;
+    }
     if (!file) return;
     setUploadingPdfLessonId(lessonId);
 
@@ -754,6 +764,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
   // Remove a single resource from a lesson's resources list
   const handleRemoveResource = (sectionId: string, lessonId: string, resourceId: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Resource Protected 🔒',
+        description: 'Study resources cannot be removed or deleted in Quick Minor Edit mode.',
+        type: 'error'
+      });
+      return;
+    }
     const existingSec = (sections || []).find((s) => s.id === sectionId);
     const existingLes = existingSec?.lessons?.find((l) => l.id === lessonId);
     const currentList = getLessonResourcesList(existingLes);
@@ -781,6 +799,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
   // Remove attached video from a lecture so user can upload a new one
   const handleRemoveVideo = (sectionId: string, lessonId: string, lessonTitle?: string) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Video Protected 🔒',
+        description: 'Lecture videos cannot be removed or replaced in Quick Minor Edit mode.',
+        type: 'error'
+      });
+      return;
+    }
     // If there is an active/queued upload task for this lesson, cancel it
     const activeTask = tasks.find((t) => t.lessonId === lessonId);
     if (activeTask) {
@@ -1063,6 +1089,24 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         </div>
       )}
 
+      {/* Quick Minor Edit Banner */}
+      {isMinorEditMode && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-500/20 text-blue-700 dark:text-blue-400">
+            <Icon name="lock" size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-sm text-blue-900 dark:text-blue-100 flex items-center gap-2">
+              <span>Video Replacements &amp; Resource Deletions Locked (Quick Minor Edit)</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-500 text-white">Protected</span>
+            </h4>
+            <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed">
+              In Quick Minor Edit mode, attached lecture videos and study resources cannot be replaced, detached, or deleted to safeguard existing enrolled students. To overhaul media, please use &quot;Update Version&quot; from My Courses.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Control Strip & Live Queue Summary */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-indigo-900/50">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -1117,7 +1161,15 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
           {/* Bulk File Selection Button (Only when course has video lessons) */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {totalVideoLessons > 0 ? (
+            {isMinorEditMode ? (
+              <span
+                className="px-4 py-2.5 bg-slate-800 text-slate-400 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-2 cursor-not-allowed select-none shadow-xs"
+                title="Bulk video upload is locked in Quick Minor Edit mode"
+              >
+                <Icon name="lock" size={16} />
+                <span>Media Upload Locked (Quick Edit)</span>
+              </span>
+            ) : totalVideoLessons > 0 ? (
               <label
                 className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all"
                 title="Select multiple video files from your device to queue"
@@ -1442,32 +1494,44 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           );
                                         })()}
 
-                                        <label
-                                          className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-lg text-xs cursor-pointer shrink-0 transition-colors"
-                                          title="Replace video"
-                                        >
-                                          <Icon name="swap_horiz" size={14} />
-                                          <input
-                                            type="file"
-                                            accept="video/*"
-                                            onChange={(e) => {
-                                              const f = e.target.files?.[0];
-                                              if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
-                                              e.target.value = '';
-                                            }}
-                                            className="hidden"
-                                          />
-                                        </label>
+                                        {!isMinorEditMode && (
+                                          <>
+                                            <label
+                                              className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-lg text-xs cursor-pointer shrink-0 transition-colors"
+                                              title="Replace video"
+                                            >
+                                              <Icon name="swap_horiz" size={14} />
+                                              <input
+                                                type="file"
+                                                accept="video/*"
+                                                onChange={(e) => {
+                                                  const f = e.target.files?.[0];
+                                                  if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                                  e.target.value = '';
+                                                }}
+                                                className="hidden"
+                                              />
+                                            </label>
 
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
-                                          className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-lg text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
-                                          title={`Delete video from "${lesson.title}"`}
-                                        >
-                                          <Icon name="delete" size={13} />
-                                        </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleRemoveVideo(section.id, lesson.id, lesson.title)}
+                                              className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-rose-50 dark:hover:bg-rose-950/40 text-on-surface-variant hover:text-rose-600 border border-outline-variant hover:border-rose-300 dark:hover:border-rose-800 rounded-lg text-xs cursor-pointer transition-colors shadow-2xs shrink-0"
+                                              title={`Delete video from "${lesson.title}"`}
+                                            >
+                                              <Icon name="delete" size={13} />
+                                            </button>
+                                          </>
+                                        )}
                                       </div>
+                                    ) : isMinorEditMode ? (
+                                      <span
+                                        className="px-2.5 py-1 bg-surface-container text-on-surface-variant/70 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 select-none"
+                                        title="Video uploading is locked during Quick Minor Edit"
+                                      >
+                                        <Icon name="lock" size={13} className="text-on-surface-variant/50" />
+                                        <span>Video Locked</span>
+                                      </span>
                                     ) : (
                                       <label
                                         className="px-3 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all shrink-0"
@@ -1607,65 +1671,69 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                           <Icon name="visibility" size={14} />
                                                         </button>
 
-                                                        {/* In-place Replace button */}
-                                                        {res.type === 'LINK' ? (
-                                                          <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              setExternalLinkModalTarget({
-                                                                sectionId: section.id,
-                                                                lessonId: lesson.id,
-                                                                lessonTitle: lesson.title,
-                                                                currentUrl: res.url
-                                                              });
-                                                              setExternalLinkUrl(res.url);
-                                                              setExternalLinkTitle(res.name);
-                                                            }}
-                                                            className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
-                                                            title={`Replace link "${res.name}"`}
-                                                          >
-                                                            <Icon name="swap_horiz" size={14} />
-                                                          </button>
-                                                        ) : (
-                                                          <label
-                                                            className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center justify-center m-0"
-                                                            title={`Replace "${res.name}" with a new file`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                          >
-                                                            <Icon name="swap_horiz" size={14} />
-                                                            <input
-                                                              type="file"
-                                                              className="hidden"
-                                                              onChange={(e) => {
-                                                                const file = e.target.files?.[0];
-                                                                if (!file) return;
-                                                                const ext = file.name.split('.').pop()?.toLowerCase() || '';
-                                                                let fileType: 'PDF' | 'DOC' | 'IMAGE' | 'ZIP' | 'OTHER' = 'OTHER';
-                                                                if (ext === 'pdf') fileType = 'PDF';
-                                                                else if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].includes(ext)) fileType = 'IMAGE';
-                                                                else if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext)) fileType = 'DOC';
-                                                                else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) fileType = 'ZIP';
+                                                        {/* In-place Replace & Delete buttons */}
+                                                        {!isMinorEditMode && (
+                                                          <>
+                                                            {res.type === 'LINK' ? (
+                                                              <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  setExternalLinkModalTarget({
+                                                                    sectionId: section.id,
+                                                                    lessonId: lesson.id,
+                                                                    lessonTitle: lesson.title,
+                                                                    currentUrl: res.url
+                                                                  });
+                                                                  setExternalLinkUrl(res.url);
+                                                                  setExternalLinkTitle(res.name);
+                                                                }}
+                                                                className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
+                                                                title={`Replace link "${res.name}"`}
+                                                              >
+                                                                <Icon name="swap_horiz" size={14} />
+                                                              </button>
+                                                            ) : (
+                                                              <label
+                                                                className="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center justify-center m-0"
+                                                                title={`Replace "${res.name}" with a new file`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                              >
+                                                                <Icon name="swap_horiz" size={14} />
+                                                                <input
+                                                                  type="file"
+                                                                  className="hidden"
+                                                                  onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file) return;
+                                                                    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+                                                                    let fileType: 'PDF' | 'DOC' | 'IMAGE' | 'ZIP' | 'OTHER' = 'OTHER';
+                                                                    if (ext === 'pdf') fileType = 'PDF';
+                                                                    else if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].includes(ext)) fileType = 'IMAGE';
+                                                                    else if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext)) fileType = 'DOC';
+                                                                    else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) fileType = 'ZIP';
 
-                                                                handleUploadResource(section.id, lesson.id, file, fileType, fileType, res.id);
-                                                                e.target.value = '';
+                                                                    handleUploadResource(section.id, lesson.id, file, fileType, fileType, res.id);
+                                                                    e.target.value = '';
+                                                                  }}
+                                                                />
+                                                              </label>
+                                                            )}
+
+                                                            {/* Delete button */}
+                                                            <button
+                                                              type="button"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveResource(section.id, lesson.id, res.id);
                                                               }}
-                                                            />
-                                                          </label>
+                                                              className="p-1 rounded-lg text-on-surface-variant hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                                              title={`Delete "${res.name}"`}
+                                                            >
+                                                              <Icon name="delete" size={14} />
+                                                            </button>
+                                                          </>
                                                         )}
-
-                                                        {/* Delete button */}
-                                                        <button
-                                                          type="button"
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleRemoveResource(section.id, lesson.id, res.id);
-                                                          }}
-                                                          className="p-1 rounded-lg text-on-surface-variant hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                                                          title={`Delete "${res.name}"`}
-                                                        >
-                                                          <Icon name="delete" size={14} />
-                                                        </button>
                                                       </div>
                                                     </div>
                                                   );
@@ -1674,20 +1742,22 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             </div>
 
                                             {/* Quick option to add files directly inside this dropdown */}
-                                            <div className="pt-1.5 border-t border-outline-variant/60">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setHoveredResourcesLessonId(null);
-                                                  setActiveViewResourcesLessonId(null);
-                                                  setActiveResourceDropdownLessonId(lesson.id);
-                                                }}
-                                                className="w-full py-1.5 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                                              >
-                                                <Icon name="add" size={15} />
-                                                <span>{resourcesList.length === 0 ? 'Add First Resource' : 'Add More Files'}</span>
-                                              </button>
+                                            {!isMinorEditMode && (
+                                              <div className="pt-1.5 border-t border-outline-variant/60">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setHoveredResourcesLessonId(null);
+                                                    setActiveViewResourcesLessonId(null);
+                                                    setActiveResourceDropdownLessonId(lesson.id);
+                                                  }}
+                                                  className="w-full py-1.5 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                                >
+                                                  <Icon name="add" size={15} />
+                                                  <span>{resourcesList.length === 0 ? 'Add First Resource' : 'Add More Files'}</span>
+                                                </button>
                                               </div>
+                                            )}
                                             </div>
                                           )}
                                         </div>
@@ -1695,24 +1765,25 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     })()}
 
                                     {/* B. Dropdown Menu Trigger (Compact '+' icon button to save space) */}
-                                    <div className="relative shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setActiveResourceDropdownLessonId((prev) =>
-                                            prev === lesson.id ? null : lesson.id
-                                          )
-                                        }
-                                        className={`w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer border shadow-2xs transition-all shrink-0 ${
-                                          activeResourceDropdownLessonId === lesson.id
-                                            ? 'bg-primary text-on-primary border-primary ring-2 ring-primary/25'
-                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30 hover:border-primary/60'
-                                        }`}
-                                        title="Add Resource (PDF, Document, Image, Link)"
-                                        aria-label="Add Resource"
-                                      >
-                                        <Icon name="add" size={18} />
-                                      </button>
+                                    {!isMinorEditMode && (
+                                      <div className="relative shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setActiveResourceDropdownLessonId((prev) =>
+                                              prev === lesson.id ? null : lesson.id
+                                            )
+                                          }
+                                          className={`w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer border shadow-2xs transition-all shrink-0 ${
+                                            activeResourceDropdownLessonId === lesson.id
+                                              ? 'bg-primary text-on-primary border-primary ring-2 ring-primary/25'
+                                              : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30 hover:border-primary/60'
+                                          }`}
+                                          title="Add Resource (PDF, Document, Image, Link)"
+                                          aria-label="Add Resource"
+                                        >
+                                          <Icon name="add" size={18} />
+                                        </button>
 
                                       {/* Dropdown Menu */}
                                       {activeResourceDropdownLessonId === lesson.id && (
@@ -1835,8 +1906,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         </>
                                       )}
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
+                              )}
 
                               </div>
                             </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { GrammarHintAssistant } from '@/components/ui/GrammarHintAssistant';
+import { checkTitleMinorSpellingFix } from '@/lib/course-title-validator';
 
 interface CourseBasicInfoProps {
   data: {
@@ -23,9 +24,16 @@ interface CourseBasicInfoProps {
     seoDescription: string;
   };
   onChange: (field: string, value: any) => void;
+  isMinorEditMode?: boolean;
+  originalTitle?: string;
 }
 
-export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onChange }) => {
+export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
+  data,
+  onChange,
+  isMinorEditMode = false,
+  originalTitle
+}) => {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [isCustomCategory, setIsCustomCategory] = useState<boolean>(false);
   const [customCategoryName, setCustomCategoryName] = useState<string>('');
@@ -168,6 +176,38 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({ data, onCh
               placeholder="e.g. Master Artificial Intelligence &amp; Generative LLM Engineering"
               className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary font-medium"
             />
+
+            {/* Quick Minor Edit: Title Spelling & Typo Restriction Indicator */}
+            {isMinorEditMode && originalTitle && (() => {
+              const titleStatus = checkTitleMinorSpellingFix(originalTitle, data.title);
+              if (!titleStatus.isIdentical && titleStatus.isMinorFix) {
+                return (
+                  <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs flex items-center gap-2 font-medium">
+                    <Icon name="check_circle" size={16} className="text-blue-600 shrink-0" />
+                    <span>Minor spelling/typo fix detected ({Math.round(titleStatus.similarity * 100)}% match) ✓ Allowed for direct live publish.</span>
+                  </div>
+                );
+              }
+              if (!titleStatus.isMinorFix) {
+                return (
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2.5">
+                    <Icon name="block" size={17} className="text-rose-600 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <div className="font-bold text-rose-900 dark:text-rose-100">Major Title Change Blocked in Quick Edit</div>
+                      <p className="text-[11px] text-rose-800/90 dark:text-rose-200/90 leading-relaxed">
+                        You cannot completely replace or overhaul the course title in Quick Minor Edit mode (Similarity: {Math.round(titleStatus.similarity * 100)}%). Only spelling or typo corrections are permitted. For complete title renaming, please use &quot;Update Version&quot; from My Courses.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <p className="text-[11px] text-blue-700/80 dark:text-blue-300/80 flex items-center gap-1.5">
+                  <Icon name="lock" size={13} className="text-blue-500" />
+                  <span>Quick Minor Edit active: Only minor spelling &amp; typo fixes are permitted for the title.</span>
+                </p>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -20,10 +20,11 @@ import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
 import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData } from '@/lib/course-excel';
 import { ExcelValidationReportModal } from '@/components/course-builder/ExcelValidationReportModal';
-import { ExcelValidationResult } from '@/lib/course-excel-validator';
+import { ExcelValidationResult, validateCourseExcel } from '@/lib/course-excel-validator';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
 import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
 import { notifyCoursesChanged } from '@/lib/courses-sync';
+import { checkTitleMinorSpellingFix } from '@/lib/course-title-validator';
 
 const getDefaultCourseState = () => ({
   id: '',
@@ -892,6 +893,25 @@ function CourseBuilderContent() {
       throw new Error('Course title is required');
     }
 
+    // In Quick Minor Edit mode, course title cannot be overhauled (only spelling/typo fixes)
+    if (isMinorEditMode && originalCourseState?.title) {
+      const titleCheck = checkTitleMinorSpellingFix(originalCourseState.title, state.title);
+      if (!titleCheck.isMinorFix) {
+        if (!options?.silent) {
+          showToast({
+            title: 'Title Change Blocked ⚠️',
+            description: titleCheck.reason || 'Only minor spelling/typo fixes are permitted in Quick Minor Edit mode. To rename or overhaul the course, please use Update Version.',
+            type: 'error'
+          });
+          setCurrentStep(0);
+        }
+        if (options?.silent) {
+          return null;
+        }
+        throw new Error(titleCheck.reason || 'Only minor spelling/typo fixes are permitted in Quick Minor Edit mode.');
+      }
+    }
+
     if (!options?.silent) {
       setIsSaving(true);
     }
@@ -928,8 +948,8 @@ function CourseBuilderContent() {
         price: state.price,
         discountPrice: state.discountPrice,
         currency: state.currency || 'INR',
-        thumbnail: optimizedThumbnail || state.thumbnail,
-        banner: optimizedBanner || state.banner,
+        thumbnail: isMinorEditMode && originalCourseState?.thumbnail ? originalCourseState.thumbnail : (optimizedThumbnail || state.thumbnail),
+        banner: isMinorEditMode && originalCourseState?.banner ? originalCourseState.banner : (optimizedBanner || state.banner),
         durationHours: state.durationHours,
         status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : state.status,
         submitForApproval: isSubmitting,
@@ -1295,6 +1315,21 @@ function CourseBuilderContent() {
   const handlePublishCourse = async () => {
     setIsPublishing(true);
     try {
+      // In Quick Minor Edit Mode: Title cannot be overhauled, only minor spelling/typo fixes are allowed!
+      if (isMinorEditMode && originalCourseState?.title) {
+        const titleCheck = checkTitleMinorSpellingFix(originalCourseState.title, courseStateRef.current.title);
+        if (!titleCheck.isMinorFix) {
+          showToast({
+            title: 'Title Change Blocked ⚠️',
+            description: titleCheck.reason || 'Only minor spelling/typo fixes are permitted in Quick Minor Edit mode.',
+            type: 'error'
+          });
+          setCurrentStep(0);
+          setIsPublishing(false);
+          return;
+        }
+      }
+
       // Strict Pre-flight Quality & Completeness Checklist Guard
       if (!isChecklistComplete) {
         showToast({
@@ -1622,16 +1657,33 @@ function CourseBuilderContent() {
         reader.readAsDataURL(file);
       });
 
-      // 2. Authoritative server-side validation
-      const formData = new FormData();
-      formData.append('file', file);
+      // 2. Authoritative validation: attempt server-side first, fallback to robust client validation
+      let data: ExcelValidationResult | null = null;
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      const res = await fetch('/api/admin/courses/validate-excel', {
-        method: 'POST',
-        body: formData
-      });
+        const res = await fetch('/api/admin/courses/validate-excel', {
+          method: 'POST',
+          body: formData
+        });
 
-      const data: ExcelValidationResult = await res.json();
+        if (res.ok) {
+          const json = await res.json();
+          if (json && typeof json.isValid === 'boolean') {
+            data = json;
+          }
+        }
+      } catch (networkErr) {
+        console.warn('Server validation call failed, using client-side validation engine:', networkErr);
+      }
+
+      // If server returned an error (e.g. 401 session expired, 403, or 500) or network failed, run client-side validation
+      if (!data || typeof data.isValid !== 'boolean') {
+        const arrayBuffer = await file.arrayBuffer();
+        data = validateCourseExcel(arrayBuffer);
+      }
+
       setValidationResult(data);
 
       const record: UploadedExcelRecord = {
@@ -1652,7 +1704,7 @@ function CourseBuilderContent() {
       } else {
         showToast({
           title: 'Template 100% Validated! 🎉',
-          description: 'Review the imported content preview and click Confirm to apply.',
+          description: 'Review the preview in the popup and click "Confirm & Import Course 🚀" to auto-fill the form.',
           type: 'success'
         });
       }
@@ -2285,6 +2337,8 @@ function CourseBuilderContent() {
             seoDescription: courseState.seoDescription
           }}
           onChange={handleUpdateField}
+          isMinorEditMode={isMinorEditMode}
+          originalTitle={originalCourseState?.title}
         />
       )}
 
@@ -2309,6 +2363,7 @@ function CourseBuilderContent() {
             thumbnail={courseState.thumbnail}
             banner={courseState.banner}
             onChange={handleUpdateField}
+            isMinorEditMode={isMinorEditMode}
           />
 
           {/* Curriculum Media & Resources Studio */}
@@ -2329,6 +2384,7 @@ function CourseBuilderContent() {
               sections={courseState.sections || []}
               onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
               courseTitle={courseState.title}
+              isMinorEditMode={isMinorEditMode}
             />
           </div>
         </div>
@@ -2341,6 +2397,7 @@ function CourseBuilderContent() {
           onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
           courseTitle={courseState.title}
           onJumpToStep={(stepIdx) => setCurrentStep(stepIdx)}
+          isMinorEditMode={isMinorEditMode}
         />
       )}
 
