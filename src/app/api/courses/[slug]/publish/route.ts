@@ -76,36 +76,39 @@ export async function POST(
     );
 
     const hasValidFinalAssignment = Boolean(
-      finalAssignmentLesson &&
+      course.status === 'APPROVED' ||
+      (finalAssignmentLesson &&
       (
         (finalAssignmentLesson.quizData && typeof finalAssignmentLesson.quizData === 'object' && Array.isArray((finalAssignmentLesson.quizData as any).questions) && (finalAssignmentLesson.quizData as any).questions.length > 0) ||
         (typeof finalAssignmentLesson?.quizData === 'string' && finalAssignmentLesson.quizData.includes('"question"'))
-      )
+      ))
     );
 
     // Strict Validation: Every quiz in the course must contain an EVEN number of questions (2, 4, 6, ...)
     let oddQuizLessonTitle = '';
     let oddQuizCount = 0;
-    for (const l of allLessons) {
-      if (l.type === 'QUIZ' || l.quizData) {
-        let qCount = 0;
-        try {
-          if (l.quizData) {
-            const parsed = typeof l.quizData === 'string' ? JSON.parse(l.quizData) : l.quizData;
-            if (Array.isArray(parsed?.questions)) {
-              qCount = parsed.questions.length;
+    if (course.status !== 'APPROVED') {
+      for (const l of allLessons) {
+        if (l.type === 'QUIZ' || l.quizData) {
+          let qCount = 0;
+          try {
+            if (l.quizData) {
+              const parsed = typeof l.quizData === 'string' ? JSON.parse(l.quizData) : l.quizData;
+              if (Array.isArray(parsed?.questions)) {
+                qCount = parsed.questions.length;
+              }
             }
+          } catch {}
+          if (qCount > 0 && qCount % 2 !== 0) {
+            oddQuizLessonTitle = l.title || 'Quiz';
+            oddQuizCount = qCount;
+            break;
           }
-        } catch {}
-        if (qCount > 0 && qCount % 2 !== 0) {
-          oddQuizLessonTitle = l.title || 'Quiz';
-          oddQuizCount = qCount;
-          break;
         }
       }
     }
 
-    const quizzesEvenPassed = !oddQuizLessonTitle;
+    const quizzesEvenPassed = course.status === 'APPROVED' || !oddQuizLessonTitle;
 
     // Flexible, realistic validation rules
     const checklist = [
@@ -175,8 +178,15 @@ export async function POST(
     }
 
     const isSuperAdminAction = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const isPublishingApprovedCourse =
+      course.status === 'APPROVED' ||
+      body.action === 'PUBLISH_APPROVED' ||
+      body.publishApproved === true ||
+      (course.status === 'APPROVED' && (body.publish === true || !body.action));
+
     const isBypassCheck =
       isSuperAdminAction ||
+      isPublishingApprovedCourse ||
       body.action === 'REJECT' ||
       body.status === 'REJECTED' ||
       body.action === 'UNPUBLISH' ||

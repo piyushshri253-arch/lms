@@ -293,7 +293,7 @@ function InstructorCoursesStudioInner() {
       const res = await fetch(`/api/courses/${identifier}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publish: true })
+        body: JSON.stringify({ publish: true, action: 'PUBLISH_APPROVED', publishApproved: true })
       });
 
       const data = await res.json();
