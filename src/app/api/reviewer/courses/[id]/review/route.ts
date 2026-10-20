@@ -446,39 +446,17 @@ export async function POST(
     }
 
     const trimmedNote = (note || '').trim();
+    const finalNote =
+      trimmedNote ||
+      (action === 'APPROVE'
+        ? 'Course curriculum, video lessons, and resources approved by Auditor.'
+        : action === 'REQUEST_CHANGES'
+        ? 'Changes requested by Auditor: Please review curriculum sections and resubmit for evaluation.'
+        : 'Course rejected: Does not meet platform review and quality standards.');
+
     const updatedIssues: SectionIssueItem[] = Array.isArray(sectionIssues)
       ? sectionIssues
       : auditMeta.sectionIssues;
-
-    // Requirement #14: Mandatory Critique Note on REQUEST_CHANGES
-    if (action === 'REQUEST_CHANGES' && trimmedNote.length < 10) {
-      return NextResponse.json(
-        {
-          error:
-            'Critique / Feedback note (minimum 10 characters) is mandatory when requesting changes.'
-        },
-        { status: 400 }
-      );
-    }
-
-    // Requirement #15: Mandatory Reason + Confirmation Checkbox on REJECT
-    if (action === 'REJECT') {
-      if (trimmedNote.length < 10) {
-        return NextResponse.json(
-          { error: 'Mandatory rejection reason (minimum 10 characters) is required.' },
-          { status: 400 }
-        );
-      }
-      if (!confirmNonCompliance) {
-        return NextResponse.json(
-          {
-            error:
-              'Please confirm the compliance checkbox stating the course does not meet platform review requirements.'
-          },
-          { status: 400 }
-        );
-      }
-    }
 
     const versionLabel =
       versionState.pendingVersionLabel || versionState.liveVersionLabel || 'v1.0';
@@ -502,7 +480,7 @@ export async function POST(
       action: historyAction as any,
       versionLabel,
       submissionType: auditMeta.submissionType,
-      feedback: trimmedNote || 'Approved by Course Auditor.',
+      feedback: finalNote,
       sectionIssues: updatedIssues
     };
 
@@ -529,7 +507,7 @@ export async function POST(
           archivedVersions: [archivedSnapshot, ...auditMeta.archivedVersions]
         });
 
-        const applied = await applyApprovedVersionToLiveCourse(course.id, auditor, trimmedNote);
+        const applied = await applyApprovedVersionToLiveCourse(course.id, auditor, finalNote);
 
         await createAuditLog({
           organizationId: course.organizationId || undefined,
@@ -547,7 +525,7 @@ export async function POST(
             course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
             instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
             auditor: { name: auditor.name, role: auditor.role },
-            feedback: trimmedNote,
+            feedback: finalNote,
             organizationId: course.organizationId
           }).catch((err) => console.error('[Version Approved Email Error]:', err));
         }
@@ -562,7 +540,7 @@ export async function POST(
           status: 'VERSION_REJECTED',
           reviewedAt: new Date().toISOString(),
           reviewedBy: `${auditor.name} (${auditor.role})`,
-          reviewerFeedback: trimmedNote
+          reviewerFeedback: finalNote
         });
 
         await saveCourseAuditMetadata(course.id, {
@@ -577,7 +555,7 @@ export async function POST(
             organizationId: course.organizationId,
             userId: course.instructorId,
             title: `⚠️ Changes Requested on ${versionLabel}: "${course.title}"`,
-            message: `Your course update requires changes before approval. Auditor feedback: "${trimmedNote}"`,
+            message: `Your course update requires changes before approval. Auditor feedback: "${finalNote}"`,
             type: 'COURSES',
             category: 'COURSES',
             link: `/instructor/course/${course.id}/review`
@@ -589,7 +567,7 @@ export async function POST(
               course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
               instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
               auditor: { name: auditor.name, role: auditor.role },
-              feedback: trimmedNote,
+              feedback: finalNote,
               organizationId: course.organizationId
             }).catch((err) => console.error('[Version Changes Requested Email Error]:', err));
           }
@@ -614,13 +592,13 @@ export async function POST(
     }
 
     // CASE B: Standard Course Review (Requirement #14, #15, #16)
-    const nextCourseStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    const nextCourseStatus = action === 'APPROVE' ? 'APPROVED' : action === 'REQUEST_CHANGES' ? 'CHANGES_REQUESTED' : 'REJECTED';
 
     const updatedCourse = await prisma.course.update({
       where: { id: course.id },
       data: {
         status: nextCourseStatus,
-        reviewFeedback: trimmedNote || null,
+        reviewFeedback: action === 'APPROVE' ? null : finalNote,
         reviewedAt: new Date(),
         reviewedById: auditor.id
       }
@@ -652,7 +630,7 @@ export async function POST(
             course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
             instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
             auditor: { name: auditor.name, role: auditor.role },
-            feedback: trimmedNote,
+            feedback: finalNote,
             organizationId: course.organizationId
           }).catch((err) => console.error('[Standard Course Approved Email Error]:', err));
         }
@@ -664,7 +642,7 @@ export async function POST(
             action === 'REQUEST_CHANGES'
               ? `⚠️ Changes Requested: "${course.title}"`
               : `❌ Course Rejected: "${course.title}"`,
-          message: `Your course requires changes before it can be approved. Please review the auditor feedback: "${trimmedNote}"`,
+          message: `Your course requires changes before it can be approved. Please review the auditor feedback: "${finalNote}"`,
           type: 'COURSES',
           category: 'COURSES',
           link: `/instructor/course/${course.id}/review`
@@ -676,7 +654,7 @@ export async function POST(
             course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
             instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
             auditor: { name: auditor.name, role: auditor.role },
-            feedback: trimmedNote,
+            feedback: finalNote,
             organizationId: course.organizationId
           }).catch((err) => console.error('[Standard Course Rejected Email Error]:', err));
         }
@@ -695,7 +673,7 @@ export async function POST(
           : 'COURSE_REJECTED',
       entity: 'Course',
       entityId: course.id,
-      description: `Auditor "${auditor.name}" (${action}) course "${course.title}". Note: "${trimmedNote}"`
+      description: `Auditor "${auditor.name}" (${action}) course "${course.title}". Note: "${finalNote}"`
     });
 
     return NextResponse.json({

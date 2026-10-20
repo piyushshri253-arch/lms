@@ -459,7 +459,7 @@ export async function requireReviewerAuth(): Promise<AuthSessionUser> {
   if (!user) {
     throw new Error('UNAUTHORIZED');
   }
-  const allowed = ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'];
+  const allowed = ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'INSTRUCTOR'];
   if (!allowed.includes(user.role)) {
     throw new Error('FORBIDDEN');
   }

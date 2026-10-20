@@ -103,9 +103,15 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
     }
   };
 
-  const activeReviewer = reviewerUser || (currentUser?.role === 'REVIEWER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' ? currentUser : null);
+  const isReviewerRole =
+    currentUser &&
+    ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'LMS_ADMIN', 'SALES_ADMIN', 'INSTRUCTOR'].includes(
+      currentUser.role
+    );
 
-  const isRestricted = !isLoadingReviewer && !activeReviewer && currentUser && (currentUser.role === 'INSTRUCTOR' || currentUser.role === 'STUDENT');
+  const activeReviewer = reviewerUser || (isReviewerRole ? currentUser : null);
+
+  const isRestricted = !isLoadingReviewer && !activeReviewer && currentUser && currentUser.role === 'STUDENT';
 
   if (isRestricted) {
     return (
@@ -296,7 +302,7 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
       </header>
 
       {/* Main Page Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 w-full flex flex-col">
         {children}
       </main>
 

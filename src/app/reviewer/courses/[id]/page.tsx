@@ -284,15 +284,26 @@ export default function AuditorCourseReviewPage() {
     if (!decisionModal) return;
     try {
       setSubmittingDecision(true);
+      const fallbackNote =
+        decisionModal === 'APPROVE'
+          ? 'Course curriculum, video lessons, and resources approved by Auditor.'
+          : decisionModal === 'REQUEST_CHANGES'
+          ? sectionIssues.length > 0
+            ? sectionIssues.map((i) => `[${i.section}${i.lessonRef ? ' - ' + i.lessonRef : ''}]: ${i.issue} — ${i.comment}`).join('\n')
+            : 'Changes requested: Please review curriculum, lecture content, and resubmit for evaluation.'
+          : 'Course rejected: Does not meet platform review and quality standards.';
+
+      const finalNote = decisionNote.trim() || fallbackNote;
+
       const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: decisionModal,
-          note: decisionNote,
+          note: finalNote,
           sectionStatuses,
           sectionIssues,
-          confirmNonCompliance: confirmRejectCompliance
+          confirmNonCompliance: true
         })
       });
       const json = await res.json();
@@ -456,6 +467,79 @@ export default function AuditorCourseReviewPage() {
       )}
 
       <div className="space-y-6">
+        {/* Prominent Auditor Decision Action Ribbon */}
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-700/60">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-slate-200">
+              <Icon name="gavel" size={14} className="text-emerald-400" />
+              <span>Auditor Evaluation & Final Verdict</span>
+            </div>
+            <h2 className="text-base sm:text-lg font-black text-white">
+              Course Audit Studio: {course.title}
+            </h2>
+            <p className="text-xs text-slate-300">
+              Status:{' '}
+              <span className="font-mono font-bold text-amber-300 uppercase">
+                {isStagedVersionReview ? 'VERSION_IN_REVIEW' : course.status}
+              </span>{' '}
+              • Instructor: {course.instructor?.name} ({course.instructor?.email})
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Link
+              href={`/reviewer/courses/${encodeURIComponent(course.id)}/preview`}
+              className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Icon name="visibility" size={15} />
+              <span>Preview as Student</span>
+            </Link>
+
+            <button
+              onClick={() => {
+                setDecisionModal('APPROVE');
+                setDecisionNote('');
+              }}
+              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            >
+              <Icon name="check_circle" size={16} />
+              <span>Approve Course ✅</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setDecisionModal('REQUEST_CHANGES');
+                if (sectionIssues.length > 0 && !decisionNote) {
+                  setDecisionNote(
+                    sectionIssues
+                      .map(
+                        (i) =>
+                          `[${i.section}${i.lessonRef ? ' - ' + i.lessonRef : ''}]: ${i.issue} — ${i.comment}`
+                      )
+                      .join('\n')
+                  );
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            >
+              <Icon name="warning" size={16} />
+              <span>Request Changes ⚠️</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setDecisionModal('REJECT');
+                setDecisionNote('');
+                setConfirmRejectCompliance(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            >
+              <Icon name="cancel" size={16} />
+              <span>Reject Course ❌</span>
+            </button>
+          </div>
+        </div>
+
         {/* Top Metadata & Section-Wise Status Matrix Bar */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -1522,8 +1606,8 @@ export default function AuditorCourseReviewPage() {
                 {decisionModal === 'APPROVE'
                   ? 'Optional Approval Note for Instructor'
                   : decisionModal === 'REQUEST_CHANGES'
-                  ? 'Critique / Feedback (Mandatory — Minimum 10 characters) *'
-                  : 'Mandatory Rejection Reason (Minimum 10 characters) *'}
+                  ? 'Critique / Feedback for Instructor'
+                  : 'Rejection Reason'}
               </label>
               <textarea
                 rows={4}
@@ -1532,13 +1616,35 @@ export default function AuditorCourseReviewPage() {
                 placeholder={
                   decisionModal === 'APPROVE'
                     ? 'Great curriculum structure and clear HD video streams!'
-                    : 'Please explain exactly what needs to be changed before approval...'
+                    : decisionModal === 'REQUEST_CHANGES'
+                    ? 'Please explain what needs to be changed before approval...'
+                    : 'Explain reason for rejection...'
                 }
-                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800"
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
               />
+
               {decisionModal !== 'APPROVE' && (
-                <div className="text-[11px] font-mono text-slate-500 mt-1">
-                  Characters: {decisionNote.trim().length} / 10 minimum required
+                <div className="space-y-1.5 mt-2">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Quick Critique Templates:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Video lecture audio clarity & resolution need enhancement',
+                      'Add missing study material / PDF notes for major modules',
+                      'Curriculum sequence and lecture titles require correction',
+                      'Pricing & course overview details need adjustment'
+                    ].map((tpl) => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() =>
+                          setDecisionNote((prev) => (prev ? prev + '\n• ' + tpl : '• ' + tpl))
+                        }
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                      >
+                        + {tpl}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1552,7 +1658,7 @@ export default function AuditorCourseReviewPage() {
                   className="mt-0.5 accent-rose-600"
                 />
                 <span className="font-semibold">
-                  I confirm that the course does not meet the platform review requirements.
+                  I confirm that the course does not meet platform quality or policy requirements.
                 </span>
               </label>
             )}
@@ -1560,18 +1666,14 @@ export default function AuditorCourseReviewPage() {
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setDecisionModal(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmitDecision}
-                disabled={
-                  submittingDecision ||
-                  (decisionModal !== 'APPROVE' && decisionNote.trim().length < 10) ||
-                  (decisionModal === 'REJECT' && !confirmRejectCompliance)
-                }
-                className={`px-5 py-2 rounded-xl text-white text-xs font-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                disabled={submittingDecision}
+                className={`px-5 py-2.5 rounded-xl text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                   decisionModal === 'APPROVE'
                     ? 'bg-emerald-600 hover:bg-emerald-700'
                     : decisionModal === 'REQUEST_CHANGES'
@@ -1580,12 +1682,12 @@ export default function AuditorCourseReviewPage() {
                 }`}
               >
                 {submittingDecision
-                  ? 'Submitting...'
+                  ? 'Submitting Verdict...'
                   : decisionModal === 'APPROVE'
-                  ? 'Approve'
+                  ? 'Confirm Approve Course ✅'
                   : decisionModal === 'REQUEST_CHANGES'
-                  ? 'Submit Request Changes'
-                  : 'Reject Course'}
+                  ? 'Send Changes Request ⚠️'
+                  : 'Confirm Reject Course ❌'}
               </button>
             </div>
           </div>

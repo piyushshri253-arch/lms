@@ -1393,8 +1393,8 @@ function InstructorCoursesStudioInner() {
               {filteredAuthoredCourses.map((course) => {
                 const isPublished = course.status === 'PUBLISHED';
                 const isApproved = course.status === 'APPROVED';
-                const isUnderReview = course.status === 'IN_REVIEW';
-                const isRejected = course.status === 'REJECTED';
+                const isUnderReview = course.status === 'IN_REVIEW' || course.status === 'PENDING_APPROVAL';
+                const isRejected = course.status === 'REJECTED' || course.status === 'CHANGES_REQUESTED';
                 const isDraft = course.status === 'DRAFT';
                 const isArchived = course.status === 'ARCHIVED' || course.status === 'INACTIVE';
                 const isBusy = actionInProgressId === course.id;

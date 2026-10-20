@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AuditorPortalShell } from '@/components/reviewer/AuditorPortalShell';
 import { Icon } from '@/components/ui/Icon';
+import { notifyCoursesChanged } from '@/lib/courses-sync';
 
 interface QueueCourseItem {
   id: string;
@@ -55,11 +56,81 @@ function ReviewerDashboardContent() {
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Quick Decision Modal State (Approve / Request Changes / Reject)
+  const [decisionModal, setDecisionModal] = useState<{
+    course: QueueCourseItem;
+    action: 'APPROVE' | 'REQUEST_CHANGES' | 'REJECT';
+  } | null>(null);
+  const [decisionNote, setDecisionNote] = useState('');
+  const [submittingDecision, setSubmittingDecision] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{
+    title: string;
+    desc?: string;
+    type?: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  const showToast = (msg: { title: string; desc?: string; type?: 'success' | 'error' | 'info' }) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 4500);
+  };
+
   useEffect(() => {
     if (sidebarFilter) {
       setActiveFilter(sidebarFilter);
     }
   }, [sidebarFilter]);
+
+  const handleTriggerDecision = async () => {
+    if (!decisionModal) return;
+    const { course, action } = decisionModal;
+    try {
+      setSubmittingDecision(true);
+      const fallbackNote =
+        action === 'APPROVE'
+          ? 'Course curriculum, video lessons, and resources approved by Auditor.'
+          : action === 'REQUEST_CHANGES'
+          ? 'Changes requested: Please review curriculum, lecture content, and resubmit for evaluation.'
+          : 'Course rejected: Does not meet platform review and quality standards.';
+
+      const finalNote = decisionNote.trim() || fallbackNote;
+
+      const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(course.id)}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          note: finalNote,
+          confirmNonCompliance: true
+        })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Review decision failed');
+
+      showToast({
+        title:
+          action === 'APPROVE'
+            ? 'Course Approved ✅'
+            : action === 'REQUEST_CHANGES'
+            ? 'Changes Requested Sent ⚠️'
+            : 'Course Rejected ❌',
+        desc: json.message,
+        type: 'success'
+      });
+
+      notifyCoursesChanged();
+      setDecisionModal(null);
+      setDecisionNote('');
+      await fetchAuditQueue();
+    } catch (err: any) {
+      showToast({
+        title: 'Action Error',
+        desc: err.message || 'Failed to submit decision',
+        type: 'error'
+      });
+    } finally {
+      setSubmittingDecision(false);
+    }
+  };
 
   const fetchAuditQueue = async () => {
     try {
@@ -184,6 +255,32 @@ function ReviewerDashboardContent() {
 
   return (
     <div className="space-y-6">
+      {toastMsg && (
+        <div
+          className={`p-4 rounded-2xl border text-xs font-semibold flex items-center justify-between shadow-md transition-all animate-in fade-in slide-in-from-top-2 ${
+            toastMsg.type === 'error'
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : toastMsg.type === 'info'
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Icon
+              name={toastMsg.type === 'error' ? 'error' : toastMsg.type === 'info' ? 'info' : 'check_circle'}
+              size={18}
+            />
+            <div>
+              <span className="font-bold">{toastMsg.title}</span>
+              {toastMsg.desc && <span className="ml-2 font-normal">{toastMsg.desc}</span>}
+            </div>
+          </div>
+          <button onClick={() => setToastMsg(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Instructor Onboarding & Resume Review Banner */}
       <div className="bg-gradient-to-r from-violet-900 via-indigo-900 to-emerald-900 text-white rounded-2xl p-5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -379,22 +476,72 @@ function ReviewerDashboardContent() {
                     </td>
 
                     <td className="py-4 px-5 text-right">
-                      <div className="inline-flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
+                        {/* 1. Preview Course */}
                         <Link
                           href={`/reviewer/courses/${course.id}/preview`}
-                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 shadow-2xs transition-colors"
                           title="Preview Course as Student"
                         >
-                          <Icon name="visibility" size={14} />
+                          <Icon name="visibility" size={13} />
                           <span>Preview</span>
                         </Link>
+
+                        {/* 2. Deep Inspector Studio */}
                         <Link
                           href={`/reviewer/courses/${course.id}`}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs inline-flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 transition-colors"
+                          title="Inspect Curriculum & Media Streams"
                         >
-                          <Icon name="fact_check" size={15} />
-                          <span>Review</span>
+                          <Icon name="fact_check" size={13} />
+                          <span>Inspect</span>
                         </Link>
+
+                        {/* 3. Direct Quick Approve Button */}
+                        {course.effectiveReviewStatus !== 'APPROVED' &&
+                        course.status !== 'APPROVED' &&
+                        course.status !== 'PUBLISHED' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDecisionModal({ course, action: 'APPROVE' });
+                              setDecisionNote('');
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-all"
+                            title="Approve this course in 1 click"
+                          >
+                            <Icon name="check_circle" size={13} />
+                            <span>Approve</span>
+                          </button>
+                        ) : null}
+
+                        {/* 4. Request Changes Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDecisionModal({ course, action: 'REQUEST_CHANGES' });
+                            setDecisionNote('');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-all"
+                          title="Request changes from instructor"
+                        >
+                          <Icon name="warning" size={13} />
+                          <span>Changes</span>
+                        </button>
+
+                        {/* 5. Reject Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDecisionModal({ course, action: 'REJECT' });
+                            setDecisionNote('');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-all"
+                          title="Reject this course submission"
+                        >
+                          <Icon name="cancel" size={13} />
+                          <span>Reject</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -404,6 +551,162 @@ function ReviewerDashboardContent() {
           </div>
         )}
       </div>
+
+      {/* Quick Decision Modal (Approve / Request Changes / Reject) */}
+      {decisionModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center text-white ${
+                    decisionModal.action === 'APPROVE'
+                      ? 'bg-emerald-600'
+                      : decisionModal.action === 'REQUEST_CHANGES'
+                      ? 'bg-amber-500 text-slate-950'
+                      : 'bg-rose-600'
+                  }`}
+                >
+                  <Icon
+                    name={
+                      decisionModal.action === 'APPROVE'
+                        ? 'check_circle'
+                        : decisionModal.action === 'REQUEST_CHANGES'
+                        ? 'warning'
+                        : 'cancel'
+                    }
+                    size={18}
+                  />
+                </span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                    {decisionModal.action === 'APPROVE'
+                      ? 'Approve Course Submission'
+                      : decisionModal.action === 'REQUEST_CHANGES'
+                      ? 'Request Course Changes'
+                      : 'Reject Course Submission'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Course: <strong>{decisionModal.course.title}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDecisionModal(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              className={`p-3.5 rounded-xl border text-xs space-y-1 ${
+                decisionModal.action === 'APPROVE'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : decisionModal.action === 'REQUEST_CHANGES'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}
+            >
+              <div className="font-extrabold">
+                {decisionModal.action === 'APPROVE'
+                  ? 'Ready for Approval & Publishing'
+                  : decisionModal.action === 'REQUEST_CHANGES'
+                  ? 'Course Revisions Required'
+                  : 'Platform Quality Non-Compliance'}
+              </div>
+              <p className="leading-relaxed">
+                {decisionModal.action === 'APPROVE'
+                  ? 'This course will be marked as APPROVED. The instructor will receive an instant notification and can publish it live on the site in 1 click.'
+                  : decisionModal.action === 'REQUEST_CHANGES'
+                  ? 'The instructor will be notified with your feedback to update the syllabus/videos and resubmit.'
+                  : 'The course submission will be rejected. The instructor will be notified of the reason.'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                {decisionModal.action === 'APPROVE'
+                  ? 'Optional Approval Note for Instructor'
+                  : decisionModal.action === 'REQUEST_CHANGES'
+                  ? 'Critique / Feedback for Instructor'
+                  : 'Rejection Reason'}
+              </label>
+              <textarea
+                rows={4}
+                value={decisionNote}
+                onChange={(e) => setDecisionNote(e.target.value)}
+                placeholder={
+                  decisionModal.action === 'APPROVE'
+                    ? 'Curriculum verified and approved for publishing live!'
+                    : decisionModal.action === 'REQUEST_CHANGES'
+                    ? 'Please detail what needs adjustment before approval...'
+                    : 'Explain reason for rejection...'
+                }
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white"
+              />
+
+              {decisionModal.action !== 'APPROVE' && (
+                <div className="space-y-1.5 mt-2">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Quick Critique Templates:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Video lecture audio clarity & resolution need enhancement',
+                      'Add missing study material / PDF notes for major modules',
+                      'Curriculum sequence and lecture titles require correction',
+                      'Pricing & course overview details need adjustment'
+                    ].map((tpl) => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() =>
+                          setDecisionNote((prev) => (prev ? prev + '\n• ' + tpl : '• ' + tpl))
+                        }
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                      >
+                        + {tpl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDecisionModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTriggerDecision}
+                disabled={submittingDecision}
+                className={`px-5 py-2.5 rounded-xl text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  decisionModal.action === 'APPROVE'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : decisionModal.action === 'REQUEST_CHANGES'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                {submittingDecision
+                  ? 'Submitting Verdict...'
+                  : decisionModal.action === 'APPROVE'
+                  ? 'Confirm Approve Course ✅'
+                  : decisionModal.action === 'REQUEST_CHANGES'
+                  ? 'Send Changes Request ⚠️'
+                  : 'Confirm Reject Course ❌'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
