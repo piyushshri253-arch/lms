@@ -1077,12 +1077,9 @@ function parseMultiItems(raw?: any): string[] {
 }
 
 /**
- * Parses an uploaded Excel or CSV file and extracts course details and curriculum
+ * Parses an XLSX Workbook and extracts course details and curriculum
  */
-export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData> {
-  const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-
+export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
   const result: ParsedCourseData = {};
 
   // Find Course Details sheet (or first sheet)
@@ -1429,7 +1426,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
       let activeQuizLesson: BuilderLesson | null = null;
 
       quizRawRows.forEach((row, rowIdx) => {
-        const findQField = (exactKeys: string[], fallbackKeyword?: string) => {
+        const findQField = (exactKeys: string[], fallbackKeyword?: string, excludeKeyword?: string) => {
           for (const [rKey, rVal] of Object.entries(row)) {
             const cleanKey = rKey.trim().toLowerCase();
             if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
@@ -1441,6 +1438,9 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
           if (fallbackKeyword) {
             for (const [rKey, rVal] of Object.entries(row)) {
               const cleanKey = rKey.trim().toLowerCase();
+              if (excludeKeyword && cleanKey.includes(excludeKeyword.toLowerCase())) {
+                continue;
+              }
               if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
                 if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
                   return String(rVal).trim();
@@ -1458,7 +1458,7 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
         const optB = findQField(['option b', 'choice b', 'b']);
         const optC = findQField(['option c', 'choice c', 'c']);
         const optD = findQField(['option d', 'choice d', 'd']);
-        const correctRaw = findQField(['correct option (a/b/c/d)', 'correct option', 'correct answer', 'answer', 'correct key', 'correct'], 'correct');
+        const correctRaw = findQField(['correct option (a/b/c/d)', 'correct option', 'correct answer', 'answer', 'correct key', 'correct'], 'correct', 'explanation');
         const explanation = findQField(['explanation', 'explanation (optional)', 'rationale', 'solution'], 'explanation');
         const passScoreRaw = findQField(['passing score (%)', 'passing score', 'pass %', 'passing grade'], 'pass');
         const pointsRaw = findQField(['marks / points (e.g. 10)', 'marks / points', 'marks', 'points', 'mark', 'point', 'score per question', 'score'], 'mark');
@@ -1662,4 +1662,13 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
   }
 
   return result;
+}
+
+/**
+ * Parses an uploaded Excel or CSV file and extracts course details and curriculum
+ */
+export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData> {
+  const arrayBuffer = await file.arrayBuffer();
+  const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+  return parseCourseExcelWorkbook(wb);
 }

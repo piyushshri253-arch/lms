@@ -18,7 +18,9 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
-import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile } from '@/lib/course-excel';
+import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData } from '@/lib/course-excel';
+import { ExcelValidationReportModal } from '@/components/course-builder/ExcelValidationReportModal';
+import { ExcelValidationResult } from '@/lib/course-excel-validator';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
 import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
 
@@ -126,6 +128,11 @@ function CourseBuilderContent() {
   // Video Tutorial Modal State (Dual English & Hindi walkthrough)
   const [isTutorialModalOpen, setIsTutorialModalOpen] = useState<boolean>(false);
   const [tutorialModalLang, setTutorialModalLang] = useState<'en' | 'hi'>('en');
+
+  // Strict Excel Validation & Preview Modal State
+  const [isValidationModalOpen, setIsValidationModalOpen] = useState<boolean>(false);
+  const [validationResult, setValidationResult] = useState<ExcelValidationResult | null>(null);
+  const [pendingExcelRecord, setPendingExcelRecord] = useState<UploadedExcelRecord | null>(null);
 
   // Load cached uploaded excel file on mount or when course changes
   useEffect(() => {
@@ -1214,7 +1221,7 @@ function CourseBuilderContent() {
 
     setIsImportingExcel(true);
     try {
-      // Convert to base64 so user can re-download this exact uploaded file
+      // 1. Read base64 so user can re-download this exact uploaded file
       const fileBase64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve((reader.result as string) || '');
@@ -1222,12 +1229,57 @@ function CourseBuilderContent() {
         reader.readAsDataURL(file);
       });
 
-      const parsed = await parseCourseExcelFile(file);
+      // 2. Authoritative server-side validation
+      const formData = new FormData();
+      formData.append('file', file);
 
-      if (!parsed.title && (!parsed.sections || parsed.sections.length === 0)) {
-        throw new Error('No valid course title or curriculum found. Please use the official MORENA Course Upload Template.');
+      const res = await fetch('/api/admin/courses/validate-excel', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data: ExcelValidationResult = await res.json();
+      setValidationResult(data);
+
+      const record: UploadedExcelRecord = {
+        fileName: file.name,
+        fileSize: file.size,
+        uploadedAt: new Date().toISOString(),
+        fileData: fileBase64
+      };
+      setPendingExcelRecord(record);
+      setIsValidationModalOpen(true);
+
+      if (!data.isValid) {
+        showToast({
+          title: 'Excel Validation Issues Detected',
+          description: `${data.blockingCount} blocking error(s) found. No changes were made.`,
+          type: 'error'
+        });
+      } else {
+        showToast({
+          title: 'Template 100% Validated! 🎉',
+          description: 'Review the imported content preview and click Confirm to apply.',
+          type: 'success'
+        });
       }
+    } catch (err: any) {
+      showToast({
+        title: 'Validation Failed',
+        description: err.message || 'Unable to validate spreadsheet with server.',
+        type: 'error'
+      });
+    } finally {
+      setIsImportingExcel(false);
+      e.target.value = '';
+    }
+  };
 
+  const handleConfirmExcelImport = async (parsed: ParsedCourseData) => {
+    try {
+      setIsImportingExcel(true);
+
+      // Apply validated data to form state
       setCourseState((prev) => ({
         ...prev,
         title: parsed.title || prev.title,
@@ -1246,40 +1298,37 @@ function CourseBuilderContent() {
         accessType: parsed.accessType || prev.accessType,
         accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
         sections: parsed.sections && parsed.sections.length > 0 ? parsed.sections : prev.sections,
-        // Thumbnail is intentionally kept manual as requested: "thumnail vo maunally he kraega"
       }));
 
-      // Store uploaded file info & replace previous file ("purani wali hatt jaye, jo upload kiya hai wahi download par aa jaye")
-      const newRecord: UploadedExcelRecord = {
-        fileName: file.name,
-        fileSize: file.size,
-        uploadedAt: new Date().toISOString(),
-        fileData: fileBase64
-      };
-      setUploadedExcel(newRecord);
-      uploadedExcelRef.current = newRecord;
+      // Cache uploaded file info for download & replace previous
+      if (pendingExcelRecord) {
+        setUploadedExcel(pendingExcelRecord);
+        uploadedExcelRef.current = pendingExcelRecord;
 
-      try {
-        const fullJson = JSON.stringify(newRecord);
-        localStorage.setItem(excelStorageKey, fullJson);
-        localStorage.setItem('morena_uploaded_excel_new', fullJson);
-        if (effectiveCourseId) {
-          localStorage.setItem(`morena_uploaded_excel_${effectiveCourseId}`, fullJson);
-        }
-        if (courseStateRef.current.id) {
-          localStorage.setItem(`morena_uploaded_excel_${courseStateRef.current.id}`, fullJson);
-        }
-        if (courseStateRef.current.slug) {
-          localStorage.setItem(`morena_uploaded_excel_${courseStateRef.current.slug}`, fullJson);
-        }
-      } catch (storageErr) {
-        console.warn('Could not cache full file in localStorage, caching metadata only:', storageErr);
         try {
-          const metaOnly = JSON.stringify({ ...newRecord, fileData: '' });
-          localStorage.setItem(excelStorageKey, metaOnly);
-          localStorage.setItem('morena_uploaded_excel_new', metaOnly);
-        } catch {}
+          const fullJson = JSON.stringify(pendingExcelRecord);
+          localStorage.setItem(excelStorageKey, fullJson);
+          localStorage.setItem('morena_uploaded_excel_new', fullJson);
+          if (effectiveCourseId) {
+            localStorage.setItem(`morena_uploaded_excel_${effectiveCourseId}`, fullJson);
+          }
+          if (courseStateRef.current.id) {
+            localStorage.setItem(`morena_uploaded_excel_${courseStateRef.current.id}`, fullJson);
+          }
+          if (courseStateRef.current.slug) {
+            localStorage.setItem(`morena_uploaded_excel_${courseStateRef.current.slug}`, fullJson);
+          }
+        } catch (storageErr) {
+          console.warn('Could not cache full file in localStorage, caching metadata only:', storageErr);
+          try {
+            const metaOnly = JSON.stringify({ ...pendingExcelRecord, fileData: '' });
+            localStorage.setItem(excelStorageKey, metaOnly);
+            localStorage.setItem('morena_uploaded_excel_new', metaOnly);
+          } catch {}
+        }
       }
+
+      setIsValidationModalOpen(false);
 
       const modulesCount = parsed.sections?.length || 0;
       let totalLecs = 0;
@@ -1294,19 +1343,18 @@ function CourseBuilderContent() {
       });
 
       showToast({
-        title: 'Course Auto-Filled from Excel! 🚀',
-        description: `"${file.name}" uploaded successfully! ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, and ${totalQzs} quizzes imported.`,
+        title: 'Course Imported Successfully! 🚀',
+        description: `Imported ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, and ${totalQzs} quizzes.`,
         type: 'success'
       });
     } catch (err: any) {
       showToast({
-        title: 'Excel Import Error',
-        description: err.message || 'Failed to read spreadsheet file.',
+        title: 'Import Error',
+        description: err.message || 'Failed to apply imported course content.',
         type: 'error'
       });
     } finally {
       setIsImportingExcel(false);
-      e.target.value = '';
     }
   };
 
@@ -2456,6 +2504,16 @@ function CourseBuilderContent() {
           </div>
         </div>
       )}
+
+      {/* Excel Validation & Preview Confirmation Modal */}
+      <ExcelValidationReportModal
+        isOpen={isValidationModalOpen}
+        onClose={() => setIsValidationModalOpen(false)}
+        validationResult={validationResult}
+        fileName={pendingExcelRecord?.fileName || 'Course_Upload_Template.xlsx'}
+        onConfirmImport={handleConfirmExcelImport}
+        isImporting={isImportingExcel}
+      />
 
       {/* Course Creation & Excel Bulk Upload Video Tutorial Modal (Dual-Language) */}
       <CourseTutorialModal
