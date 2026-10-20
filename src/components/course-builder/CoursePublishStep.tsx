@@ -260,8 +260,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                   : 'Major Version Draft Ready for Review 📋'
                 : courseData.status === 'APPROVED'
                 ? 'Course Approved! Ready to Go Live 🚀'
-                : courseData.status === 'IN_REVIEW'
-                ? 'Course Under Review ⏳'
+                : courseData.status === 'IN_REVIEW' || courseData.status === 'PENDING'
+                ? 'Update Pending Course Content & Syllabus 📝'
                 : courseData.status === 'PUBLISHED'
                 ? 'Course is Currently Live! 🚀'
                 : courseData.status === 'REJECTED'
@@ -283,8 +283,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                   : '⚠️ Major updates detected (curriculum structure, video URLs, quizzes, or pricing). Submit this version to the Auditor for QA review before releasing to students.'
                 : courseData.status === 'APPROVED'
                 ? 'The Review Team has evaluated and approved your course! You can now publish it live for students.'
-                : courseData.status === 'IN_REVIEW'
-                ? 'Your course has been submitted to the Review Team for quality and curriculum inspection. Once approved, you can publish it live.'
+                : courseData.status === 'IN_REVIEW' || courseData.status === 'PENDING'
+                ? 'You are editing your course while it is under review. All fields, syllabus sections, videos, quizzes, and resources are fully editable. Click "Update & Resubmit for Review" below to save your changes and update the auditor submission without creating a new version.'
                 : courseData.status === 'PUBLISHED'
                 ? 'This masterclass is live on the public landing page and actively accepting student enrollments.'
                 : courseData.status === 'REJECTED'
@@ -364,8 +364,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               type="button"
               disabled={
                 !canPublish ||
-                isPublishing ||
-                (userRole === 'INSTRUCTOR' && !isModeB && courseData.status === 'IN_REVIEW')
+                isPublishing
               }
               onClick={handlePublishClick}
               title={
@@ -390,6 +389,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                       ? 'Publishing Live Updates...'
                       : courseData.status === 'APPROVED'
                       ? 'Publishing Live...'
+                      : courseData.status === 'IN_REVIEW' || courseData.status === 'PENDING'
+                      ? 'Updating Submission...'
                       : 'Submitting...'
                     : 'Publishing...'}
                 </span>
@@ -412,10 +413,10 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                   <Icon name="rocket_launch" size={16} />
                   <span>Publish Masterclass Live 🚀</span>
                 </>
-              ) : courseData.status === 'IN_REVIEW' ? (
+              ) : courseData.status === 'IN_REVIEW' || courseData.status === 'PENDING' ? (
                 <>
-                  <Icon name="hourglass_top" size={16} />
-                  <span>Under Review ⏳</span>
+                  <Icon name="send" size={16} />
+                  <span>Update & Resubmit for Review 📋</span>
                 </>
               ) : courseData.status === 'PUBLISHED' ? (
                 <>

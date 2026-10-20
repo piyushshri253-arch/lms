@@ -228,6 +228,7 @@ function CourseBuilderContent() {
     const isUnpublished =
       courseState.status === 'DRAFT' ||
       courseState.status === 'IN_REVIEW' ||
+      (courseState.status as string) === 'PENDING' ||
       courseState.status === 'REJECTED';
     if (isUnpublished) {
       return false;
@@ -1493,6 +1494,12 @@ function CourseBuilderContent() {
             description: `Major updates for Version v${draftVerNumber}.0 have been submitted for Auditor review.`,
             type: 'success'
           });
+        } else if (courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING') {
+          showToast({
+            title: 'Pending Course Updated! 📋',
+            description: 'Your changes have been saved and your submission has been updated for Auditor review.',
+            type: 'success'
+          });
         } else {
           showToast({
             title: 'Course Submitted for Approval! 📋',
@@ -1974,7 +1981,6 @@ function CourseBuilderContent() {
             type="button"
             disabled={
               isPublishing ||
-              (isInstructor && courseState.status === 'IN_REVIEW') ||
               !isChecklistComplete ||
               (isModeB && changeClassification.type === 'UNCHANGED')
             }
@@ -2005,6 +2011,8 @@ function CourseBuilderContent() {
                       ? 'Publishing Live...'
                       : isModeB && changeClassification.type === 'MINOR'
                       ? 'Publishing Live Updates...'
+                      : courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING'
+                      ? 'Updating Submission...'
                       : 'Submitting...'
                     : 'Publishing...'}
                 </span>
@@ -2015,10 +2023,10 @@ function CourseBuilderContent() {
                   <Icon name="rocket_launch" size={16} />
                   <span>Publish Masterclass Live 🚀</span>
                 </>
-              ) : courseState.status === 'IN_REVIEW' ? (
+              ) : courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING' ? (
                 <>
-                  <Icon name="hourglass_top" size={16} />
-                  <span>Under Review ⏳</span>
+                  <Icon name="send" size={16} />
+                  <span>Update & Resubmit for Review 📋</span>
                 </>
               ) : isModeB ? (
                 changeClassification.type === 'MINOR' ? (
@@ -2148,6 +2156,31 @@ function CourseBuilderContent() {
                 : changeClassification.type === 'MAJOR'
                 ? `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (${changeClassification.reasons.join(', ')}). These changes must be submitted for Auditor Approval once all completeness checklist items are green.`
                 : `Editing Draft Version ${draftVerNumber}.0. Previous live modules, lectures, articles, and quizzes are permanently locked to safeguard enrolled students. You can add new modules, lectures, articles, and quizzes, or update the Final Assignment.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Course Edit Banner (Direct editing of course currently under review) */}
+      {!isModeB && !isMinorEditMode && (courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING') && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600/50">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/20 text-amber-700 dark:text-amber-400">
+            <Icon name="edit_note" size={24} />
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-black text-sm sm:text-base text-amber-900 dark:text-amber-100">
+                Editing Pending Course (Under Review)
+              </h4>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950">
+                Full Edit Access
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                No Version Created
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold leading-relaxed text-amber-900/90 dark:text-amber-100/90">
+              You are editing a course currently awaiting Auditor review. Everything is completely editable (course title, slug, syllabus, lecture videos, resources, quizzes, and final exam). Saving or resubmitting directly updates this pending course without creating a new version.
             </p>
           </div>
         </div>
