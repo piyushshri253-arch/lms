@@ -295,7 +295,7 @@ function CourseBuilderContent() {
       if (origSec) {
         if (currSec.title?.trim() !== origSec.title?.trim()) {
           hasMinor = true;
-          reasons.push(`Module title typo/spelling update: "${origSec.title}" → "${currSec.title}"`);
+          reasons.push(`Module title updated: "${origSec.title}" → "${currSec.title}"`);
         }
         if ((currSec.description || '').trim() !== (origSec.description || '').trim()) {
           hasMinor = true;
@@ -369,21 +369,21 @@ function CourseBuilderContent() {
           reasons.push(`Substantial content rewrite in "${currLes.title || 'Untitled'}"`);
         } else {
           hasMinor = true;
-          reasons.push(`Spelling / text fix in lesson "${currLes.title || 'Untitled'}"`);
+          reasons.push(`Lesson content updated in "${currLes.title || 'Untitled'}"`);
         }
       }
 
-      // Lesson title changed (e.g. spelling or typo in Lecture 3)
+      // Lesson title changed
       if (currLes.title?.trim() !== origLes.title?.trim()) {
         hasMinor = true;
-        reasons.push(`Spelling/title update in "${origLes.title}" → "${currLes.title}"`);
+        reasons.push(`Lesson title updated: "${origLes.title}" → "${currLes.title}"`);
       }
     }
 
     // Check course metadata
     if (courseState.title?.trim() !== originalCourseState.title?.trim()) {
       hasMinor = true;
-      reasons.push('Course title typo/wording update');
+      reasons.push('Course title updated');
     }
     if ((courseState.shortDescription || '').trim() !== (originalCourseState.shortDescription || '').trim()) {
       hasMinor = true;
@@ -1316,7 +1316,7 @@ function CourseBuilderContent() {
       if (isDirectMinorPublish) {
         showToast({
           title: 'Minor Updates Published Live! 🚀',
-          description: 'Your typo and spelling fixes have been published directly to the live course without needing auditor review.',
+          description: 'Your minor content updates have been published directly to the live course without needing auditor review.',
           type: 'success'
         });
 
@@ -1953,7 +1953,7 @@ function CourseBuilderContent() {
                   : 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-200'
               }`}>
                 {changeClassification.type === 'MINOR'
-                  ? 'Minor Typo / Spelling Edit (Direct Publish)'
+                  ? 'Minor Content Update (Direct Publish)'
                   : changeClassification.type === 'MAJOR'
                   ? `Major Draft (v${draftVerNumber}.0 - Review Required)`
                   : `Draft Version v${draftVerNumber}.0 (Ready for Edits)`}
@@ -1970,10 +1970,10 @@ function CourseBuilderContent() {
                 : 'text-slate-600 dark:text-slate-400'
             }`}>
               {changeClassification.type === 'MINOR'
-                ? `✨ Detected minor typo / spelling fix in curriculum or course text (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
+                ? `✨ Minor content updates detected (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
                 : changeClassification.type === 'MAJOR'
                 ? `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (${changeClassification.reasons.join(', ')}). These changes must be submitted for Auditor Approval once all completeness checklist items are green.`
-                : `Editing Draft Version ${draftVerNumber}.0. The live published version ${liveVerNumber}.0 remains active and accessible to students. Any minor typo edits can be directly published, while major curriculum additions will require review.`}
+                : `Editing Draft Version ${draftVerNumber}.0. The live published version ${liveVerNumber}.0 remains active and accessible to students. Any minor content edits can be directly published, while major curriculum additions will require review.`}
             </p>
           </div>
         </div>

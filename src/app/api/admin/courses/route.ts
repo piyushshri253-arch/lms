@@ -43,26 +43,98 @@ export async function GET(request: Request) {
       }
     });
 
-    const mapped = courses.map((c) => ({
-      id: c.id,
-      title: c.title,
-      slug: c.slug,
-      description: c.description,
-      price: c.price,
-      level: c.level,
-      category: c.category?.name || 'General',
-      instructor: c.instructor?.name || 'Academic Faculty',
-      instructorAvatar: c.instructor?.avatar,
-      isPublished: c.status === 'PUBLISHED',
-      status: c.status,
-      studentsCount: c._count?.enrollments || 0,
-      reviewsCount: c._count?.reviews || 0,
-      modulesCount: c._count?.sections || 0,
-      rating: 4.9,
-      createdAt: c.createdAt
-    }));
+    const courseIds = courses.map((c) => c.id);
+    const versionMap = new Map<string, any>();
+    if (courseIds.length > 0) {
+      try {
+        const versionRows = await prisma.platformSetting.findMany({
+          where: {
+            key: { in: courseIds.map((id) => `course_version_${id}`) }
+          }
+        });
+        for (const row of versionRows) {
+          try {
+            const parsed = JSON.parse(row.value);
+            const courseId = row.key.replace('course_version_', '');
+            versionMap.set(courseId, parsed);
+          } catch {}
+        }
+      } catch (err) {
+        console.error('Failed to load version states for admin courses:', err);
+      }
+    }
 
-    return NextResponse.json({ courses: mapped });
+    const mapped = courses.map((c) => {
+      const verState = versionMap.get(c.id);
+      const hasDraftVersion = Boolean(
+        verState &&
+        (verState.status === 'DRAFT_VERSION' ||
+         (verState.status === 'PENDING_REVIEW' && c.status === 'PUBLISHED'))
+      );
+      return {
+        id: c.id,
+        title: c.title,
+        slug: c.slug,
+        description: c.description,
+        price: c.price,
+        level: c.level,
+        category: c.category?.name || 'General',
+        instructor: c.instructor?.name || 'Academic Faculty',
+        instructorAvatar: c.instructor?.avatar,
+        isPublished: c.status === 'PUBLISHED',
+        status: c.status,
+        hasDraftVersion,
+        draftVersionNumber: verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2),
+        liveVersionNumber: verState?.liveVersionNumber || 1,
+        versionStatus: verState?.status || null,
+        studentsCount: c._count?.enrollments || 0,
+        reviewsCount: c._count?.reviews || 0,
+        modulesCount: c._count?.sections || 0,
+        rating: 4.9,
+        createdAt: c.createdAt
+      };
+    });
+
+    const versionDraftItems: any[] = [];
+    if (!status || status === 'DRAFT') {
+      for (const course of courses) {
+        const verState = versionMap.get(course.id);
+        const hasDraftVersion = Boolean(
+          verState &&
+          (verState.status === 'DRAFT_VERSION' ||
+           (verState.status === 'PENDING_REVIEW' && course.status === 'PUBLISHED'))
+        );
+        if (hasDraftVersion) {
+          const draftVerNumber = verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2);
+          versionDraftItems.push({
+            id: `draft_ver_${course.id}`,
+            originalCourseId: course.id,
+            isVersionDraftItem: true,
+            title: `${course.title} (Draft v${draftVerNumber}.0)`,
+            slug: course.slug,
+            description: verState?.stagedSnapshot?.description || course.description,
+            price: verState?.stagedSnapshot?.price !== undefined ? verState.stagedSnapshot.price : course.price,
+            level: verState?.stagedSnapshot?.level || course.level,
+            category: course.category?.name || 'General',
+            instructor: course.instructor?.name || 'Academic Faculty',
+            instructorAvatar: course.instructor?.avatar,
+            isPublished: false,
+            status: 'DRAFT',
+            hasDraftVersion: false,
+            draftVersionNumber: draftVerNumber,
+            liveVersionNumber: verState?.liveVersionNumber || 1,
+            versionStatus: verState?.status,
+            studentsCount: 0,
+            reviewsCount: 0,
+            modulesCount: verState?.stagedSnapshot?.sections?.length || 0,
+            rating: 5.0,
+            createdAt: verState?.updatedAt || course.createdAt
+          });
+        }
+      }
+    }
+
+    return NextResponse.json({ courses: [...mapped, ...versionDraftItems] });
   } catch (error: any) {
     console.error('Error fetching admin courses:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
@@ -287,13 +359,24 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
     const facilityId = searchParams.get('facilityId');
 
-    const { errorResponse } = await requireAdminApiGuard('course.delete', facilityId);
-    if (errorResponse) {
-      return errorResponse;
+    const { errorResponse, sessionData } = await requireAdminApiGuard('course.delete', facilityId);
+    if (errorResponse || !sessionData) {
+      return errorResponse || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     if (!id) {
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
+    }
+
+    if (id.startsWith('draft_ver_')) {
+      const realCourseId = id.replace('draft_ver_', '');
+      const { discardDraftVersion } = await import('@/lib/course-versioning');
+      await discardDraftVersion(realCourseId, {
+        id: sessionData.user.id,
+        name: sessionData.user.name || 'Admin',
+        role: sessionData.user.role
+      });
+      return NextResponse.json({ success: true, message: 'Version draft discarded successfully' });
     }
 
     await prisma.course.delete({

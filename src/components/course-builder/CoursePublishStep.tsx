@@ -171,52 +171,92 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Ready to Publish Banner */}
       <div
-        className={`p-6 sm:p-8 rounded-3xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-6 ${
-          canPublish
-            ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
-            : 'bg-surface-container-lowest border-outline-variant'
+        className={`p-6 sm:p-8 rounded-3xl border shadow-sm flex flex-col gap-6 ${
+          isModeB && isMinorChange
+            ? 'bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-300 dark:border-emerald-700/60 text-emerald-950 dark:text-emerald-100'
+            : canPublish
+            ? 'bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-300 dark:border-emerald-700/60 text-emerald-950 dark:text-emerald-100'
+            : 'bg-surface-container-lowest border-outline-variant text-on-surface'
         }`}
       >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+        {/* Top: Status Badges, Title & Full-width Content */}
+        <div className="space-y-3 w-full">
+          {/* Badge & Meta Indicators Row */}
+          <div className="flex flex-wrap items-center gap-2.5">
             <span
-              className={`w-3 h-3 rounded-full ${
-                courseData.status === 'IN_REVIEW'
-                  ? 'bg-amber-500 animate-pulse'
-                  : courseData.status === 'APPROVED' || courseData.status === 'PUBLISHED'
-                  ? 'bg-emerald-500'
-                  : canPublish
-                  ? 'bg-emerald-500 animate-pulse'
-                  : 'bg-amber-500'
-              }`}
-            />
-            <span className="text-xs font-bold uppercase tracking-wider font-mono">
-              {userRole === 'INSTRUCTOR'
-                ? isModeB
-                  ? isMinorChange
-                    ? 'Minor Update (Direct Publish Live) 🚀'
-                    : 'Major Version Draft (Auditor Review Required) 📋'
-                  : courseData.status === 'APPROVED'
-                  ? 'Approved by Review Team ✅'
-                  : courseData.status === 'IN_REVIEW'
-                  ? 'Under Review by QA Studio ⏳'
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                isModeB && isMinorChange
+                  ? 'bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-500/40'
+                  : isModeB
+                  ? 'bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/40'
                   : courseData.status === 'PUBLISHED'
-                  ? 'Live on Platform 🌐'
-                  : courseData.status === 'REJECTED'
-                  ? 'Changes Requested by Reviewer ⚠️'
+                  ? 'bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-500/40'
+                  : courseData.status === 'APPROVED'
+                  ? 'bg-blue-500/20 text-blue-900 dark:text-blue-200 border border-blue-500/40'
+                  : courseData.status === 'IN_REVIEW'
+                  ? 'bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/40'
                   : canPublish
-                  ? 'Ready for Review'
-                  : 'Action Required Before Submitting'
-                : canPublish
-                ? 'Ready for Live Platform Release'
-                : 'Action Required Before Submitting'}
+                  ? 'bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-500/40'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  courseData.status === 'IN_REVIEW'
+                    ? 'bg-amber-500 animate-pulse'
+                    : courseData.status === 'APPROVED' || courseData.status === 'PUBLISHED' || (isModeB && isMinorChange)
+                    ? 'bg-emerald-500 animate-pulse'
+                    : canPublish
+                    ? 'bg-emerald-500'
+                    : 'bg-amber-500'
+                }`}
+              />
+              <span>
+                {userRole === 'INSTRUCTOR'
+                  ? isModeB
+                    ? isMinorChange
+                      ? 'Minor Update (Direct Publish Live) 🚀'
+                      : 'Major Version Draft (Auditor Review Required) 📋'
+                    : courseData.status === 'APPROVED'
+                    ? 'Approved by Review Team ✅'
+                    : courseData.status === 'IN_REVIEW'
+                    ? 'Under Review by QA Studio ⏳'
+                    : courseData.status === 'PUBLISHED'
+                    ? 'Live on Platform 🌐'
+                    : courseData.status === 'REJECTED'
+                    ? 'Changes Requested by Reviewer ⚠️'
+                    : canPublish
+                    ? 'Ready for Review'
+                    : 'Action Required Before Submitting'
+                  : canPublish
+                  ? 'Ready for Live Platform Release'
+                  : 'Action Required Before Submitting'}
+              </span>
+            </span>
+
+            {/* Checklist Completion Badge */}
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
+                canPublish
+                  ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                  : 'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+              }`}
+            >
+              <Icon name={canPublish ? 'check_circle' : 'pending'} size={13} />
+              <span>
+                {canPublish
+                  ? 'Checklist 100% Complete'
+                  : `${passedCount} of ${checklist.length} checklist items verified`}
+              </span>
             </span>
           </div>
-          <h3 className="text-2xl font-black tracking-tight text-on-surface">
+
+          {/* Large Main Heading */}
+          <h3 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-on-surface">
             {userRole === 'INSTRUCTOR'
               ? isModeB
                 ? isMinorChange
-                  ? 'Minor Typo / Content Fix Detected! 🚀'
+                  ? 'Minor Content Updates Ready to Publish Live! 🚀'
                   : 'Major Version Draft Ready for Review 📋'
                 : courseData.status === 'APPROVED'
                 ? 'Course Approved! Ready to Go Live 🚀'
@@ -233,11 +273,13 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               ? 'All Systems Go! 🚀'
               : 'Complete Required Pre-Flight Checklist'}
           </h3>
-          <p className="text-xs text-on-surface-variant max-w-lg">
+
+          {/* Descriptive Content (Full Width) */}
+          <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed max-w-4xl font-medium">
             {userRole === 'INSTRUCTOR'
               ? isModeB
                 ? isMinorChange
-                  ? `✨ Minor typo or wording fix detected (${minorReasons.length > 0 ? minorReasons.join(', ') : 'spelling/title edit'}). You can directly publish these changes to the live course without waiting for auditor review!`
+                  ? `✨ Minor content updates detected (${minorReasons.length > 0 ? minorReasons.join(', ') : 'wording/text adjustments'}). Since these changes don't alter course pricing or curriculum structure, you can publish them directly to your live course right away—no auditor review required!`
                   : '⚠️ Major updates detected (curriculum structure, video URLs, quizzes, or pricing). Submit this version to the Auditor for QA review before releasing to students.'
                 : courseData.status === 'APPROVED'
                 ? 'The Review Team has evaluated and approved your course! You can now publish it live for students.'
@@ -254,65 +296,91 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               ? 'Your masterclass curriculum is fully configured and ready to be enrolled by students globally.'
               : `${passedCount} of ${checklist.length} criteria met. Resolve the remaining items below to proceed.`}
           </p>
+
+          {/* Detected Minor Reasons Pills */}
+          {isModeB && isMinorChange && minorReasons.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Detected Edits:</span>
+              {minorReasons.map((reason, idx) => (
+                <span
+                  key={idx}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 text-[11px] font-bold border border-emerald-300 dark:border-emerald-700/60 inline-flex items-center gap-1"
+                >
+                  <Icon name="check" size={13} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>{reason}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('open-course-builder-preview'));
-              } else {
-                setIsPreviewOpen(true);
-              }
-            }}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
-          >
-            <Icon name="visibility" size={16} />
-            <span>Preview Course &amp; Syllabus</span>
-          </button>
+        {/* Divider Line */}
+        <div className="border-t border-outline-variant/60 dark:border-slate-800 w-full" />
 
-          {onUnpublish && courseData.status && courseData.status !== 'DRAFT' && (
+        {/* Bottom: Action Buttons in dedicated row with full visibility */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+          {/* Secondary Actions (Left) */}
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              disabled={isPublishing}
-              onClick={onUnpublish}
-              className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/20 shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              title="Revert course back to draft mode to edit curriculum privately"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('open-course-builder-preview'));
+                } else {
+                  setIsPreviewOpen(true);
+                }
+              }}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
+              title="Preview course and curriculum syllabus"
             >
-              <Icon name="history" size={16} />
-              <span>Move Back to Draft</span>
+              <Icon name="visibility" size={16} />
+              <span>Preview Course &amp; Syllabus</span>
             </button>
-          )}
 
-          {!canPublish && (
-            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-              <Icon name="warning" size={14} className="text-amber-500" />
-              <span>Checklist Incomplete ({checklist.filter((c) => !c.passed).length} remaining)</span>
-            </span>
-          )}
+            {onUnpublish && courseData.status && courseData.status !== 'DRAFT' && (
+              <button
+                type="button"
+                disabled={isPublishing}
+                onClick={onUnpublish}
+                className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold text-xs sm:text-sm rounded-xl hover:bg-amber-500/20 shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-all"
+                title="Revert course back to draft mode to edit curriculum privately"
+              >
+                <Icon name="history" size={16} />
+                <span>Move Back to Draft</span>
+              </button>
+            )}
+          </div>
 
-          <button
-            type="button"
-            disabled={
-              !canPublish ||
-              isPublishing ||
-              (userRole === 'INSTRUCTOR' && !isModeB && courseData.status === 'IN_REVIEW')
-            }
-            onClick={handlePublishClick}
-            title={
-              !canPublish
-                ? 'Complete all checklist items (all green ticks) before submitting for approval'
-                : undefined
-            }
-            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all ${
-              !canPublish
-                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
-                : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25 cursor-pointer'
-                : 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer'
-            }`}
-          >
+          {/* Primary Actions (Right) */}
+          <div className="flex flex-wrap items-center gap-3">
+            {!canPublish && (
+              <span className="text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                <Icon name="warning" size={15} className="text-amber-500" />
+                <span>Checklist Incomplete ({checklist.filter((c) => !c.passed).length} remaining)</span>
+              </span>
+            )}
+
+            <button
+              type="button"
+              disabled={
+                !canPublish ||
+                isPublishing ||
+                (userRole === 'INSTRUCTOR' && !isModeB && courseData.status === 'IN_REVIEW')
+              }
+              onClick={handlePublishClick}
+              title={
+                !canPublish
+                  ? 'Complete all checklist items (all green ticks) before submitting for approval'
+                  : undefined
+              }
+              className={`px-6 py-2.5 font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 transition-all ${
+                !canPublish
+                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
+                  : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30 hover:shadow-lg cursor-pointer hover:scale-[1.02]'
+                  : 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer hover:scale-[1.02]'
+              }`}
+            >
             {isPublishing ? (
               <>
                 <Icon name="sync" size={16} className="animate-spin" />
@@ -372,6 +440,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               </>
             )}
           </button>
+          </div>
         </div>
       </div>
 

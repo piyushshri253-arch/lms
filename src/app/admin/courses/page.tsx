@@ -247,12 +247,12 @@ function CoursesPageContent() {
     await handleUpdateCourseStatus(courseId, !currentStatus ? 'PUBLISHED' : 'DRAFT');
   };
 
-  const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW').length;
+  const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW' && !c.isVersionDraftItem).length;
 
   const filteredCourses = courses.filter((c) => {
-    if (activeTab === 'published') return c.isPublished;
-    if (activeTab === 'review') return c.status === 'IN_REVIEW' || c.status === 'APPROVED';
-    if (activeTab === 'drafts') return !c.isPublished && c.status !== 'IN_REVIEW' && c.status !== 'APPROVED';
+    if (activeTab === 'published') return c.isPublished && !c.isVersionDraftItem;
+    if (activeTab === 'review') return (c.status === 'IN_REVIEW' || c.status === 'APPROVED') && !c.isVersionDraftItem;
+    if (activeTab === 'drafts') return c.status === 'DRAFT';
     return true;
   });
 
@@ -682,7 +682,11 @@ function CoursesPageContent() {
 
                               {(hasPermission('course.edit') || isSuperAdmin) && (
                                 <Link
-                                  href={`/admin/courses/builder?courseId=${course.id}`}
+                                  href={
+                                    course.isVersionDraftItem && course.originalCourseId
+                                      ? `/admin/courses/builder?courseId=${course.originalCourseId}&mode=version_draft`
+                                      : `/admin/courses/builder?courseId=${course.id}`
+                                  }
                                   className="px-2.5 py-1 rounded-lg border border-outline-variant/80 hover:bg-surface-container text-[11px] font-bold text-on-surface transition-colors"
                                   title="Open Curriculum Studio"
                                 >
@@ -694,12 +698,20 @@ function CoursesPageContent() {
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    if (confirm(`Are you sure you want to delete ${course.title}?`)) {
+                                    const confirmMsg = course.isVersionDraftItem
+                                      ? `Are you sure you want to discard this draft revision for "${course.title}"? The live published course will remain active and untouched!`
+                                      : `Are you sure you want to delete ${course.title}?`;
+                                    if (confirm(confirmMsg)) {
                                       try {
                                         const res = await fetch(`/api/admin/courses?id=${course.id}`, { method: 'DELETE' });
                                         if (res.ok) {
                                           setCourses((prev) => prev.filter((c) => c.id !== course.id));
-                                          showToast('Draft course deleted successfully.', 'info');
+                                          showToast(
+                                            course.isVersionDraftItem
+                                              ? 'Version draft discarded. Live published course remains active and safe.'
+                                              : 'Draft course deleted successfully.',
+                                            'info'
+                                          );
                                         } else {
                                           showToast('Failed to delete course.', 'error');
                                         }
@@ -709,7 +721,7 @@ function CoursesPageContent() {
                                     }
                                   }}
                                   className="p-1 rounded-lg text-outline hover:text-error hover:bg-error-container/20 transition-colors cursor-pointer"
-                                  title="Delete Draft Course"
+                                  title={course.isVersionDraftItem ? 'Discard Draft Revision' : 'Delete Draft Course'}
                                 >
                                   <Icon name="delete" size={16} />
                                 </button>

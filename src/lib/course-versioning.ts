@@ -812,6 +812,57 @@ export async function createOrGetDraftVersion(
 }
 
 /**
+ * Discards / Deletes an in-progress draft version for a course.
+ * Resets status to LIVE_SYNCED and clears stagedSnapshot,
+ * leaving the live published course active and 100% untouched.
+ */
+export async function discardDraftVersion(
+  courseId: string,
+  user?: { id?: string; name?: string; role?: string }
+): Promise<CourseVersionState> {
+  const currentState = await getCourseVersionState(courseId);
+  const discardedVersion = currentState.pendingVersionLabel || `v${(currentState.liveVersionNumber || 1) + 1}.0`;
+
+  const updatedState: CourseVersionState = {
+    ...currentState,
+    pendingVersionNumber: null,
+    pendingVersionLabel: null,
+    status: 'LIVE_SYNCED',
+    detectedChanges: [],
+    stagedSnapshot: null,
+    submittedAt: null,
+    submittedBy: null,
+    reviewerFeedback: null,
+    updatedAt: new Date().toISOString()
+  };
+
+  await saveCourseVersionState(courseId, updatedState);
+
+  if (user?.id) {
+    try {
+      const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: { organizationId: true, title: true }
+      });
+      if (course?.organizationId) {
+        await prisma.auditLog.create({
+          data: {
+            organizationId: course.organizationId,
+            adminId: user.id,
+            action: 'DISCARD_COURSE_VERSION_DRAFT',
+            entity: 'Course',
+            entityId: courseId,
+            description: `${user.role || 'User'} "${user.name || 'Instructor'}" deleted/discarded draft Version ${discardedVersion} for "${course.title}". Live published course remains active.`
+          }
+        });
+      }
+    } catch {}
+  }
+
+  return updatedState;
+}
+
+/**
  * Applies purely minor updates directly to the live published course, recording an audit log.
  */
 export async function applyMinorUpdateToLiveCourse(
