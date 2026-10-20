@@ -113,6 +113,10 @@ function CourseBuilderContent() {
   const [isImportingExcel, setIsImportingExcel] = useState<boolean>(false);
   const [hasLoadedInitial, setHasLoadedInitial] = useState<boolean>(false);
 
+  // Versioning & Mode B (Published Course Draft)
+  const isInstructor = currentUser?.role === 'INSTRUCTOR';
+  const [courseVersionState, setCourseVersionState] = useState<any>(null);
+
   // Background auto-save to database status
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const autoSaveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -202,6 +206,17 @@ function CourseBuilderContent() {
   // Mutable ref to always have latest courseState without stale closure pitfalls in debounced timers
   const courseStateRef = React.useRef(courseState);
   courseStateRef.current = courseState;
+
+  // Mode B Detection (Editing Version Draft of a Published Course)
+  const isModeB = useMemo(() => {
+    const modeParam = searchParams.get('mode') === 'version_draft';
+    const hasDraftStatus = courseVersionState?.status === 'DRAFT_VERSION' || courseVersionState?.status === 'PENDING_REVIEW';
+    const isPublishedCourse = courseState.status === 'PUBLISHED' || Boolean(courseVersionState?.liveVersionNumber);
+    return Boolean(modeParam || hasDraftStatus || (isPublishedCourse && editSlugOrId));
+  }, [searchParams, courseVersionState, courseState.status, editSlugOrId]);
+
+  const liveVerNumber = courseVersionState?.liveVersionNumber || 1;
+  const draftVerNumber = courseVersionState?.draftVersionNumber || courseVersionState?.pendingVersionNumber || liveVerNumber + 1;
 
   // Listen for custom preview event from CourseAssessmentsBanner or child components
   useEffect(() => {
@@ -513,6 +528,9 @@ function CourseBuilderContent() {
           }))
         };
         setCourseState(loadedState);
+        if (data.versionState) {
+          setCourseVersionState(data.versionState);
+        }
       }
     } catch {
       showToast({ title: 'Error', description: 'Failed to load course details.', type: 'error' });
@@ -702,6 +720,9 @@ function CourseBuilderContent() {
         }
 
         if (!res.ok) throw new Error(responseData?.error || 'Failed to update course');
+        if (responseData?.versionState) {
+          setCourseVersionState(responseData.versionState);
+        }
         if (responseData?.course?.id) {
           savedCourseId = responseData.course.id;
           loadedCourseIdRef.current = savedCourseId;
@@ -945,11 +966,23 @@ function CourseBuilderContent() {
         }
 
         if (!options?.silent) {
-          showToast({
-            title: 'Draft Saved Successfully 💾',
-            description: `"${courseState.title}" saved to database.`,
-            type: 'success'
-          });
+          if (isModeB) {
+            showToast({
+              title: isSubmitting ? 'Submitted for Auditor Review 🛡️' : 'Draft Version Saved 💾',
+              description:
+                responseData?.message ||
+                (isSubmitting
+                  ? `Draft Version ${draftVerNumber}.0 submitted for review. Live course is unaffected.`
+                  : `Draft Version ${draftVerNumber}.0 saved. Live course is unaffected.`),
+              type: 'success'
+            });
+          } else {
+            showToast({
+              title: 'Draft Saved Successfully 💾',
+              description: `"${courseState.title}" saved to database.`,
+              type: 'success'
+            });
+          }
         }
       }
 
@@ -1126,8 +1159,6 @@ function CourseBuilderContent() {
       setIsPublishing(false);
     }
   };
-
-  const isInstructor = currentUser?.role === 'INSTRUCTOR';
 
   const steps = [
     { title: '1. Basic Information', icon: 'info' },
@@ -1342,11 +1373,19 @@ function CourseBuilderContent() {
         });
       });
 
-      showToast({
-        title: 'Course Imported Successfully! 🚀',
-        description: `Imported ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, and ${totalQzs} quizzes.`,
-        type: 'success'
-      });
+      if (isModeB) {
+        showToast({
+          title: `Excel Imported to Draft Version (v${draftVerNumber}.0) 📝`,
+          description: `Excel content imported into Draft Version v${draftVerNumber}.0. The live version v${liveVerNumber}.0 remains active. Review and submit for auditor approval.`,
+          type: 'success'
+        });
+      } else {
+        showToast({
+          title: 'Course Imported Successfully! 🚀',
+          description: `Imported ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, and ${totalQzs} quizzes.`,
+          type: 'success'
+        });
+      }
     } catch (err: any) {
       showToast({
         title: 'Import Error',
@@ -1438,6 +1477,14 @@ function CourseBuilderContent() {
           <Icon name="restart_alt" size={16} />
           <span>New Course</span>
         </button>
+
+        {isModeB && (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Draft (v{draftVerNumber}.0)</span>
+            <span className="text-[10px] text-outline font-semibold">| Live: v{liveVerNumber}.0</span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -1505,6 +1552,11 @@ function CourseBuilderContent() {
                   <Icon name="hourglass_top" size={16} />
                   <span>Under Review ⏳</span>
                 </>
+              ) : isModeB ? (
+                <>
+                  <Icon name="send" size={16} />
+                  <span>Submit Version for Review 📋</span>
+                </>
               ) : courseState.status === 'PUBLISHED' ? (
                 <>
                   <Icon name="send" size={16} />
@@ -1532,6 +1584,31 @@ function CourseBuilderContent() {
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       {/* Top Step Navigation Bar (Replaces old breadcrumb/title banner) */}
       {renderStepNavigationBar(true)}
+
+      {/* Mode B Draft Version Banner */}
+      {isModeB && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-400 dark:border-amber-600/50 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Icon name="warning" size={24} />
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-black text-sm sm:text-base text-amber-900 dark:text-amber-100">
+                Mode B: Editing Draft Version v{draftVerNumber}.0
+              </h4>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950">
+                Draft (v{draftVerNumber}.0)
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                Live Version {liveVerNumber}.0 Active
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold text-amber-900/90 dark:text-amber-100/90 leading-relaxed">
+              ⚠️ You are editing Draft Version {draftVerNumber}.0. The live published version {liveVerNumber}.0 remains active and accessible to students. Changes will not affect enrolled students until approved and published.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Excel Course Bulk Template & Auto-Fill Studio Banner */}
       <div className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant/60 rounded-3xl p-5 sm:p-6 shadow-sm relative overflow-hidden space-y-4">

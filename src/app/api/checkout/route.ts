@@ -48,6 +48,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'At least one product or course is required for checkout.' }, { status: 400 });
     }
 
+    // Guard: Block checkout for any INACTIVE or ARCHIVED course
+    for (const item of rawItems) {
+      if (item.courseId) {
+        const c = await prisma.course.findUnique({
+          where: { id: item.courseId },
+          select: { id: true, title: true, status: true }
+        });
+        if (c && (c.status === 'INACTIVE' || c.status === 'ARCHIVED')) {
+          return NextResponse.json(
+            { error: 'This course is currently inactive and not accepting new enrollments.' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Resolve organization for checkout
     let orgId: string | null = null;
     let matchedCourse: any = null;

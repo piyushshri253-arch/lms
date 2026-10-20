@@ -11,6 +11,7 @@ import {
   getCourseVersionState,
   saveCourseVersionState,
   classifyCourseChanges,
+  applyMinorUpdateToLiveCourse,
   StagedCourseSnapshot,
   getStudentEnrolledVersion
 } from '@/lib/course-versioning';
@@ -527,15 +528,15 @@ export async function PUT(
       body.status === 'IN_REVIEW'
     );
 
-    if (user.role === 'INSTRUCTOR' && course.status === 'PUBLISHED' && !body.forceDirectAdminOverride) {
+    if (course.status === 'PUBLISHED' && !body.forceDirectAdminOverride) {
       const classification = classifyCourseChanges(course, body);
 
-      // If the instructor is submitting changes for Auditor approval:
-      if (isSubmittingForReview) {
-        body.status = 'IN_REVIEW';
+      if (classification.hasMajorChanges) {
+        // Any change set with major or uncertain changes MUST be staged into a draft snapshot.
+        // The live published course remains completely untouched!
         const currentVer = await getCourseVersionState(course.id);
-        const nextVerNum = (currentVer.liveVersionNumber || 1) + 1;
-        const nextVerLabel = `v${nextVerNum}.0`;
+        const nextVerNum = currentVer.pendingVersionNumber || ((currentVer.liveVersionNumber || 1) + 1);
+        const nextVerLabel = currentVer.pendingVersionLabel || `v${nextVerNum}.0`;
 
         const stagedSnapshot: StagedCourseSnapshot = {
           title: body.title !== undefined ? body.title.trim() : course.title,
@@ -576,138 +577,108 @@ export async function PUT(
                   duration: l.duration,
                   durationSeconds: l.durationSeconds,
                   isFree: l.isFree,
+                  isFinalAssignment: Boolean((l as any).isFinalAssignment || (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))),
                   isPublished: l.isPublished,
                   order: l.order
                 }))
               }))
         };
 
-        await saveCourseVersionState(course.id, {
+        const targetVersionStatus = isSubmittingForReview ? 'PENDING_REVIEW' : 'DRAFT_VERSION';
+
+        const updatedVersionState = await saveCourseVersionState(course.id, {
           pendingVersionNumber: nextVerNum,
           pendingVersionLabel: nextVerLabel,
-          status: 'PENDING_REVIEW',
+          status: targetVersionStatus,
           detectedChanges: [...classification.majorChanges, ...classification.minorChanges],
           stagedSnapshot,
-          submittedAt: new Date().toISOString(),
-          submittedBy: user.name
+          submittedAt: isSubmittingForReview ? new Date().toISOString() : currentVer.submittedAt,
+          submittedBy: isSubmittingForReview ? user.name : (currentVer.submittedBy || user.name)
         });
 
-        const auditors = await prisma.user.findMany({
-          where: {
-            role: { in: ['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'] },
-            status: 'ACTIVE'
-          },
-          select: { id: true }
-        });
-        for (const aud of auditors) {
-          if (aud.id !== user.id) {
-            await createNotification({
-              organizationId: course.organizationId,
-              userId: aud.id,
-              title: `🛡️ Course Updates (${nextVerLabel}) Submitted for Review`,
-              message: `${user.name} submitted updates on published course "${course.title}" for review.`,
-              type: 'COURSES',
-              category: 'COURSES',
-              link: `/reviewer/courses/${course.id}`
-            });
+        if (isSubmittingForReview) {
+          const auditors = await prisma.user.findMany({
+            where: {
+              role: { in: ['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'] },
+              status: 'ACTIVE'
+            },
+            select: { id: true }
+          });
+          for (const aud of auditors) {
+            if (aud.id !== user.id) {
+              await createNotification({
+                organizationId: course.organizationId,
+                userId: aud.id,
+                title: `🛡️ Course Updates (${nextVerLabel}) Submitted for Review`,
+                message: `${user.name} submitted updates on published course "${course.title}" for review.`,
+                type: 'COURSES',
+                category: 'COURSES',
+                link: `/reviewer/courses/${course.id}`
+              });
+            }
           }
+
+          await prisma.auditLog.create({
+            data: {
+              organizationId: course.organizationId,
+              adminId: user.id,
+              adminEmail: user.email,
+              action: 'SUBMIT_COURSE_UPDATES_FOR_REVIEW',
+              entity: 'Course',
+              entityId: course.id,
+              description: `${user.role} "${user.name}" submitted course updates (${classification.majorChanges.map((m) => m.summary).join('; ') || 'curriculum edits'}) for Auditor review.`
+            }
+          });
+
+          return NextResponse.json({
+            success: true,
+            isVersionDraft: true,
+            status: 'PENDING_REVIEW',
+            versionLabel: nextVerLabel,
+            message: `Major updates for Version ${nextVerLabel} submitted to Course Auditor! The live published version remains accessible to students while review is pending.`,
+            course: { ...course, ...stagedSnapshot },
+            versionState: updatedVersionState
+          });
         }
 
+        // Saving draft version
         await prisma.auditLog.create({
           data: {
             organizationId: course.organizationId,
             adminId: user.id,
             adminEmail: user.email,
-            action: 'SUBMIT_COURSE_UPDATES_FOR_REVIEW',
+            action: 'SAVE_COURSE_VERSION_DRAFT',
             entity: 'Course',
             entityId: course.id,
-            description: `Instructor "${user.name}" submitted course updates (${classification.majorChanges.map((m) => m.summary).join('; ') || 'curriculum edits'}) for Auditor review.`
+            description: `${user.role} "${user.name}" saved draft Version ${nextVerLabel} without mutating the live course.`
           }
         });
-        // Proceed to full update and curriculum synchronization below so the database reflects all changes!
+
+        return NextResponse.json({
+          success: true,
+          isVersionDraft: true,
+          status: 'DRAFT_VERSION',
+          versionLabel: nextVerLabel,
+          message: `Saved updates into Draft Version ${nextVerLabel}. The live published version remains active and untouched.`,
+          course: { ...course, ...stagedSnapshot },
+          versionState: updatedVersionState
+        });
       } else {
-        // Safe Minor Changes applied directly to the live course (description, thumbnail, SEO, etc.)
-        const updatedMinorLive = await prisma.course.update({
-          where: { id: course.id },
-          data: {
-            title: body.title !== undefined ? body.title.trim() : undefined,
-            description: body.description !== undefined ? body.description : undefined,
-            shortDescription: body.shortDescription !== undefined ? body.shortDescription : undefined,
-            thumbnail: body.thumbnail !== undefined ? body.thumbnail : undefined,
-            banner: body.banner !== undefined ? body.banner : undefined,
-            level: body.level !== undefined ? body.level : undefined,
-            language: body.language !== undefined ? body.language : undefined,
-            durationHours: body.durationHours !== undefined ? Number(body.durationHours) : undefined,
-            categoryId: categoryId || undefined,
-            whatYouWillLearn: body.whatYouWillLearn ? JSON.stringify(body.whatYouWillLearn) : undefined,
-            requirements: body.requirements ? JSON.stringify(body.requirements) : undefined,
-            targetAudience: body.targetAudience ? JSON.stringify(body.targetAudience) : undefined,
-            seoTitle: body.seoTitle !== undefined ? body.seoTitle : undefined,
-            seoDescription: body.seoDescription !== undefined ? body.seoDescription : undefined
-          }
+        // Purely MINOR changes: Auto-publish immediately to the live course!
+        const updatedLiveCourse = await applyMinorUpdateToLiveCourse(
+          course.id,
+          body,
+          { id: user.id, name: user.name, role: user.role },
+          classification.minorChanges
+        );
+
+        return NextResponse.json({
+          success: true,
+          isMinorUpdate: true,
+          status: 'PUBLISHED',
+          message: `Minor updates (typos/formatting/visual assets) automatically published live!`,
+          course: updatedLiveCourse
         });
-
-        // If Major Changes were made, stage as draft version until submitted
-        if (classification.hasMajorChanges) {
-          const currentVer = await getCourseVersionState(course.id);
-          const nextVerNum = (currentVer.liveVersionNumber || 1) + 1;
-          const nextVerLabel = `v${nextVerNum}.0`;
-
-          const stagedSnapshot: StagedCourseSnapshot = {
-            title: body.title !== undefined ? body.title.trim() : course.title,
-            description: body.description !== undefined ? body.description : course.description,
-            shortDescription: body.shortDescription !== undefined ? body.shortDescription : (course.shortDescription || ''),
-            price: body.price !== undefined ? Number(body.price) : course.price,
-            discountPrice: body.discountPrice !== undefined ? (body.discountPrice ? Number(body.discountPrice) : null) : course.discountPrice,
-            currency: body.currency || course.currency,
-            level: body.level || course.level,
-            language: body.language || course.language,
-            durationHours: body.durationHours !== undefined ? Number(body.durationHours) : course.durationHours,
-            thumbnail: body.thumbnail !== undefined ? body.thumbnail : course.thumbnail,
-            banner: body.banner !== undefined ? body.banner : (course.banner || ''),
-            accessType: body.accessType || course.accessType,
-            accessDays: body.accessDays !== undefined ? (body.accessDays ? Number(body.accessDays) : null) : course.accessDays,
-            whatYouWillLearn: Array.isArray(body.whatYouWillLearn) ? body.whatYouWillLearn : undefined,
-            requirements: Array.isArray(body.requirements) ? body.requirements : undefined,
-            targetAudience: Array.isArray(body.targetAudience) ? body.targetAudience : undefined,
-            seoTitle: body.seoTitle !== undefined ? body.seoTitle : (course.seoTitle || ''),
-            seoDescription: body.seoDescription !== undefined ? body.seoDescription : (course.seoDescription || ''),
-            sections: Array.isArray(body.sections)
-              ? body.sections
-              : course.sections.map((s) => ({
-                  id: s.id,
-                  title: s.title,
-                  description: s.description || '',
-                  order: s.order,
-                  lessons: s.lessons.map((l) => ({
-                    id: l.id,
-                    title: l.title,
-                    description: l.description || '',
-                    type: l.type,
-                    content: l.content,
-                    videoUrl: l.videoUrl,
-                    pdfUrl: l.pdfUrl,
-                    fileUrl: l.fileUrl,
-                    quizData: l.quizData,
-                    duration: l.duration,
-                    durationSeconds: l.durationSeconds,
-                    isFree: l.isFree,
-                    isPublished: l.isPublished,
-                    order: l.order
-                  }))
-                }))
-          };
-
-          await saveCourseVersionState(course.id, {
-            pendingVersionNumber: nextVerNum,
-            pendingVersionLabel: nextVerLabel,
-            status: 'DRAFT_VERSION',
-            detectedChanges: [...classification.majorChanges, ...classification.minorChanges],
-            stagedSnapshot,
-            submittedAt: currentVer.submittedAt,
-            submittedBy: user.name
-          });
-        }
       }
     }
 

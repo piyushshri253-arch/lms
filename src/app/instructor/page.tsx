@@ -8,6 +8,8 @@ import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Modal } from '@/components/ui/Modal';
 import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
+import { CourseVersionHistoryModal } from '@/components/courses/CourseVersionHistoryModal';
+import { CourseActiveToggleModal } from '@/components/courses/CourseActiveToggleModal';
 import {
   Users,
   Search,
@@ -90,6 +92,42 @@ function InstructorCoursesStudioInner() {
   const [isMakeInactiveModalOpen, setIsMakeInactiveModalOpen] = useState(false);
   const [courseToMakeInactive, setCourseToMakeInactive] = useState<CourseAuthored | null>(null);
   const [isMarkingInactive, setIsMarkingInactive] = useState(false);
+
+  // Version History & Active/Inactive Toggle Modals
+  const [selectedCourseForHistory, setSelectedCourseForHistory] = useState<CourseAuthored | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedCourseForToggle, setSelectedCourseForToggle] = useState<CourseAuthored | null>(null);
+  const [isToggleModalOpen, setIsToggleModalOpen] = useState(false);
+
+  const handleUpdateVersion = async (course: CourseAuthored) => {
+    setActionInProgressId(course.id);
+    try {
+      const res = await fetch(`/api/courses/${encodeURIComponent(course.id)}/version/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to initialize version draft');
+      }
+
+      showToast({
+        title: data.isNewDraft ? 'New Draft Created! 📝' : 'Resuming Draft 📝',
+        description: data.message || 'Draft version ready in Course Builder.',
+        type: 'success'
+      });
+
+      router.push(data.draftUrl || `/instructor/courses/builder?courseId=${course.id}&mode=version_draft`);
+    } catch (err: any) {
+      showToast({
+        title: 'Draft Creation Error',
+        description: err.message || 'Could not create version draft.',
+        type: 'error'
+      });
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
 
   // Delete Draft Course Modal State (Instructors can delete DRAFT courses)
   const [isDeleteDraftModalOpen, setIsDeleteDraftModalOpen] = useState(false);
@@ -1394,141 +1432,173 @@ function InstructorCoursesStudioInner() {
 
                       {/* Course Actions Bar */}
                       <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {/* Edit Syllabus */}
-                          <Link
-                            href={`/instructor/courses/builder?courseId=${course.id}`}
-                            className="text-xs font-bold text-slate-700 hover:text-violet-700 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
-                            title="Edit curriculum, lectures, and settings"
-                          >
-                            <Icon name="edit" size={13} />
-                            <span>Edit</span>
-                          </Link>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {isPublished ? (
+                            /* Published Course Actions: Preview, Update Version, Active/Inactive Toggle, Version History */
+                            <>
+                              {/* A. Preview */}
+                              <Link
+                                href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
+                                className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs"
+                                title="Student View Preview of currently published version"
+                              >
+                                <Icon name="visibility" size={13} />
+                                <span>Preview</span>
+                              </Link>
 
-                          {/* Student View Preview */}
-                          <Link
-                            href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
-                            className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1"
-                            title="Preview course exactly as students see it"
-                          >
-                            <Icon name="visibility" size={13} />
-                            <span>Preview</span>
-                          </Link>
+                              {/* B. Update Version */}
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleUpdateVersion(course)}
+                                className="text-xs font-bold text-violet-700 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                                title="Create or resume editable draft for the next version"
+                              >
+                                {isBusy ? (
+                                  <Icon name="sync" size={13} className="animate-spin" />
+                                ) : (
+                                  <Icon name="edit_document" size={13} />
+                                )}
+                                <span>Update Version</span>
+                              </button>
 
-                          {/* Approved: Instructor can now publish live */}
-                          {isApproved && (
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => handlePublishApprovedCourse(course.id, course.slug)}
-                              className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            >
-                              {isBusy ? (
-                                <Icon name="sync" size={13} className="animate-spin" />
-                              ) : (
-                                <Icon name="rocket_launch" size={13} />
-                              )}
-                              <span>Publish Live</span>
-                            </button>
-                          )}
+                              {/* C. Active / Inactive Toggle */}
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => {
+                                  setSelectedCourseForToggle(course);
+                                  setIsToggleModalOpen(true);
+                                }}
+                                className="text-xs font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                                title="Toggle course availability (Active / Inactive)"
+                              >
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                                <span>Active</span>
+                              </button>
 
-                          {/* Submit for Approval Button (for Draft / Rejected) */}
-                          {(isDraft || isRejected) && (
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => handleSubmitForApproval(course.id, course.slug)}
-                              className="text-xs font-bold bg-violet-600 text-white hover:bg-violet-500 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            >
-                              {isBusy ? (
-                                <Icon name="sync" size={13} className="animate-spin" />
-                              ) : (
-                                <Icon name="send" size={13} />
-                              )}
-                              <span>Submit</span>
-                            </button>
-                          )}
-
-                          {/* Delete Draft Course Option (strictly Drafts only) */}
-                          {isDraft && (
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => {
-                                setCourseToDelete(course);
-                                setIsDeleteDraftModalOpen(true);
-                              }}
-                              className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Delete this draft course permanently"
-                            >
-                              <Icon name="delete" size={13} />
-                              <span>Del</span>
-                            </button>
-                          )}
-
-                          {/* Move to Draft Option */}
-                          {(isPublished || isUnderReview || isApproved) && (
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => handleMoveToDraft(course)}
-                              className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Unpublish / Move course back to draft for private revisions"
-                            >
-                              {isBusy ? (
-                                <Icon name="sync" size={13} className="animate-spin" />
-                              ) : (
+                              {/* D. Version History */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCourseForHistory(course);
+                                  setIsHistoryModalOpen(true);
+                                }}
+                                className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                title="View complete version history and audit records"
+                              >
                                 <Icon name="history" size={13} />
+                                <span>Version History</span>
+                              </button>
+                            </>
+                          ) : isArchived ? (
+                            /* Inactive Course Actions: Preview, Active Toggle, Version History */
+                            <>
+                              <Link
+                                href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
+                                className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs"
+                                title="Preview course as seen by students"
+                              >
+                                <Icon name="visibility" size={13} />
+                                <span>Preview</span>
+                              </Link>
+
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => {
+                                  setSelectedCourseForToggle(course);
+                                  setIsToggleModalOpen(true);
+                                }}
+                                className="text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                                title="Activate this inactive course"
+                              >
+                                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                                <span>Inactive</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCourseForHistory(course);
+                                  setIsHistoryModalOpen(true);
+                                }}
+                                className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                title="View version history"
+                              >
+                                <Icon name="history" size={13} />
+                                <span>Version History</span>
+                              </button>
+                            </>
+                          ) : (
+                            /* Draft, In Review, Approved, or Rejected Course Actions */
+                            <>
+                              <Link
+                                href={`/instructor/courses/builder?courseId=${course.id}`}
+                                className="text-xs font-bold text-slate-700 hover:text-violet-700 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
+                                title="Edit curriculum, lectures, and settings"
+                              >
+                                <Icon name="edit" size={13} />
+                                <span>Edit</span>
+                              </Link>
+
+                              <Link
+                                href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
+                                className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1"
+                                title="Preview course exactly as students see it"
+                              >
+                                <Icon name="visibility" size={13} />
+                                <span>Preview</span>
+                              </Link>
+
+                              {isApproved && (
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handlePublishApprovedCourse(course.id, course.slug)}
+                                  className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  {isBusy ? (
+                                    <Icon name="sync" size={13} className="animate-spin" />
+                                  ) : (
+                                    <Icon name="rocket_launch" size={13} />
+                                  )}
+                                  <span>Publish Live</span>
+                                </button>
                               )}
-                              <span>Move to Draft</span>
-                            </button>
-                          )}
 
-                          {/* Make Inactive Option (for Live Published Courses) */}
-                          {isPublished && (
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => {
-                                setCourseToMakeInactive(course);
-                                setIsMakeInactiveModalOpen(true);
-                              }}
-                              className="text-xs font-bold text-slate-700 hover:text-amber-800 bg-white hover:bg-amber-50 border border-slate-300 hover:border-amber-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Mark course as inactive (unlist from live catalog)"
-                            >
-                              <Icon name="pause_circle" size={13} className="text-amber-600" />
-                              <span>Make Inactive</span>
-                            </button>
-                          )}
-
-                          {/* Make Active Option (for Inactive Courses) */}
-                          {isArchived && (
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => handleMakeActive(course)}
-                              className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Mark course as active (publish live)"
-                            >
-                              {isBusy ? (
-                                <Icon name="sync" size={13} className="animate-spin" />
-                              ) : (
-                                <Icon name="play_circle" size={13} />
+                              {(isDraft || isRejected) && (
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleSubmitForApproval(course.id, course.slug)}
+                                  className="text-xs font-bold bg-violet-600 text-white hover:bg-violet-500 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  {isBusy ? (
+                                    <Icon name="sync" size={13} className="animate-spin" />
+                                  ) : (
+                                    <Icon name="send" size={13} />
+                                  )}
+                                  <span>Submit</span>
+                                </button>
                               )}
-                              <span>Make Active</span>
-                            </button>
-                          )}
 
-                          {/* View Course Link (for Published) */}
-                          {isPublished && (
-                            <Link
-                              href={`/courses/${course.slug || course.id}`}
-                              target="_blank"
-                              className="text-xs font-bold text-violet-600 hover:underline inline-flex items-center gap-1 px-1"
-                              title="Open public course page"
-                            >
-                              <Icon name="open_in_new" size={13} />
-                            </Link>
+                              {isDraft && (
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => {
+                                    setCourseToDelete(course);
+                                    setIsDeleteDraftModalOpen(true);
+                                  }}
+                                  className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title="Delete this draft course permanently"
+                                >
+                                  <Icon name="delete" size={13} />
+                                  <span>Del</span>
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -1763,6 +1833,44 @@ function InstructorCoursesStudioInner() {
           </div>
         </form>
       </Modal>
+
+      {/* Course Version History Modal */}
+      {selectedCourseForHistory && (
+        <CourseVersionHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => {
+            setIsHistoryModalOpen(false);
+            setSelectedCourseForHistory(null);
+          }}
+          courseId={selectedCourseForHistory.id}
+          courseTitle={selectedCourseForHistory.title}
+        />
+      )}
+
+      {/* Course Active / Inactive Confirmation Modal */}
+      {selectedCourseForToggle && (
+        <CourseActiveToggleModal
+          isOpen={isToggleModalOpen}
+          onClose={() => {
+            setIsToggleModalOpen(false);
+            setSelectedCourseForToggle(null);
+          }}
+          course={selectedCourseForToggle}
+          onStatusChanged={(newStatus) => {
+            setCourses((prev) =>
+              prev.map((c) => (c.id === selectedCourseForToggle.id ? { ...c, status: newStatus } : c))
+            );
+            showToast({
+              title: newStatus === 'PUBLISHED' ? 'Course Activated! 🚀' : 'Course Deactivated ⏸️',
+              description:
+                newStatus === 'PUBLISHED'
+                  ? 'Course is now active and accepting student enrollments.'
+                  : 'Course is now inactive. New enrollments are blocked, existing student access is preserved.',
+              type: 'info'
+            });
+          }}
+        />
+      )}
     </InstructorPortalShell>
   );
 }

@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { useAdmin } from '@/context/AdminContext';
 import { useApp } from '@/context/AppContext';
+import { CourseVersionHistoryModal } from '@/components/courses/CourseVersionHistoryModal';
+import { CourseActiveToggleModal } from '@/components/courses/CourseActiveToggleModal';
 
 function getCategoryName(category: any): string {
   if (!category) return 'General';
@@ -22,6 +24,7 @@ function getInstructorName(instructor: any): string {
 }
 
 function CoursesPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { hasPermission, isSuperAdmin } = useAdmin();
   const { showToast } = useApp();
@@ -34,6 +37,34 @@ function CoursesPageContent() {
   const [selectedCourseForInstructor, setSelectedCourseForInstructor] = useState<any | null>(null);
   const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+
+  // Version Management Modals
+  const [selectedCourseForHistory, setSelectedCourseForHistory] = useState<any | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedCourseForToggle, setSelectedCourseForToggle] = useState<any | null>(null);
+  const [isToggleModalOpen, setIsToggleModalOpen] = useState(false);
+  const [isUpdatingVersionId, setIsUpdatingVersionId] = useState<string | null>(null);
+
+  const handleUpdateVersion = async (course: any) => {
+    setIsUpdatingVersionId(course.id);
+    try {
+      const res = await fetch(`/api/courses/${encodeURIComponent(course.id)}/version/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to initialize version draft');
+      }
+
+      showToast(data.message || 'Draft version initialized in builder.', 'success');
+      router.push(data.draftUrl || `/admin/courses/builder?courseId=${course.id}&mode=version_draft`);
+    } catch (err: any) {
+      showToast(err.message || 'Could not create version draft.', 'error');
+    } finally {
+      setIsUpdatingVersionId(null);
+    }
+  };
   const [courseFormData, setCourseFormData] = useState({
     title: '',
     category: 'Engineering',
@@ -516,66 +547,159 @@ function CoursesPageContent() {
                             </>
                           )}
 
-                          {/* Published State: Unpublish Toggle */}
-                          {course.status === 'PUBLISHED' && (hasPermission('course.publish') || isSuperAdmin) && (
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateCourseStatus(course.id, 'DRAFT')}
-                              className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 transition-colors cursor-pointer"
-                              title="Unpublish course back to draft"
-                            >
-                              Unpublish
-                            </button>
+                          {/* Published State: Preview, Update Version, Active/Inactive Toggle, Version History */}
+                          {course.status === 'PUBLISHED' && (
+                            <>
+                              <Link
+                                href={`/courses/${course.slug || course.id}?preview=true`}
+                                target="_blank"
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                title="Preview live published course exactly as seen by students"
+                              >
+                                <Icon name="visibility" size={13} />
+                                <span>Preview</span>
+                              </Link>
+
+                              {(hasPermission('course.edit') || isSuperAdmin) && (
+                                <button
+                                  type="button"
+                                  disabled={isUpdatingVersionId === course.id}
+                                  onClick={() => handleUpdateVersion(course)}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20 transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-2xs"
+                                  title="Create or resume editable draft for the next version"
+                                >
+                                  {isUpdatingVersionId === course.id ? (
+                                    <Icon name="sync" size={13} className="animate-spin" />
+                                  ) : (
+                                    <Icon name="edit_document" size={13} />
+                                  )}
+                                  <span>Update Version</span>
+                                </button>
+                              )}
+
+                              {(hasPermission('course.publish') || isSuperAdmin) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCourseForToggle(course);
+                                    setIsToggleModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 transition-colors inline-flex items-center gap-1 cursor-pointer shadow-2xs"
+                                  title="Toggle course Active / Inactive status"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                                  <span>Active</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCourseForHistory(course);
+                                  setIsHistoryModalOpen(true);
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/80 transition-colors inline-flex items-center gap-1 cursor-pointer shadow-2xs"
+                                title="View version history, audit logs, and past versions"
+                              >
+                                <Icon name="history" size={13} />
+                                <span>History</span>
+                              </button>
+                            </>
                           )}
 
-                          {/* Draft or Rejected State: Publish Live */}
-                          {(course.status === 'DRAFT' || course.status === 'REJECTED') && (hasPermission('course.publish') || isSuperAdmin) && (
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateCourseStatus(course.id, 'PUBLISHED')}
-                              className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
-                              title="Publish course directly to live landing page"
-                            >
-                              <Icon name="rocket_launch" size={13} />
-                              <span>Publish Live</span>
-                            </button>
+                          {/* Inactive / Archived State */}
+                          {(course.status === 'INACTIVE' || course.status === 'ARCHIVED') && (
+                            <>
+                              <Link
+                                href={`/courses/${course.slug || course.id}?preview=true`}
+                                target="_blank"
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/80 transition-colors inline-flex items-center gap-1"
+                                title="Preview course"
+                              >
+                                <Icon name="visibility" size={13} />
+                                <span>Preview</span>
+                              </Link>
+
+                              {(hasPermission('course.publish') || isSuperAdmin) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCourseForToggle(course);
+                                    setIsToggleModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 transition-colors cursor-pointer inline-flex items-center gap-1"
+                                  title="Activate course"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                                  <span>Inactive</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCourseForHistory(course);
+                                  setIsHistoryModalOpen(true);
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/80 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                title="View version history"
+                              >
+                                <Icon name="history" size={13} />
+                                <span>History</span>
+                              </button>
+                            </>
                           )}
 
-                          {/* Edit Curriculum Studio Button */}
-                          {(hasPermission('course.edit') || isSuperAdmin) && (
-                            <Link
-                              href={`/admin/courses/builder?courseId=${course.id}`}
-                              className="px-2.5 py-1 rounded-lg border border-outline-variant/80 hover:bg-surface-container text-[11px] font-bold text-on-surface transition-colors"
-                              title="Open Curriculum Studio"
-                            >
-                              Curriculum
-                            </Link>
-                          )}
+                          {/* Draft or Rejected State: Publish Live & Curriculum */}
+                          {(course.status === 'DRAFT' || course.status === 'REJECTED') && (
+                            <>
+                              {(hasPermission('course.publish') || isSuperAdmin) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateCourseStatus(course.id, 'PUBLISHED')}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                  title="Publish course directly to live landing page"
+                                >
+                                  <Icon name="rocket_launch" size={13} />
+                                  <span>Publish Live</span>
+                                </button>
+                              )}
 
-                          {/* Delete Course Button */}
-                          {(hasPermission('course.delete') || isSuperAdmin) && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (confirm(`Are you sure you want to delete ${course.title}?`)) {
-                                  try {
-                                    const res = await fetch(`/api/admin/courses?id=${course.id}`, { method: 'DELETE' });
-                                    if (res.ok) {
-                                      setCourses((prev) => prev.filter((c) => c.id !== course.id));
-                                      showToast('Course deleted successfully.', 'info');
-                                    } else {
-                                      showToast('Failed to delete course.', 'error');
+                              {(hasPermission('course.edit') || isSuperAdmin) && (
+                                <Link
+                                  href={`/admin/courses/builder?courseId=${course.id}`}
+                                  className="px-2.5 py-1 rounded-lg border border-outline-variant/80 hover:bg-surface-container text-[11px] font-bold text-on-surface transition-colors"
+                                  title="Open Curriculum Studio"
+                                >
+                                  Curriculum
+                                </Link>
+                              )}
+
+                              {(hasPermission('course.delete') || isSuperAdmin) && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (confirm(`Are you sure you want to delete ${course.title}?`)) {
+                                      try {
+                                        const res = await fetch(`/api/admin/courses?id=${course.id}`, { method: 'DELETE' });
+                                        if (res.ok) {
+                                          setCourses((prev) => prev.filter((c) => c.id !== course.id));
+                                          showToast('Draft course deleted successfully.', 'info');
+                                        } else {
+                                          showToast('Failed to delete course.', 'error');
+                                        }
+                                      } catch {
+                                        showToast('Failed to delete course.', 'error');
+                                      }
                                     }
-                                  } catch {
-                                    showToast('Failed to delete course.', 'error');
-                                  }
-                                }
-                              }}
-                              className="p-1 rounded-lg text-outline hover:text-error hover:bg-error-container/20 transition-colors cursor-pointer"
-                              title="Delete Course"
-                            >
-                              <Icon name="delete" size={16} />
-                            </button>
+                                  }}
+                                  className="p-1 rounded-lg text-outline hover:text-error hover:bg-error-container/20 transition-colors cursor-pointer"
+                                  title="Delete Draft Course"
+                                >
+                                  <Icon name="delete" size={16} />
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -828,6 +952,42 @@ function CoursesPageContent() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Course Version History Modal */}
+      {selectedCourseForHistory && (
+        <CourseVersionHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => {
+            setIsHistoryModalOpen(false);
+            setSelectedCourseForHistory(null);
+          }}
+          courseId={selectedCourseForHistory.id}
+          courseTitle={selectedCourseForHistory.title}
+        />
+      )}
+
+      {/* Course Active / Inactive Confirmation Modal */}
+      {selectedCourseForToggle && (
+        <CourseActiveToggleModal
+          isOpen={isToggleModalOpen}
+          onClose={() => {
+            setIsToggleModalOpen(false);
+            setSelectedCourseForToggle(null);
+          }}
+          course={selectedCourseForToggle}
+          onStatusChanged={(newStatus) => {
+            setCourses((prev) =>
+              prev.map((c) => (c.id === selectedCourseForToggle.id ? { ...c, status: newStatus, isPublished: newStatus === 'PUBLISHED' } : c))
+            );
+            showToast(
+              newStatus === 'PUBLISHED'
+                ? 'Course Activated! Accepting student enrollments.'
+                : 'Course Deactivated. New enrollments blocked, existing student access preserved.',
+              'info'
+            );
+          }}
+        />
       )}
     </div>
   );

@@ -1,7 +1,16 @@
 import { prisma } from '@/lib/prisma';
 import { createNotification } from '@/lib/notification';
 
-export type ChangeCategory = 'PRICE' | 'VIDEO' | 'CURRICULUM' | 'QUIZ' | 'MINOR';
+export type ChangeCategory =
+  | 'PRICE'
+  | 'VIDEO'
+  | 'CURRICULUM'
+  | 'QUIZ'
+  | 'ASSIGNMENT'
+  | 'LEARNING_OUTCOMES'
+  | 'CERTIFICATION'
+  | 'MINOR'
+  | 'UNCLASSIFIED';
 
 export interface DetectedCourseChange {
   category: ChangeCategory;
@@ -48,6 +57,7 @@ export interface StagedCourseSnapshot {
       duration?: string;
       durationSeconds?: number;
       isFree?: boolean;
+      isFinalAssignment?: boolean;
       isPublished?: boolean;
       order: number;
     }[];
@@ -57,13 +67,16 @@ export interface StagedCourseSnapshot {
 export interface CourseVersionHistoryEntry {
   versionNumber: number;
   versionLabel: string; // e.g., "v1.0", "v2.0"
+  status?: string; // e.g. "PUBLISHED", "SUPERSEDED", "APPROVED"
   publishedAt: string;
   approvedBy: string;
+  creatorName?: string;
   changeSummary: string[];
   price: number;
   modulesCount: number;
   lessonsCount: number;
   lessonIds?: string[];
+  snapshot?: Partial<StagedCourseSnapshot>;
 }
 
 export interface CourseVersionState {
@@ -212,8 +225,28 @@ export async function setStudentEnrolledVersion(
 }
 
 /**
+ * Helper to normalize string arrays for comparison
+ */
+function normalizeStringArray(val: any): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.map((s) => String(s).trim()).filter(Boolean);
+  try {
+    const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+    if (Array.isArray(parsed)) return parsed.map((s) => String(s).trim()).filter(Boolean);
+  } catch {}
+  return [String(val).trim()].filter(Boolean);
+}
+
+/**
  * Classifies edits to a PUBLISHED course into Major Changes (requiring version staging + Auditor review)
  * vs Minor Changes (safe to apply immediately to live course).
+ *
+ * Rules:
+ * 1. Minor: typos, grammar, punctuation, short metadata, thumbnail presentation, minor formatting.
+ * 2. Major: modules/lessons addition/deletion/reorder, video replacement/duration change, learning outcomes,
+ *    quizzes, assignments, price/discount/access changes, certification criteria.
+ * 3. Mixed/Uncertain: Any batch with at least one major change is classified as Major. Any unrecognized
+ *    or ambiguous change is classified as Major (UNCLASSIFIED) to prevent accidental auto-publishing.
  */
 export function classifyCourseChanges(
   liveCourse: any,
@@ -221,6 +254,7 @@ export function classifyCourseChanges(
 ): {
   hasMajorChanges: boolean;
   hasMinorChanges: boolean;
+  isMixedOrUncertain: boolean;
   majorChanges: DetectedCourseChange[];
   minorChanges: DetectedCourseChange[];
 } {
@@ -255,6 +289,19 @@ export function classifyCourseChanges(
   }
 
   if (
+    incomingBody.currency !== undefined &&
+    incomingBody.currency !== (liveCourse.currency || 'INR')
+  ) {
+    majorChanges.push({
+      category: 'PRICE',
+      field: 'currency',
+      summary: `Course currency changed from ${liveCourse.currency || 'INR'} to ${incomingBody.currency}`,
+      before: liveCourse.currency,
+      after: incomingBody.currency
+    });
+  }
+
+  if (
     incomingBody.accessType !== undefined &&
     incomingBody.accessType !== (liveCourse.accessType || 'LIFETIME')
   ) {
@@ -267,7 +314,63 @@ export function classifyCourseChanges(
     });
   }
 
-  // 2. Check Curriculum, Video, and Quiz Changes (MAJOR)
+  if (
+    incomingBody.accessDays !== undefined &&
+    Number(incomingBody.accessDays || 0) !== Number(liveCourse.accessDays || 0)
+  ) {
+    majorChanges.push({
+      category: 'PRICE',
+      field: 'accessDays',
+      summary: `Access duration changed from ${liveCourse.accessDays || 'unlimited'} days to ${incomingBody.accessDays} days`,
+      before: liveCourse.accessDays,
+      after: incomingBody.accessDays
+    });
+  }
+
+  // 2. Check Learning Outcomes, Prerequisites, Target Audience (MAJOR)
+  if (incomingBody.whatYouWillLearn !== undefined) {
+    const liveOutcomes = normalizeStringArray(liveCourse.whatYouWillLearn);
+    const incomingOutcomes = normalizeStringArray(incomingBody.whatYouWillLearn);
+    if (JSON.stringify(liveOutcomes) !== JSON.stringify(incomingOutcomes)) {
+      majorChanges.push({
+        category: 'LEARNING_OUTCOMES',
+        field: 'whatYouWillLearn',
+        summary: `Course learning outcomes modified (${liveOutcomes.length} items → ${incomingOutcomes.length} items)`,
+        before: liveOutcomes,
+        after: incomingOutcomes
+      });
+    }
+  }
+
+  if (incomingBody.requirements !== undefined) {
+    const liveReqs = normalizeStringArray(liveCourse.requirements);
+    const incomingReqs = normalizeStringArray(incomingBody.requirements);
+    if (JSON.stringify(liveReqs) !== JSON.stringify(incomingReqs)) {
+      majorChanges.push({
+        category: 'LEARNING_OUTCOMES',
+        field: 'requirements',
+        summary: `Course prerequisites modified (${liveReqs.length} items → ${incomingReqs.length} items)`,
+        before: liveReqs,
+        after: incomingReqs
+      });
+    }
+  }
+
+  if (incomingBody.targetAudience !== undefined) {
+    const liveAudience = normalizeStringArray(liveCourse.targetAudience);
+    const incomingAudience = normalizeStringArray(incomingBody.targetAudience);
+    if (JSON.stringify(liveAudience) !== JSON.stringify(incomingAudience)) {
+      majorChanges.push({
+        category: 'LEARNING_OUTCOMES',
+        field: 'targetAudience',
+        summary: `Target audience modified (${liveAudience.length} items → ${incomingAudience.length} items)`,
+        before: liveAudience,
+        after: incomingAudience
+      });
+    }
+  }
+
+  // 3. Check Curriculum, Video, Quiz, and Assignment Changes (MAJOR vs MINOR)
   if (incomingBody.sections && Array.isArray(incomingBody.sections)) {
     const liveSections: any[] = liveCourse.sections || [];
     const incomingSections: any[] = incomingBody.sections;
@@ -291,7 +394,6 @@ export function classifyCourseChanges(
 
     const incomingLessonsFlat: any[] = [];
     for (const sec of incomingSections) {
-      // Check if a new module was added
       if (sec.id && !liveSections.some((ls) => ls.id === sec.id)) {
         majorChanges.push({
           category: 'CURRICULUM',
@@ -330,20 +432,55 @@ export function classifyCourseChanges(
             summary: `New video uploaded/linked for lesson "${incLes.title}"`
           });
         }
+        if (incLes.isFinalAssignment) {
+          majorChanges.push({
+            category: 'ASSIGNMENT',
+            field: 'lesson.isFinalAssignment',
+            summary: `Final assignment added: "${incLes.title}"`
+          });
+        }
         continue;
+      }
+
+      // Check Final Assignment flag
+      if (Boolean(incLes.isFinalAssignment) !== Boolean(existingLes.isFinalAssignment)) {
+        majorChanges.push({
+          category: 'ASSIGNMENT',
+          field: `lesson.${existingLes.id}.isFinalAssignment`,
+          summary: `Assignment status modified for lesson "${existingLes.title}"`
+        });
       }
 
       // Check Video URL Change
       const oldVideo = (existingLes.videoUrl || '').trim();
       const newVideo = (incLes.videoUrl !== undefined ? incLes.videoUrl || '' : oldVideo).trim();
       if (oldVideo !== newVideo) {
+        // Material video change requires review
         majorChanges.push({
           category: 'VIDEO',
           field: `lesson.${existingLes.id}.videoUrl`,
-          summary: `Video changed in lesson "${existingLes.title}"`,
+          summary: `Video replaced in lesson "${existingLes.title}"`,
           before: oldVideo || 'None',
           after: newVideo || 'Removed'
         });
+      }
+
+      // Check Video Duration (material change > 10%)
+      if (
+        incLes.durationSeconds !== undefined &&
+        existingLes.durationSeconds !== undefined &&
+        existingLes.durationSeconds > 0
+      ) {
+        const diffRatio = Math.abs(incLes.durationSeconds - existingLes.durationSeconds) / existingLes.durationSeconds;
+        if (diffRatio > 0.1) {
+          majorChanges.push({
+            category: 'VIDEO',
+            field: `lesson.${existingLes.id}.durationSeconds`,
+            summary: `Video duration changed significantly in lesson "${existingLes.title}" (${existingLes.durationSeconds}s → ${incLes.durationSeconds}s)`,
+            before: existingLes.durationSeconds,
+            after: incLes.durationSeconds
+          });
+        }
       }
 
       // Check Lesson Type Change
@@ -374,8 +511,30 @@ export function classifyCourseChanges(
         majorChanges.push({
           category: 'QUIZ',
           field: `lesson.${existingLes.id}.quizData`,
-          summary: `Quiz questions/settings modified in lesson "${existingLes.title}"`
+          summary: `Quiz questions, scoring, or pass marks modified in lesson "${existingLes.title}"`
         });
+      }
+
+      // Check Lesson Content (articles/text)
+      if (incLes.content !== undefined && incLes.content !== existingLes.content) {
+        const oldContent = (existingLes.content || '').trim();
+        const newContent = (incLes.content || '').trim();
+        const lenDiff = Math.abs(newContent.length - oldContent.length);
+        if (lenDiff > 100 || (oldContent.length > 0 && lenDiff / oldContent.length > 0.3)) {
+          // Significant text rewrite -> Major
+          majorChanges.push({
+            category: 'CURRICULUM',
+            field: `lesson.${existingLes.id}.content`,
+            summary: `Lesson content substantially revised in "${existingLes.title}"`
+          });
+        } else {
+          // Typo/spelling/formatting fix in lesson text -> Minor
+          minorChanges.push({
+            category: 'MINOR',
+            field: `lesson.${existingLes.id}.content`,
+            summary: `Minor text/formatting update in lesson "${existingLes.title}"`
+          });
+        }
       }
 
       // Check Lesson Title Change
@@ -400,27 +559,66 @@ export function classifyCourseChanges(
     }
   }
 
-  // 3. Check Minor Metadata Changes (Title, Description, Thumbnail, SEO)
+  // 4. Check Minor Metadata Changes (Title typos, Description typos, Thumbnail presentation, SEO)
   if (
     incomingBody.title !== undefined &&
     incomingBody.title.trim() !== liveCourse.title.trim()
   ) {
-    minorChanges.push({
-      category: 'MINOR',
-      field: 'title',
-      summary: `Course title updated to "${incomingBody.title.trim()}"`
-    });
+    // If title change is massive (>50% length change), classify as Major, else Minor typo fix
+    const oldTitle = liveCourse.title.trim();
+    const newTitle = incomingBody.title.trim();
+    if (Math.abs(newTitle.length - oldTitle.length) > oldTitle.length * 0.5) {
+      majorChanges.push({
+        category: 'CURRICULUM',
+        field: 'title',
+        summary: `Course title significantly renamed to "${newTitle}"`,
+        before: oldTitle,
+        after: newTitle
+      });
+    } else {
+      minorChanges.push({
+        category: 'MINOR',
+        field: 'title',
+        summary: `Course title updated to "${newTitle}"`
+      });
+    }
   }
+
   if (
     incomingBody.description !== undefined &&
     incomingBody.description.trim() !== (liveCourse.description || '').trim()
   ) {
+    const oldDesc = (liveCourse.description || '').trim();
+    const newDesc = incomingBody.description.trim();
+    const lenDiff = Math.abs(newDesc.length - oldDesc.length);
+    if (lenDiff > 200 || (oldDesc.length > 0 && lenDiff / oldDesc.length > 0.4)) {
+      majorChanges.push({
+        category: 'CURRICULUM',
+        field: 'description',
+        summary: 'Major syllabus and course description overhaul',
+        before: `${oldDesc.substring(0, 60)}...`,
+        after: `${newDesc.substring(0, 60)}...`
+      });
+    } else {
+      minorChanges.push({
+        category: 'MINOR',
+        field: 'description',
+        summary: 'Course description & syllabus text typos/formatting updated'
+      });
+    }
+  }
+
+  if (
+    incomingBody.shortDescription !== undefined &&
+    incomingBody.shortDescription.trim() !== (liveCourse.shortDescription || '').trim()
+  ) {
     minorChanges.push({
       category: 'MINOR',
-      field: 'description',
-      summary: 'Course description & syllabus text updated'
+      field: 'shortDescription',
+      summary: 'Course subtitle/short description updated'
     });
   }
+
   if (
     incomingBody.thumbnail !== undefined &&
     incomingBody.thumbnail.trim() !== (liveCourse.thumbnail || '').trim()
@@ -428,16 +626,220 @@ export function classifyCourseChanges(
     minorChanges.push({
       category: 'MINOR',
       field: 'thumbnail',
-      summary: 'Course thumbnail image updated'
+      summary: 'Course thumbnail image presentation updated'
     });
   }
 
+  if (
+    incomingBody.banner !== undefined &&
+    incomingBody.banner.trim() !== (liveCourse.banner || '').trim()
+  ) {
+    minorChanges.push({
+      category: 'MINOR',
+      field: 'banner',
+      summary: 'Course banner visual asset updated'
+    });
+  }
+
+  if (
+    incomingBody.seoTitle !== undefined &&
+    incomingBody.seoTitle.trim() !== (liveCourse.seoTitle || '').trim()
+  ) {
+    minorChanges.push({
+      category: 'MINOR',
+      field: 'seoTitle',
+      summary: 'Course SEO title meta tag updated'
+    });
+  }
+
+  if (
+    incomingBody.seoDescription !== undefined &&
+    incomingBody.seoDescription.trim() !== (liveCourse.seoDescription || '').trim()
+  ) {
+    minorChanges.push({
+      category: 'MINOR',
+      field: 'seoDescription',
+      summary: 'Course SEO description meta tag updated'
+    });
+  }
+
+  const hasMajor = majorChanges.length > 0;
+  const hasMinor = minorChanges.length > 0;
+  const isMixed = hasMajor && hasMinor;
+
   return {
-    hasMajorChanges: majorChanges.length > 0,
-    hasMinorChanges: minorChanges.length > 0,
+    hasMajorChanges: hasMajor,
+    hasMinorChanges: hasMinor,
+    isMixedOrUncertain: isMixed,
     majorChanges,
     minorChanges
   };
+}
+
+/**
+ * Creates or retrieves an existing draft version for a PUBLISHED course.
+ * Preserves the Course ID, increments version number ($V1 -> $V2), copies all content,
+ * and prevents duplicate drafts on repeated clicks.
+ */
+export async function createOrGetDraftVersion(
+  courseId: string,
+  user?: { id: string; name: string }
+): Promise<{
+  isNewDraft: boolean;
+  versionState: CourseVersionState;
+  draftUrl: string;
+}> {
+  const versionState = await getCourseVersionState(courseId);
+
+  // If an active draft already exists (either being edited or pending review), reuse it without duplication
+  if (
+    (versionState.status === 'DRAFT_VERSION' || versionState.status === 'PENDING_REVIEW') &&
+    versionState.stagedSnapshot
+  ) {
+    return {
+      isNewDraft: false,
+      versionState,
+      draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(courseId)}&mode=version_draft`
+    };
+  }
+
+  const liveCourse = await prisma.course.findUnique({
+    where: { id: courseId },
+    include: {
+      sections: {
+        orderBy: { order: 'asc' },
+        include: {
+          lessons: {
+            orderBy: { order: 'asc' }
+          }
+        }
+      }
+    }
+  });
+
+  if (!liveCourse) {
+    throw new Error('Course not found');
+  }
+
+  let whatYouWillLearn: string[] = [];
+  let requirements: string[] = [];
+  let targetAudience: string[] = [];
+  try { whatYouWillLearn = JSON.parse(liveCourse.whatYouWillLearn || '[]'); } catch {}
+  try { requirements = JSON.parse(liveCourse.requirements || '[]'); } catch {}
+  try { targetAudience = JSON.parse(liveCourse.targetAudience || '[]'); } catch {}
+
+  const nextVerNum = (versionState.liveVersionNumber || 1) + 1;
+  const nextVerLabel = `v${nextVerNum}.0`;
+
+  const stagedSnapshot: StagedCourseSnapshot = {
+    title: liveCourse.title,
+    description: liveCourse.description,
+    shortDescription: liveCourse.shortDescription || '',
+    price: liveCourse.price,
+    discountPrice: liveCourse.discountPrice,
+    currency: liveCourse.currency,
+    level: liveCourse.level,
+    language: liveCourse.language,
+    durationHours: liveCourse.durationHours,
+    thumbnail: liveCourse.thumbnail,
+    banner: liveCourse.banner || '',
+    accessType: liveCourse.accessType,
+    accessDays: liveCourse.accessDays,
+    whatYouWillLearn,
+    requirements,
+    targetAudience,
+    seoTitle: liveCourse.seoTitle || '',
+    seoDescription: liveCourse.seoDescription || '',
+    sections: liveCourse.sections.map((sec, sIdx) => ({
+      id: sec.id,
+      title: sec.title,
+      description: sec.description || '',
+      order: sec.order || sIdx + 1,
+      lessons: sec.lessons.map((les, lIdx) => ({
+        id: les.id,
+        title: les.title,
+        description: les.description || '',
+        type: les.type,
+        content: les.content,
+        videoUrl: les.videoUrl,
+        pdfUrl: les.pdfUrl,
+        fileUrl: les.fileUrl,
+        quizData: les.quizData,
+        duration: les.duration,
+        durationSeconds: les.durationSeconds,
+        isFree: les.isFree,
+        isFinalAssignment: Boolean((les as any).isFinalAssignment || (les.type === 'QUIZ' && /final\s+assignment/i.test(les.title || ''))),
+        isPublished: les.isPublished,
+        order: les.order || lIdx + 1
+      }))
+    }))
+  };
+
+  const updatedState = await saveCourseVersionState(courseId, {
+    status: 'DRAFT_VERSION',
+    pendingVersionNumber: nextVerNum,
+    pendingVersionLabel: nextVerLabel,
+    stagedSnapshot,
+    detectedChanges: [],
+    submittedAt: null,
+    submittedBy: user?.name || null
+  });
+
+  return {
+    isNewDraft: true,
+    versionState: updatedState,
+    draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(courseId)}&mode=version_draft`
+  };
+}
+
+/**
+ * Applies purely minor updates directly to the live published course, recording an audit log.
+ */
+export async function applyMinorUpdateToLiveCourse(
+  courseId: string,
+  updates: any,
+  user: { id: string; name: string; role: string },
+  minorChanges: DetectedCourseChange[]
+) {
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { organizationId: true, title: true }
+  });
+
+  if (!course) throw new Error('Course not found');
+
+  const updated = await prisma.course.update({
+    where: { id: courseId },
+    data: {
+      title: updates.title !== undefined ? updates.title.trim() : undefined,
+      description: updates.description !== undefined ? updates.description : undefined,
+      shortDescription: updates.shortDescription !== undefined ? updates.shortDescription : undefined,
+      thumbnail: updates.thumbnail !== undefined ? updates.thumbnail : undefined,
+      banner: updates.banner !== undefined ? updates.banner : undefined,
+      level: updates.level !== undefined ? updates.level : undefined,
+      language: updates.language !== undefined ? updates.language : undefined,
+      durationHours: updates.durationHours !== undefined ? Number(updates.durationHours) : undefined,
+      seoTitle: updates.seoTitle !== undefined ? updates.seoTitle : undefined,
+      seoDescription: updates.seoDescription !== undefined ? updates.seoDescription : undefined,
+      updatedAt: new Date()
+    }
+  });
+
+  const versionState = await getCourseVersionState(courseId);
+
+  await prisma.auditLog.create({
+    data: {
+      organizationId: course.organizationId,
+      adminId: user.id,
+      adminEmail: user.name,
+      action: 'MINOR_CHANGE_AUTOPUBLISHED',
+      entity: 'Course',
+      entityId: courseId,
+      description: `Minor changes auto-published for "${course.title}" (${versionState.liveVersionLabel}): ${minorChanges.map((c) => c.summary).join('; ')}`
+    }
+  }).catch(() => {});
+
+  return updated;
 }
 
 /**
@@ -589,10 +991,14 @@ export async function applyApprovedVersionToLiveCourse(
   }
 
   const existingHistory = (versionState.history || []).map((h) => {
+    const updatedH: CourseVersionHistoryEntry = {
+      ...h,
+      status: 'SUPERSEDED'
+    };
     if (h.versionNumber === (versionState.liveVersionNumber || 1) && (!h.lessonIds || h.lessonIds.length === 0)) {
-      return { ...h, lessonIds: previousLiveLessonIds };
+      updatedH.lessonIds = previousLiveLessonIds;
     }
-    return h;
+    return updatedH;
   });
 
   const totalModules = snap?.sections?.length || course.sections.length;
@@ -603,8 +1009,10 @@ export async function applyApprovedVersionToLiveCourse(
   const newHistoryEntry: CourseVersionHistoryEntry = {
     versionNumber: nextVersionNumber,
     versionLabel: nextVersionLabel,
+    status: 'PUBLISHED',
     publishedAt: new Date().toISOString(),
     approvedBy: `${reviewer.name} (${reviewer.role})`,
+    creatorName: reviewer.name,
     changeSummary:
       versionState.detectedChanges.length > 0
         ? versionState.detectedChanges.map((c) => c.summary)
@@ -612,7 +1020,8 @@ export async function applyApprovedVersionToLiveCourse(
     price: snap?.price !== undefined ? Number(snap.price) : course.price,
     modulesCount: totalModules,
     lessonsCount: totalLessons,
-    lessonIds: snap?.sections ? allAppliedLessonIds : previousLiveLessonIds
+    lessonIds: snap?.sections ? allAppliedLessonIds : previousLiveLessonIds,
+    snapshot: snap || undefined
   };
 
   const updatedState = await saveCourseVersionState(course.id, {

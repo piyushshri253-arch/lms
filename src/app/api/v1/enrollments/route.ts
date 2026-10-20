@@ -81,6 +81,31 @@ export async function POST(request: Request) {
       );
     }
 
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, title: true, status: true }
+    });
+
+    if (!course) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Course not found', request_id: requestId } },
+        { status: 404, headers: { 'x-request-id': requestId } }
+      );
+    }
+
+    if (course.status === 'INACTIVE' || course.status === 'ARCHIVED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'COURSE_INACTIVE',
+            message: 'This course is currently inactive and not accepting new enrollments.',
+            request_id: requestId
+          }
+        },
+        { status: 400, headers: { 'x-request-id': requestId } }
+      );
+    }
+
     const enrollment = await prisma.enrollment.upsert({
       where: {
         userId_courseId: {
