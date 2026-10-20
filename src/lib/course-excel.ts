@@ -1300,9 +1300,10 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
 
         // 1. Module Assignment (User does not have to repeat module title on every row):
         if (rawModTitle) {
-          // Check if this module already exists by title or raw key
+          const normModKey = cleanedModTitle.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
           const existing = sections.find((s) => {
             if (cleanedModTitle && s.title.toLowerCase().trim() === cleanedModTitle.toLowerCase().trim()) return true;
+            if (normModKey && cleanModuleTitle(s.title).toLowerCase().replace(/[^a-z0-9]/g, '').trim() === normModKey) return true;
             if ((s as any)._rawModKey && (s as any)._rawModKey === rawModTitle.toLowerCase().trim()) return true;
             return false;
           });
@@ -1688,18 +1689,36 @@ export function mergeExcelSectionsForUpdateVersion(
   if (!parsedSections || parsedSections.length === 0) return existingSections || [];
   if (!existingSections || existingSections.length === 0) return parsedSections;
 
+  const normalizeSecKey = (t?: string | null): string => {
+    if (!t) return '';
+    return cleanModuleTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  };
+
+  const normalizeLesKey = (t?: string | null): string => {
+    if (!t) return '';
+    return cleanLectureTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  };
+
   const result: BuilderSection[] = [];
   const matchedParsedIndices = new Set<number>();
 
   existingSections.forEach((origSec, sIdx) => {
-    const origCleanTitle = cleanModuleTitle(origSec.title).toLowerCase();
+    const origKey = normalizeSecKey(origSec.title);
 
-    // Match parsed section by normalized title first, or fallback to matching by module index
+    // 1. Match parsed section by normalized alphanumeric title first
     let matchedParsedIdx = parsedSections.findIndex(
-      (ps, pIdx) => !matchedParsedIndices.has(pIdx) && cleanModuleTitle(ps.title).toLowerCase() === origCleanTitle
+      (ps, pIdx) => !matchedParsedIndices.has(pIdx) && normalizeSecKey(ps.title) === origKey
     );
+
+    // 2. Fallback to module index if available and parsed section title doesn't match another existing section
     if (matchedParsedIdx === -1 && sIdx < parsedSections.length && !matchedParsedIndices.has(sIdx)) {
-      matchedParsedIdx = sIdx;
+      const candidateKey = normalizeSecKey(parsedSections[sIdx].title);
+      const matchesOtherExisting = existingSections.some(
+        (otherSec, oIdx) => oIdx !== sIdx && normalizeSecKey(otherSec.title) === candidateKey
+      );
+      if (!matchesOtherExisting) {
+        matchedParsedIdx = sIdx;
+      }
     }
 
     if (matchedParsedIdx !== -1) {
@@ -1727,31 +1746,32 @@ export function mergeExcelSectionsForUpdateVersion(
       }
 
       // Existing lesson titles set for matching
-      const existingLessonCleanTitles = new Set(
-        origSec.lessons.map((l) => cleanLectureTitle(l.title).toLowerCase())
+      const existingLessonCleanKeys = new Set(
+        origSec.lessons.map((l) => normalizeLesKey(l.title))
       );
 
       // Check for newly added lessons in this parsed section
-      (parsedSec.lessons || []).forEach((parsedLes, pLesIdx) => {
+      (parsedSec.lessons || []).forEach((parsedLes) => {
         // Skip if this is the final assignment already handled
         if (parsedLes.isFinalAssignment || /final\s+assignment/i.test(parsedLes.title || '')) {
           if (origFinalIdx !== -1) return;
         }
 
-        const cleanTitle = cleanLectureTitle(parsedLes.title).toLowerCase();
+        const pLesKey = normalizeLesKey(parsedLes.title);
 
-        // If parsed index is within existing lessons count or title matches an existing lesson, it is an existing lesson -> keep original!
-        const matchesExistingByTitle = existingLessonCleanTitles.has(cleanTitle);
-        const matchesExistingByIndex = pLesIdx < origSec.lessons.length;
+        // Check if already in original or already added to mergedLessons
+        const matchesExistingByTitle = existingLessonCleanKeys.has(pLesKey);
+        const alreadyInMerged = mergedLessons.some((ml) => normalizeLesKey(ml.title) === pLesKey);
 
-        if (!matchesExistingByTitle && !matchesExistingByIndex) {
-          // This is a NEW lesson added in Excel!
-          const newLessonId = `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        if (!matchesExistingByTitle && !alreadyInMerged) {
+          // This is a GENUINELY NEW lesson added in Excel!
+          const newLessonId = `les-${Date.now()}-${mergedLessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
           mergedLessons.push({
             ...parsedLes,
             id: newLessonId,
             clientKey: newLessonId,
             tempId: newLessonId,
+            isNewlyAdded: true,
             order: mergedLessons.length + 1
           });
         }
@@ -1767,32 +1787,66 @@ export function mergeExcelSectionsForUpdateVersion(
     }
   });
 
-  // Now append any completely NEW modules from Excel that had no match in existingSections
+  // Now inspect any remaining parsed sections from Excel:
   parsedSections.forEach((parsedSec, pIdx) => {
-    if (!matchedParsedIndices.has(pIdx)) {
-      const newSecId = `sec-${Date.now()}-${pIdx}-${Math.random().toString(36).slice(2, 7)}`;
-      const newLessons: BuilderLesson[] = (parsedSec.lessons || []).map((l, lIdx) => {
-        const newLessonId = `les-${Date.now()}-${lIdx}-${Math.random().toString(36).slice(2, 7)}`;
-        return {
-          ...l,
-          id: newLessonId,
-          clientKey: newLessonId,
-          tempId: newLessonId,
-          order: lIdx + 1
-        };
-      });
+    if (matchedParsedIndices.has(pIdx)) return;
 
-      result.push({
-        ...parsedSec,
-        id: newSecId,
-        clientKey: newSecId,
-        tempId: newSecId,
-        order: result.length + 1,
-        lessons: newLessons
+    const pSecKey = normalizeSecKey(parsedSec.title);
+
+    // If an existing section in result already has this module title, merge lessons into it!
+    const existingInResult = result.find((r) => normalizeSecKey(r.title) === pSecKey);
+    if (existingInResult) {
+      (parsedSec.lessons || []).forEach((parsedLes) => {
+        const pLesKey = normalizeLesKey(parsedLes.title);
+        const alreadyExists = existingInResult.lessons.some((l) => normalizeLesKey(l.title) === pLesKey);
+        if (!alreadyExists) {
+          const newLessonId = `les-${Date.now()}-${existingInResult.lessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+          existingInResult.lessons.push({
+            ...parsedLes,
+            id: newLessonId,
+            clientKey: newLessonId,
+            tempId: newLessonId,
+            isNewlyAdded: true,
+            order: existingInResult.lessons.length + 1
+          });
+        }
       });
+      return;
     }
+
+    // Completely GENUINE NEW module from Excel!
+    const newSecId = `sec-${Date.now()}-${result.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+    const newLessons: BuilderLesson[] = (parsedSec.lessons || []).map((l, lIdx) => {
+      const newLessonId = `les-${Date.now()}-${lIdx + 1}-${Math.random().toString(36).slice(2, 7)}`;
+      return {
+        ...l,
+        id: newLessonId,
+        clientKey: newLessonId,
+        tempId: newLessonId,
+        isNewlyAdded: true,
+        order: lIdx + 1
+      };
+    });
+
+    result.push({
+      ...parsedSec,
+      id: newSecId,
+      clientKey: newSecId,
+      tempId: newSecId,
+      isNewlyAdded: true,
+      order: result.length + 1,
+      lessons: newLessons
+    });
   });
 
-  return result;
+  // Re-number section and lesson orders cleanly
+  return result.map((sec, sIdx) => ({
+    ...sec,
+    order: sIdx + 1,
+    lessons: (sec.lessons || []).map((les, lIdx) => ({
+      ...les,
+      order: lIdx + 1
+    }))
+  }));
 }
 

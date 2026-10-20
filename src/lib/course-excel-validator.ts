@@ -474,33 +474,49 @@ export function validateCourseExcel(
     // Skip completely empty rows
     if (!rawModTitle && !rawModDesc && !rawLessonTitle && !lessonDesc && !lessonTypeRaw) return;
 
-    // Check if new module is starting
+    // Check if new module is starting or matching current/existing module
     if (rawModTitle) {
-      activeModuleIndex += 1;
       const cleanedModTitle = cleanModuleTitle(rawModTitle);
+      const normModKey = cleanedModTitle.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
-      if (!cleanedModTitle || cleanedModTitle.length < 2) {
-        errors.push({
-          location: `Module ${activeModuleIndex}`,
-          field: 'Module Title',
-          error: 'Missing',
-          action: 'Enter a valid module title',
-          severity: 'BLOCKING'
-        });
+      // Check if this module matches the currently active section or an existing section in this workbook
+      let existingSection: BuilderSection | undefined;
+      if (currentSection && cleanModuleTitle(currentSection.title).toLowerCase().replace(/[^a-z0-9]/g, '').trim() === normModKey) {
+        existingSection = currentSection;
+      } else {
+        existingSection = sections.find((s) => cleanModuleTitle(s.title).toLowerCase().replace(/[^a-z0-9]/g, '').trim() === normModKey);
       }
 
-      currentSection = {
-        id: `sec-${activeModuleIndex}`,
-        title: cleanedModTitle,
-        description: rawModDesc || '',
-        order: activeModuleIndex,
-        lessons: []
-      };
-      sections.push(currentSection);
+      if (existingSection) {
+        currentSection = existingSection;
+        if (!currentSection.description && rawModDesc) {
+          currentSection.description = rawModDesc;
+        }
+      } else {
+        activeModuleIndex = sections.length + 1;
+        if (!cleanedModTitle || cleanedModTitle.length < 2) {
+          errors.push({
+            location: `Module ${activeModuleIndex}`,
+            field: 'Module Title',
+            error: 'Missing',
+            action: 'Enter a valid module title',
+            severity: 'BLOCKING'
+          });
+        }
+
+        currentSection = {
+          id: `sec-${activeModuleIndex}`,
+          title: cleanedModTitle,
+          description: rawModDesc || '',
+          order: activeModuleIndex,
+          lessons: []
+        };
+        sections.push(currentSection);
+      }
     } else {
       // Inherit current section if available
       if (!currentSection) {
-        activeModuleIndex += 1;
+        activeModuleIndex = sections.length + 1;
         errors.push({
           location: `Module ${activeModuleIndex}`,
           field: 'Module Title',
@@ -519,7 +535,7 @@ export function validateCourseExcel(
       }
     }
 
-    const currentModNum = activeModuleIndex;
+    const currentModNum = currentSection.order || activeModuleIndex;
     const lessonOrderInMod = currentSection.lessons.length + 1;
     const lessonLocation = `Module ${currentModNum}, Lecture ${lessonOrderInMod}`;
 
@@ -889,6 +905,35 @@ export function validateCourseExcel(
         action: `${quizLoc}: This quiz contains ${qCount} valid questions. An even number of questions is required. Please add or remove a question.`,
         severity: 'BLOCKING'
       });
+    }
+
+    // Attach validated questions to lesson reference for clean course builder import
+    if (quiz.lessonRef && qCount > 0) {
+      if (!quiz.lessonRef.quizData || typeof quiz.lessonRef.quizData === 'string') {
+        quiz.lessonRef.quizData = {
+          questions: [],
+          passingScore: quiz.isFinalAssignment ? 80 : 70,
+          attemptLimit: 0
+        };
+      }
+      (quiz.lessonRef.quizData as any).questions = quiz.questions.map((q, qIdx) => {
+        let correctIndex = 0;
+        const cleanCorrect = (q.correctAnswer || 'A').toUpperCase().trim();
+        if (cleanCorrect === 'B' || cleanCorrect === '2') correctIndex = 1;
+        else if (cleanCorrect === 'C' || cleanCorrect === '3') correctIndex = 2;
+        else if (cleanCorrect === 'D' || cleanCorrect === '4') correctIndex = 3;
+        return {
+          id: q.id || `q-${quiz.moduleNum}-${qIdx + 1}`,
+          question: q.question,
+          options: q.options,
+          correctIndex,
+          explanation: q.explanation || '',
+          points: q.points || 10
+        };
+      });
+      if (quiz.passingScore) {
+        (quiz.lessonRef.quizData as any).passingScore = quiz.passingScore;
+      }
     }
   }
 

@@ -1767,25 +1767,44 @@ function CourseBuilderContent() {
       } else {
         // Normal Import (Draft / New Course):
         // Apply validated data to form state
-        setCourseState((prev) => ({
-          ...prev,
-          title: parsed.title || prev.title,
-          slug: parsed.slug || prev.slug,
-          category: parsed.category || prev.category,
-          level: parsed.level || prev.level,
-          language: parsed.language || prev.language,
-          shortDescription: parsed.shortDescription || prev.shortDescription,
-          description: parsed.description || prev.description,
-          whatYouWillLearn: parsed.whatYouWillLearn && parsed.whatYouWillLearn.length > 0 ? parsed.whatYouWillLearn : prev.whatYouWillLearn,
-          requirements: parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : prev.requirements,
-          targetAudience: parsed.targetAudience && parsed.targetAudience.length > 0 ? parsed.targetAudience : prev.targetAudience,
-          price: parsed.price !== undefined ? parsed.price : prev.price,
-          discountPrice: parsed.discountPrice !== undefined ? parsed.discountPrice : prev.discountPrice,
-          currency: parsed.currency || prev.currency,
-          accessType: parsed.accessType || prev.accessType,
-          accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
-          sections: parsed.sections && parsed.sections.length > 0 ? parsed.sections : prev.sections,
-        }));
+        setCourseState((prev) => {
+          const hasExistingMedia = (prev.sections || []).some((s: any) =>
+            (s.lessons || []).some((l: any) => l.videoUrl || (l.resourcesList && l.resourcesList.length > 0))
+          );
+          const mergedSections =
+            hasExistingMedia && prev.sections && prev.sections.length > 0
+              ? mergeExcelSectionsForUpdateVersion(prev.sections, parsed.sections || [])
+              : parsed.sections && parsed.sections.length > 0
+              ? parsed.sections
+              : prev.sections;
+
+          return {
+            ...prev,
+            title: parsed.title || prev.title,
+            slug: parsed.slug || prev.slug,
+            category: parsed.category || prev.category,
+            level: parsed.level || prev.level,
+            language: parsed.language || prev.language,
+            shortDescription: parsed.shortDescription || prev.shortDescription,
+            description: parsed.description || prev.description,
+            whatYouWillLearn:
+              parsed.whatYouWillLearn && parsed.whatYouWillLearn.length > 0
+                ? parsed.whatYouWillLearn
+                : prev.whatYouWillLearn,
+            requirements:
+              parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : prev.requirements,
+            targetAudience:
+              parsed.targetAudience && parsed.targetAudience.length > 0
+                ? parsed.targetAudience
+                : prev.targetAudience,
+            price: parsed.price !== undefined ? parsed.price : prev.price,
+            discountPrice: parsed.discountPrice !== undefined ? parsed.discountPrice : prev.discountPrice,
+            currency: parsed.currency || prev.currency,
+            accessType: parsed.accessType || prev.accessType,
+            accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
+            sections: mergedSections,
+          };
+        });
       }
 
       // Cache uploaded file info for download & replace previous
@@ -2457,6 +2476,7 @@ function CourseBuilderContent() {
               courseTitle={courseState.title}
               isMinorEditMode={isMinorEditMode}
               isModeB={isModeB}
+              originalSectionIds={originalSectionIds}
               originalLessonIds={originalLessonIds}
             />
           </div>

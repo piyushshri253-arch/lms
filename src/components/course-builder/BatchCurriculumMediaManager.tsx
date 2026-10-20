@@ -35,6 +35,7 @@ interface BatchCurriculumMediaManagerProps {
   courseTitle?: string;
   isMinorEditMode?: boolean;
   isModeB?: boolean;
+  originalSectionIds?: Set<string>;
   originalLessonIds?: Set<string>;
 }
 
@@ -48,6 +49,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   courseTitle,
   isMinorEditMode = false,
   isModeB = false,
+  originalSectionIds,
   originalLessonIds
 }) => {
   const { showToast } = useApp();
@@ -59,6 +61,15 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const sectionsRef = useRef<BuilderSection[]>(sections);
   sectionsRef.current = sections;
   const inFlightTaskIdsRef = useRef<Set<string>>(new Set());
+
+  // Media view filter (in Update Version Mode B, default to newly_added only)
+  const [mediaFilter, setMediaFilter] = useState<'all' | 'newly_added' | 'pending'>(isModeB ? 'newly_added' : 'all');
+
+  useEffect(() => {
+    if (isModeB) {
+      setMediaFilter('newly_added');
+    }
+  }, [isModeB]);
 
   // Single lecture upload states
   const [uploadingPdfLessonId, setUploadingPdfLessonId] = useState<string | null>(null);
@@ -80,7 +91,6 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   } | null>(null);
   const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
   const [externalLinkTitle, setExternalLinkTitle] = useState<string>('');
-
 
   // Video preview modal
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
@@ -1223,6 +1233,96 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const queuedUploads = tasks.filter((t) => t.status === 'QUEUED');
   const completedUploads = tasks.filter((t) => t.status === 'COMPLETED');
 
+  // Helper to check if a lesson is newly added
+  const isLessonNewlyAdded = (lesson: any): boolean => {
+    return Boolean(
+      lesson?.isNewlyAdded ||
+      (isModeB && originalLessonIds && !originalLessonIds.has(lesson?.id))
+    );
+  };
+
+  // Helper to check if a section is newly added
+  const isSectionNewlyAdded = (section: any): boolean => {
+    return Boolean(
+      section?.isNewlyAdded ||
+      (isModeB && originalSectionIds && !originalSectionIds.has(section?.id))
+    );
+  };
+
+  // Newly added counters (for Mode B Update Version focus)
+  const newlyAddedLessonsCount = (sections || []).reduce(
+    (acc, s) =>
+      acc +
+      (s.lessons || []).filter((l) => isSectionNewlyAdded(s) || isLessonNewlyAdded(l)).length,
+    0
+  );
+
+  const newlyAddedPendingVideosCount = (sections || []).reduce(
+    (acc, s) =>
+      acc +
+      (s.lessons || []).filter(
+        (l) =>
+          l.type !== 'QUIZ' &&
+          l.type !== 'TEXT' &&
+          (isSectionNewlyAdded(s) || isLessonNewlyAdded(l)) &&
+          !l.videoUrl &&
+          !tasks.some(
+            (t) =>
+              t.lessonId === l.id &&
+              (t.status === 'QUEUED' || t.status === 'UPLOADING' || t.status === 'COMPLETED')
+          )
+      ).length,
+    0
+  );
+
+  const totalPendingMediaCount = (sections || []).reduce(
+    (acc, s) =>
+      acc +
+      (s.lessons || []).filter(
+        (l) =>
+          (l.type !== 'QUIZ' && l.type !== 'TEXT' && !l.videoUrl) ||
+          (!l.resourcesList?.length && !l.pdfUrl && !l.fileUrl)
+      ).length,
+    0
+  );
+
+  // Filtered sections for rendering based on mediaFilter
+  const displayedSections = useMemo(() => {
+    if (mediaFilter === 'newly_added' && (isModeB || newlyAddedLessonsCount > 0)) {
+      return (sections || [])
+        .map((s) => {
+          const isSecNew = isSectionNewlyAdded(s);
+          if (isSecNew) return s;
+          const newLessons = (s.lessons || []).filter((l) => isLessonNewlyAdded(l));
+          if (newLessons.length === 0) return null;
+          return {
+            ...s,
+            lessons: newLessons
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null);
+    }
+
+    if (mediaFilter === 'pending') {
+      return (sections || [])
+        .map((s) => {
+          const pendingLessons = (s.lessons || []).filter(
+            (l) =>
+              (l.type !== 'QUIZ' && l.type !== 'TEXT' && !l.videoUrl) ||
+              (!l.resourcesList?.length && !l.pdfUrl && !l.fileUrl)
+          );
+          if (pendingLessons.length === 0) return null;
+          return {
+            ...s,
+            lessons: pendingLessons
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null);
+    }
+
+    return sections || [];
+  }, [sections, mediaFilter, isModeB, originalLessonIds, originalSectionIds, newlyAddedLessonsCount]);
+
   const toggleSectionCollapse = (sId: string) => {
     setCollapsedSections((prev) => ({ ...prev, [sId]: !prev[sId] }));
   };
@@ -1347,10 +1447,20 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             ) : totalVideoLessons > 0 ? (
               <label
                 className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all"
-                title="Select multiple video files from your device to queue"
+                title={
+                  isModeB
+                    ? `Bulk upload videos to ${newlyAddedPendingVideosCount} newly added lecture slots`
+                    : 'Select multiple video files from your device to queue'
+                }
               >
                 <Icon name="cloud_upload" size={18} />
-                <span>Bulk Select Multiple Videos</span>
+                <span>
+                  {isModeB
+                    ? newlyAddedPendingVideosCount > 0
+                      ? `Bulk Upload Videos for New Lectures (${newlyAddedPendingVideosCount})`
+                      : 'All New Lecture Videos Uploaded ✓'
+                    : 'Bulk Select Multiple Videos'}
+                </span>
                 <input
                   type="file"
                   multiple
@@ -1456,6 +1566,86 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         )}
       </div>
 
+      {/* Filter Tabs: Newly Added, Pending Media, All */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-surface-container-low rounded-2xl border border-outline-variant">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {isModeB && (
+            <button
+              type="button"
+              onClick={() => setMediaFilter('newly_added')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                mediaFilter === 'newly_added'
+                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/40'
+                  : 'bg-surface hover:bg-surface-container text-on-surface border border-outline-variant'
+              }`}
+            >
+              <Icon name="sparkles" size={14} className={mediaFilter === 'newly_added' ? 'text-amber-300' : 'text-emerald-500'} />
+              <span>Newly Added Only</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                  mediaFilter === 'newly_added'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                }`}
+              >
+                {newlyAddedLessonsCount}
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setMediaFilter('pending')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+              mediaFilter === 'pending'
+                ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-400/40'
+                : 'bg-surface hover:bg-surface-container text-on-surface border border-outline-variant'
+            }`}
+          >
+            <Icon name="hourglass_empty" size={14} className={mediaFilter === 'pending' ? 'text-white' : 'text-amber-500'} />
+            <span>Missing Media</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                mediaFilter === 'pending'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+              }`}
+            >
+              {totalPendingMediaCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMediaFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+              mediaFilter === 'all'
+                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400/40'
+                : 'bg-surface hover:bg-surface-container text-on-surface border border-outline-variant'
+            }`}
+          >
+            <Icon name="view_list" size={14} />
+            <span>All Curriculum</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                mediaFilter === 'all'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-surface-container-high text-on-surface-variant'
+              }`}
+            >
+              {totalLessons}
+            </span>
+          </button>
+        </div>
+
+        {isModeB && mediaFilter === 'newly_added' && (
+          <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+            <Icon name="verified" size={13} />
+            Focus View: Upload videos for new additions only
+          </span>
+        )}
+      </div>
+
       {/* Modules & Lectures List */}
       {sections.length === 0 ? (
         <div className="p-8 text-center bg-surface-container rounded-2xl border border-outline-variant">
@@ -1465,9 +1655,30 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
             Please upload the Excel spreadsheet first or add modules in Curriculum step.
           </p>
         </div>
+      ) : displayedSections.length === 0 ? (
+        <div className="p-8 text-center bg-surface-container rounded-2xl border border-outline-variant space-y-2">
+          <Icon name={mediaFilter === 'newly_added' ? 'check_circle' : 'verified'} size={32} className="text-emerald-500 mx-auto" />
+          <p className="text-sm font-bold text-on-surface">
+            {mediaFilter === 'newly_added'
+              ? 'No Newly Added Modules or Lectures'
+              : 'All Media Already Uploaded'}
+          </p>
+          <p className="text-xs text-on-surface-variant max-w-md mx-auto">
+            {mediaFilter === 'newly_added'
+              ? 'All modules currently in this draft are from the live published course. Any new items added via Excel or the Curriculum step will appear here.'
+              : 'All lectures in this course already have video and study resources attached.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setMediaFilter('all')}
+            className="mt-2 px-4 py-2 bg-primary hover:bg-primary-container text-on-primary rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          >
+            View All Curriculum Items ({totalLessons})
+          </button>
+        </div>
       ) : (
         <div className="space-y-4 pb-36">
-          {(sections || []).map((section, sIdx) => {
+          {displayedSections.map((section, sIdx) => {
             const isCollapsed = collapsedSections[section.id];
             const secLessons = section.lessons || [];
             const secVideoLessons = secLessons.filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT');
@@ -1480,6 +1691,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 l.id === activeViewResourcesLessonId ||
                 l.id === hoveredResourcesLessonId
             );
+
+            const originalModIndex = (sections || []).findIndex((s) => s.id === section.id);
+            const displayModNum = originalModIndex >= 0 ? originalModIndex + 1 : sIdx + 1;
+            const isSecNewlyAdded = isSectionNewlyAdded(section);
 
             return (
               <div
@@ -1497,13 +1712,26 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-                      {sIdx + 1}
+                      {displayModNum}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-extrabold text-sm text-on-surface">
-                          Module {sIdx + 1}: {cleanModuleTitle(section.title) || `Module ${sIdx + 1}`}
+                          Module {displayModNum}: {cleanModuleTitle(section.title) || `Module ${displayModNum}`}
                         </h3>
+                        {isModeB && (
+                          isSecNewlyAdded ? (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs">
+                              <Icon name="sparkles" size={11} />
+                              <span>New Module</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1 select-none shadow-2xs">
+                              <Icon name="lock" size={11} />
+                              <span>Live Module</span>
+                            </span>
+                          )
+                        )}
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant font-bold">
                           {secLessons.length} Items
                         </span>
@@ -1558,7 +1786,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isQuiz = lesson.type === 'QUIZ';
                         const isText = lesson.type === 'TEXT';
                         const isVideoLesson = !isQuiz && !isText && (lesson.type === 'VIDEO' || !lesson.type);
-                        const isLockedLiveItem = Boolean(isModeB && originalLessonIds?.has(lesson.id));
+                        const isLessonNew = isLessonNewlyAdded(lesson);
+                        const isLockedLiveItem = Boolean(isModeB && originalLessonIds?.has(lesson.id) && !isLessonNew);
                         const itemMeta = itemNumbering.map[lesson.id] || {
                           type: isQuiz ? 'QUIZ' : isText ? 'ARTICLE' : 'LECTURE',
                           num: lIdx + 1,
@@ -1585,6 +1814,19 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   >
                                     {itemMeta.label}
                                   </span>
+                                  {isModeB && (
+                                    isLessonNew ? (
+                                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0">
+                                        <Icon name="sparkles" size={11} />
+                                        <span>NEW</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1 select-none shadow-2xs shrink-0">
+                                        <Icon name="lock" size={11} />
+                                        <span>LIVE</span>
+                                      </span>
+                                    )
+                                  )}
                                   <input
                                     type="text"
                                     readOnly={isLockedLiveItem}

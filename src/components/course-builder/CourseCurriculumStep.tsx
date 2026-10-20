@@ -78,6 +78,7 @@ export interface BuilderLesson {
   removeVideo?: boolean;
   clearPdf?: boolean;
   removePdf?: boolean;
+  isNewlyAdded?: boolean;
 }
 
 export function getLessonResourcesList(lesson?: BuilderLesson | BuilderSubLesson | null): LessonResourceItem[] {
@@ -119,6 +120,7 @@ export interface BuilderSection {
   description?: string;
   order: number;
   lessons: BuilderLesson[];
+  isNewlyAdded?: boolean;
 }
 
 interface CourseCurriculumStepProps {
@@ -477,7 +479,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Update Module field inline (Title or Description)
   const handleUpdateSectionField = (sectionId: string, field: 'title' | 'description', value: string) => {
-    if (isModeB && originalSectionIds?.has(sectionId)) {
+    const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
+    if (isModeB && originalSectionIds?.has(sectionId) && !(sec as any)?.isNewlyAdded) {
       showToast({
         title: 'Live Module Protected 🔒',
         description: 'Previous live modules cannot be edited in version updates to protect enrolled students.',
@@ -499,7 +502,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       });
       return;
     }
-    if (isModeB && originalSectionIds?.has(sectionId)) {
+    const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
+    if (isModeB && originalSectionIds?.has(sectionId) && !(sec as any)?.isNewlyAdded) {
       showToast({
         title: 'Cannot Delete Live Module',
         description: 'Existing published modules cannot be deleted in version updates to protect enrolled students.',
@@ -726,8 +730,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (isModeB && originalLessonIds?.has(lessonId)) {
       const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
       const les = sec?.lessons.find((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
+      const isNewlyAdded = Boolean((les as any)?.isNewlyAdded);
       const isFinal = les?.isFinalAssignment || /final\s+assignment/i.test(les?.title || '');
-      if (!isFinal) {
+      if (!isFinal && !isNewlyAdded) {
         showToast({
           title: 'Live Content Protected 🔒',
           description: 'Previous live lectures, articles, and quizzes cannot be modified in version updates.',
@@ -950,7 +955,9 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       });
       return;
     }
-    if (isModeB && originalLessonIds?.has(lessonId)) {
+    const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
+    const les = sec?.lessons?.find((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
+    if (isModeB && originalLessonIds?.has(lessonId) && !(les as any)?.isNewlyAdded) {
       showToast({
         title: 'Cannot Delete Live Lesson',
         description: 'Existing published lessons and quizzes cannot be deleted in version updates to protect enrolled students.',
@@ -1089,6 +1096,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           {sections.map((section, sIdx) => {
             const moduleNum = sIdx + 1;
             const secKey = section.clientKey || section.tempId || section.id;
+            const isSecNewlyAdded = Boolean((section as any).isNewlyAdded || (isModeB && originalSectionIds && !originalSectionIds.has(secKey)));
+            const isLockedLiveSection = Boolean(isModeB && originalSectionIds?.has(secKey) && !(section as any).isNewlyAdded);
 
             return (
               <div
@@ -1102,7 +1111,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       <div className="flex items-center gap-0.5">
                         <button
                           type="button"
-                          disabled={sIdx === 0 || (isModeB && originalSectionIds?.has(secKey)) || isMinorEditMode}
+                          disabled={sIdx === 0 || isLockedLiveSection || isMinorEditMode}
                           onClick={() => moveSection(sIdx, 'up')}
                           className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                           title="Move Module Up"
@@ -1111,7 +1120,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         </button>
                         <button
                           type="button"
-                          disabled={sIdx === sections.length - 1 || (isModeB && originalSectionIds?.has(secKey)) || isMinorEditMode}
+                          disabled={sIdx === sections.length - 1 || isLockedLiveSection || isMinorEditMode}
                           onClick={() => moveSection(sIdx, 'down')}
                           className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                           title="Move Module Down"
@@ -1129,13 +1138,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         <input
                           type="text"
                           value={section.title}
-                          readOnly={isModeB && originalSectionIds?.has(secKey)}
-                          disabled={isModeB && originalSectionIds?.has(secKey)}
+                          readOnly={isLockedLiveSection}
+                          disabled={isLockedLiveSection}
                           onChange={(e) => handleUpdateSectionField(secKey, 'title', e.target.value)}
                           onBlur={() => handleUpdateSectionField(secKey, 'title', cleanModuleTitle(section.title))}
                           placeholder="Module Title (e.g. Foundations & Architecture)"
                           className={`w-full border rounded px-3 py-2 text-xs sm:text-sm font-bold transition-colors shadow-2xs ${
-                            isModeB && originalSectionIds?.has(secKey)
+                            isLockedLiveSection
                               ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
                               : 'bg-white border-[#d1d7dc] focus:border-[#2d2f31] text-slate-900 focus:outline-none'
                           }`}
@@ -1144,7 +1153,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      {isMinorEditMode ? null : isModeB && originalSectionIds?.has(secKey) ? (
+                      {isMinorEditMode ? null : isLockedLiveSection ? (
                         <span
                           className="px-2.5 py-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md flex items-center gap-1 border border-slate-200 dark:border-slate-700 shadow-2xs select-none"
                           title="Published live module is locked and protected to safeguard enrolled students"
@@ -1153,14 +1162,25 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           <span>Live Module</span>
                         </span>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSection(secKey)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
-                          title="Delete Module"
-                        >
-                          <Icon name="delete" size={16} />
-                        </button>
+                        <>
+                          {isModeB && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs"
+                              title="Newly added module in this draft version"
+                            >
+                              <Icon name="sparkles" size={12} />
+                              <span>New Module</span>
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSection(secKey)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
+                            title="Delete Module"
+                          >
+                            <Icon name="delete" size={16} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1196,7 +1216,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                       // 1. DEDICATED QUIZ ROW & EDITOR (Purple Theme, Clear "Edit Quiz" Button)
                       if (isQuizItem) {
-                        const isLockedLiveQuiz = Boolean(isModeB && originalLessonIds?.has(itemKey) && !les.isFinalAssignment);
+                        const isNewlyAddedQuiz = Boolean((les as any).isNewlyAdded || (isModeB && originalLessonIds && !originalLessonIds.has(itemKey)));
+                        const isLockedLiveQuiz = Boolean(isModeB && originalLessonIds?.has(itemKey) && !(les as any).isNewlyAdded && !les.isFinalAssignment);
 
                         return (
                           <div key={itemKey} className="space-y-2">
@@ -1252,6 +1273,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   ) : (
                                     <span className="font-extrabold text-xs text-purple-800 bg-purple-100 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide">
                                       Quiz {itemMeta.num}:
+                                    </span>
+                                  )}
+
+                                  {isModeB && isNewlyAddedQuiz && (
+                                    <span
+                                      className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0"
+                                      title="Newly added quiz in this draft version"
+                                    >
+                                      <Icon name="sparkles" size={11} />
+                                      <span>NEW</span>
                                     </span>
                                   )}
 
@@ -1796,7 +1827,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                       // 2. STANDARD LECTURE ROW (Lecture {num}, Title input, Free Preview, Delete - No Edit button!)
                       if (isLectureItem) {
-                        const isLockedLiveLecture = Boolean(isModeB && originalLessonIds?.has(itemKey));
+                        const isNewlyAddedLecture = Boolean((les as any).isNewlyAdded || (isModeB && originalLessonIds && !originalLessonIds.has(itemKey)));
+                        const isLockedLiveLecture = Boolean(isModeB && originalLessonIds?.has(itemKey) && !(les as any).isNewlyAdded);
 
                         return (
                           <div key={itemKey} className="space-y-2">
@@ -1845,6 +1877,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
                                     Lecture {itemMeta.num}.
                                   </span>
+
+                                  {isModeB && isNewlyAddedLecture && (
+                                    <span
+                                      className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0"
+                                      title="Newly added lecture in this draft version"
+                                    >
+                                      <Icon name="sparkles" size={11} />
+                                      <span>NEW</span>
+                                    </span>
+                                  )}
 
                                   {/* Inline Title Input */}
                                   <div className="flex-1 min-w-[160px] flex items-center gap-1.5">
@@ -1929,7 +1971,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                 {/* Delete button or Lock Badge on Lecture */}
                                 <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                                  {isMinorEditMode ? null : isModeB && originalLessonIds?.has(itemKey) ? (
+                                  {isMinorEditMode ? null : isLockedLiveLecture ? (
                                     <span
                                       className="px-2 py-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded flex items-center gap-1 border border-slate-200 dark:border-slate-700 select-none shadow-2xs"
                                       title="Published live lecture cannot be deleted in version updates to protect enrolled students"
@@ -1955,7 +1997,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       }
 
                       // 3. WRITTEN ARTICLE ROW (Article {num}, Title input, Badge, Free Preview, Edit Article button & Delete)
-                      const isLockedLiveArticle = Boolean(isModeB && originalLessonIds?.has(itemKey));
+                      const isNewlyAddedArticle = Boolean((les as any).isNewlyAdded || (isModeB && originalLessonIds && !originalLessonIds.has(itemKey)));
+                      const isLockedLiveArticle = Boolean(isModeB && originalLessonIds?.has(itemKey) && !(les as any).isNewlyAdded);
 
                       return (
                         <div key={itemKey} className="space-y-2">
@@ -2004,6 +2047,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
                                   Article {itemMeta.num}.
                                 </span>
+
+                                {isModeB && isNewlyAddedArticle && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0"
+                                    title="Newly added article in this draft version"
+                                  >
+                                    <Icon name="sparkles" size={11} />
+                                    <span>NEW</span>
+                                  </span>
+                                )}
 
                                 {/* Inline Title Input */}
                                 <div className="flex-1 min-w-[160px]">
