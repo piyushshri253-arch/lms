@@ -38,6 +38,10 @@ interface CourseAuthored {
   category?: string;
   studentsCount: number;
   rating: number;
+  hasDraftVersion?: boolean;
+  draftVersionNumber?: number;
+  liveVersionNumber?: number;
+  versionStatus?: string | null;
   reviewFeedback?: string | null;
   reviewedAt?: string | null;
   createdAt?: string;
@@ -505,7 +509,7 @@ function InstructorCoursesStudioInner() {
   // Status Tab Counts
   const publishedCount = courses.filter((c) => c.status === 'PUBLISHED' || c.status === 'APPROVED').length;
   const inReviewCount = courses.filter((c) => c.status === 'IN_REVIEW' || c.status === 'PENDING').length;
-  const draftCount = courses.filter((c) => c.status === 'DRAFT').length;
+  const draftCount = courses.filter((c) => c.status === 'DRAFT' || Boolean(c.hasDraftVersion)).length;
   const inactiveCount = courses.filter((c) => c.status === 'ARCHIVED' || c.status === 'INACTIVE').length;
   const rejectedCount = courses.filter((c) => c.status === 'REJECTED').length;
 
@@ -514,7 +518,7 @@ function InstructorCoursesStudioInner() {
     .filter((c) => {
       if (activeTab === 'PUBLISHED') return c.status === 'PUBLISHED' || c.status === 'APPROVED';
       if (activeTab === 'IN_REVIEW') return c.status === 'IN_REVIEW' || c.status === 'PENDING';
-      if (activeTab === 'DRAFT') return c.status === 'DRAFT';
+      if (activeTab === 'DRAFT') return c.status === 'DRAFT' || Boolean(c.hasDraftVersion);
       if (activeTab === 'INACTIVE') return c.status === 'ARCHIVED' || c.status === 'INACTIVE';
       if (activeTab === 'REJECTED') return c.status === 'REJECTED';
       return true;
@@ -1381,6 +1385,23 @@ function InstructorCoursesStudioInner() {
                         {course.title}
                       </h3>
 
+                      {course.hasDraftVersion && (
+                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] space-y-1">
+                          <div className="flex items-center justify-between gap-1 text-amber-800 dark:text-amber-300 font-bold">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse" />
+                              <span>Draft Version v{course.draftVersionNumber || 2}.0 In Progress</span>
+                            </span>
+                            <span className="text-[10px] bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">
+                              Auto-Saved Draft
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                            Unsaved/staged updates for Version {course.draftVersionNumber || 2}.0 exist. The live version remains active for students.
+                          </p>
+                        </div>
+                      )}
+
                       {isUnderReview && (
                         <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
                           ⏳ Under evaluation by the Course Auditor Studio. You will be notified once reviewed.
@@ -1446,20 +1467,24 @@ function InstructorCoursesStudioInner() {
                                 <span>Preview</span>
                               </Link>
 
-                              {/* B. Update Version */}
+                              {/* B. Update / Resume Version Draft */}
                               <button
                                 type="button"
                                 disabled={isBusy}
                                 onClick={() => handleUpdateVersion(course)}
-                                className="text-xs font-bold text-violet-700 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
-                                title="Create or resume editable draft for the next version"
+                                className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50 ${
+                                  course.hasDraftVersion
+                                    ? 'text-amber-800 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300'
+                                    : 'text-violet-700 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 border border-violet-200'
+                                }`}
+                                title={course.hasDraftVersion ? 'Resume editing the auto-saved draft for the next version' : 'Create or resume editable draft for the next version'}
                               >
                                 {isBusy ? (
                                   <Icon name="sync" size={13} className="animate-spin" />
                                 ) : (
-                                  <Icon name="edit_document" size={13} />
+                                  <Icon name={course.hasDraftVersion ? 'edit_note' : 'edit_document'} size={13} />
                                 )}
-                                <span>Update Version</span>
+                                <span>{course.hasDraftVersion ? `Resume Draft (v${course.draftVersionNumber || 2}.0)` : 'Update Version'}</span>
                               </button>
 
                               {/* C. Active / Inactive Toggle */}

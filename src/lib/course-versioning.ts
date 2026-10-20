@@ -394,12 +394,31 @@ export function classifyCourseChanges(
 
     const incomingLessonsFlat: any[] = [];
     for (const sec of incomingSections) {
-      if (sec.id && !liveSections.some((ls) => ls.id === sec.id)) {
+      const matchingLiveSec = sec.id
+        ? liveSections.find((ls: any) => ls.id === sec.id)
+        : null;
+
+      if (sec.id && !matchingLiveSec) {
         majorChanges.push({
           category: 'CURRICULUM',
           field: 'section.added',
           summary: `New curriculum module added: "${sec.title}"`
         });
+      } else if (matchingLiveSec) {
+        if (sec.title && sec.title.trim() !== matchingLiveSec.title.trim()) {
+          minorChanges.push({
+            category: 'MINOR',
+            field: `section.${matchingLiveSec.id}.title`,
+            summary: `Module title updated: "${matchingLiveSec.title}" → "${sec.title}"`
+          });
+        }
+        if (sec.description !== undefined && (sec.description || '').trim() !== (matchingLiveSec.description || '').trim()) {
+          minorChanges.push({
+            category: 'MINOR',
+            field: `section.${matchingLiveSec.id}.description`,
+            summary: `Module description updated in "${sec.title}"`
+          });
+        }
       }
       for (const les of sec.lessons || []) {
         incomingLessonsFlat.push({ ...les, sectionTitle: sec.title });

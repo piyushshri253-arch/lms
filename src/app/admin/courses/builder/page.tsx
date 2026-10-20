@@ -283,6 +283,26 @@ function CourseBuilderContent() {
       reasons.push(`Module count changed (${origSections.length} → ${currSections.length})`);
     }
 
+    // Check module titles & descriptions for minor typo/spelling updates
+    for (let sIdx = 0; sIdx < currSections.length; sIdx++) {
+      const currSec = currSections[sIdx];
+      const origSec = origSections.find((s: any) =>
+        (s.id && currSec.id && s.id === currSec.id) ||
+        (s.clientKey && currSec.clientKey && s.clientKey === currSec.clientKey)
+      ) || origSections[sIdx];
+
+      if (origSec) {
+        if (currSec.title?.trim() !== origSec.title?.trim()) {
+          hasMinor = true;
+          reasons.push(`Module title typo/spelling update: "${origSec.title}" → "${currSec.title}"`);
+        }
+        if ((currSec.description || '').trim() !== (origSec.description || '').trim()) {
+          hasMinor = true;
+          reasons.push(`Module description updated in "${currSec.title}"`);
+        }
+      }
+    }
+
     const origLessonsMap = new Map<string, any>();
     for (const sec of origSections) {
       for (const les of sec.lessons || []) {
@@ -381,6 +401,47 @@ function CourseBuilderContent() {
     }
     return { type: 'UNCHANGED', reasons: [], isMinor: false, isMajor: false };
   }, [courseState, originalCourseState, isModeB]);
+
+  // Completeness Checklist validator: Submit / Publish action is ONLY active when all checklist items pass
+  const isChecklistComplete = useMemo(() => {
+    const titleOk = !!courseState.title && courseState.title.trim().length >= 3;
+    const descOk = !!courseState.description && courseState.description.trim().length >= 3;
+    const secOk = (courseState.sections || []).length >= 1;
+    const allLes = (courseState.sections || []).flatMap((s: any) => s.lessons || []);
+    const lesOk = allLes.length >= 1;
+    const finalLes = allLes.find((l: any) =>
+      Boolean(l.isFinalAssignment) ||
+      (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+    );
+    const finalOk = Boolean(
+      finalLes && (
+        (finalLes.quizData?.questions && finalLes.quizData.questions.length > 0) ||
+        (typeof finalLes.quizData === 'string' && finalLes.quizData.includes('"question"'))
+      )
+    );
+    const quizLessons = allLes.filter((l: any) => l.type === 'QUIZ' || l.quizData);
+    let oddQuiz = false;
+    for (const ql of quizLessons) {
+      let count = 0;
+      if (ql.quizData && typeof ql.quizData === 'object' && Array.isArray(ql.quizData.questions)) {
+        count = ql.quizData.questions.length;
+      } else if (typeof ql.quizData === 'string') {
+        try {
+          const p = JSON.parse(ql.quizData);
+          if (Array.isArray(p?.questions)) count = p.questions.length;
+        } catch {}
+      }
+      if (count > 0 && count % 2 !== 0) {
+        oddQuiz = true;
+        break;
+      }
+    }
+    const quizOk = !oddQuiz;
+    const thumbOk = !!courseState.thumbnail && courseState.thumbnail.length > 0;
+    const priceOk = courseState.price !== undefined && courseState.price >= 0;
+
+    return titleOk && descOk && secOk && lesOk && finalOk && quizOk && thumbOk && priceOk;
+  }, [courseState]);
 
   // Listen for custom preview event from CourseAssessmentsBanner or child components
   useEffect(() => {
@@ -529,7 +590,7 @@ function CourseBuilderContent() {
   // so if they close the browser or leave, it already appears under Drafts in Instructor Studio!
   useEffect(() => {
     if (!hasLoadedInitial || isPublishing || isImportingExcel) return;
-    if (courseState.status !== 'DRAFT') return;
+    if (courseState.status !== 'DRAFT' && !isModeB) return;
     if (!courseState.title || courseState.title.trim().length < 3) return;
 
     // Hash summary of content including lessons, videos, and multi-format attached study resources
@@ -576,7 +637,7 @@ function CourseBuilderContent() {
       try {
         isAutoSavingRef.current = true;
         setAutoSaveStatus('saving');
-        await handleSaveDraft({ silent: true });
+        await handleSaveDraft({ submitForApproval: false, silent: true });
         lastSavedPayloadRef.current = currentPayloadSummary;
         setAutoSaveStatus('saved');
       } catch (err: any) {
@@ -592,7 +653,31 @@ function CourseBuilderContent() {
         clearTimeout(autoSaveTimerRef.current);
       }
     };
-  }, [courseState, hasLoadedInitial, isPublishing, isImportingExcel]);
+  }, [courseState, hasLoadedInitial, isPublishing, isImportingExcel, isModeB]);
+
+  // Immediate auto-save to Drafts when instructor leaves tab, switches window, or unloads
+  useEffect(() => {
+    const handleLeaveTab = () => {
+      if (document.visibilityState === 'hidden') {
+        if (!isAutoSavingRef.current && !isPublishing && !isImportingExcel && hasLoadedInitial) {
+          const state = courseStateRef.current;
+          if (state.title && state.title.trim().length >= 3) {
+            handleSaveDraft({ submitForApproval: false, silent: true });
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleLeaveTab);
+    window.addEventListener('pagehide', handleLeaveTab);
+    window.addEventListener('beforeunload', handleLeaveTab);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleLeaveTab);
+      window.removeEventListener('pagehide', handleLeaveTab);
+      window.removeEventListener('beforeunload', handleLeaveTab);
+    };
+  }, [hasLoadedInitial, isPublishing, isImportingExcel]);
 
   const loadCourse = async (identifier: string) => {
     setIsLoading(true);
@@ -1168,6 +1253,18 @@ function CourseBuilderContent() {
   const handlePublishCourse = async () => {
     setIsPublishing(true);
     try {
+      // Strict Pre-flight Quality & Completeness Checklist Guard
+      if (!isChecklistComplete) {
+        showToast({
+          title: 'Checklist Incomplete ⚠️',
+          description: 'All items on the Quality & Completeness Checklist must have a green tick before submitting for approval.',
+          type: 'error'
+        });
+        setCurrentStep(5); // Jump to Review & Submit step to see missing items
+        setIsPublishing(false);
+        return;
+      }
+
       // Strict Validation: Quizzes must contain an EVEN number of questions (2, 4, 6, 8, ...)
       const currentState = courseStateRef.current;
       for (const sec of currentState.sections || []) {
@@ -1719,12 +1816,28 @@ function CourseBuilderContent() {
         ) : (
           <button
             type="button"
-            disabled={isPublishing || (isInstructor && courseState.status === 'IN_REVIEW')}
+            disabled={
+              isPublishing ||
+              (isInstructor && courseState.status === 'IN_REVIEW') ||
+              !isChecklistComplete ||
+              (isModeB && changeClassification.type === 'UNCHANGED')
+            }
             onClick={handlePublishCourse}
-            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-              (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR')
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25'
-                : 'bg-primary text-on-primary hover:bg-primary-container'
+            title={
+              !isChecklistComplete
+                ? 'Complete all checklist items (all green ticks) before publishing or submitting for approval'
+                : isModeB && changeClassification.type === 'UNCHANGED'
+                ? 'Make edits to submit or publish'
+                : undefined
+            }
+            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all ${
+              !isChecklistComplete
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
+                : (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR')
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25 cursor-pointer'
+                : isModeB && changeClassification.type === 'UNCHANGED'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none'
+                : 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer'
             }`}
           >
             {isPublishing ? (
@@ -1757,10 +1870,15 @@ function CourseBuilderContent() {
                     <Icon name="rocket_launch" size={16} />
                     <span>Direct Publish Minor Updates 🚀</span>
                   </>
-                ) : (
+                ) : changeClassification.type === 'MAJOR' ? (
                   <>
                     <Icon name="send" size={16} />
                     <span>Submit Version for Approval 📋</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="edit_note" size={16} />
+                    <span>No Pending Changes</span>
                   </>
                 )
               ) : courseState.status === 'PUBLISHED' ? (
@@ -1796,30 +1914,42 @@ function CourseBuilderContent() {
         <div className={`border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm ${
           changeClassification.type === 'MINOR'
             ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-400 dark:border-emerald-600/50'
-            : 'bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600/50'
+            : changeClassification.type === 'MAJOR'
+            ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600/50'
+            : 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700'
         }`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
             changeClassification.type === 'MINOR'
               ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-              : 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
+              : changeClassification.type === 'MAJOR'
+              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
+              : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
           }`}>
-            <Icon name={changeClassification.type === 'MINOR' ? 'auto_fix_high' : 'warning'} size={24} />
+            <Icon name={changeClassification.type === 'MINOR' ? 'auto_fix_high' : changeClassification.type === 'MAJOR' ? 'warning' : 'edit_document'} size={24} />
           </div>
           <div className="space-y-1 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h4 className={`font-black text-sm sm:text-base ${
                 changeClassification.type === 'MINOR'
                   ? 'text-emerald-900 dark:text-emerald-100'
-                  : 'text-amber-900 dark:text-amber-100'
+                  : changeClassification.type === 'MAJOR'
+                  ? 'text-amber-900 dark:text-amber-100'
+                  : 'text-slate-900 dark:text-slate-100'
               }`}>
                 Mode B: Editing Draft Version v{draftVerNumber}.0
               </h4>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                 changeClassification.type === 'MINOR'
                   ? 'bg-emerald-500 text-slate-950 font-black'
-                  : 'bg-amber-500 text-slate-950'
+                  : changeClassification.type === 'MAJOR'
+                  ? 'bg-amber-500 text-slate-950'
+                  : 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-200'
               }`}>
-                {changeClassification.type === 'MINOR' ? 'Minor Typo / Spelling Edit (Direct Publish)' : `Major Draft (v${draftVerNumber}.0 - Review Required)`}
+                {changeClassification.type === 'MINOR'
+                  ? 'Minor Typo / Spelling Edit (Direct Publish)'
+                  : changeClassification.type === 'MAJOR'
+                  ? `Major Draft (v${draftVerNumber}.0 - Review Required)`
+                  : `Draft Version v${draftVerNumber}.0 (Ready for Edits)`}
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 Live Version {liveVerNumber}.0 Active
@@ -1828,11 +1958,15 @@ function CourseBuilderContent() {
             <p className={`text-xs sm:text-sm font-semibold leading-relaxed ${
               changeClassification.type === 'MINOR'
                 ? 'text-emerald-900/90 dark:text-emerald-100/90'
-                : 'text-amber-900/90 dark:text-amber-100/90'
+                : changeClassification.type === 'MAJOR'
+                ? 'text-amber-900/90 dark:text-amber-100/90'
+                : 'text-slate-600 dark:text-slate-400'
             }`}>
               {changeClassification.type === 'MINOR'
-                ? `✨ Detected minor typo / spelling fix in lecture or course text (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
-                : `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (curriculum structure, videos, quizzes, or pricing). These changes must be submitted for Auditor Approval before students see them.`}
+                ? `✨ Detected minor typo / spelling fix in curriculum or course text (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
+                : changeClassification.type === 'MAJOR'
+                ? `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (${changeClassification.reasons.join(', ')}). These changes must be submitted for Auditor Approval once all completeness checklist items are green.`
+                : `Editing Draft Version ${draftVerNumber}.0. The live published version ${liveVerNumber}.0 remains active and accessible to students. Any minor typo edits can be directly published, while major curriculum additions will require review.`}
             </p>
           </div>
         </div>

@@ -242,6 +242,22 @@ async function runCourseVersioningTests() {
     mixedClassification
   );
 
+  // Case 1F: Minor Change in Section/Module Title (Typo / wording fix)
+  const moduleTitleUpdate = {
+    sections: testCourse.sections.map((sec: any, idx: number) => ({
+      ...sec,
+      title: idx === 0 ? 'Foundations of Neural Networks & Modern' : sec.title,
+      lessons: sec.lessons
+    }))
+  };
+  const moduleTitleClassification = classifyCourseChanges(testCourse, moduleTitleUpdate);
+  assert(
+    !moduleTitleClassification.hasMajorChanges &&
+      moduleTitleClassification.minorChanges.some((c) => c.category === 'MINOR' && c.field.includes('.title')),
+    'Editing module/section title typo correctly classified as MINOR change',
+    moduleTitleClassification
+  );
+
   // =========================================================================
   // TEST SUITE 2: Version Draft Creation, Preservation & Reuse
   // =========================================================================

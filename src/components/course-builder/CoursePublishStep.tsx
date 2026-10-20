@@ -285,6 +285,13 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             </button>
           )}
 
+          {!canPublish && (
+            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+              <Icon name="warning" size={14} className="text-amber-500" />
+              <span>Checklist Incomplete ({checklist.filter((c) => !c.passed).length} remaining)</span>
+            </span>
+          )}
+
           <button
             type="button"
             disabled={
@@ -293,10 +300,17 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               (userRole === 'INSTRUCTOR' && !isModeB && courseData.status === 'IN_REVIEW')
             }
             onClick={handlePublishClick}
-            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-              (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25'
-                : 'bg-primary text-on-primary hover:bg-primary-container'
+            title={
+              !canPublish
+                ? 'Complete all checklist items (all green ticks) before submitting for approval'
+                : undefined
+            }
+            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all ${
+              !canPublish
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
+                : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25 cursor-pointer'
+                : 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer'
             }`}
           >
             {isPublishing ? (

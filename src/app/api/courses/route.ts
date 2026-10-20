@@ -73,6 +73,28 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
+    // If manage is requested (or instructor dashboard), batch query version states to surface in-progress version drafts
+    const courseIds = courses.map((c) => c.id);
+    const versionMap = new Map<string, any>();
+    if (manage && courseIds.length > 0) {
+      try {
+        const versionRows = await prisma.platformSetting.findMany({
+          where: {
+            key: { in: courseIds.map((id) => `course_version_${id}`) }
+          }
+        });
+        for (const row of versionRows) {
+          try {
+            const parsed = JSON.parse(row.value);
+            const courseId = row.key.replace('course_version_', '');
+            versionMap.set(courseId, parsed);
+          } catch {}
+        }
+      } catch (err) {
+        console.error('Failed to load version states for courses:', err);
+      }
+    }
+
     const mappedCourses = courses.map((course) => {
       const avgRating =
         course.reviews.length > 0
@@ -86,6 +108,16 @@ export async function GET(request: Request) {
       try { whatYouWillLearn = JSON.parse(course.whatYouWillLearn); } catch { whatYouWillLearn = []; }
       try { requirements = JSON.parse((course as any).requirements || '[]'); } catch { requirements = []; }
       try { targetAudience = JSON.parse((course as any).targetAudience || '[]'); } catch { targetAudience = []; }
+
+      const verState = versionMap.get(course.id);
+      const hasDraftVersion = Boolean(
+        verState &&
+        (verState.status === 'DRAFT_VERSION' ||
+         (verState.status === 'PENDING_REVIEW' && course.status === 'PUBLISHED'))
+      );
+      const draftVersionNumber = verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2);
+      const liveVersionNumber = verState?.liveVersionNumber || 1;
+      const versionStatus = verState?.status || null;
 
       return {
         id: course.id,
@@ -111,6 +143,10 @@ export async function GET(request: Request) {
         bestseller: course.bestseller,
         isNew: course.isNew,
         status: course.status,
+        hasDraftVersion,
+        draftVersionNumber,
+        liveVersionNumber,
+        versionStatus,
         reviewFeedback: (course as any).reviewFeedback || null,
         reviewedAt: (course as any).reviewedAt || null,
         createdAt: course.createdAt,
