@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import InstructorPortalShell from '@/components/instructor/InstructorPortalShell';
 import { CourseVersionHistoryModal } from '@/components/courses/CourseVersionHistoryModal';
 import { CourseActiveToggleModal } from '@/components/courses/CourseActiveToggleModal';
+import { notifyCoursesChanged, useCoursesAutoRefresh } from '@/lib/courses-sync';
 import {
   Users,
   Search,
@@ -84,6 +85,7 @@ function InstructorCoursesStudioInner() {
   // Courses State
   const [courses, setCourses] = useState<CourseAuthored[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Tabs & Search State
   const [activeTab, setActiveTab] = useState<TabType>('ALL');
@@ -178,23 +180,40 @@ function InstructorCoursesStudioInner() {
     }
   }, [searchParams]);
 
-  // Fetch Authored Courses
-  const fetchInstructorCourses = async () => {
+  // Fetch Authored Courses with silent background auto-refresh support
+  const fetchInstructorCourses = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
+      setIsRefreshing(true);
       const res = await fetch('/api/courses?manage=true');
       const data = await res.json();
       if (res.ok && data.courses) {
         setCourses(data.courses);
-      } else {
+      } else if (!silent) {
         setCourses([]);
       }
     } catch {
-      showToast({ title: 'Error', description: 'Failed to load authored courses.', type: 'error' });
+      if (!silent) {
+        showToast({ title: 'Error', description: 'Failed to load authored courses.', type: 'error' });
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
+      setIsRefreshing(false);
     }
   };
+
+  // Auto-refresh hook: silent background polling every 5s while tab is visible,
+  // instant refresh on tab visibility/focus, and real-time cross-tab sync via BroadcastChannel
+  useCoursesAutoRefresh(fetchInstructorCourses, { intervalMs: 5000, enabled: true });
+
+  // Instantly re-fetch whenever user switches status tabs so counts and cards are always 100% fresh
+  useEffect(() => {
+    fetchInstructorCourses(true);
+  }, [activeTab]);
 
   // Fetch Enrolled Students for this Instructor
   const fetchInstructorStudents = async () => {
@@ -252,6 +271,7 @@ function InstructorCoursesStudioInner() {
         description: 'Course submitted to QA Review Studio. Once approved, you will be able to publish it live.',
         type: 'success'
       });
+      notifyCoursesChanged();
     } catch (err: any) {
       showToast({
         title: 'Submission Incomplete',
@@ -288,6 +308,7 @@ function InstructorCoursesStudioInner() {
         description: 'Your approved course is now live on the landing page for student enrollments.',
         type: 'success'
       });
+      notifyCoursesChanged();
     } catch (err: any) {
       showToast({
         title: 'Publishing Error',
@@ -324,6 +345,7 @@ function InstructorCoursesStudioInner() {
         description: `"${course.title}" is now back in Draft mode. You can edit the curriculum privately and resubmit when ready.`,
         type: 'success'
       });
+      notifyCoursesChanged();
     } catch (err: any) {
       showToast({
         title: 'Action Failed',
@@ -365,6 +387,7 @@ function InstructorCoursesStudioInner() {
         description: `"${courseToDelete.title}" has been permanently deleted from your drafts.`,
         type: 'success'
       });
+      notifyCoursesChanged();
 
       setIsDeleteDraftModalOpen(false);
       setCourseToDelete(null);
@@ -407,6 +430,7 @@ function InstructorCoursesStudioInner() {
         description: `"${courseToMakeInactive.title}" is now Inactive and unlisted. Enrolled learners still retain their access.`,
         type: 'success'
       });
+      notifyCoursesChanged();
 
       setIsMakeInactiveModalOpen(false);
       setCourseToMakeInactive(null);
@@ -447,6 +471,7 @@ function InstructorCoursesStudioInner() {
         description: `"${course.title}" is now Active and published live on the platform!`,
         type: 'success'
       });
+      notifyCoursesChanged();
     } catch (err: any) {
       showToast({
         title: 'Action Failed',
@@ -486,6 +511,7 @@ function InstructorCoursesStudioInner() {
         description: `"${newTitle}" created as draft. Opening Curriculum Studio...`,
         type: 'success'
       });
+      notifyCoursesChanged();
 
       setIsCreateOpen(false);
       setNewTitle('');
@@ -1159,9 +1185,24 @@ function InstructorCoursesStudioInner() {
           {/* Header with Title and Search */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900">
-                Your Authored Courses
-              </h2>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="text-lg font-black text-slate-900">
+                  Your Authored Courses
+                </h2>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Live Auto-Sync Active</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => fetchInstructorCourses(false)}
+                  disabled={isRefreshing}
+                  className="p-1 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all cursor-pointer"
+                  title="Refresh courses"
+                >
+                  <Icon name="refresh" size={15} className={isRefreshing ? 'animate-spin text-violet-600' : ''} />
+                </button>
+              </div>
               <p className="text-xs text-slate-500">
                 Manage syllabus, publish live, move to draft, or mark courses active/inactive
               </p>

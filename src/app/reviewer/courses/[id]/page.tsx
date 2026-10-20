@@ -7,6 +7,7 @@ import { AuditorPortalShell } from '@/components/reviewer/AuditorPortalShell';
 import { Icon } from '@/components/ui/Icon';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
+import { notifyCoursesChanged } from '@/lib/courses-sync';
 
 interface SectionIssue {
   id: string;
@@ -306,6 +307,8 @@ export default function AuditorCourseReviewPage() {
             : 'Course Rejected ❌',
         desc: json.message
       });
+
+      notifyCoursesChanged();
 
       setDecisionModal(null);
       setDecisionNote('');

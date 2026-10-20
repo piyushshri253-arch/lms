@@ -23,6 +23,7 @@ import { ExcelValidationReportModal } from '@/components/course-builder/ExcelVal
 import { ExcelValidationResult } from '@/lib/course-excel-validator';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
 import { CourseTutorialModal } from '@/components/course-builder/CourseTutorialModal';
+import { notifyCoursesChanged } from '@/lib/courses-sync';
 
 const getDefaultCourseState = () => ({
   id: '',
@@ -1236,6 +1237,8 @@ function CourseBuilderContent() {
         }
       }
 
+      notifyCoursesChanged();
+
       return { id: savedCourseId, slug: savedSlug };
     } catch (err: any) {
       if (!options?.silent) {
@@ -1327,6 +1330,7 @@ function CourseBuilderContent() {
           window.history.replaceState({}, '', cleanUrl);
         }
 
+        notifyCoursesChanged();
         setTimeout(() => {
           router.push(isInstructor ? '/instructor' : '/admin/courses');
         }, 1200);
@@ -1413,6 +1417,8 @@ function CourseBuilderContent() {
         });
       }
 
+      notifyCoursesChanged();
+
       setTimeout(() => {
         router.push(isInstructor ? '/instructor?tab=IN_REVIEW' : '/admin/courses');
       }, 1000);
@@ -1447,6 +1453,7 @@ function CourseBuilderContent() {
         description: 'Course is now unpublished and back in draft mode. You can edit curriculum privately.',
         type: 'success'
       });
+      notifyCoursesChanged();
     } catch (err: any) {
       showToast({ title: 'Action Failed', description: err.message, type: 'error' });
     } finally {

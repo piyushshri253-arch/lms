@@ -8,6 +8,7 @@ import { useAdmin } from '@/context/AdminContext';
 import { useApp } from '@/context/AppContext';
 import { CourseVersionHistoryModal } from '@/components/courses/CourseVersionHistoryModal';
 import { CourseActiveToggleModal } from '@/components/courses/CourseActiveToggleModal';
+import { notifyCoursesChanged, useCoursesAutoRefresh } from '@/lib/courses-sync';
 
 function getCategoryName(category: any): string {
   if (!category) return 'General';
@@ -85,8 +86,10 @@ function CoursesPageContent() {
     if (search) setSearchQuery(search);
   }, [searchParams]);
 
-  const fetchCourses = async () => {
-    setIsLoading(true);
+  const fetchCourses = async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     try {
       const url = `/api/admin/courses?search=${encodeURIComponent(searchQuery)}`;
       const res = await fetch(url);
@@ -100,15 +103,25 @@ function CoursesPageContent() {
           price: Number(c.price) || 0
         }));
         setCourses(sanitized);
-      } else {
+      } else if (!silent) {
         setCourses([]);
       }
     } catch {
-      setCourses([]);
+      if (!silent) {
+        setCourses([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
+
+  useCoursesAutoRefresh(fetchCourses, { intervalMs: 5000, enabled: true });
+
+  useEffect(() => {
+    fetchCourses(true);
+  }, [activeTab]);
 
   useEffect(() => {
     fetchCourses();
@@ -168,6 +181,7 @@ function CoursesPageContent() {
             };
         setCourses((prev) => [created, ...prev]);
         showToast('Course published directly to catalog & landing page!', 'success');
+        notifyCoursesChanged();
       } else {
         showToast('Failed to save course. Please check fields.', 'error');
       }
@@ -219,6 +233,7 @@ function CoursesPageContent() {
         } else {
           showToast('Course unpublished to draft state.', 'info');
         }
+        notifyCoursesChanged();
       } else {
         showToast('Failed to update course status on server.', 'error');
       }

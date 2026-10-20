@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { notifyCoursesChanged } from '@/lib/courses-sync';
 
 interface CourseActiveToggleModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const CourseActiveToggleModal: React.FC<CourseActiveToggleModalProps> = (
       }
 
       onStatusChanged(data.status);
+      notifyCoursesChanged();
       onClose();
     } catch (err: any) {
       setError(err.message || 'An error occurred while updating status');

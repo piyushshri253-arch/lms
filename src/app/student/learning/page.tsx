@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { useApp } from '@/context/AppContext';
 import { CertificateModal } from '@/components/student/CertificateModal';
 import { InvoiceModal } from '@/components/student/InvoiceModal';
+import { useCoursesAutoRefresh } from '@/lib/courses-sync';
 
 function StudentLearningContent() {
   const searchParams = useSearchParams();
@@ -40,8 +41,10 @@ function StudentLearningContent() {
   }, [searchParams]);
 
   // Load student enrolled courses, certificates, and orders
-  const loadStudentData = async () => {
-    setIsLoading(true);
+  const loadStudentData = async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     try {
       // 1. Fetch Enrolled Courses
       const coursesRes = await fetch('/api/student/courses');
@@ -66,9 +69,13 @@ function StudentLearningContent() {
     } catch (err) {
       console.error('Error loading student dashboard:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
+
+  useCoursesAutoRefresh(loadStudentData, { intervalMs: 5000, enabled: true });
 
   useEffect(() => {
     loadStudentData();
