@@ -394,6 +394,7 @@ export async function GET(
     };
 
     if (
+      (course.status === 'PUBLISHED' || course.status === 'ARCHIVED' || course.status === 'INACTIVE') &&
       versionState.stagedSnapshot &&
       currentUser &&
       (currentUser.id === course.instructorId ||

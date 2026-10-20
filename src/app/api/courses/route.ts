@@ -111,9 +111,9 @@ export async function GET(request: Request) {
 
       const verState = versionMap.get(course.id);
       const hasDraftVersion = Boolean(
+        course.status === 'PUBLISHED' &&
         verState &&
-        (verState.status === 'DRAFT_VERSION' ||
-         (verState.status === 'PENDING_REVIEW' && course.status === 'PUBLISHED'))
+        (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW')
       );
       const draftVersionNumber = verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2);
       const liveVersionNumber = verState?.liveVersionNumber || 1;
@@ -204,9 +204,9 @@ export async function GET(request: Request) {
       for (const course of courses) {
         const verState = versionMap.get(course.id);
         const hasDraftVersion = Boolean(
+          course.status === 'PUBLISHED' &&
           verState &&
-          (verState.status === 'DRAFT_VERSION' ||
-           (verState.status === 'PENDING_REVIEW' && course.status === 'PUBLISHED'))
+          (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW')
         );
         if (hasDraftVersion) {
           const snap = verState?.stagedSnapshot;

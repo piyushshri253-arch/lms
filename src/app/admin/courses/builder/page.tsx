@@ -215,17 +215,30 @@ function CourseBuilderContent() {
     return searchParams.get('mode') === 'minor_edit';
   }, [searchParams]);
 
-  // Mode B Detection (Editing Version Draft of a Published Course)
+  // Mode B Detection (Editing Version Draft of an ALREADY PUBLISHED Live Course)
   const isModeB = useMemo(() => {
-    // A fresh new course or minor edit mode cannot be in Mode B
+    // 1. A fresh new course, minor edit mode, or empty course cannot be in Mode B
     const isFreshNew = searchParams.get('new') === 'true' || searchParams.get('fresh') === 'true';
     if (isFreshNew || isMinorEditMode || (!editSlugOrId && !activeCourseId && !courseState.id)) {
       return false;
     }
+
+    // 2. CRITICAL: A course that is in DRAFT, IN_REVIEW, PENDING, or REJECTED has NOT been published live yet.
+    // When editing from Pending or Draft, it must edit the course directly without creating or triggering a version update!
+    const isUnpublished =
+      courseState.status === 'DRAFT' ||
+      courseState.status === 'IN_REVIEW' ||
+      courseState.status === 'REJECTED';
+    if (isUnpublished) {
+      return false;
+    }
+
+    // 3. For published/live courses: Only activate Mode B when explicitly in version draft mode
     const modeParam = searchParams.get('mode') === 'version_draft';
-    const hasDraftStatus = courseVersionState?.status === 'DRAFT_VERSION' || courseVersionState?.status === 'PENDING_REVIEW';
-    const isPublishedCourse = courseState.status === 'PUBLISHED' || Boolean(courseVersionState?.liveVersionNumber);
-    return Boolean(modeParam || hasDraftStatus || (isPublishedCourse && editSlugOrId));
+    const isPublishedLive = courseState.status === 'PUBLISHED' || courseState.status === 'ARCHIVED';
+    const hasActiveDraftVersion = isPublishedLive && (courseVersionState?.status === 'DRAFT_VERSION' || courseVersionState?.status === 'PENDING_REVIEW');
+
+    return Boolean(isPublishedLive && (modeParam || hasActiveDraftVersion));
   }, [searchParams, isMinorEditMode, courseVersionState, courseState.status, courseState.id, activeCourseId, editSlugOrId]);
 
   const liveVerNumber = courseVersionState?.liveVersionNumber || 1;
@@ -628,10 +641,14 @@ function CourseBuilderContent() {
 
   // Automated background auto-save to PostgreSQL DB (debounced 3.5s)
   // When an instructor creates or updates a course, it automatically saves to DB as DRAFT
-  // so if they close the browser or leave, it already appears under Drafts in Instructor Studio!
   useEffect(() => {
     if (!hasLoadedInitial || isPublishing || isImportingExcel) return;
-    if (courseState.status !== 'DRAFT' && !isModeB) return;
+    const canAutoSave =
+      courseState.status === 'DRAFT' ||
+      courseState.status === 'IN_REVIEW' ||
+      courseState.status === 'REJECTED' ||
+      isModeB;
+    if (!canAutoSave) return;
     if (!courseState.title || courseState.title.trim().length < 3) return;
 
     // Hash summary of content including lessons, videos, and multi-format attached study resources
@@ -953,7 +970,7 @@ function CourseBuilderContent() {
         durationHours: state.durationHours,
         status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : state.status,
         submitForApproval: isSubmitting,
-        submitVersionForReview: isSubmitting,
+        submitVersionForReview: isSubmitting && isModeB,
         whatYouWillLearn: state.whatYouWillLearn,
         requirements: state.requirements,
         targetAudience: state.targetAudience,

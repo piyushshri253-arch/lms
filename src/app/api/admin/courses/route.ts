@@ -67,9 +67,9 @@ export async function GET(request: Request) {
     const mapped = courses.map((c) => {
       const verState = versionMap.get(c.id);
       const hasDraftVersion = Boolean(
+        c.status === 'PUBLISHED' &&
         verState &&
-        (verState.status === 'DRAFT_VERSION' ||
-         (verState.status === 'PENDING_REVIEW' && c.status === 'PUBLISHED'))
+        (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW')
       );
       return {
         id: c.id,
@@ -100,6 +100,7 @@ export async function GET(request: Request) {
       for (const course of courses) {
         const verState = versionMap.get(course.id);
         const hasDraftVersion = Boolean(
+          course.status === 'PUBLISHED' &&
           verState &&
           (verState.status === 'DRAFT_VERSION' ||
            (verState.status === 'PENDING_REVIEW' && course.status === 'PUBLISHED'))
