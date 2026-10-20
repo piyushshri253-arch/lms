@@ -1901,27 +1901,27 @@ function CourseBuilderContent() {
 
   const renderStepNavigationBar = (isTop: boolean = false) => (
     <div
-      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+      className={`flex items-center justify-between gap-2.5 sm:gap-3 overflow-x-auto no-scrollbar py-1 flex-nowrap ${
         isTop
-          ? 'bg-surface-container-lowest p-4 sm:p-5 rounded-2xl border border-outline-variant shadow-xs'
-          : 'pt-6 border-t border-outline-variant'
+          ? 'bg-surface-container-lowest p-3 sm:p-4 rounded-2xl border border-outline-variant shadow-xs'
+          : 'pt-5 border-t border-outline-variant'
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
         <button
           type="button"
           disabled={currentStep === 0}
           onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
-          className="px-4 sm:px-5 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 disabled:opacity-30 cursor-pointer shadow-xs"
+          className="h-9 px-3 sm:px-4 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container flex items-center gap-1.5 disabled:opacity-30 cursor-pointer shadow-xs shrink-0 whitespace-nowrap transition-colors"
         >
           <Icon name="arrow_back" size={16} />
-          <span>Previous Step</span>
+          <span>Previous</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleStartFreshCourse(true)}
-          className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+          className="h-9 px-3 sm:px-3.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors shrink-0 whitespace-nowrap"
           title="Clear form and start a clean brand new course"
         >
           <Icon name="restart_alt" size={16} />
@@ -1929,7 +1929,7 @@ function CourseBuilderContent() {
         </button>
 
         {isModeB && (
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold shadow-xs">
+          <div className="h-9 hidden md:flex items-center gap-1.5 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold shadow-xs shrink-0 whitespace-nowrap">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             <span>Draft (v{draftVerNumber}.0)</span>
             <span className="text-[10px] text-outline font-semibold">| Live: v{liveVerNumber}.0</span>
@@ -1937,15 +1937,15 @@ function CourseBuilderContent() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap">
         {/* Live Course Preview Button */}
         <button
           type="button"
           onClick={() => setIsLivePreviewOpen(true)}
-          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+          className="h-9 px-3 sm:px-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0 whitespace-nowrap"
         >
           <Icon name="visibility" size={16} />
-          <span>Preview Course</span>
+          <span>Preview</span>
         </button>
 
         {/* Save Draft Button */}
@@ -1953,7 +1953,7 @@ function CourseBuilderContent() {
           type="button"
           disabled={isSaving}
           onClick={() => handleSaveDraft({ resetAfterSave: true })}
-          className="px-4 py-2.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          className="h-9 px-3 sm:px-3.5 bg-surface text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:bg-surface-container shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 whitespace-nowrap transition-colors"
         >
           <Icon name="save" size={16} />
           <span>{isSaving ? 'Saving...' : 'Save Draft'}</span>
@@ -1964,7 +1964,7 @@ function CourseBuilderContent() {
           <button
             type="button"
             onClick={() => setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))}
-            className="px-5 sm:px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-sm flex items-center gap-1.5 cursor-pointer"
+            className="h-9 px-3.5 sm:px-5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap transition-colors"
           >
             <span>Next: {steps[currentStep + 1]?.title.replace(/^\d+\.\s*/, '')}</span>
             <Icon name="arrow_forward" size={16} />
@@ -1986,7 +1986,7 @@ function CourseBuilderContent() {
                 ? 'Make edits to submit or publish'
                 : undefined
             }
-            className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all ${
+            className={`h-9 px-4 sm:px-5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 whitespace-nowrap ${
               !isChecklistComplete
                 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
                 : (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR')
