@@ -825,7 +825,42 @@ export async function applyMinorUpdateToLiveCourse(
     }
   });
 
+  // Apply minor updates to existing modules and lectures (typos/spelling fixes)
+  if (updates.sections && Array.isArray(updates.sections)) {
+    for (const sec of updates.sections) {
+      if (sec.id && !sec.id.startsWith('sec-')) {
+        await prisma.courseSection.update({
+          where: { id: sec.id },
+          data: {
+            title: sec.title !== undefined ? sec.title.trim() : undefined,
+            description: sec.description !== undefined ? sec.description : undefined
+          }
+        }).catch(() => {});
+      }
+      for (const les of sec.lessons || []) {
+        if (les.id && !les.id.startsWith('les-')) {
+          await prisma.lesson.update({
+            where: { id: les.id },
+            data: {
+              title: les.title !== undefined ? les.title.trim() : undefined,
+              description: les.description !== undefined ? les.description : undefined,
+              content: les.content !== undefined ? les.content : undefined
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+
   const versionState = await getCourseVersionState(courseId);
+  // Clear any open draft version state since minor edits were applied live
+  await saveCourseVersionState(courseId, {
+    status: 'LIVE_SYNCED',
+    pendingVersionNumber: null,
+    pendingVersionLabel: null,
+    stagedSnapshot: null,
+    detectedChanges: []
+  });
 
   await prisma.auditLog.create({
     data: {

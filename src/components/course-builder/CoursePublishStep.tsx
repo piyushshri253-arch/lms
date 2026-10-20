@@ -20,6 +20,9 @@ interface CoursePublishStepProps {
   onPublish: () => Promise<void>;
   onUnpublish?: () => Promise<void>;
   isPublishing: boolean;
+  isModeB?: boolean;
+  isMinorChange?: boolean;
+  minorReasons?: string[];
 }
 
 export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
@@ -28,7 +31,10 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
   onJumpToStep,
   onPublish,
   onUnpublish,
-  isPublishing
+  isPublishing,
+  isModeB = false,
+  isMinorChange = false,
+  minorReasons = []
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -186,7 +192,11 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             />
             <span className="text-xs font-bold uppercase tracking-wider font-mono">
               {userRole === 'INSTRUCTOR'
-                ? courseData.status === 'APPROVED'
+                ? isModeB
+                  ? isMinorChange
+                    ? 'Minor Update (Direct Publish Live) 🚀'
+                    : 'Major Version Draft (Auditor Review Required) 📋'
+                  : courseData.status === 'APPROVED'
                   ? 'Approved by Review Team ✅'
                   : courseData.status === 'IN_REVIEW'
                   ? 'Under Review by QA Studio ⏳'
@@ -204,7 +214,11 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           </div>
           <h3 className="text-2xl font-black tracking-tight text-on-surface">
             {userRole === 'INSTRUCTOR'
-              ? courseData.status === 'APPROVED'
+              ? isModeB
+                ? isMinorChange
+                  ? 'Minor Typo / Content Fix Detected! 🚀'
+                  : 'Major Version Draft Ready for Review 📋'
+                : courseData.status === 'APPROVED'
                 ? 'Course Approved! Ready to Go Live 🚀'
                 : courseData.status === 'IN_REVIEW'
                 ? 'Course Under Review ⏳'
@@ -221,7 +235,11 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           </h3>
           <p className="text-xs text-on-surface-variant max-w-lg">
             {userRole === 'INSTRUCTOR'
-              ? courseData.status === 'APPROVED'
+              ? isModeB
+                ? isMinorChange
+                  ? `✨ Minor typo or wording fix detected (${minorReasons.length > 0 ? minorReasons.join(', ') : 'spelling/title edit'}). You can directly publish these changes to the live course without waiting for auditor review!`
+                  : '⚠️ Major updates detected (curriculum structure, video URLs, quizzes, or pricing). Submit this version to the Auditor for QA review before releasing to students.'
+                : courseData.status === 'APPROVED'
                 ? 'The Review Team has evaluated and approved your course! You can now publish it live for students.'
                 : courseData.status === 'IN_REVIEW'
                 ? 'Your course has been submitted to the Review Team for quality and curriculum inspection. Once approved, you can publish it live.'
@@ -272,12 +290,12 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
             disabled={
               !canPublish ||
               isPublishing ||
-              (userRole === 'INSTRUCTOR' && courseData.status === 'IN_REVIEW')
+              (userRole === 'INSTRUCTOR' && !isModeB && courseData.status === 'IN_REVIEW')
             }
             onClick={handlePublishClick}
             className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-              userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED'
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+              (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25'
                 : 'bg-primary text-on-primary hover:bg-primary-container'
             }`}
           >
@@ -286,14 +304,28 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                 <Icon name="sync" size={16} className="animate-spin" />
                 <span>
                   {userRole === 'INSTRUCTOR'
-                    ? courseData.status === 'APPROVED'
+                    ? isModeB && isMinorChange
+                      ? 'Publishing Live Updates...'
+                      : courseData.status === 'APPROVED'
                       ? 'Publishing Live...'
                       : 'Submitting...'
                     : 'Publishing...'}
                 </span>
               </>
             ) : userRole === 'INSTRUCTOR' ? (
-              courseData.status === 'APPROVED' ? (
+              isModeB ? (
+                isMinorChange ? (
+                  <>
+                    <Icon name="rocket_launch" size={16} />
+                    <span>Direct Publish Minor Updates 🚀</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="send" size={16} />
+                    <span>Submit Version for Approval 📋</span>
+                  </>
+                )
+              ) : courseData.status === 'APPROVED' ? (
                 <>
                   <Icon name="rocket_launch" size={16} />
                   <span>Publish Masterclass Live 🚀</span>

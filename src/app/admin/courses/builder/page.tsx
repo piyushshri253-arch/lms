@@ -116,6 +116,7 @@ function CourseBuilderContent() {
   // Versioning & Mode B (Published Course Draft)
   const isInstructor = currentUser?.role === 'INSTRUCTOR';
   const [courseVersionState, setCourseVersionState] = useState<any>(null);
+  const [originalCourseState, setOriginalCourseState] = useState<any>(null);
 
   // Background auto-save to database status
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -217,6 +218,169 @@ function CourseBuilderContent() {
 
   const liveVerNumber = courseVersionState?.liveVersionNumber || 1;
   const draftVerNumber = courseVersionState?.draftVersionNumber || courseVersionState?.pendingVersionNumber || liveVerNumber + 1;
+
+  // Real-time Minor vs Major change classifier for published courses
+  const changeClassification = useMemo<{
+    type: 'UNCHANGED' | 'MINOR' | 'MAJOR';
+    reasons: string[];
+    isMinor: boolean;
+    isMajor: boolean;
+  }>(() => {
+    if (!originalCourseState || !isModeB) {
+      return { type: 'UNCHANGED', reasons: [], isMinor: false, isMajor: false };
+    }
+
+    const reasons: string[] = [];
+    let hasMajor = false;
+    let hasMinor = false;
+
+    // Check pricing
+    if (Number(courseState.price) !== Number(originalCourseState.price)) {
+      hasMajor = true;
+      reasons.push(`Course price changed (₹${originalCourseState.price} → ₹${courseState.price})`);
+    }
+    if (Number(courseState.discountPrice || 0) !== Number(originalCourseState.discountPrice || 0)) {
+      hasMajor = true;
+      reasons.push('Discount price changed');
+    }
+    if (courseState.currency !== originalCourseState.currency) {
+      hasMajor = true;
+      reasons.push('Currency changed');
+    }
+    if (courseState.accessType !== originalCourseState.accessType) {
+      hasMajor = true;
+      reasons.push('Access type changed');
+    }
+
+    // Check learning outcomes & audience
+    const origLearn = (originalCourseState.whatYouWillLearn || []).join('|');
+    const currLearn = (courseState.whatYouWillLearn || []).join('|');
+    if (origLearn !== currLearn) {
+      hasMajor = true;
+      reasons.push('Learning outcomes modified');
+    }
+
+    const origReq = (originalCourseState.requirements || []).join('|');
+    const currReq = (courseState.requirements || []).join('|');
+    if (origReq !== currReq) {
+      hasMajor = true;
+      reasons.push('Course prerequisites modified');
+    }
+
+    const origAud = (originalCourseState.targetAudience || []).join('|');
+    const currAud = (courseState.targetAudience || []).join('|');
+    if (origAud !== currAud) {
+      hasMajor = true;
+      reasons.push('Target audience modified');
+    }
+
+    // Check modules & lectures
+    const origSections = originalCourseState.sections || [];
+    const currSections = courseState.sections || [];
+
+    if (currSections.length !== origSections.length) {
+      hasMajor = true;
+      reasons.push(`Module count changed (${origSections.length} → ${currSections.length})`);
+    }
+
+    const origLessonsMap = new Map<string, any>();
+    for (const sec of origSections) {
+      for (const les of sec.lessons || []) {
+        origLessonsMap.set(les.id, les);
+      }
+    }
+
+    const currLessonsMap = new Map<string, any>();
+    for (const sec of currSections) {
+      for (const les of sec.lessons || []) {
+        currLessonsMap.set(les.id, les);
+      }
+    }
+
+    if (currLessonsMap.size !== origLessonsMap.size) {
+      hasMajor = true;
+      reasons.push(`Lesson count changed (${origLessonsMap.size} → ${currLessonsMap.size})`);
+    }
+
+    for (const [id, currLes] of currLessonsMap.entries()) {
+      const origLes = origLessonsMap.get(id);
+      if (!origLes) {
+        hasMajor = true;
+        reasons.push(`New lesson added: "${currLes.title || 'Untitled'}"`);
+        continue;
+      }
+
+      // Video changed
+      const oldVid = (origLes.videoUrl || '').trim();
+      const newVid = (currLes.videoUrl || '').trim();
+      if (oldVid !== newVid) {
+        hasMajor = true;
+        reasons.push(`Video replaced in lesson "${currLes.title || 'Untitled'}"`);
+      }
+
+      // Quiz data changed
+      const oldQuiz = typeof origLes.quizData === 'string' ? origLes.quizData : JSON.stringify(origLes.quizData || '');
+      const newQuiz = typeof currLes.quizData === 'string' ? currLes.quizData : JSON.stringify(currLes.quizData || '');
+      if (oldQuiz !== newQuiz) {
+        hasMajor = true;
+        reasons.push(`Quiz questions modified in lesson "${currLes.title || 'Untitled'}"`);
+      }
+
+      // Final assignment flag changed
+      if (Boolean(currLes.isFinalAssignment) !== Boolean(origLes.isFinalAssignment)) {
+        hasMajor = true;
+        reasons.push(`Final assignment status modified in lesson "${currLes.title || 'Untitled'}"`);
+      }
+
+      // Lesson type changed
+      if (currLes.type !== origLes.type) {
+        hasMajor = true;
+        reasons.push(`Lesson type changed in "${currLes.title || 'Untitled'}"`);
+      }
+
+      // Content changed (Article/Text notes)
+      const oldContent = (origLes.content || '').trim();
+      const newContent = (currLes.content || '').trim();
+      if (oldContent !== newContent) {
+        const lenDiff = Math.abs(newContent.length - oldContent.length);
+        if (lenDiff > 100 || (oldContent.length > 0 && lenDiff / oldContent.length > 0.3)) {
+          hasMajor = true;
+          reasons.push(`Substantial content rewrite in "${currLes.title || 'Untitled'}"`);
+        } else {
+          hasMinor = true;
+          reasons.push(`Spelling / text fix in lesson "${currLes.title || 'Untitled'}"`);
+        }
+      }
+
+      // Lesson title changed (e.g. spelling or typo in Lecture 3)
+      if (currLes.title?.trim() !== origLes.title?.trim()) {
+        hasMinor = true;
+        reasons.push(`Spelling/title update in "${origLes.title}" → "${currLes.title}"`);
+      }
+    }
+
+    // Check course metadata
+    if (courseState.title?.trim() !== originalCourseState.title?.trim()) {
+      hasMinor = true;
+      reasons.push('Course title typo/wording update');
+    }
+    if ((courseState.shortDescription || '').trim() !== (originalCourseState.shortDescription || '').trim()) {
+      hasMinor = true;
+      reasons.push('Short description updated');
+    }
+    if ((courseState.description || '').trim() !== (originalCourseState.description || '').trim()) {
+      hasMinor = true;
+      reasons.push('Course overview description updated');
+    }
+
+    if (hasMajor) {
+      return { type: 'MAJOR', reasons, isMinor: false, isMajor: true };
+    }
+    if (hasMinor) {
+      return { type: 'MINOR', reasons, isMinor: true, isMajor: false };
+    }
+    return { type: 'UNCHANGED', reasons: [], isMinor: false, isMajor: false };
+  }, [courseState, originalCourseState, isModeB]);
 
   // Listen for custom preview event from CourseAssessmentsBanner or child components
   useEffect(() => {
@@ -528,6 +692,7 @@ function CourseBuilderContent() {
           }))
         };
         setCourseState(loadedState);
+        setOriginalCourseState(JSON.parse(JSON.stringify(loadedState)));
         if (data.versionState) {
           setCourseVersionState(data.versionState);
         }
@@ -1036,13 +1201,39 @@ function CourseBuilderContent() {
       }
 
       const isInstructor = currentUser?.role === 'INSTRUCTOR';
-      const isApprovalSubmit = isInstructor && courseState.status !== 'APPROVED';
+      const isDirectMinorPublish = isModeB && changeClassification.type === 'MINOR';
+      const isApprovalSubmit = isModeB
+        ? changeClassification.type === 'MAJOR'
+        : (isInstructor && courseState.status !== 'APPROVED');
 
       const savedInfo = await handleSaveDraft({ submitForApproval: isApprovalSubmit });
       const targetIdentifier = savedInfo?.slug || savedInfo?.id || courseState.slug || courseState.id;
 
       if (!targetIdentifier) {
         throw new Error('Could not identify saved course for publishing.');
+      }
+
+      if (isDirectMinorPublish) {
+        showToast({
+          title: 'Minor Updates Published Live! 🚀',
+          description: 'Your typo and spelling fixes have been published directly to the live course without needing auditor review.',
+          type: 'success'
+        });
+
+        // Reset internal builder form
+        setCourseState(getDefaultCourseState());
+        setCurrentStep(0);
+        lastSavedPayloadRef.current = '';
+
+        if (typeof window !== 'undefined') {
+          const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
+          window.history.replaceState({}, '', cleanUrl);
+        }
+
+        setTimeout(() => {
+          router.push(isInstructor ? '/instructor' : '/admin/courses');
+        }, 1200);
+        return;
       }
 
       const res = await fetch(`/api/courses/${targetIdentifier}/publish`, {
@@ -1102,6 +1293,12 @@ function CourseBuilderContent() {
           showToast({
             title: 'Course Published Live! 🚀',
             description: 'Your approved masterclass is now live on the landing page for student enrollment.',
+            type: 'success'
+          });
+        } else if (isModeB) {
+          showToast({
+            title: 'Version Submitted for Approval! 📋',
+            description: `Major updates for Version v${draftVerNumber}.0 have been submitted for Auditor review.`,
             type: 'success'
           });
         } else {
@@ -1525,8 +1722,8 @@ function CourseBuilderContent() {
             disabled={isPublishing || (isInstructor && courseState.status === 'IN_REVIEW')}
             onClick={handlePublishCourse}
             className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-              isInstructor && courseState.status === 'APPROVED'
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+              (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR')
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25'
                 : 'bg-primary text-on-primary hover:bg-primary-container'
             }`}
           >
@@ -1537,6 +1734,8 @@ function CourseBuilderContent() {
                   {isInstructor
                     ? courseState.status === 'APPROVED'
                       ? 'Publishing Live...'
+                      : isModeB && changeClassification.type === 'MINOR'
+                      ? 'Publishing Live Updates...'
                       : 'Submitting...'
                     : 'Publishing...'}
                 </span>
@@ -1553,10 +1752,17 @@ function CourseBuilderContent() {
                   <span>Under Review ⏳</span>
                 </>
               ) : isModeB ? (
-                <>
-                  <Icon name="send" size={16} />
-                  <span>Submit Version for Review 📋</span>
-                </>
+                changeClassification.type === 'MINOR' ? (
+                  <>
+                    <Icon name="rocket_launch" size={16} />
+                    <span>Direct Publish Minor Updates 🚀</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="send" size={16} />
+                    <span>Submit Version for Approval 📋</span>
+                  </>
+                )
               ) : courseState.status === 'PUBLISHED' ? (
                 <>
                   <Icon name="send" size={16} />
@@ -1587,24 +1793,46 @@ function CourseBuilderContent() {
 
       {/* Mode B Draft Version Banner */}
       {isModeB && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-400 dark:border-amber-600/50 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
-            <Icon name="warning" size={24} />
+        <div className={`border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm ${
+          changeClassification.type === 'MINOR'
+            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-400 dark:border-emerald-600/50'
+            : 'bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600/50'
+        }`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            changeClassification.type === 'MINOR'
+              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+              : 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
+          }`}>
+            <Icon name={changeClassification.type === 'MINOR' ? 'auto_fix_high' : 'warning'} size={24} />
           </div>
           <div className="space-y-1 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="font-black text-sm sm:text-base text-amber-900 dark:text-amber-100">
+              <h4 className={`font-black text-sm sm:text-base ${
+                changeClassification.type === 'MINOR'
+                  ? 'text-emerald-900 dark:text-emerald-100'
+                  : 'text-amber-900 dark:text-amber-100'
+              }`}>
                 Mode B: Editing Draft Version v{draftVerNumber}.0
               </h4>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950">
-                Draft (v{draftVerNumber}.0)
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                changeClassification.type === 'MINOR'
+                  ? 'bg-emerald-500 text-slate-950 font-black'
+                  : 'bg-amber-500 text-slate-950'
+              }`}>
+                {changeClassification.type === 'MINOR' ? 'Minor Typo / Spelling Edit (Direct Publish)' : `Major Draft (v${draftVerNumber}.0 - Review Required)`}
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 Live Version {liveVerNumber}.0 Active
               </span>
             </div>
-            <p className="text-xs sm:text-sm font-semibold text-amber-900/90 dark:text-amber-100/90 leading-relaxed">
-              ⚠️ You are editing Draft Version {draftVerNumber}.0. The live published version {liveVerNumber}.0 remains active and accessible to students. Changes will not affect enrolled students until approved and published.
+            <p className={`text-xs sm:text-sm font-semibold leading-relaxed ${
+              changeClassification.type === 'MINOR'
+                ? 'text-emerald-900/90 dark:text-emerald-100/90'
+                : 'text-amber-900/90 dark:text-amber-100/90'
+            }`}>
+              {changeClassification.type === 'MINOR'
+                ? `✨ Detected minor typo / spelling fix in lecture or course text (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
+                : `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (curriculum structure, videos, quizzes, or pricing). These changes must be submitted for Auditor Approval before students see them.`}
             </p>
           </div>
         </div>
@@ -1884,6 +2112,9 @@ function CourseBuilderContent() {
           onPublish={handlePublishCourse}
           onUnpublish={handleUnpublishCourse}
           isPublishing={isPublishing}
+          isModeB={isModeB}
+          isMinorChange={changeClassification.type === 'MINOR'}
+          minorReasons={changeClassification.reasons}
         />
       )}
 

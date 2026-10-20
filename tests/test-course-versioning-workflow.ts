@@ -389,6 +389,54 @@ async function runCourseVersioningTests() {
     'Minor change (shortDescription) immediately auto-published to live course without auditor review'
   );
 
+  // Lecture typo / spelling fix test:
+  const liveSec = await prisma.courseSection.findFirst({
+    where: { courseId: testCourse.id },
+    include: { lessons: true }
+  });
+  const firstLesson = liveSec?.lessons[0];
+  if (firstLesson) {
+    const lectureClassification = classifyCourseChanges(
+      { sections: [{ id: liveSec.id, title: liveSec.title, lessons: [{ id: firstLesson.id, title: 'Lecture 1: Computatinal Graphs & Autodiff' }] }] },
+      { sections: [{ id: liveSec.id, title: liveSec.title, lessons: [{ id: firstLesson.id, title: 'Lecture 1: Computational Graphs & Autodiff' }] }] }
+    );
+    assert(
+      !lectureClassification.hasMajorChanges &&
+        lectureClassification.hasMinorChanges &&
+        lectureClassification.minorChanges.some((c) => c.category === 'MINOR'),
+      'Fixing spelling/typo in lecture title is classified as MINOR and auto-publishable without review'
+    );
+
+    // Apply minor update with sections & lessons to live course
+    await applyMinorUpdateToLiveCourse(
+      testCourse.id,
+      {
+        sections: [
+          {
+            id: liveSec.id,
+            title: liveSec.title,
+            lessons: [
+              {
+                id: firstLesson.id,
+                title: 'Lecture 1: Computational Graphs & Autodiff (Spelling Fixed)'
+              }
+            ]
+          }
+        ]
+      },
+      { id: testInstructor.id, name: testInstructor.name, role: testInstructor.role },
+      lectureClassification.minorChanges
+    );
+
+    const updatedLesson = await prisma.lesson.findUnique({
+      where: { id: firstLesson.id }
+    });
+    assert(
+      updatedLesson?.title === 'Lecture 1: Computational Graphs & Autodiff (Spelling Fixed)',
+      'Lecture title spelling fix immediately auto-published live to prisma.lesson record'
+    );
+  }
+
   // =========================================================================
   // TEST SUITE 5: Course Inactive Toggle & Access Guards
   // =========================================================================
