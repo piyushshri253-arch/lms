@@ -18,6 +18,8 @@ export interface VideoQueueTask {
   lessonId: string;
   moduleTitle: string;
   lessonTitle: string;
+  sectionIndex?: number;
+  lessonIndex?: number;
   file: File;
   status: 'QUEUED' | 'UPLOADING' | 'COMPLETED' | 'ERROR';
   progress: number;
@@ -186,13 +188,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     const finishTaskWithSuccess = (videoUrl: string, fileName: string) => {
       inFlightTaskIdsRef.current.delete(task.id);
 
-      updateLesson(task.sectionId, task.lessonId, {
-        videoUrl,
-        videoFileName: fileName || task.file.name,
-        duration: durationText,
-        durationSeconds,
-        type: 'VIDEO'
-      });
+      updateLesson(
+        task.sectionId,
+        task.lessonId,
+        {
+          videoUrl,
+          videoFileName: fileName || task.file.name,
+          duration: durationText,
+          durationSeconds,
+          type: 'VIDEO'
+        },
+        {
+          sectionIndex: task.sectionIndex,
+          lessonIndex: task.lessonIndex,
+          lessonTitle: task.lessonTitle,
+          moduleTitle: task.moduleTitle
+        }
+      );
 
       setTasks((prev) =>
         prev.map((t) =>
@@ -461,18 +473,33 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   const updateLesson = (
     sectionId: string,
     lessonId: string,
-    updates: Partial<BuilderLesson>
+    updates: Partial<BuilderLesson>,
+    meta?: {
+      sectionIndex?: number;
+      lessonIndex?: number;
+      lessonTitle?: string;
+      moduleTitle?: string;
+    }
   ) => {
     const currentSections = sectionsRef.current || sections || [];
     let matched = false;
 
+    // 1. Direct match by sectionId (or clientKey/tempId) and lessonId (or clientKey/tempId)
     let updated = currentSections.map((sec, sIdx) => {
-      const isSecMatch = sec.id === sectionId || sec.clientKey === sectionId || (sec as any).tempId === sectionId || `sec-${sIdx}` === sectionId;
+      const isSecMatch =
+        sec.id === sectionId ||
+        sec.clientKey === sectionId ||
+        (sec as any).tempId === sectionId ||
+        `sec-${sIdx}` === sectionId;
       if (!isSecMatch) return sec;
       return {
         ...sec,
         lessons: (sec.lessons || []).map((les, lIdx) => {
-          const isLesMatch = les.id === lessonId || les.clientKey === lessonId || (les as any).tempId === lessonId || `les-${lIdx}` === lessonId;
+          const isLesMatch =
+            les.id === lessonId ||
+            les.clientKey === lessonId ||
+            (les as any).tempId === lessonId ||
+            `les-${lIdx}` === lessonId;
           if (!isLesMatch) return les;
           matched = true;
           return { ...les, ...updates };
@@ -480,12 +507,16 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       };
     });
 
-    // Fallback 1: If section ID changed due to background auto-save, search across all sections for lessonId
+    // 2. Global lesson ID search across all sections (in case section ID changed due to background auto-save)
     if (!matched) {
       updated = currentSections.map((sec) => ({
         ...sec,
         lessons: (sec.lessons || []).map((les) => {
-          if (les.id === lessonId || les.clientKey === lessonId || (les as any).tempId === lessonId) {
+          if (
+            les.id === lessonId ||
+            les.clientKey === lessonId ||
+            (les as any).tempId === lessonId
+          ) {
             matched = true;
             return { ...les, ...updates };
           }
@@ -494,15 +525,54 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       }));
     }
 
-    // Fallback 2: If lesson ID changed (e.g. from les-1790... to DB cuid), match by section and lesson position
-    if (!matched) {
+    // 3. Exact positional match: If sectionIndex and lessonIndex are provided in meta
+    if (
+      !matched &&
+      meta &&
+      typeof meta.sectionIndex === 'number' &&
+      typeof meta.lessonIndex === 'number'
+    ) {
+      if (
+        meta.sectionIndex >= 0 &&
+        meta.sectionIndex < currentSections.length &&
+        currentSections[meta.sectionIndex]?.lessons &&
+        meta.lessonIndex >= 0 &&
+        meta.lessonIndex < (currentSections[meta.sectionIndex].lessons || []).length
+      ) {
+        updated = currentSections.map((sec, sIdx) => {
+          if (sIdx !== meta.sectionIndex) return sec;
+          return {
+            ...sec,
+            lessons: (sec.lessons || []).map((les, lIdx) => {
+              if (lIdx === meta.lessonIndex) {
+                matched = true;
+                return { ...les, ...updates };
+              }
+              return les;
+            })
+          };
+        });
+      }
+    }
+
+    // 4. Title match within section or globally if title is known
+    if (!matched && meta?.lessonTitle) {
+      const cleanTargetTitle = cleanLectureTitle(meta.lessonTitle).toLowerCase().trim();
       updated = currentSections.map((sec, sIdx) => {
-        const isSecMatch = sec.id === sectionId || `sec-${sIdx}` === sectionId;
-        if (!isSecMatch) return sec;
+        const isCandidateSec =
+          typeof meta.sectionIndex === 'number'
+            ? sIdx === meta.sectionIndex
+            : sec.id === sectionId ||
+              (meta.moduleTitle &&
+                cleanModuleTitle(sec.title).toLowerCase().trim() ===
+                  cleanModuleTitle(meta.moduleTitle).toLowerCase().trim());
+
+        if (!isCandidateSec) return sec;
+
         return {
           ...sec,
-          lessons: (sec.lessons || []).map((les, lIdx) => {
-            if (!matched && (lessonId.startsWith('les-') || lIdx === 0)) {
+          lessons: (sec.lessons || []).map((les) => {
+            if (!matched && les.title && cleanLectureTitle(les.title).toLowerCase().trim() === cleanTargetTitle) {
               matched = true;
               return { ...les, ...updates };
             }
@@ -522,7 +592,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     lessonId: string,
     file: File,
     moduleTitle: string,
-    lessonTitle: string
+    lessonTitle: string,
+    sectionIndex?: number,
+    lessonIndex?: number
   ) => {
     if (isMinorEditMode) {
       showToast({
@@ -540,13 +612,22 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
       return;
     }
-    const existingIndex = tasks.findIndex((t) => t.lessonId === lessonId);
+    const existingIndex = tasks.findIndex(
+      (t) =>
+        t.lessonId === lessonId ||
+        (typeof sectionIndex === 'number' &&
+          typeof lessonIndex === 'number' &&
+          t.sectionIndex === sectionIndex &&
+          t.lessonIndex === lessonIndex)
+    );
     const newTask: VideoQueueTask = {
       id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       sectionId,
       lessonId,
       moduleTitle,
       lessonTitle,
+      sectionIndex,
+      lessonIndex,
       file,
       status: 'QUEUED',
       progress: 0
@@ -593,23 +674,41 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       lessonId: string;
       moduleTitle: string;
       lessonTitle: string;
+      sectionIndex: number;
+      lessonIndex: number;
       hasVideo: boolean;
     }[] = [];
 
-    (sections || []).forEach((s) => {
+    (sections || []).forEach((s, sIdx) => {
       (s.lessons || [])
-        .filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT')
-        .forEach((l) => {
+        .forEach((l, lIdx) => {
+          if (l.type === 'QUIZ' || l.type === 'TEXT') return;
           if (isModeB && originalLessonIds?.has(l.id)) {
             // Existing live lessons are protected and cannot be replaced in Update Version mode
             return;
           }
+
+          // Slot is occupied if it already has a video attached, or if there is already an active/completed task in the queue
+          const isSlotOccupied =
+            !!l.videoUrl ||
+            tasks.some(
+              (t) =>
+                (t.lessonId === l.id ||
+                  (typeof t.sectionIndex === 'number' &&
+                    typeof t.lessonIndex === 'number' &&
+                    t.sectionIndex === sIdx &&
+                    t.lessonIndex === lIdx)) &&
+                (t.status === 'QUEUED' || t.status === 'UPLOADING' || t.status === 'COMPLETED')
+            );
+
           allVideoLessonsList.push({
             sectionId: s.id,
             lessonId: l.id,
             moduleTitle: s.title,
             lessonTitle: l.title,
-            hasVideo: !!l.videoUrl
+            sectionIndex: sIdx,
+            lessonIndex: lIdx,
+            hasVideo: isSlotOccupied
           });
         });
     });
@@ -625,10 +724,16 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       return;
     }
 
-    // Prefer video lessons that don't have video yet; if all have videos, target all to allow updating
-    let targetList = allVideoLessonsList.filter((item) => !item.hasVideo);
+    // Only target lessons that don't already have video attached or actively uploading in queue
+    const targetList = allVideoLessonsList.filter((item) => !item.hasVideo);
     if (targetList.length === 0) {
-      targetList = allVideoLessonsList;
+      showToast({
+        title: 'All Video Slots Filled',
+        description:
+          'All available lecture slots in this course already have videos attached or queued. To replace an individual video, click the replace icon on that lecture.',
+        type: 'info'
+      });
+      return;
     }
 
     const availableSlots = targetList.length;
@@ -647,6 +752,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           lessonId: targetLesson.lessonId,
           moduleTitle: targetLesson.moduleTitle,
           lessonTitle: targetLesson.lessonTitle,
+          sectionIndex: targetLesson.sectionIndex,
+          lessonIndex: targetLesson.lessonIndex,
           file,
           status: 'QUEUED',
           progress: 0
@@ -1587,7 +1694,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                 accept="video/*"
                                                 onChange={(e) => {
                                                   const f = e.target.files?.[0];
-                                                  if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                                  if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title, sIdx, lIdx);
                                                   e.target.value = '';
                                                 }}
                                                 className="hidden"
@@ -1633,7 +1740,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           accept="video/*"
                                           onChange={(e) => {
                                             const f = e.target.files?.[0];
-                                            if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title);
+                                            if (f) queueSingleVideo(section.id, lesson.id, f, section.title, lesson.title, sIdx, lIdx);
                                             e.target.value = '';
                                           }}
                                           className="hidden"
