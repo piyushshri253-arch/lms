@@ -25,6 +25,7 @@ interface CourseBasicInfoProps {
   };
   onChange: (field: string, value: any) => void;
   isMinorEditMode?: boolean;
+  isModeB?: boolean;
   originalTitle?: string;
 }
 
@@ -32,6 +33,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
   data,
   onChange,
   isMinorEditMode = false,
+  isModeB = false,
   originalTitle
 }) => {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -131,6 +133,24 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
+      {/* Update Version Mode Banner */}
+      {isModeB && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/20 text-amber-700 dark:text-amber-400">
+            <Icon name="lock" size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-sm text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              <span>Basic Information Locked (Update Version Mode)</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-600 text-white">Protected</span>
+            </h4>
+            <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+              Course title, URL identifier, topic classification, descriptions, and learning requirements are preserved from the live published course and cannot be altered. In Update Version mode, you can expand the curriculum by adding new modules and lectures, attach resources to new items, and update the final assignment.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Primary Info */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         <div>
@@ -146,25 +166,30 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
                 Course Title *
               </label>
-              <GrammarHintAssistant
-                text={data.title}
-                onApplyCorrection={(corrected) => {
-                  onChange('title', corrected);
-                  if (!data.slug || data.slug.startsWith('course-')) {
-                    onChange(
-                      'slug',
-                      corrected.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-                    );
-                  }
-                }}
-                fieldName="Course Title"
-              />
+              {!isModeB && (
+                <GrammarHintAssistant
+                  text={data.title}
+                  onApplyCorrection={(corrected) => {
+                    onChange('title', corrected);
+                    if (!data.slug || data.slug.startsWith('course-')) {
+                      onChange(
+                        'slug',
+                        corrected.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+                      );
+                    }
+                  }}
+                  fieldName="Course Title"
+                />
+              )}
             </div>
             <input
               type="text"
               required
+              readOnly={isModeB}
+              disabled={isModeB}
               value={data.title}
               onChange={(e) => {
+                if (isModeB) return;
                 onChange('title', e.target.value);
                 if (!data.slug || data.slug.startsWith('course-')) {
                   onChange(
@@ -174,11 +199,23 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 }
               }}
               placeholder="e.g. Master Artificial Intelligence &amp; Generative LLM Engineering"
-              className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary font-medium"
+              className={`w-full border rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+                isModeB
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                  : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+              }`}
             />
 
+            {/* Update Version Title Lock Indicator */}
+            {isModeB && (
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
+                <Icon name="lock" size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Course title is permanently locked in Update Version mode to protect student enrollments and certificates.</span>
+              </p>
+            )}
+
             {/* Quick Minor Edit: Title Spelling & Typo Restriction Indicator */}
-            {isMinorEditMode && originalTitle && (() => {
+            {!isModeB && isMinorEditMode && originalTitle && (() => {
               const titleStatus = checkTitleMinorSpellingFix(originalTitle, data.title);
               if (!titleStatus.isIdentical && titleStatus.isMinorFix) {
                 return (
@@ -195,7 +232,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                     <div className="space-y-0.5">
                       <div className="font-bold text-rose-900 dark:text-rose-100">Major Title Change Blocked in Quick Edit</div>
                       <p className="text-[11px] text-rose-800/90 dark:text-rose-200/90 leading-relaxed">
-                        You cannot completely replace or overhaul the course title in Quick Minor Edit mode (Similarity: {Math.round(titleStatus.similarity * 100)}%). Only spelling or typo corrections are permitted. For complete title renaming, please use &quot;Update Version&quot; from My Courses.
+                        You cannot completely replace or overhaul the course title in Quick Minor Edit mode (Similarity: {Math.round(titleStatus.similarity * 100)}%). Only spelling or typo corrections are permitted.
                       </p>
                     </div>
                   </div>
@@ -221,10 +258,19 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 </span>
                 <input
                   type="text"
+                  readOnly={isModeB}
+                  disabled={isModeB}
                   value={data.slug}
-                  onChange={(e) => onChange('slug', e.target.value)}
+                  onChange={(e) => {
+                    if (isModeB) return;
+                    onChange('slug', e.target.value);
+                  }}
                   placeholder="ai-llm-engineering"
-                  className="w-full pl-24 pr-4 py-3 bg-surface border border-outline-variant rounded-2xl text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
+                  className={`w-full pl-24 pr-4 py-3 border rounded-2xl text-xs font-mono transition-colors ${
+                    isModeB
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                      : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+                  }`}
                 />
               </div>
             </div>
@@ -235,21 +281,28 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
                   Category *
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomCategory(!isCustomCategory)}
-                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
-                >
-                  <Icon name={isCustomCategory ? 'list' : 'add'} size={14} />
-                  <span>{isCustomCategory ? 'Select from list' : '+ Create New Category'}</span>
-                </button>
+                {!isModeB && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomCategory(!isCustomCategory)}
+                    className="text-[11px] font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Icon name={isCustomCategory ? 'list' : 'add'} size={14} />
+                    <span>{isCustomCategory ? 'Select from list' : '+ Create New Category'}</span>
+                  </button>
+                )}
               </div>
 
               {!isCustomCategory ? (
                 <select
+                  disabled={isModeB}
                   value={data.category || ''}
-                  onChange={(e) => handleCategorySelect(e.target.value)}
-                  className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-xs font-bold text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                  onChange={(e) => !isModeB && handleCategorySelect(e.target.value)}
+                  className={`w-full border rounded-2xl px-4 py-3 text-xs font-bold transition-colors ${
+                    isModeB
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                      : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary cursor-pointer'
+                  }`}
                 >
                   <option value="">-- Choose Category --</option>
                   {categories.map((c) => (
@@ -257,23 +310,32 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                       {c.name}
                     </option>
                   ))}
-                  <option value="__CREATE_NEW__" className="text-primary font-bold">
-                    + Create New Custom Category...
-                  </option>
+                  {!isModeB && (
+                    <option value="__CREATE_NEW__" className="text-primary font-bold">
+                      + Create New Custom Category...
+                    </option>
+                  )}
                 </select>
               ) : (
                 <div className="relative">
                   <input
                     type="text"
                     required
+                    disabled={isModeB}
+                    readOnly={isModeB}
                     value={customCategoryName || data.category}
                     onChange={(e) => {
+                      if (isModeB) return;
                       setCustomCategoryName(e.target.value);
                       onChange('category', e.target.value);
                     }}
                     onBlur={handleCustomCategoryBlur}
                     placeholder="Enter custom category name (e.g. AI & Generative Agents)"
-                    className="w-full bg-primary/5 border border-primary rounded-2xl px-4 py-3 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={`w-full border rounded-2xl px-4 py-3 text-xs font-bold transition-colors ${
+                      isModeB
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                        : 'bg-primary/5 border-primary text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20'
+                    }`}
                     autoFocus
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-primary font-mono px-2 py-0.5 bg-primary/10 rounded-full">
@@ -290,9 +352,14 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 Skill Level
               </label>
               <select
+                disabled={isModeB}
                 value={data.level}
-                onChange={(e) => onChange('level', e.target.value)}
-                className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-xs font-bold text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                onChange={(e) => !isModeB && onChange('level', e.target.value)}
+                className={`w-full border rounded-2xl px-4 py-3 text-xs font-bold transition-colors ${
+                  isModeB
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                    : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary cursor-pointer'
+                }`}
               >
                 <option value="ALL_LEVELS">All Levels</option>
                 <option value="BEGINNER">Foundational</option>
@@ -307,10 +374,16 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
               </label>
               <input
                 type="text"
+                disabled={isModeB}
+                readOnly={isModeB}
                 value={data.language}
-                onChange={(e) => onChange('language', e.target.value)}
+                onChange={(e) => !isModeB && onChange('language', e.target.value)}
                 placeholder="English / Hindi"
-                className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
+                className={`w-full border rounded-2xl px-4 py-3 text-xs font-bold transition-colors ${
+                  isModeB
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                    : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+                }`}
               />
             </div>
 
@@ -322,10 +395,16 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 type="number"
                 min="0"
                 step="0.5"
+                disabled={isModeB}
+                readOnly={isModeB}
                 value={data.durationHours}
-                onChange={(e) => onChange('durationHours', Number(e.target.value))}
+                onChange={(e) => !isModeB && onChange('durationHours', Number(e.target.value))}
                 placeholder="16.5"
-                className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-xs font-mono font-bold text-on-surface focus:outline-none focus:border-primary"
+                className={`w-full border rounded-2xl px-4 py-3 text-xs font-mono font-bold transition-colors ${
+                  isModeB
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                    : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+                }`}
               />
             </div>
           </div>
@@ -335,18 +414,26 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
                 Short Description / Subtitle
               </label>
-              <GrammarHintAssistant
-                text={data.shortDescription}
-                onApplyCorrection={(corrected) => onChange('shortDescription', corrected)}
-                fieldName="Short Description"
-              />
+              {!isModeB && (
+                <GrammarHintAssistant
+                  text={data.shortDescription}
+                  onApplyCorrection={(corrected) => onChange('shortDescription', corrected)}
+                  fieldName="Short Description"
+                />
+              )}
             </div>
             <input
               type="text"
+              disabled={isModeB}
+              readOnly={isModeB}
               value={data.shortDescription}
-              onChange={(e) => onChange('shortDescription', e.target.value)}
+              onChange={(e) => !isModeB && onChange('shortDescription', e.target.value)}
               placeholder="Master high-concurrency event-driven backends, service meshes, and resilient cloud deployments."
-              className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-3 text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
+              className={`w-full border rounded-2xl px-4 py-3 text-xs font-medium transition-colors ${
+                isModeB
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                  : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+              }`}
             />
           </div>
 
@@ -355,19 +442,27 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
                 Full Course Description &amp; Syllabus Overview *
               </label>
-              <GrammarHintAssistant
-                text={data.description}
-                onApplyCorrection={(corrected) => onChange('description', corrected)}
-                fieldName="Course Description"
-              />
+              {!isModeB && (
+                <GrammarHintAssistant
+                  text={data.description}
+                  onApplyCorrection={(corrected) => onChange('description', corrected)}
+                  fieldName="Course Description"
+                />
+              )}
             </div>
             <textarea
               rows={5}
               required
+              disabled={isModeB}
+              readOnly={isModeB}
               value={data.description}
-              onChange={(e) => onChange('description', e.target.value)}
+              onChange={(e) => !isModeB && onChange('description', e.target.value)}
               placeholder="Provide an in-depth breakdown of the concepts, architectural patterns, hands-on projects, and real-world skills taught in this masterclass..."
-              className="w-full bg-surface border border-outline-variant rounded-2xl p-4 text-xs leading-relaxed text-on-surface focus:outline-none focus:border-primary"
+              className={`w-full border rounded-2xl p-4 text-xs leading-relaxed transition-colors ${
+                isModeB
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                  : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+              }`}
             />
           </div>
         </div>
@@ -385,37 +480,39 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             <p className="text-[11px] text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newLearnPoint}
-                onChange={(e) => setNewLearnPoint(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' &&
-                  (e.preventDefault(), addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint))
-                }
-                placeholder="Add key takeaway..."
-                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-              />
-              <button
-                type="button"
-                onClick={() => addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint)}
-                className="px-3 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl cursor-pointer"
-              >
-                Add
-              </button>
-            </div>
-            {newLearnPoint.trim().length > 3 && (
-              <div className="flex justify-end">
-                <GrammarHintAssistant
-                  text={newLearnPoint}
-                  onApplyCorrection={(corrected) => setNewLearnPoint(corrected)}
-                  fieldName="Learning Outcome"
+          {!isModeB && (
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newLearnPoint}
+                  onChange={(e) => setNewLearnPoint(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' &&
+                    (e.preventDefault(), addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint))
+                  }
+                  placeholder="Add key takeaway..."
+                  className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
                 />
+                <button
+                  type="button"
+                  onClick={() => addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint)}
+                  className="px-3 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Add
+                </button>
               </div>
-            )}
-          </div>
+              {newLearnPoint.trim().length > 3 && (
+                <div className="flex justify-end">
+                  <GrammarHintAssistant
+                    text={newLearnPoint}
+                    onApplyCorrection={(corrected) => setNewLearnPoint(corrected)}
+                    fieldName="Learning Outcome"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {learnPoints.map((point, idx) => (
@@ -424,13 +521,15 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
               >
                 <span className="text-on-surface font-medium leading-tight">{point}</span>
-                <button
-                  type="button"
-                  onClick={() => removePoint('whatYouWillLearn', idx)}
-                  className="text-outline hover:text-rose-600 cursor-pointer"
-                >
-                  <Icon name="close" size={14} />
-                </button>
+                {!isModeB && (
+                  <button
+                    type="button"
+                    onClick={() => removePoint('whatYouWillLearn', idx)}
+                    className="text-outline hover:text-rose-600 cursor-pointer"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -447,25 +546,27 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             <p className="text-[11px] text-on-surface-variant mt-0.5">Who can benefit from this course</p>
           </div>
 
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newAudience}
-              onChange={(e) => setNewAudience(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' &&
-                (e.preventDefault(), addPoint('targetAudience', newAudience, setNewAudience))}
-              placeholder="e.g. Backend Engineers"
-              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={() => addPoint('targetAudience', newAudience, setNewAudience)}
-              className="px-3 py-2 bg-tertiary text-on-tertiary text-xs font-bold rounded-xl cursor-pointer"
-            >
-              Add
-            </button>
-          </div>
+          {!isModeB && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newAudience}
+                onChange={(e) => setNewAudience(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' &&
+                  (e.preventDefault(), addPoint('targetAudience', newAudience, setNewAudience))}
+                placeholder="e.g. Backend Engineers"
+                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => addPoint('targetAudience', newAudience, setNewAudience)}
+                className="px-3 py-2 bg-tertiary text-on-tertiary text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Add
+              </button>
+            </div>
+          )}
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {audiencePoints.map((aud, idx) => (
@@ -474,13 +575,15 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
               >
                 <span className="text-on-surface font-medium leading-tight">{aud}</span>
-                <button
-                  type="button"
-                  onClick={() => removePoint('targetAudience', idx)}
-                  className="text-outline hover:text-rose-600 cursor-pointer"
-                >
-                  <Icon name="close" size={14} />
-                </button>
+                {!isModeB && (
+                  <button
+                    type="button"
+                    onClick={() => removePoint('targetAudience', idx)}
+                    className="text-outline hover:text-rose-600 cursor-pointer"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -496,26 +599,28 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             <p className="text-[11px] text-on-surface-variant mt-0.5">Knowledge or experience you may need</p>
           </div>
 
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newRequirement}
-              onChange={(e) => setNewRequirement(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' &&
-                (e.preventDefault(), addPoint('requirements', newRequirement, setNewRequirement))
-              }
-              placeholder="e.g. Basic Docker knowledge"
-              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={() => addPoint('requirements', newRequirement, setNewRequirement)}
-              className="px-3 py-2 bg-primary text-on-secondary text-xs font-bold rounded-xl cursor-pointer"
-            >
-              Add
-            </button>
-          </div>
+          {!isModeB && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newRequirement}
+                onChange={(e) => setNewRequirement(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' &&
+                  (e.preventDefault(), addPoint('requirements', newRequirement, setNewRequirement))
+                }
+                placeholder="e.g. Basic Docker knowledge"
+                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => addPoint('requirements', newRequirement, setNewRequirement)}
+                className="px-3 py-2 bg-primary text-on-secondary text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Add
+              </button>
+            </div>
+          )}
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {requirementPoints.map((req, idx) => (
@@ -524,13 +629,15 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
               >
                 <span className="text-on-surface font-medium leading-tight">{req}</span>
-                <button
-                  type="button"
-                  onClick={() => removePoint('requirements', idx)}
-                  className="text-outline hover:text-rose-600 cursor-pointer"
-                >
-                  <Icon name="close" size={14} />
-                </button>
+                {!isModeB && (
+                  <button
+                    type="button"
+                    onClick={() => removePoint('requirements', idx)}
+                    className="text-outline hover:text-rose-600 cursor-pointer"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -557,10 +664,16 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             </label>
             <input
               type="text"
+              disabled={isModeB}
+              readOnly={isModeB}
               value={data.seoTitle}
-              onChange={(e) => onChange('seoTitle', e.target.value)}
+              onChange={(e) => !isModeB && onChange('seoTitle', e.target.value)}
               placeholder="AI & Generative Agents Masterclass | MORENA TEACH"
-              className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
+              className={`w-full border rounded-2xl px-4 py-2.5 text-xs font-medium transition-colors ${
+                isModeB
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                  : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+              }`}
             />
           </div>
 
@@ -570,10 +683,16 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             </label>
             <input
               type="text"
+              disabled={isModeB}
+              readOnly={isModeB}
               value={data.seoDescription}
-              onChange={(e) => onChange('seoDescription', e.target.value)}
+              onChange={(e) => !isModeB && onChange('seoDescription', e.target.value)}
               placeholder="Learn modern AI agent workflows, embeddings, and RAG architectures."
-              className="w-full bg-surface border border-outline-variant rounded-2xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
+              className={`w-full border rounded-2xl px-4 py-2.5 text-xs font-medium transition-colors ${
+                isModeB
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                  : 'bg-surface border-outline-variant text-on-surface focus:outline-none focus:border-primary'
+              }`}
             />
           </div>
         </div>

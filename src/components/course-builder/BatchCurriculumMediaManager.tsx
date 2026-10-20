@@ -32,6 +32,8 @@ interface BatchCurriculumMediaManagerProps {
   onChangeSections: (newSections: BuilderSection[]) => void;
   courseTitle?: string;
   isMinorEditMode?: boolean;
+  isModeB?: boolean;
+  originalLessonIds?: Set<string>;
 }
 
 const MAX_CONCURRENT_UPLOADS = 2;
@@ -42,7 +44,9 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
   sections,
   onChangeSections,
   courseTitle,
-  isMinorEditMode = false
+  isMinorEditMode = false,
+  isModeB = false,
+  originalLessonIds
 }) => {
   const { showToast } = useApp();
 
@@ -520,6 +524,22 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
     moduleTitle: string,
     lessonTitle: string
   ) => {
+    if (isMinorEditMode) {
+      showToast({
+        title: 'Video Protected 🔒',
+        description: 'Videos cannot be replaced in Quick Minor Edit mode.',
+        type: 'info'
+      });
+      return;
+    }
+    if (isModeB && originalLessonIds?.has(lessonId)) {
+      showToast({
+        title: 'Video Protected 🔒',
+        description: 'Existing live lecture videos cannot be replaced in Update Version mode. Videos can only be uploaded to newly added modules or lectures.',
+        type: 'info'
+      });
+      return;
+    }
     const existingIndex = tasks.findIndex((t) => t.lessonId === lessonId);
     const newTask: VideoQueueTask = {
       id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -580,6 +600,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       (s.lessons || [])
         .filter((l) => l.type !== 'QUIZ' && l.type !== 'TEXT')
         .forEach((l) => {
+          if (isModeB && originalLessonIds?.has(l.id)) {
+            // Existing live lessons are protected and cannot be replaced in Update Version mode
+            return;
+          }
           allVideoLessonsList.push({
             sectionId: s.id,
             lessonId: l.id,
@@ -592,8 +616,10 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
 
     if (allVideoLessonsList.length === 0) {
       showToast({
-        title: 'No Video Lectures Found',
-        description: 'This curriculum currently only has Written Articles or Quizzes. Please add video lecture slots in the curriculum builder first.',
+        title: isModeB ? 'No New Video Slots Available' : 'No Video Lectures Found',
+        description: isModeB
+          ? 'In Update Version mode, existing published lectures are protected. Please add new lecture slots in the curriculum to attach videos.'
+          : 'This curriculum currently only has Written Articles or Quizzes. Please add video lecture slots in the curriculum builder first.',
         type: 'error'
       });
       return;
@@ -670,6 +696,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         title: 'Resource Protected 🔒',
         description: 'Resources cannot be uploaded or replaced in Quick Minor Edit mode.',
         type: 'error'
+      });
+      return;
+    }
+    if (isModeB && originalLessonIds?.has(lessonId)) {
+      showToast({
+        title: 'Resource Protected 🔒',
+        description: 'Existing live lesson resources cannot be altered in Update Version mode. You can attach resources to newly added modules or lectures.',
+        type: 'info'
       });
       return;
     }
@@ -772,6 +806,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       });
       return;
     }
+    if (isModeB && originalLessonIds?.has(lessonId)) {
+      showToast({
+        title: 'Resource Protected 🔒',
+        description: 'Existing live lesson resources cannot be deleted in Update Version mode.',
+        type: 'info'
+      });
+      return;
+    }
     const existingSec = (sections || []).find((s) => s.id === sectionId);
     const existingLes = existingSec?.lessons?.find((l) => l.id === lessonId);
     const currentList = getLessonResourcesList(existingLes);
@@ -804,6 +846,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         title: 'Video Protected 🔒',
         description: 'Lecture videos cannot be removed or replaced in Quick Minor Edit mode.',
         type: 'error'
+      });
+      return;
+    }
+    if (isModeB && originalLessonIds?.has(lessonId)) {
+      showToast({
+        title: 'Video Protected 🔒',
+        description: 'Existing live lecture videos cannot be removed or replaced in Update Version mode.',
+        type: 'info'
       });
       return;
     }
@@ -1089,8 +1139,26 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
         </div>
       )}
 
+      {/* Update Version Mode Media Banner */}
+      {isModeB && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/20 text-amber-700 dark:text-amber-400">
+            <Icon name="lock" size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-sm text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              <span>Live Media &amp; Resources Protected (Update Version Mode)</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-600 text-white">Protected</span>
+            </h4>
+            <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+              Videos and resources on existing published lectures cannot be replaced or deleted to guarantee continuous student access. You can upload videos and attach study resources to any newly added modules and lectures.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Quick Minor Edit Banner */}
-      {isMinorEditMode && (
+      {!isModeB && isMinorEditMode && (
         <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-500/20 text-blue-700 dark:text-blue-400">
             <Icon name="lock" size={24} />
@@ -1101,7 +1169,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
               <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-500 text-white">Protected</span>
             </h4>
             <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed">
-              In Quick Minor Edit mode, attached lecture videos and study resources cannot be replaced, detached, or deleted to safeguard existing enrolled students. To overhaul media, please use &quot;Update Version&quot; from My Courses.
+              In Quick Minor Edit mode, attached lecture videos and study resources cannot be replaced, detached, or deleted to safeguard existing enrolled students.
             </p>
           </div>
         </div>
@@ -1383,6 +1451,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         const isQuiz = lesson.type === 'QUIZ';
                         const isText = lesson.type === 'TEXT';
                         const isVideoLesson = !isQuiz && !isText && (lesson.type === 'VIDEO' || !lesson.type);
+                        const isLockedLiveItem = Boolean(isModeB && originalLessonIds?.has(lesson.id));
                         const itemMeta = itemNumbering.map[lesson.id] || {
                           type: isQuiz ? 'QUIZ' : isText ? 'ARTICLE' : 'LECTURE',
                           num: lIdx + 1,
@@ -1411,11 +1480,23 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   </span>
                                   <input
                                     type="text"
+                                    readOnly={isLockedLiveItem}
+                                    disabled={isLockedLiveItem}
                                     value={lesson.title}
-                                    onChange={(e) => updateLesson(section.id, lesson.id, { title: e.target.value })}
-                                    onBlur={() => updateLesson(section.id, lesson.id, { title: cleanLectureTitle(lesson.title) })}
+                                    onChange={(e) => {
+                                      if (isLockedLiveItem) return;
+                                      updateLesson(section.id, lesson.id, { title: e.target.value });
+                                    }}
+                                    onBlur={() => {
+                                      if (isLockedLiveItem) return;
+                                      updateLesson(section.id, lesson.id, { title: cleanLectureTitle(lesson.title) });
+                                    }}
                                     placeholder={isQuiz ? "Quiz Title (e.g. Module Knowledge Check)" : "Article Title (e.g. Overview & Deep Dive)"}
-                                    className="font-bold text-sm text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface rounded px-2 py-0.5 focus:outline-none flex-1 min-w-[120px]"
+                                    className={`font-bold text-sm rounded px-2 py-0.5 flex-1 min-w-[120px] transition-colors ${
+                                      isLockedLiveItem
+                                        ? 'text-slate-500 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                                        : 'text-on-surface bg-transparent hover:bg-surface border border-transparent hover:border-outline-variant focus:border-primary focus:bg-surface focus:outline-none'
+                                    }`}
                                   />
                                   {(isQuiz || isText || (lesson.type && lesson.type !== 'VIDEO')) && (
                                     <span
@@ -1494,7 +1575,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                           );
                                         })()}
 
-                                        {!isMinorEditMode && (
+                                        {!isMinorEditMode && !isLockedLiveItem ? (
                                           <>
                                             <label
                                               className="w-7 h-7 flex items-center justify-center bg-surface hover:bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-lg text-xs cursor-pointer shrink-0 transition-colors"
@@ -1522,12 +1603,20 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                               <Icon name="delete" size={13} />
                                             </button>
                                           </>
-                                        )}
+                                        ) : isLockedLiveItem ? (
+                                          <span
+                                            className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 select-none border border-slate-200 dark:border-slate-700 shadow-2xs"
+                                            title="Video is protected for existing published lessons"
+                                          >
+                                            <Icon name="lock" size={12} className="text-slate-400" />
+                                            <span>Live Video</span>
+                                          </span>
+                                        ) : null}
                                       </div>
-                                    ) : isMinorEditMode ? (
+                                    ) : isMinorEditMode || isLockedLiveItem ? (
                                       <span
                                         className="px-2.5 py-1 bg-surface-container text-on-surface-variant/70 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 select-none"
-                                        title="Video uploading is locked during Quick Minor Edit"
+                                        title={isLockedLiveItem ? "Video is locked for existing published lessons" : "Video uploading is locked during Quick Minor Edit"}
                                       >
                                         <Icon name="lock" size={13} className="text-on-surface-variant/50" />
                                         <span>Video Locked</span>
@@ -1672,7 +1761,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                                         </button>
 
                                                         {/* In-place Replace & Delete buttons */}
-                                                        {!isMinorEditMode && (
+                                                        {!isMinorEditMode && !isLockedLiveItem && (
                                                           <>
                                                             {res.type === 'LINK' ? (
                                                               <button
@@ -1742,7 +1831,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                             </div>
 
                                             {/* Quick option to add files directly inside this dropdown */}
-                                            {!isMinorEditMode && (
+                                            {!isMinorEditMode && !isLockedLiveItem && (
                                               <div className="pt-1.5 border-t border-outline-variant/60">
                                                 <button
                                                   type="button"
@@ -1765,7 +1854,14 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                     })()}
 
                                     {/* B. Dropdown Menu Trigger (Compact '+' icon button to save space) */}
-                                    {!isMinorEditMode && (
+                                    {isLockedLiveItem ? (
+                                      <div
+                                        className="w-8 h-8 rounded-xl flex items-center justify-center border border-outline-variant/50 bg-surface-container-high/60 text-on-surface-variant/70 shrink-0"
+                                        title="Resources are locked for existing live lessons in Update Version"
+                                      >
+                                        <Icon name="lock" size={14} />
+                                      </div>
+                                    ) : !isMinorEditMode ? (
                                       <div className="relative shrink-0">
                                         <button
                                           type="button"
@@ -1906,7 +2002,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                         </>
                                       )}
                                     </div>
-                                  )}
+                                  ) : null}
                                 </div>
                               )}
 

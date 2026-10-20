@@ -18,7 +18,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
-import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData } from '@/lib/course-excel';
+import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData, mergeExcelSectionsForUpdateVersion } from '@/lib/course-excel';
 import { ExcelValidationReportModal } from '@/components/course-builder/ExcelValidationReportModal';
 import { ExcelValidationResult, validateCourseExcel } from '@/lib/course-excel-validator';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
@@ -1724,26 +1724,45 @@ function CourseBuilderContent() {
     try {
       setIsImportingExcel(true);
 
-      // Apply validated data to form state
-      setCourseState((prev) => ({
-        ...prev,
-        title: parsed.title || prev.title,
-        slug: parsed.slug || prev.slug,
-        category: parsed.category || prev.category,
-        level: parsed.level || prev.level,
-        language: parsed.language || prev.language,
-        shortDescription: parsed.shortDescription || prev.shortDescription,
-        description: parsed.description || prev.description,
-        whatYouWillLearn: parsed.whatYouWillLearn && parsed.whatYouWillLearn.length > 0 ? parsed.whatYouWillLearn : prev.whatYouWillLearn,
-        requirements: parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : prev.requirements,
-        targetAudience: parsed.targetAudience && parsed.targetAudience.length > 0 ? parsed.targetAudience : prev.targetAudience,
-        price: parsed.price !== undefined ? parsed.price : prev.price,
-        discountPrice: parsed.discountPrice !== undefined ? parsed.discountPrice : prev.discountPrice,
-        currency: parsed.currency || prev.currency,
-        accessType: parsed.accessType || prev.accessType,
-        accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
-        sections: parsed.sections && parsed.sections.length > 0 ? parsed.sections : prev.sections,
-      }));
+      if (isModeB) {
+        // In Update Version (Mode B):
+        // 1. Basic Information (Title, Slug, Category, Level, Language, Descriptions, Requirements, Audience, Pricing, Thumbnail) is STRICTLY LOCKED and preserved.
+        // 2. Existing live modules & lessons cannot be modified or replaced.
+        // 3. Newly added modules, lectures, quizzes & articles in Excel are safely merged.
+        // 4. Final assignment questions can be updated.
+        setCourseState((prev) => ({
+          ...prev,
+          sections: mergeExcelSectionsForUpdateVersion(prev.sections || [], parsed.sections || [])
+        }));
+
+        showToast({
+          title: 'Update Version: Excel Curriculum Merged 🎉',
+          description: 'Live course title, basic info, and existing modules/videos are protected. Newly added modules & lessons were appended.',
+          type: 'success'
+        });
+      } else {
+        // Normal Import (Draft / New Course):
+        // Apply validated data to form state
+        setCourseState((prev) => ({
+          ...prev,
+          title: parsed.title || prev.title,
+          slug: parsed.slug || prev.slug,
+          category: parsed.category || prev.category,
+          level: parsed.level || prev.level,
+          language: parsed.language || prev.language,
+          shortDescription: parsed.shortDescription || prev.shortDescription,
+          description: parsed.description || prev.description,
+          whatYouWillLearn: parsed.whatYouWillLearn && parsed.whatYouWillLearn.length > 0 ? parsed.whatYouWillLearn : prev.whatYouWillLearn,
+          requirements: parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : prev.requirements,
+          targetAudience: parsed.targetAudience && parsed.targetAudience.length > 0 ? parsed.targetAudience : prev.targetAudience,
+          price: parsed.price !== undefined ? parsed.price : prev.price,
+          discountPrice: parsed.discountPrice !== undefined ? parsed.discountPrice : prev.discountPrice,
+          currency: parsed.currency || prev.currency,
+          accessType: parsed.accessType || prev.accessType,
+          accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
+          sections: parsed.sections && parsed.sections.length > 0 ? parsed.sections : prev.sections,
+        }));
+      }
 
       // Cache uploaded file info for download & replace previous
       if (pendingExcelRecord) {
@@ -2338,6 +2357,7 @@ function CourseBuilderContent() {
           }}
           onChange={handleUpdateField}
           isMinorEditMode={isMinorEditMode}
+          isModeB={isModeB}
           originalTitle={originalCourseState?.title}
         />
       )}
@@ -2364,6 +2384,7 @@ function CourseBuilderContent() {
             banner={courseState.banner}
             onChange={handleUpdateField}
             isMinorEditMode={isMinorEditMode}
+            isModeB={isModeB}
           />
 
           {/* Curriculum Media & Resources Studio */}
@@ -2385,6 +2406,8 @@ function CourseBuilderContent() {
               onChangeSections={(newSections) => handleUpdateField('sections', newSections)}
               courseTitle={courseState.title}
               isMinorEditMode={isMinorEditMode}
+              isModeB={isModeB}
+              originalLessonIds={originalLessonIds}
             />
           </div>
         </div>

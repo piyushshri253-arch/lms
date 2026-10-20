@@ -9,6 +9,7 @@ interface CourseMediaProps {
   banner?: string;
   onChange: (field: string, value: string) => void;
   isMinorEditMode?: boolean;
+  isModeB?: boolean;
 }
 
 // Client-side canvas compression to keep base64 payload under 200KB and avoid Vercel 413
@@ -82,17 +83,21 @@ async function compressImageFile(
 export const CourseMediaStep: React.FC<CourseMediaProps> = ({
   thumbnail,
   onChange,
-  isMinorEditMode = false
+  isMinorEditMode = false,
+  isModeB = false
 }) => {
   const { showToast } = useApp();
   const thumbnailFileRef = useRef<HTMLInputElement>(null);
   const [isCompressing, setIsCompressing] = useState<boolean>(false);
+  const isLocked = Boolean(isMinorEditMode || isModeB);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isMinorEditMode) {
+    if (isLocked) {
       showToast({
         title: 'Thumbnail Locked 🔒',
-        description: 'Course thumbnail cannot be changed during Quick Minor Edit.',
+        description: isModeB
+          ? 'Course thumbnail cannot be changed in Update Version mode.'
+          : 'Course thumbnail cannot be changed during Quick Minor Edit.',
         type: 'error'
       });
       return;
@@ -133,8 +138,26 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
+      {/* Update Version Mode Banner */}
+      {isModeB && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/20 text-amber-700 dark:text-amber-400">
+            <Icon name="lock" size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-sm text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              <span>Thumbnail Locked (Update Version Mode)</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-600 text-white">Protected</span>
+            </h4>
+            <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+              Course thumbnail is preserved from the live published course to protect course identity and student recognition. Changes are restricted to curriculum expansion and final assignment updates.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Quick Minor Edit Mode Banner */}
-      {isMinorEditMode && (
+      {!isModeB && isMinorEditMode && (
         <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-500/20 text-blue-700 dark:text-blue-400">
             <Icon name="lock" size={24} />
@@ -145,7 +168,7 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
               <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-500 text-white">Protected</span>
             </h4>
             <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed">
-              In Quick Minor Edit mode, course thumbnail and media are permanently locked to preserve existing student visual branding. To replace media or rebrand, please use &quot;Update Version&quot; from My Courses.
+              In Quick Minor Edit mode, course thumbnail and media are permanently locked to preserve existing student visual branding.
             </p>
           </div>
         </div>
@@ -176,7 +199,7 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
                   alt="Course Thumbnail Preview"
                   className="relative z-10 w-full h-full object-contain"
                 />
-                {!isMinorEditMode && (
+                {!isLocked && (
                   <div className="absolute inset-0 z-20 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button
                       type="button"
@@ -194,7 +217,7 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
                     </button>
                   </div>
                 )}
-                {isMinorEditMode && (
+                {isLocked && (
                   <div className="absolute bottom-2.5 right-2.5 z-20 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-white/20 select-none">
                     <Icon name="lock" size={12} />
                     <span>Locked</span>
@@ -220,19 +243,19 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
               onChange={handleFileUpload}
               className="hidden"
-              disabled={isMinorEditMode}
+              disabled={isLocked}
             />
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {isMinorEditMode ? (
+              {isLocked ? (
                 <button
                   type="button"
                   disabled={true}
                   className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-2 cursor-not-allowed shadow-2xs opacity-80"
-                  title="Thumbnail cannot be modified in Quick Minor Edit mode"
+                  title={isModeB ? 'Thumbnail cannot be modified in Update Version mode' : 'Thumbnail cannot be modified in Quick Minor Edit mode'}
                 >
                   <Icon name="lock" size={16} className="text-slate-400" />
-                  <span>Thumbnail Locked (Quick Edit)</span>
+                  <span>Thumbnail Locked {isModeB ? '(Update Version)' : '(Quick Edit)'}</span>
                 </button>
               ) : (
                 <button
@@ -246,7 +269,7 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
                 </button>
               )}
 
-              {thumbnail && !isMinorEditMode && (
+              {thumbnail && !isLocked && (
                 <button
                   type="button"
                   disabled={isCompressing}
@@ -259,8 +282,8 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
             </div>
 
             <p className="text-[11px] text-on-surface-variant">
-              {isMinorEditMode
-                ? 'Course thumbnail is protected from edits during quick minor text fixes.'
+              {isLocked
+                ? 'Course thumbnail is protected from edits to preserve live student branding.'
                 : 'Upload directly from your PC, laptop, or mobile phone. Supports JPG, PNG, WebP, or SVG (Max 20MB). Automatically optimized for high-speed page loading.'}
             </p>
           </div>

@@ -1672,3 +1672,127 @@ export async function parseCourseExcelFile(file: File): Promise<ParsedCourseData
   const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
   return parseCourseExcelWorkbook(wb);
 }
+
+/**
+ * Merges parsed curriculum sections from an uploaded Excel file during "Update Version" mode (isModeB).
+ * Guarantees that:
+ * 1. Existing live modules and lessons are 100% preserved (original titles, IDs, attached videos, resources).
+ * 2. Any modifications made in Excel to existing module titles or existing lesson titles are safely ignored.
+ * 3. Newly added modules and newly added lessons in the Excel are appended.
+ * 4. Final assignment questions and passing criteria can be updated if present in the Excel.
+ */
+export function mergeExcelSectionsForUpdateVersion(
+  existingSections: BuilderSection[],
+  parsedSections: BuilderSection[]
+): BuilderSection[] {
+  if (!parsedSections || parsedSections.length === 0) return existingSections || [];
+  if (!existingSections || existingSections.length === 0) return parsedSections;
+
+  const result: BuilderSection[] = [];
+  const matchedParsedIndices = new Set<number>();
+
+  existingSections.forEach((origSec, sIdx) => {
+    const origCleanTitle = cleanModuleTitle(origSec.title).toLowerCase();
+
+    // Match parsed section by normalized title first, or fallback to matching by module index
+    let matchedParsedIdx = parsedSections.findIndex(
+      (ps, pIdx) => !matchedParsedIndices.has(pIdx) && cleanModuleTitle(ps.title).toLowerCase() === origCleanTitle
+    );
+    if (matchedParsedIdx === -1 && sIdx < parsedSections.length && !matchedParsedIndices.has(sIdx)) {
+      matchedParsedIdx = sIdx;
+    }
+
+    if (matchedParsedIdx !== -1) {
+      matchedParsedIndices.add(matchedParsedIdx);
+      const parsedSec = parsedSections[matchedParsedIdx];
+
+      // Clone original lessons to preserve IDs, resources, videoUrls, content
+      const mergedLessons: BuilderLesson[] = origSec.lessons.map((l) => ({ ...l }));
+
+      // Find final assignment if present in original or parsed
+      const origFinalIdx = mergedLessons.findIndex(
+        (l) => l.isFinalAssignment || /final\s+assignment/i.test(l.title || '')
+      );
+      const parsedFinal = parsedSec.lessons?.find(
+        (l) => l.isFinalAssignment || /final\s+assignment/i.test(l.title || '')
+      );
+
+      // Final assignment can be updated
+      if (origFinalIdx !== -1 && parsedFinal) {
+        mergedLessons[origFinalIdx] = {
+          ...mergedLessons[origFinalIdx],
+          quizData: parsedFinal.quizData || mergedLessons[origFinalIdx].quizData,
+          description: parsedFinal.description || mergedLessons[origFinalIdx].description
+        };
+      }
+
+      // Existing lesson titles set for matching
+      const existingLessonCleanTitles = new Set(
+        origSec.lessons.map((l) => cleanLectureTitle(l.title).toLowerCase())
+      );
+
+      // Check for newly added lessons in this parsed section
+      (parsedSec.lessons || []).forEach((parsedLes, pLesIdx) => {
+        // Skip if this is the final assignment already handled
+        if (parsedLes.isFinalAssignment || /final\s+assignment/i.test(parsedLes.title || '')) {
+          if (origFinalIdx !== -1) return;
+        }
+
+        const cleanTitle = cleanLectureTitle(parsedLes.title).toLowerCase();
+
+        // If parsed index is within existing lessons count or title matches an existing lesson, it is an existing lesson -> keep original!
+        const matchesExistingByTitle = existingLessonCleanTitles.has(cleanTitle);
+        const matchesExistingByIndex = pLesIdx < origSec.lessons.length;
+
+        if (!matchesExistingByTitle && !matchesExistingByIndex) {
+          // This is a NEW lesson added in Excel!
+          const newLessonId = `les-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          mergedLessons.push({
+            ...parsedLes,
+            id: newLessonId,
+            clientKey: newLessonId,
+            tempId: newLessonId,
+            order: mergedLessons.length + 1
+          });
+        }
+      });
+
+      result.push({
+        ...origSec,
+        lessons: mergedLessons
+      });
+    } else {
+      // Retain existing section as is
+      result.push(origSec);
+    }
+  });
+
+  // Now append any completely NEW modules from Excel that had no match in existingSections
+  parsedSections.forEach((parsedSec, pIdx) => {
+    if (!matchedParsedIndices.has(pIdx)) {
+      const newSecId = `sec-${Date.now()}-${pIdx}-${Math.random().toString(36).slice(2, 7)}`;
+      const newLessons: BuilderLesson[] = (parsedSec.lessons || []).map((l, lIdx) => {
+        const newLessonId = `les-${Date.now()}-${lIdx}-${Math.random().toString(36).slice(2, 7)}`;
+        return {
+          ...l,
+          id: newLessonId,
+          clientKey: newLessonId,
+          tempId: newLessonId,
+          order: lIdx + 1
+        };
+      });
+
+      result.push({
+        ...parsedSec,
+        id: newSecId,
+        clientKey: newSecId,
+        tempId: newSecId,
+        order: result.length + 1,
+        lessons: newLessons
+      });
+    }
+  });
+
+  return result;
+}
+
