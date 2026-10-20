@@ -576,20 +576,31 @@ function CoursesPageContent() {
                               </Link>
 
                               {(hasPermission('course.edit') || isSuperAdmin) && (
-                                <button
-                                  type="button"
-                                  disabled={isUpdatingVersionId === course.id}
-                                  onClick={() => handleUpdateVersion(course)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20 transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-2xs"
-                                  title="Create or resume editable draft for the next version"
-                                >
-                                  {isUpdatingVersionId === course.id ? (
-                                    <Icon name="sync" size={13} className="animate-spin" />
-                                  ) : (
-                                    <Icon name="edit_document" size={13} />
-                                  )}
-                                  <span>Update Version</span>
-                                </button>
+                                <>
+                                  <Link
+                                    href={`/admin/courses/builder?courseId=${course.id}&mode=minor_edit`}
+                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/20 transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                    title="Quick edit course title, description, or minor text updates"
+                                  >
+                                    <Icon name="edit_note" size={13} />
+                                    <span>Edit</span>
+                                  </Link>
+
+                                  <button
+                                    type="button"
+                                    disabled={isUpdatingVersionId === course.id}
+                                    onClick={() => handleUpdateVersion(course)}
+                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20 transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-2xs"
+                                    title="Create or resume editable draft for the next version"
+                                  >
+                                    {isUpdatingVersionId === course.id ? (
+                                      <Icon name="sync" size={13} className="animate-spin" />
+                                    ) : (
+                                      <Icon name="edit_document" size={13} />
+                                    )}
+                                    <span>Update Version</span>
+                                  </button>
+                                </>
                               )}
 
                               {(hasPermission('course.publish') || isSuperAdmin) && (

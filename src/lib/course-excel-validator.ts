@@ -248,15 +248,15 @@ export function validateCourseExcel(
   const rawTitle = findDetail('course title', 'title');
   const courseTitle = rawTitle ? String(rawTitle).trim() : '';
 
-  // 4. Empty / Unmodified Template Detection
+  // 4. Empty Workbook Detection
   // Check if non-header rows exist in Curriculum
   const nonHeaderCurriculumRows = curRows.slice(1).filter((r) => r.some((c) => String(c || '').trim() !== ''));
-  if (nonHeaderCurriculumRows.length === 0 && !courseTitle) {
+  if (nonHeaderCurriculumRows.length === 0) {
     errors.push({
       location: 'Course Content',
       field: 'Course Content',
-      error: 'No course content found. Please fill in the mandatory course details and curriculum fields before uploading.',
-      action: 'Fill in the mandatory course details and curriculum fields before uploading.',
+      error: 'No course content found. The spreadsheet has no curriculum modules or lessons. Please fill in your course content before uploading.',
+      action: 'Fill in the curriculum sheet with modules, lectures, or quizzes before uploading.',
       severity: 'BLOCKING'
     });
     return {
@@ -266,58 +266,6 @@ export function validateCourseExcel(
       errors,
       summary: emptySummary
     };
-  }
-
-  // Check if user uploaded pure unmodified template placeholder
-  const isPlaceholderTitle = TEMPLATE_PLACEHOLDER_TITLES.includes(courseTitle.toLowerCase());
-  const isPlaceholderFirstModule = nonHeaderCurriculumRows[0] &&
-    String(nonHeaderCurriculumRows[0][0] || '').toLowerCase().includes('foundations of modern web architecture');
-  const isPlaceholderFirstLesson = nonHeaderCurriculumRows[0] &&
-    String(nonHeaderCurriculumRows[0][1] || '').toLowerCase().includes('course orientation & tech stack roadmap');
-
-  if (isPlaceholderTitle && isPlaceholderFirstModule && isPlaceholderFirstLesson && nonHeaderCurriculumRows.length <= 15) {
-    // Check if any customized cell exists in Curriculum
-    let hasCustomContent = false;
-    for (const row of nonHeaderCurriculumRows) {
-      const topic = String(row[1] || '').trim().toLowerCase();
-      if (
-        topic &&
-        !topic.includes('course orientation') &&
-        !topic.includes('developer workspace') &&
-        !topic.includes('git workflow') &&
-        !topic.includes('cli commands') &&
-        !topic.includes('core architectural principles') &&
-        !topic.includes('web architecture & modern ai') &&
-        !topic.includes('server components') &&
-        !topic.includes('responsive master layouts') &&
-        !topic.includes('state management & custom hooks') &&
-        !topic.includes('next.js & react 19 component') &&
-        !topic.includes('relational database modeling') &&
-        !topic.includes('database schema reference') &&
-        !topic.includes('database & api architecture') &&
-        !topic.includes('final assignment')
-      ) {
-        hasCustomContent = true;
-        break;
-      }
-    }
-
-    if (!hasCustomContent) {
-      errors.push({
-        location: 'Course Content',
-        field: 'Course Content',
-        error: 'No course content found. Please fill in the mandatory course details and curriculum fields before uploading.',
-        action: 'Fill in the mandatory course details and curriculum fields before uploading.',
-        severity: 'BLOCKING'
-      });
-      return {
-        isValid: false,
-        blockingCount: errors.length,
-        warningCount: 0,
-        errors,
-        summary: emptySummary
-      };
-    }
   }
 
   // 5. Mandatory Course Fields Validation

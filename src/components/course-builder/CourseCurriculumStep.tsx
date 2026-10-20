@@ -126,13 +126,21 @@ interface CourseCurriculumStepProps {
   onChange: (sections: BuilderSection[]) => void;
   courseSlug?: string;
   onOpenBatchMediaManager?: () => void;
+  isModeB?: boolean;
+  isMinorEditMode?: boolean;
+  originalSectionIds?: Set<string>;
+  originalLessonIds?: Set<string>;
 }
 
 export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   sections,
   onChange,
   courseSlug,
-  onOpenBatchMediaManager
+  onOpenBatchMediaManager,
+  isModeB = false,
+  isMinorEditMode = false,
+  originalSectionIds,
+  originalLessonIds
 }) => {
   const { showToast } = useApp();
 
@@ -460,12 +468,28 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Update Module field inline (Title or Description)
   const handleUpdateSectionField = (sectionId: string, field: 'title' | 'description', value: string) => {
+    if (isModeB && originalSectionIds?.has(sectionId)) {
+      showToast({
+        title: 'Live Module Protected 🔒',
+        description: 'Previous live modules cannot be edited in version updates to protect enrolled students.',
+        type: 'info'
+      });
+      return;
+    }
     onChange(
       sections.map((s) => (s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId ? { ...s, [field]: value } : s))
     );
   };
 
   const handleDeleteSection = (sectionId: string) => {
+    if (isModeB && originalSectionIds?.has(sectionId)) {
+      showToast({
+        title: 'Cannot Delete Live Module',
+        description: 'Existing published modules cannot be deleted in version updates to protect enrolled students.',
+        type: 'error'
+      });
+      return;
+    }
     if (!confirm('Are you sure you want to delete this module and all its lessons?')) return;
     onChange(sections.filter((s) => s.id !== sectionId && s.clientKey !== sectionId && s.tempId !== sectionId).map((s, idx) => ({ ...s, order: idx + 1 })));
     showToast({ title: 'Module Removed', type: 'info' });
@@ -666,6 +690,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
   // Update Lesson inline
   const handleUpdateLessonInline = (sectionId: string, lessonId: string, patch: Partial<BuilderLesson>) => {
+    if (isModeB && originalLessonIds?.has(lessonId)) {
+      const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
+      const les = sec?.lessons.find((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
+      const isFinal = les?.isFinalAssignment || /final\s+assignment/i.test(les?.title || '');
+      if (!isFinal) {
+        showToast({
+          title: 'Live Content Protected 🔒',
+          description: 'Previous live lectures, articles, and quizzes cannot be modified in version updates.',
+          type: 'info'
+        });
+        return;
+      }
+    }
     onChange(
       sections.map((s) => {
         const isMatchSec = s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId;
@@ -792,6 +829,19 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   const handleSaveLessonEdit = (updatedLesson: BuilderLesson) => {
     if (!editingLesson) return;
 
+    if (isModeB && editingLesson.lesson?.id && originalLessonIds?.has(editingLesson.lesson.id)) {
+      const isFinal = editingLesson.lesson.isFinalAssignment || /final\s+assignment/i.test(editingLesson.lesson.title || '');
+      if (!isFinal) {
+        showToast({
+          title: 'Live Content Protected 🔒',
+          description: 'Previous live articles and lectures cannot be edited in version updates.',
+          type: 'info'
+        });
+        setEditingLesson(null);
+        return;
+      }
+    }
+
     // Clean any temporary browser blob references
     const sanitizedLesson: BuilderLesson = {
       ...updatedLesson,
@@ -842,6 +892,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   };
 
   const handleDeleteLesson = (sectionId: string, lessonId: string) => {
+    if (isModeB && originalLessonIds?.has(lessonId)) {
+      showToast({
+        title: 'Cannot Delete Live Lesson',
+        description: 'Existing published lessons and quizzes cannot be deleted in version updates to protect enrolled students.',
+        type: 'error'
+      });
+      return;
+    }
     if (!confirm('Are you sure you want to delete this lesson and its sub-topics?')) return;
 
     const updated = sections.map((s) => {
@@ -976,18 +1034,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       <div className="flex items-center gap-0.5">
                         <button
                           type="button"
-                          disabled={sIdx === 0}
+                          disabled={sIdx === 0 || (isModeB && originalSectionIds?.has(secKey))}
                           onClick={() => moveSection(sIdx, 'up')}
-                          className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                           title="Move Module Up"
                         >
                           <Icon name="arrow_upward" size={15} />
                         </button>
                         <button
                           type="button"
-                          disabled={sIdx === sections.length - 1}
+                          disabled={sIdx === sections.length - 1 || (isModeB && originalSectionIds?.has(secKey))}
                           onClick={() => moveSection(sIdx, 'down')}
-                          className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                           title="Move Module Down"
                         >
                           <Icon name="arrow_downward" size={15} />
@@ -1003,23 +1061,39 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                         <input
                           type="text"
                           value={section.title}
+                          readOnly={isModeB && originalSectionIds?.has(secKey)}
+                          disabled={isModeB && originalSectionIds?.has(secKey)}
                           onChange={(e) => handleUpdateSectionField(secKey, 'title', e.target.value)}
                           onBlur={() => handleUpdateSectionField(secKey, 'title', cleanModuleTitle(section.title))}
                           placeholder="Module Title (e.g. Foundations & Architecture)"
-                          className="w-full bg-white border border-[#d1d7dc] focus:border-[#2d2f31] rounded px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none transition-colors shadow-2xs"
+                          className={`w-full border rounded px-3 py-2 text-xs sm:text-sm font-bold transition-colors shadow-2xs ${
+                            isModeB && originalSectionIds?.has(secKey)
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                              : 'bg-white border-[#d1d7dc] focus:border-[#2d2f31] text-slate-900 focus:outline-none'
+                          }`}
                         />
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSection(secKey)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
-                        title="Delete Module"
-                      >
-                        <Icon name="delete" size={16} />
-                      </button>
+                      {isModeB && originalSectionIds?.has(secKey) ? (
+                        <span
+                          className="px-2.5 py-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md flex items-center gap-1 border border-slate-200 dark:border-slate-700 shadow-2xs select-none"
+                          title="Published live module is locked and protected to safeguard enrolled students"
+                        >
+                          <Icon name="lock" size={13} className="text-slate-400" />
+                          <span>Live Module</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSection(secKey)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
+                          title="Delete Module"
+                        >
+                          <Icon name="delete" size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1054,6 +1128,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                       // 1. DEDICATED QUIZ ROW & EDITOR (Purple Theme, Clear "Edit Quiz" Button)
                       if (isQuizItem) {
+                        const isLockedLiveQuiz = Boolean(isModeB && originalLessonIds?.has(itemKey) && !les.isFinalAssignment);
+
                         return (
                           <div key={itemKey} className="space-y-2">
                             <div className="border border-purple-200 bg-purple-50/25 hover:border-purple-300 rounded-md transition-all shadow-2xs overflow-hidden">
@@ -1064,18 +1140,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <div className="flex items-center gap-0.5">
                                     <button
                                       type="button"
-                                      disabled={lIdx === 0}
+                                      disabled={lIdx === 0 || isLockedLiveQuiz}
                                       onClick={() => moveLesson(secKey, lIdx, 'up')}
-                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Quiz Up"
                                     >
                                       <Icon name="arrow_upward" size={13} />
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={lIdx === section.lessons.length - 1}
+                                      disabled={lIdx === section.lessons.length - 1 || isLockedLiveQuiz}
                                       onClick={() => moveLesson(secKey, lIdx, 'down')}
-                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Quiz Down"
                                     >
                                       <Icon name="arrow_downward" size={13} />
@@ -1116,6 +1192,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <input
                                       type="text"
                                       value={les.title}
+                                      readOnly={isLockedLiveQuiz}
+                                      disabled={isLockedLiveQuiz}
                                       onChange={(e) =>
                                         handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                       }
@@ -1127,10 +1205,12 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         }
                                       }}
                                       placeholder={les.isFinalAssignment ? "Final Assignment (Certification Exam)" : "Quiz Title (e.g. Knowledge Assessment)"}
-                                      className={`w-full bg-white border rounded px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none transition-colors ${
-                                        les.isFinalAssignment
-                                          ? 'border-amber-300 focus:border-amber-600 hover:bg-amber-50/40'
-                                          : 'border-purple-200 focus:border-purple-600 hover:bg-purple-50/50'
+                                      className={`w-full border rounded px-2.5 py-1 text-xs font-bold transition-colors ${
+                                        isLockedLiveQuiz
+                                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                                          : les.isFinalAssignment
+                                          ? 'bg-white border-amber-300 focus:border-amber-600 hover:bg-amber-50/40 text-slate-900 focus:outline-none'
+                                          : 'bg-white border-purple-200 focus:border-purple-600 hover:bg-purple-50/50 text-slate-900 focus:outline-none'
                                       }`}
                                     />
                                   </div>
@@ -1151,6 +1231,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         min={10}
                                         max={100}
                                         value={qConf.passingScore ?? 70}
+                                        disabled={isLockedLiveQuiz}
                                         onChange={(e) => {
                                           const val = Math.min(100, Math.max(10, Number(e.target.value) || 70));
                                           handleUpdateLessonInline(secKey, itemKey, {
@@ -1158,7 +1239,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           });
                                         }}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="w-11 px-1 py-0.5 bg-purple-50 text-center font-extrabold rounded border border-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-600 text-xs text-purple-950"
+                                        className={`w-11 px-1 py-0.5 text-center font-extrabold rounded border text-xs ${
+                                          isLockedLiveQuiz
+                                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 cursor-not-allowed'
+                                            : 'bg-purple-50 text-purple-950 border-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-600'
+                                        }`}
                                         title="Passing percentage required for student to pass and auto-advance"
                                       />
                                       <span>%</span>
@@ -1168,34 +1253,46 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                                 {/* Action Buttons: Edit Quiz & Delete */}
                                 <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (isDrawerOpen) {
-                                        setOpenContentDrawerId(null);
-                                      } else {
-                                        toggleContentDrawer(itemKey, 'QUIZ');
-                                      }
-                                    }}
-                                    className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
-                                      isDrawerOpen
-                                        ? 'bg-purple-900 text-white'
-                                        : 'bg-purple-600 hover:bg-purple-700 text-white'
-                                    }`}
-                                    title="Edit Quiz Questions and Passing Score"
-                                  >
-                                    <Icon name={isDrawerOpen ? 'close' : 'edit'} size={13} />
-                                    <span>{isDrawerOpen ? 'Close Editor' : 'Edit Quiz'}</span>
-                                  </button>
+                                  {isLockedLiveQuiz ? (
+                                    <span
+                                      className="px-2.5 py-1.5 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 select-none shadow-2xs"
+                                      title="Published live quiz is locked and cannot be edited in version updates"
+                                    >
+                                      <Icon name="lock" size={13} className="text-slate-400" />
+                                      <span>Live Quiz (Locked)</span>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isDrawerOpen) {
+                                          setOpenContentDrawerId(null);
+                                        } else {
+                                          toggleContentDrawer(itemKey, 'QUIZ');
+                                        }
+                                      }}
+                                      className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
+                                        isDrawerOpen
+                                          ? 'bg-purple-900 text-white'
+                                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                      }`}
+                                      title={les.isFinalAssignment ? "Edit Final Assignment Questions & Passing Score" : "Edit Quiz Questions and Passing Score"}
+                                    >
+                                      <Icon name={isDrawerOpen ? 'close' : 'edit'} size={13} />
+                                      <span>{isDrawerOpen ? 'Close Editor' : les.isFinalAssignment ? 'Edit Final Assignment' : 'Edit Quiz'}</span>
+                                    </button>
+                                  )}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteLesson(secKey, itemKey)}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                                    title="Delete Quiz"
-                                  >
-                                    <Icon name="delete" size={15} />
-                                  </button>
+                                  {isLockedLiveQuiz || les.isFinalAssignment ? null : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLesson(secKey, itemKey)}
+                                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                      title="Delete Quiz"
+                                    >
+                                      <Icon name="delete" size={15} />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -1625,6 +1722,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                       // 2. STANDARD LECTURE ROW (Lecture {num}, Title input, Free Preview, Delete - No Edit button!)
                       if (isLectureItem) {
+                        const isLockedLiveLecture = Boolean(isModeB && originalLessonIds?.has(itemKey));
+
                         return (
                           <div key={itemKey} className="space-y-2">
                             <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
@@ -1635,18 +1734,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <div className="flex items-center gap-0.5">
                                     <button
                                       type="button"
-                                      disabled={lIdx === 0}
+                                      disabled={lIdx === 0 || isLockedLiveLecture}
                                       onClick={() => moveLesson(secKey, lIdx, 'up')}
-                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Lecture Up"
                                     >
                                       <Icon name="arrow_upward" size={13} />
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={lIdx === section.lessons.length - 1}
+                                      disabled={lIdx === section.lessons.length - 1 || isLockedLiveLecture}
                                       onClick={() => moveLesson(secKey, lIdx, 'down')}
-                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                      className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                       title="Move Lecture Down"
                                     >
                                       <Icon name="arrow_downward" size={13} />
@@ -1678,6 +1777,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <input
                                       type="text"
                                       value={les.title}
+                                      readOnly={isLockedLiveLecture}
+                                      disabled={isLockedLiveLecture}
                                       onChange={(e) =>
                                         handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                       }
@@ -1685,9 +1786,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         handleUpdateLessonInline(secKey, itemKey, { title: cleanLectureTitle(les.title) })
                                       }
                                       placeholder="Lecture Title (e.g. Overview & Deep Dive)"
-                                      className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
+                                      className={`w-full border rounded px-2 py-1 text-xs font-semibold transition-colors ${
+                                        isLockedLiveLecture
+                                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                                          : 'bg-transparent hover:bg-slate-50 focus:bg-white border-transparent hover:border-slate-300 focus:border-[#2d2f31] text-slate-900 focus:outline-none'
+                                      }`}
                                     />
-                                    {les.title && les.title.trim().length > 3 && (
+                                    {!isLockedLiveLecture && les.title && les.title.trim().length > 3 && (
                                       <GrammarHintAssistant
                                         text={les.title}
                                         onApplyCorrection={(corrected) =>
@@ -1710,21 +1815,23 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         <span className="text-[10px] text-blue-700 font-semibold">
                                           ({les.duration || '10:00'})
                                         </span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleUpdateLessonInline(secKey, itemKey, {
-                                              videoUrl: '',
-                                              videoFileName: '',
-                                              clearVideo: true,
-                                              removeVideo: true
-                                            } as any)
-                                          }
-                                          className="text-slate-400 hover:text-rose-600 cursor-pointer ml-0.5"
-                                          title="Remove attached video"
-                                        >
-                                          ✕
-                                        </button>
+                                        {!isLockedLiveLecture && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleUpdateLessonInline(secKey, itemKey, {
+                                                videoUrl: '',
+                                                videoFileName: '',
+                                                clearVideo: true,
+                                                removeVideo: true
+                                              } as any)
+                                            }
+                                            className="text-slate-400 hover:text-rose-600 cursor-pointer ml-0.5"
+                                            title="Remove attached video"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -1734,27 +1841,38 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     <input
                                       type="checkbox"
                                       checked={!!les.isFree}
+                                      disabled={isLockedLiveLecture}
                                       onChange={(e) =>
                                         handleUpdateLessonInline(secKey, itemKey, {
                                           isFree: e.target.checked
                                         })
                                       }
-                                      className="rounded border-slate-300 text-[#2d2f31] focus:ring-0"
+                                      className="rounded border-slate-300 text-[#2d2f31] focus:ring-0 disabled:opacity-50"
                                     />
                                     <span>Free Preview</span>
                                   </label>
                                 </div>
 
-                                {/* Delete button on Lecture */}
+                                {/* Delete button or Lock Badge on Lecture */}
                                 <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteLesson(secKey, itemKey)}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                                    title="Delete Lecture"
-                                  >
-                                    <Icon name="delete" size={15} />
-                                  </button>
+                                  {isModeB && originalLessonIds?.has(itemKey) ? (
+                                    <span
+                                      className="px-2 py-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded flex items-center gap-1 border border-slate-200 dark:border-slate-700 select-none shadow-2xs"
+                                      title="Published live lecture cannot be deleted in version updates to protect enrolled students"
+                                    >
+                                      <Icon name="lock" size={12} className="text-slate-400" />
+                                      <span>Live Lecture</span>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLesson(secKey, itemKey)}
+                                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                      title="Delete Lecture"
+                                    >
+                                      <Icon name="delete" size={15} />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1763,6 +1881,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                       }
 
                       // 3. WRITTEN ARTICLE ROW (Article {num}, Title input, Badge, Free Preview, Edit Article button & Delete)
+                      const isLockedLiveArticle = Boolean(isModeB && originalLessonIds?.has(itemKey));
+
                       return (
                         <div key={itemKey} className="space-y-2">
                           <div className="border border-[#d1d7dc] bg-white rounded-md transition-all hover:border-slate-400 shadow-2xs overflow-hidden">
@@ -1773,18 +1893,18 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <div className="flex items-center gap-0.5">
                                   <button
                                     type="button"
-                                    disabled={lIdx === 0}
+                                    disabled={lIdx === 0 || isLockedLiveArticle}
                                     onClick={() => moveLesson(secKey, lIdx, 'up')}
-                                    className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                    className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                     title="Move Article Up"
                                   >
                                     <Icon name="arrow_upward" size={13} />
                                   </button>
                                   <button
                                     type="button"
-                                    disabled={lIdx === section.lessons.length - 1}
+                                    disabled={lIdx === section.lessons.length - 1 || isLockedLiveArticle}
                                     onClick={() => moveLesson(secKey, lIdx, 'down')}
-                                    className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                    className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                     title="Move Article Down"
                                   >
                                     <Icon name="arrow_downward" size={13} />
@@ -1816,6 +1936,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <input
                                     type="text"
                                     value={les.title}
+                                    readOnly={isLockedLiveArticle}
+                                    disabled={isLockedLiveArticle}
                                     onChange={(e) =>
                                       handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                     }
@@ -1823,20 +1945,33 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       handleUpdateLessonInline(secKey, itemKey, { title: cleanLectureTitle(les.title) })
                                     }
                                     placeholder="Article Title (e.g. Introduction & Key Concepts)"
-                                    className="w-full bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#2d2f31] rounded px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none transition-colors"
+                                    className={`w-full border rounded px-2 py-1 text-xs font-semibold transition-colors ${
+                                      isLockedLiveArticle
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
+                                        : 'bg-transparent hover:bg-slate-50 focus:bg-white border-transparent hover:border-slate-300 focus:border-[#2d2f31] text-slate-900 focus:outline-none'
+                                    }`}
                                   />
                                 </div>
 
                                 {/* Attached Content Badges */}
                                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingLesson({ sectionId: secKey, lesson: les })}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-950 px-2 py-0.5 rounded border border-amber-300 cursor-pointer transition-colors"
-                                    title="Click to edit article headings & text"
-                                  >
-                                    📝 Written Article {les.duration ? `(${les.duration})` : ''}
-                                  </button>
+                                  {isLockedLiveArticle ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300 select-none"
+                                      title="Written Article content (Live content is locked)"
+                                    >
+                                      📝 Written Article {les.duration ? `(${les.duration})` : ''}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLesson({ sectionId: secKey, lesson: les })}
+                                      className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-950 px-2 py-0.5 rounded border border-amber-300 cursor-pointer transition-colors"
+                                      title="Click to edit article headings & text"
+                                    >
+                                      📝 Written Article {les.duration ? `(${les.duration})` : ''}
+                                    </button>
+                                  )}
                                   {les.pdfUrl && (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
                                       📑 PDF Handout
@@ -1849,12 +1984,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <input
                                     type="checkbox"
                                     checked={!!les.isFree}
+                                    disabled={isLockedLiveArticle}
                                     onChange={(e) =>
                                       handleUpdateLessonInline(secKey, itemKey, {
                                         isFree: e.target.checked
                                       })
                                     }
-                                    className="rounded border-slate-300 text-[#2d2f31] focus:ring-0"
+                                    className="rounded border-slate-300 text-[#2d2f31] focus:ring-0 disabled:opacity-50"
                                   />
                                   <span>Free Preview</span>
                                 </label>
@@ -1862,23 +1998,35 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
                               {/* Action Buttons on Article: Edit Article & Delete */}
                               <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingLesson({ sectionId: secKey, lesson: les })}
-                                  className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                  title="Edit article headings, formatted content, or attached handouts"
-                                >
-                                  <Icon name="edit" size={13} />
-                                  <span>Edit Article</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteLesson(secKey, itemKey)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
-                                  title="Delete Article"
-                                >
-                                  <Icon name="delete" size={15} />
-                                </button>
+                                {isLockedLiveArticle ? (
+                                  <span
+                                    className="px-2.5 py-1 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded flex items-center gap-1 border border-slate-200 dark:border-slate-700 select-none shadow-2xs"
+                                    title="Published live article is locked and cannot be edited in version updates"
+                                  >
+                                    <Icon name="lock" size={13} className="text-slate-400" />
+                                    <span>Live Article (Locked)</span>
+                                  </span>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLesson({ sectionId: secKey, lesson: les })}
+                                      className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                      title="Edit article headings, formatted content, or attached handouts"
+                                    >
+                                      <Icon name="edit" size={13} />
+                                      <span>Edit Article</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLesson(secKey, itemKey)}
+                                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                                      title="Delete Article"
+                                    >
+                                      <Icon name="delete" size={15} />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>

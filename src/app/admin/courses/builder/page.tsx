@@ -209,16 +209,43 @@ function CourseBuilderContent() {
   const courseStateRef = React.useRef(courseState);
   courseStateRef.current = courseState;
 
+  // Minor Edit Mode Detection (Quick direct minor edits on published course)
+  const isMinorEditMode = useMemo(() => {
+    return searchParams.get('mode') === 'minor_edit';
+  }, [searchParams]);
+
   // Mode B Detection (Editing Version Draft of a Published Course)
   const isModeB = useMemo(() => {
+    // A fresh new course or minor edit mode cannot be in Mode B
+    const isFreshNew = searchParams.get('new') === 'true' || searchParams.get('fresh') === 'true';
+    if (isFreshNew || isMinorEditMode || (!editSlugOrId && !activeCourseId && !courseState.id)) {
+      return false;
+    }
     const modeParam = searchParams.get('mode') === 'version_draft';
     const hasDraftStatus = courseVersionState?.status === 'DRAFT_VERSION' || courseVersionState?.status === 'PENDING_REVIEW';
     const isPublishedCourse = courseState.status === 'PUBLISHED' || Boolean(courseVersionState?.liveVersionNumber);
     return Boolean(modeParam || hasDraftStatus || (isPublishedCourse && editSlugOrId));
-  }, [searchParams, courseVersionState, courseState.status, editSlugOrId]);
+  }, [searchParams, isMinorEditMode, courseVersionState, courseState.status, courseState.id, activeCourseId, editSlugOrId]);
 
   const liveVerNumber = courseVersionState?.liveVersionNumber || 1;
   const draftVerNumber = courseVersionState?.draftVersionNumber || courseVersionState?.pendingVersionNumber || liveVerNumber + 1;
+
+  // Track original live sections and lessons from published course (for Mode B version updates)
+  const originalSectionIds = useMemo(() => {
+    if (!isModeB || !originalCourseState?.sections) return new Set<string>();
+    return new Set<string>(originalCourseState.sections.map((s: any) => s.id).filter(Boolean));
+  }, [isModeB, originalCourseState]);
+
+  const originalLessonIds = useMemo(() => {
+    if (!isModeB || !originalCourseState?.sections) return new Set<string>();
+    const set = new Set<string>();
+    for (const s of originalCourseState.sections) {
+      for (const l of s.lessons || []) {
+        if (l.id) set.add(l.id);
+      }
+    }
+    return set;
+  }, [isModeB, originalCourseState]);
 
   // Real-time Minor vs Major change classifier for published courses
   const changeClassification = useMemo<{
@@ -482,11 +509,16 @@ function CourseBuilderContent() {
     lastSavedPayloadRef.current = '';
     loadedCourseIdRef.current = null;
     setActiveCourseId('');
+    setCourseVersionState(null);
+    setOriginalCourseState(null);
+    setValidationResult(null);
+    setIsValidationModalOpen(false);
 
+    const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
     if (typeof window !== 'undefined') {
-      const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
       window.history.replaceState({}, '', cleanUrl);
     }
+    router.replace(cleanUrl);
 
     showToast({
       title: 'Blank Form Ready 📝',
@@ -513,11 +545,16 @@ function CourseBuilderContent() {
       lastSavedPayloadRef.current = '';
       loadedCourseIdRef.current = null;
       setActiveCourseId('');
+      setCourseVersionState(null);
+      setOriginalCourseState(null);
+      setValidationResult(null);
+      setIsValidationModalOpen(false);
 
+      const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
       if (typeof window !== 'undefined') {
-        const cleanUrl = isInstructor ? '/instructor/courses/builder' : '/admin/courses/builder';
         window.history.replaceState({}, '', cleanUrl);
       }
+      router.replace(cleanUrl);
       setHasLoadedInitial(true);
       setIsLoading(false);
       return;
@@ -533,6 +570,8 @@ function CourseBuilderContent() {
       loadedCourseIdRef.current = editSlugOrId;
       loadCourse(editSlugOrId);
     } else {
+      setCourseVersionState(null);
+      setOriginalCourseState(null);
       // In new course mode (!editSlugOrId), purge any stale bulk import or covid drafts
       try {
         const savedDraftRaw = localStorage.getItem('morena_course_builder_draft_new');
@@ -1532,6 +1571,28 @@ function CourseBuilderContent() {
 
   const handleDownloadExcelTemplate = () => {
     try {
+      if (isMinorEditMode) {
+        showToast({
+          title: 'Download Disabled in Quick Edit',
+          description: 'Spreadsheet download is disabled during Quick Minor Edits. Minor updates can be made directly in the form below. To expand curriculum with Excel, use "Update Version" from My Courses.',
+          type: 'info'
+        });
+        return;
+      }
+
+      if (isModeB) {
+        // In Update Version mode, download their actual course curriculum!
+        const exportFileName = `${(courseStateRef.current.slug || courseStateRef.current.title || 'Course_Curriculum').replace(/[^a-zA-Z0-9_\-]/g, '_')}_v${liveVerNumber}.0.xlsx`;
+        exportCourseToExcelFile(courseStateRef.current, exportFileName);
+        showToast({
+          title: 'Course Curriculum Exported 📥',
+          description: 'Downloaded your live published course spreadsheet. Add your new modules, lectures, or quizzes in Excel and upload back to apply!',
+          type: 'success'
+        });
+        return;
+      }
+
+      // In New Course mode, download the demo course template
       downloadCourseExcelTemplate();
       showToast({
         title: 'Excel Template Downloaded 📥',
@@ -1916,6 +1977,31 @@ function CourseBuilderContent() {
       {/* Top Step Navigation Bar (Replaces old breadcrumb/title banner) */}
       {renderStepNavigationBar(true)}
 
+      {/* Minor Edit Mode Banner (Quick direct minor edits on published course) */}
+      {isMinorEditMode && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-blue-50 dark:bg-blue-950/30 border-blue-400 dark:border-blue-600/50">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-500/20 text-blue-700 dark:text-blue-400">
+            <Icon name="edit_note" size={24} />
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-black text-sm sm:text-base text-blue-900 dark:text-blue-100">
+                Quick Minor Edit Mode
+              </h4>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500 text-white">
+                Direct Update (Live Course)
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                Live Version Active
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold leading-relaxed text-blue-900/90 dark:text-blue-100/90">
+              You are performing a quick minor edit on your live published course (fixing typos, title, description, or minor wording). Spreadsheet download is disabled in this mode. For curriculum restructuring or adding new modules, use &quot;Update Version&quot; from My Courses.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Mode B Draft Version Banner */}
       {isModeB && (
         <div className={`border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm ${
@@ -1973,7 +2059,7 @@ function CourseBuilderContent() {
                 ? `✨ Minor content updates detected (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
                 : changeClassification.type === 'MAJOR'
                 ? `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (${changeClassification.reasons.join(', ')}). These changes must be submitted for Auditor Approval once all completeness checklist items are green.`
-                : `Editing Draft Version ${draftVerNumber}.0. The live published version ${liveVerNumber}.0 remains active and accessible to students. Any minor content edits can be directly published, while major curriculum additions will require review.`}
+                : `Editing Draft Version ${draftVerNumber}.0. Previous live modules, lectures, articles, and quizzes are permanently locked to safeguard enrolled students. You can add new modules, lectures, articles, and quizzes, or update the Final Assignment.`}
             </p>
           </div>
         </div>
@@ -2033,15 +2119,37 @@ function CourseBuilderContent() {
         {/* Bottom: Action Buttons Placed Cleanly Underneath */}
         <div className="pt-3 border-t border-outline-variant/60 flex flex-wrap items-center gap-3">
           {/* Download Template Button */}
-          <button
-            type="button"
-            onClick={handleDownloadExcelTemplate}
-            className="px-4 py-2.5 bg-surface hover:bg-surface-container text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:border-emerald-500/50 flex items-center gap-2 cursor-pointer shadow-2xs transition-all"
-            title="Download official Excel course spreadsheet template"
-          >
-            <Icon name="download" size={16} className="text-emerald-600 dark:text-emerald-400" />
-            <span>Download Template (.xlsx)</span>
-          </button>
+          {isMinorEditMode ? (
+            <button
+              type="button"
+              onClick={handleDownloadExcelTemplate}
+              className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-2 cursor-not-allowed shadow-2xs opacity-80"
+              title="Spreadsheet download is disabled during quick minor edits"
+            >
+              <Icon name="lock" size={16} className="text-slate-400" />
+              <span>Spreadsheet Download Disabled (Quick Edit)</span>
+            </button>
+          ) : isModeB ? (
+            <button
+              type="button"
+              onClick={handleDownloadExcelTemplate}
+              className="px-4 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-900 dark:bg-purple-950/60 dark:text-purple-200 font-bold text-xs rounded-xl border border-purple-300 dark:border-purple-800 hover:border-purple-500/50 flex items-center gap-2 cursor-pointer shadow-2xs transition-all"
+              title="Download your published course spreadsheet to add new modules & lectures"
+            >
+              <Icon name="download" size={16} className="text-purple-600 dark:text-purple-400" />
+              <span>Download Current Course (.xlsx)</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleDownloadExcelTemplate}
+              className="px-4 py-2.5 bg-surface hover:bg-surface-container text-on-surface font-bold text-xs rounded-xl border border-outline-variant hover:border-emerald-500/50 flex items-center gap-2 cursor-pointer shadow-2xs transition-all"
+              title="Download official Excel course spreadsheet template"
+            >
+              <Icon name="download" size={16} className="text-emerald-600 dark:text-emerald-400" />
+              <span>Download Template (.xlsx)</span>
+            </button>
+          )}
 
           {/* Upload & Auto-Fill OR Uploaded File Action Pill */}
           {!uploadedExcel ? (
@@ -2187,6 +2295,10 @@ function CourseBuilderContent() {
           onChange={(newSections) => handleUpdateField('sections', newSections)}
           courseSlug={courseState.slug}
           onOpenBatchMediaManager={() => setCurrentStep(2)}
+          isModeB={isModeB}
+          isMinorEditMode={isMinorEditMode}
+          originalSectionIds={originalSectionIds}
+          originalLessonIds={originalLessonIds}
         />
       )}
 

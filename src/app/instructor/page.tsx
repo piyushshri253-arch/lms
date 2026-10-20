@@ -1553,7 +1553,17 @@ function InstructorCoursesStudioInner() {
                                 <span>Preview</span>
                               </Link>
 
-                              {/* B. Update / Resume Version Draft */}
+                              {/* B. Quick Minor Edit */}
+                              <Link
+                                href={`/instructor/courses/builder?courseId=${course.id}&mode=minor_edit`}
+                                className="text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs"
+                                title="Quick edit course title, description, or minor wording fixes"
+                              >
+                                <Icon name="edit_note" size={13} />
+                                <span>Edit</span>
+                              </Link>
+
+                              {/* C. Update / Resume Version Draft */}
                               <button
                                 type="button"
                                 disabled={isBusy}
