@@ -363,6 +363,56 @@ async function runTestSuite() {
     'Even count required error reported at Final Assessment location'
   );
 
+  // 18. Acceptance Criterion 18: Mid-module quizzes in Quizzes & MCQs without explicit Curriculum rows are auto-created and counted accurately
+  console.log('\nTest 18: Mid-module quizzes defined directly in Quizzes & MCQs sheet are auto-created and counted accurately in summary');
+  const directQuizzesWb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(directQuizzesWb, baseWb.Sheets['Course Details'], 'Course Details');
+  // Curriculum only has lectures and articles, no QUIZ row:
+  const curriculumNoQuiz = [
+    [
+      'Module Title (Write once per module)',
+      'Topic / Lesson Title *',
+      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSIGNMENT) *',
+      'Duration (mm:ss)',
+      'Free Preview (Yes / No)',
+      'Written Article Content / Notes (Markdown for Written Articles)',
+      'Video URL *'
+    ],
+    ['Introduction to Python', 'Installing Python & VS Code', 'LECTURE', '10:00', 'Yes', '', 'https://cdn.example.com/videos/py1.mp4'],
+    ['', 'Variables & Data Types', 'LECTURE', '15:00', 'No', '', 'https://cdn.example.com/videos/py2.mp4'],
+    ['', 'Python Syntax Guide', 'ARTICLE', '05:00', 'No', '# Python Syntax\n\nDetailed breakdown of Python syntax, variables and control flow.', ''],
+    ['Advanced Python Concepts', 'Decorators and Generators', 'LECTURE', '20:00', 'No', '', 'https://cdn.example.com/videos/py3.mp4'],
+    ['', 'Concurrency in Python', 'ARTICLE', '08:00', 'No', '# Concurrency\n\nNotes on asyncio and threading.', '']
+  ];
+  const directQuizzesAOA = [
+    ['Module # (1, 2, ...)', 'Quiz Title *', 'Q#', 'Question Text *', 'Option A *', 'Option B *', 'Option C *', 'Option D *', 'Correct Option (A/B/C/D) *', 'Explanation (Why this option is correct)', 'Passing Score (%)'],
+    [1, 'Protocol Basics', 1, 'What is HTTP?', 'Hypertext', 'Hardware', 'Host', 'Hex', 'A', 'Hypertext Transfer Protocol', 70],
+    [1, 'Protocol Basics', 2, 'Default port for HTTP?', '80', '443', '22', '21', 'A', 'Port 80', 70],
+    [2, 'React Advanced', 1, 'What is useState?', 'Hook', 'Class', 'File', 'Package', 'A', 'A state hook', 75],
+    [2, 'React Advanced', 2, 'What does useEffect do?', 'Side effects', 'Styling', 'Routing', 'Compilation', 'A', 'Handles side effects', 75],
+  ];
+  XLSX.utils.book_append_sheet(directQuizzesWb, XLSX.utils.aoa_to_sheet(curriculumNoQuiz), 'Curriculum');
+  XLSX.utils.book_append_sheet(directQuizzesWb, XLSX.utils.aoa_to_sheet(directQuizzesAOA), 'Quizzes & MCQs');
+  XLSX.utils.book_append_sheet(directQuizzesWb, XLSX.utils.aoa_to_sheet(dedicatedFAAOA), 'Final Assessment');
+
+  const directQuizzesRes = validateCourseExcel(wbToBuffer(directQuizzesWb));
+  assert(directQuizzesRes.isValid, 'Workbook with mid-module quizzes not pre-declared in Curriculum passes validation');
+  assert(directQuizzesRes.blockingCount === 0, 'Zero blocking errors');
+  assert(directQuizzesRes.summary.quizzesCount === 2, `Mid-module quiz count is exactly 2 (got ${directQuizzesRes.summary.quizzesCount})`);
+  assert(directQuizzesRes.summary.hasFinalAssignment === true, 'Final Assessment recognized');
+  assert(directQuizzesRes.summary.finalAssignmentQuestionsCount === 4, 'Final Assessment has 4 questions');
+  assert(directQuizzesRes.summary.questionsCount === 8, `Total questions count is 8 (2+2+4) (got ${directQuizzesRes.summary.questionsCount})`);
+
+  const mod1Quizzes = directQuizzesRes.parsedData?.sections?.[0]?.lessons.filter(l => l.type === 'QUIZ' && !l.isFinalAssignment);
+  const mod2Quizzes = directQuizzesRes.parsedData?.sections?.[1]?.lessons.filter(l => l.type === 'QUIZ' && !l.isFinalAssignment);
+  const finalExam = directQuizzesRes.parsedData?.sections?.[1]?.lessons.find(l => l.isFinalAssignment);
+  assert(mod1Quizzes?.length === 1, 'Module 1 has exactly 1 mid-module quiz auto-created');
+  assert(mod2Quizzes?.length === 1, 'Module 2 has exactly 1 mid-module quiz auto-created');
+  assert(Boolean(finalExam), 'Module 2 has the Final Assessment lesson attached');
+  assert((mod1Quizzes?.[0]?.quizData as any)?.questions?.length === 2, 'Module 1 quiz has 2 questions attached');
+  assert((mod2Quizzes?.[0]?.quizData as any)?.questions?.length === 2, 'Module 2 quiz has 2 questions attached');
+  assert((finalExam?.quizData as any)?.questions?.length === 4, 'Final assessment has 4 questions attached');
+
   console.log('\n=============================================================');
   console.log(`TEST RESULTS: ${passedTests} PASSED, ${failedTests} FAILED`);
   console.log('=============================================================\n');

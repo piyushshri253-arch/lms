@@ -1865,11 +1865,18 @@ function CourseBuilderContent() {
       let totalLecs = 0;
       let totalArts = 0;
       let totalQzs = 0;
+      let hasFinalAssessment = false;
       (parsed.sections || []).forEach((sec) => {
         (sec.lessons || []).forEach((l) => {
-          if (l.type === 'QUIZ') totalQzs += 1;
-          else if (l.type === 'TEXT') totalArts += 1;
-          else totalLecs += 1;
+          if (l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')) {
+            hasFinalAssessment = true;
+          } else if (l.type === 'QUIZ') {
+            totalQzs += 1;
+          } else if (l.type === 'TEXT') {
+            totalArts += 1;
+          } else {
+            totalLecs += 1;
+          }
         });
       });
 
@@ -1882,7 +1889,7 @@ function CourseBuilderContent() {
       } else {
         showToast({
           title: 'Course Imported Successfully! 🚀',
-          description: `Imported ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, and ${totalQzs} quizzes.`,
+          description: `Imported ${modulesCount} modules, ${totalLecs} lectures, ${totalArts} articles, ${totalQzs} quizzes${hasFinalAssessment ? ', and Final Assessment' : ''}.`,
           type: 'success'
         });
       }

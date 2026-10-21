@@ -825,14 +825,80 @@ export function validateCourseExcel(
             quizEntry = Array.from(quizMap.values()).find((v) => v.isFinalAssignment);
           }
           if (!quizEntry) {
+            let targetSec = sections[sections.length - 1];
+            if (!targetSec) {
+              targetSec = {
+                id: 'sec-1',
+                title: 'Course Assessment',
+                description: '',
+                order: 1,
+                lessons: []
+              };
+              sections.push(targetSec);
+            }
+            let finalLesson = targetSec.lessons.find(
+              (l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')
+            );
+            if (!finalLesson) {
+              finalLesson = {
+                id: `les-${targetSec.order}-${targetSec.lessons.length + 1}`,
+                title: quizTitleRaw || 'Final Assessment',
+                description: 'Mandatory comprehensive final assessment for certificate qualification.',
+                type: 'QUIZ',
+                duration: '30:00',
+                durationSeconds: 1800,
+                isFree: false,
+                isPublished: true,
+                isFinalAssignment: true,
+                order: targetSec.lessons.length + 1,
+                quizData: {
+                  questions: [],
+                  passingScore: 80,
+                  attemptLimit: 0
+                },
+                subLessons: []
+              };
+              targetSec.lessons.push(finalLesson);
+            }
+
             quizEntry = {
               key: '__final_assessment__',
-              moduleNum: sections.length || 1,
+              moduleNum: targetSec.order,
               quizTitle: quizTitleRaw || 'Final Assessment',
               isFinalAssignment: true,
-              questions: []
+              questions: [],
+              lessonRef: finalLesson
             };
             quizMap.set('__final_assessment__', quizEntry);
+          } else if (!quizEntry.lessonRef) {
+            let targetSec = sections.find((s) => s.order === quizEntry.moduleNum) || sections[sections.length - 1];
+            if (targetSec) {
+              let finalLesson = targetSec.lessons.find(
+                (l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')
+              );
+              if (!finalLesson) {
+                finalLesson = {
+                  id: `les-${targetSec.order}-${targetSec.lessons.length + 1}`,
+                  title: quizEntry.quizTitle || 'Final Assessment',
+                  description: 'Mandatory comprehensive final assessment for certificate qualification.',
+                  type: 'QUIZ',
+                  duration: '30:00',
+                  durationSeconds: 1800,
+                  isFree: false,
+                  isPublished: true,
+                  isFinalAssignment: true,
+                  order: targetSec.lessons.length + 1,
+                  quizData: {
+                    questions: [],
+                    passingScore: 80,
+                    attemptLimit: 0
+                  },
+                  subLessons: []
+                };
+                targetSec.lessons.push(finalLesson);
+              }
+              quizEntry.lessonRef = finalLesson;
+            }
           }
         } else {
           const modNumInt = parseInt(activeModuleKey, 10) || 1;
@@ -861,7 +927,7 @@ export function validateCourseExcel(
 
           if (!quizEntry) {
             // Try finding by title across quizMap
-            for (const [k, v] of quizMap.entries()) {
+            for (const [, v] of quizMap.entries()) {
               if (!v.isFinalAssignment && v.quizTitle.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim()) {
                 quizEntry = v;
                 break;
@@ -870,14 +936,91 @@ export function validateCourseExcel(
           }
 
           if (!quizEntry) {
+            let targetSec = sections.find((s) => s.order === modNumInt) || sections[modNumInt - 1];
+            if (!targetSec && sections.length > 0) {
+              targetSec = sections[Math.min(modNumInt - 1, sections.length - 1)];
+            }
+            if (!targetSec) {
+              targetSec = {
+                id: `sec-${modNumInt}`,
+                title: `Module ${modNumInt}`,
+                description: '',
+                order: modNumInt,
+                lessons: []
+              };
+              sections.push(targetSec);
+            }
+
+            let quizLesson = targetSec.lessons.find(
+              (l) => l.type === 'QUIZ' && !l.isFinalAssignment && (
+                cleanQuizTitle(l.title).toLowerCase() === cleanQuizTitle(effectiveQuizTitle).toLowerCase() ||
+                l.title.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim()
+              )
+            );
+
+            if (!quizLesson) {
+              quizLesson = {
+                id: `les-${targetSec.order}-${targetSec.lessons.length + 1}`,
+                title: cleanQuizTitle(effectiveQuizTitle) || 'Quiz',
+                description: `Assessment for Module ${targetSec.order}`,
+                type: 'QUIZ',
+                duration: '10:00',
+                durationSeconds: 600,
+                isFree: false,
+                isPublished: true,
+                isFinalAssignment: false,
+                order: targetSec.lessons.length + 1,
+                quizData: {
+                  questions: [],
+                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+                  attemptLimit: 0
+                },
+                subLessons: []
+              };
+              targetSec.lessons.push(quizLesson);
+            }
+
             quizEntry = {
               key: lookupKey,
-              moduleNum: modNumInt,
+              moduleNum: targetSec.order,
               quizTitle: effectiveQuizTitle,
               isFinalAssignment: false,
-              questions: []
+              questions: [],
+              lessonRef: quizLesson
             };
             quizMap.set(lookupKey, quizEntry);
+          } else if (!quizEntry.lessonRef) {
+            let targetSec = sections.find((s) => s.order === quizEntry.moduleNum) || sections[quizEntry.moduleNum - 1];
+            if (targetSec) {
+              let quizLesson = targetSec.lessons.find(
+                (l) => l.type === 'QUIZ' && !l.isFinalAssignment && (
+                  cleanQuizTitle(l.title).toLowerCase() === cleanQuizTitle(quizEntry.quizTitle).toLowerCase() ||
+                  l.title.toLowerCase().trim() === quizEntry.quizTitle.toLowerCase().trim()
+                )
+              );
+              if (!quizLesson) {
+                quizLesson = {
+                  id: `les-${targetSec.order}-${targetSec.lessons.length + 1}`,
+                  title: cleanQuizTitle(quizEntry.quizTitle) || 'Quiz',
+                  description: `Assessment for Module ${targetSec.order}`,
+                  type: 'QUIZ',
+                  duration: '10:00',
+                  durationSeconds: 600,
+                  isFree: false,
+                  isPublished: true,
+                  isFinalAssignment: false,
+                  order: targetSec.lessons.length + 1,
+                  quizData: {
+                    questions: [],
+                    passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
+                    attemptLimit: 0
+                  },
+                  subLessons: []
+                };
+                targetSec.lessons.push(quizLesson);
+              }
+              quizEntry.lessonRef = quizLesson;
+            }
           }
         }
       }
@@ -1314,9 +1457,16 @@ export function validateCourseExcel(
 
   sections.forEach((sec) => {
     sec.lessons.forEach((les) => {
-      if (les.type === 'QUIZ') totalQuizzes += 1;
-      else if (les.type === 'TEXT') totalArticles += 1;
-      else totalLectures += 1;
+      if (les.type === 'QUIZ') {
+        const isFinal = Boolean(les.isFinalAssignment) || /final\s*(assessment|assignment|exam)/i.test(les.title || '');
+        if (!isFinal) {
+          totalQuizzes += 1;
+        }
+      } else if (les.type === 'TEXT') {
+        totalArticles += 1;
+      } else {
+        totalLectures += 1;
+      }
     });
   });
 
