@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useAdmin } from '@/context/AdminContext';
@@ -124,8 +125,9 @@ function SvgUpload({ className = 'w-4 h-4' }: { className?: string }) {
 function StudentsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasPermission, activeFacility } = useAdmin();
-  const { showToast } = useApp();
+  const { hasPermission, activeFacility, isSuperAdmin } = useAdmin();
+  const { showToast, currentUser } = useApp();
+  const isEffectiveSuperAdmin = isSuperAdmin || currentUser?.role === 'SUPER_ADMIN';
 
   // URL state
   const actionParam = searchParams.get('action');
@@ -180,7 +182,8 @@ function StudentsPageContent() {
   const fetchStudents = async () => {
     setIsLoading(true);
     try {
-      const url = `/api/admin/students?facilityId=${activeFacility?.id || ''}&search=${encodeURIComponent(searchQuery)}`;
+      const facilityQuery = isEffectiveSuperAdmin ? 'all' : (activeFacility?.id || 'all');
+      const url = `/api/admin/students?facilityId=${facilityQuery}&search=${encodeURIComponent(searchQuery)}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -198,7 +201,97 @@ function StudentsPageContent() {
 
   useEffect(() => {
     fetchStudents();
-  }, [activeFacility?.id, searchQuery]);
+  }, [activeFacility?.id, searchQuery, isEffectiveSuperAdmin]);
+
+  // Course Access Management & Troubleshooting (Super Admin & Admin)
+  const [grantCourseId, setGrantCourseId] = useState('');
+  const [isGrantingCourse, setIsGrantingCourse] = useState(false);
+
+  const handleRevokeCourse = async (studentId: string, courseId: string, courseTitle: string) => {
+    if (!confirm(`Are you sure you want to remove "${courseTitle}" from this student's account? Their account will remain intact.`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/students?id=${studentId}&courseId=${courseId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Revoked course "${courseTitle}" from student portal`, 'success');
+        setSelectedStudent((prev: any) => {
+          if (!prev) return null;
+          const updatedCourses = (prev.enrolledCourses || []).filter((c: any) => c.courseId !== courseId);
+          return {
+            ...prev,
+            enrollmentsCount: Math.max(0, (prev.enrollmentsCount || 1) - 1),
+            enrolledCourses: updatedCourses
+          };
+        });
+        fetchStudents();
+      } else {
+        showToast(data.error || 'Failed to remove course', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove course', 'error');
+    }
+  };
+
+  const handleGrantCourse = async (studentId: string) => {
+    if (!grantCourseId) {
+      showToast('Please select a course to grant', 'error');
+      return;
+    }
+    setIsGrantingCourse(true);
+    try {
+      const res = await fetch('/api/super-admin/students/troubleshoot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'GRANT_COURSE_ACCESS',
+          studentId,
+          courseId: grantCourseId
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Course access granted successfully!', 'success');
+        setGrantCourseId('');
+        const facilityQuery = isEffectiveSuperAdmin ? 'all' : (activeFacility?.id || 'all');
+        const stRes = await fetch(`/api/admin/students?facilityId=${facilityQuery}&search=${encodeURIComponent(selectedStudent?.email || '')}`);
+        if (stRes.ok) {
+          const stData = await stRes.json();
+          const found = (stData.students || []).find((s: any) => s.id === studentId);
+          if (found) setSelectedStudent(found);
+        }
+        fetchStudents();
+      } else {
+        showToast(data.error || 'Failed to grant course access', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error granting course access', 'error');
+    } finally {
+      setIsGrantingCourse(false);
+    }
+  };
+
+  const handleImpersonate = async (studentId: string, studentName: string) => {
+    if (!confirm(`Enter Support Mode for ${studentName}? You will be logged into their student dashboard.`)) return;
+    try {
+      const res = await fetch('/api/super-admin/students/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: studentId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Entering Support Mode for ${studentName}...`, 'success');
+        window.location.href = data.redirectUrl || '/student/learning';
+      } else {
+        showToast(data.error || 'Failed to start support mode', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error entering support mode', 'error');
+    }
+  };
 
   // Clean URL when closing Add Modal
   const handleCloseAddModal = () => {
@@ -353,6 +446,32 @@ function StudentsPageContent() {
 
   return (
     <div className="space-y-6 select-none animate-in fade-in duration-150">
+      {/* Super Admin Global Governance Notice */}
+      {isEffectiveSuperAdmin && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-900/10 via-indigo-900/10 to-transparent border border-purple-200/50 dark:border-purple-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+              👑
+            </div>
+            <div>
+              <p className="text-xs font-black text-purple-900 dark:text-purple-200">
+                Super Admin Global Student Registry
+              </p>
+              <p className="text-[11px] text-purple-700/80 dark:text-purple-300/80 font-medium">
+                Viewing all learners registered across Morena Teach LMS. You can remove individual courses, grant courses, and launch student support sessions.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/super-admin/students"
+            className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 shadow-sm"
+          >
+            <span>Open SuperAdmin Suite</span>
+            <Icon name="arrow_forward" size={14} />
+          </Link>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -949,21 +1068,44 @@ function StudentsPageContent() {
             </div>
 
             {/* Enrolled Courses & Progress */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Enrolled Courses</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Enrolled Courses ({selectedStudent.enrolledCourses?.length || 0})
+                </h3>
+                {isEffectiveSuperAdmin && (
+                  <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+                    Course Access Editable
+                  </span>
+                )}
+              </div>
+
               {selectedStudent.enrolledCourses && selectedStudent.enrolledCourses.length > 0 ? (
                 <div className="space-y-2">
                   {selectedStudent.enrolledCourses.map((c: any, i: number) => (
-                    <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-900 truncate max-w-[220px]">{c.title}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                          {c.status || 'ACTIVE'}
-                        </span>
+                    <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 truncate text-xs">{c.title}</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                            {c.status || 'ACTIVE'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          Enrolled: {c.enrolledAt ? new Date(c.enrolledAt).toLocaleDateString() : 'Active'}
+                        </p>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-mono">
-                        Enrolled: {c.enrolledAt ? new Date(c.enrolledAt).toLocaleDateString() : 'Active'}
-                      </p>
+
+                      {/* Course Removal button (SuperAdmin / Admin) */}
+                      <button
+                        type="button"
+                        onClick={() => handleRevokeCourse(selectedStudent.id, c.courseId, c.title)}
+                        className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-[11px] font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Remove only this course from student's portal"
+                      >
+                        <Icon name="delete" size={14} />
+                        <span>Remove Course</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -972,7 +1114,56 @@ function StudentsPageContent() {
                   No courses enrolled yet.
                 </p>
               )}
+
+              {/* Instant Course Grant Tool */}
+              {isEffectiveSuperAdmin && availableCourses.length > 0 && (
+                <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-200/80 space-y-2">
+                  <p className="text-[11px] font-bold text-purple-900">Grant New Course Access</p>
+                  <div className="flex gap-2">
+                    <select
+                      value={grantCourseId}
+                      onChange={(e) => setGrantCourseId(e.target.value)}
+                      className="flex-1 bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-purple-600"
+                    >
+                      <option value="">Select course to assign...</option>
+                      {availableCourses
+                        .filter((c) => !(selectedStudent.enrolledCourses || []).some((ec: any) => ec.courseId === c.id))
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.title}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={!grantCourseId || isGrantingCourse}
+                      onClick={() => handleGrantCourse(selectedStudent.id)}
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-2xs shrink-0 cursor-pointer"
+                    >
+                      {isGrantingCourse ? 'Granting...' : '+ Grant'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Support Mode (Impersonate) for SuperAdmin */}
+            {isEffectiveSuperAdmin && (
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-indigo-950">Student Support Mode</p>
+                  <p className="text-[10px] text-indigo-700/80">View portal exactly as this learner sees it</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleImpersonate(selectedStudent.id, selectedStudent.name)}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Icon name="visibility" size={14} />
+                  <span>Enter Portal</span>
+                </button>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="pt-4 border-t border-slate-100">

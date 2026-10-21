@@ -70,6 +70,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       requiredPermission: 'student.view',
       subItems: [
         { label: 'All Students', href: '/admin/students' },
+        ...(isSuperAdmin ? [{ label: 'SuperAdmin Directory', href: '/super-admin/students' }] : []),
         { label: 'Add Student', href: '/admin/students?action=create', requiredPermission: 'student.create' },
         { label: 'Import Students', href: '/admin/students?action=import', requiredPermission: 'student.import' },
         { label: 'Student Groups', href: '/admin/students?tab=groups' }

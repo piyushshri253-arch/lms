@@ -16,10 +16,13 @@ export async function GET(request: Request) {
     }
 
     const where: any = {
-      role: 'STUDENT'
+      role: { in: ['STUDENT', 'USER'] }
     };
 
-    if (facilityId && facilityId !== 'all' && facilityId !== 'main-facility') {
+    const isSuperAdmin = sessionData.user.role === 'SUPER_ADMIN';
+    const isMainFacility = !facilityId || facilityId === 'all' || facilityId === 'main' || facilityId === 'main-facility';
+
+    if (!isSuperAdmin && !isMainFacility) {
       where.organizationId = facilityId;
     }
 
@@ -79,12 +82,16 @@ export async function GET(request: Request) {
         certificatesCount: s._count.certificates,
         reviewsCount: s._count.reviews,
         ordersCount: s._count.orders,
-        enrolledCourses: s.enrollments.map((e) => ({
-          courseId: e.course.id,
-          title: e.course.title,
-          status: e.status,
-          enrolledAt: e.enrolledAt
-        }))
+        enrolledCourses: s.enrollments
+          .filter((e) => Boolean(e.course))
+          .map((e) => ({
+            enrollmentId: e.id,
+            courseId: e.course.id,
+            title: e.course.title,
+            price: e.course.price,
+            status: e.status,
+            enrolledAt: e.enrolledAt
+          }))
       };
     });
 
@@ -230,12 +237,20 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const courseId = searchParams.get('courseId');
 
     const { errorResponse } = await requireAdminApiGuard('student.delete');
     if (errorResponse) return errorResponse;
 
     if (!id) {
       return NextResponse.json({ error: 'Student ID is required' }, { status: 400 });
+    }
+
+    if (courseId) {
+      await prisma.enrollment.deleteMany({
+        where: { userId: id, courseId }
+      });
+      return NextResponse.json({ success: true, message: 'Course enrollment removed from student portal' });
     }
 
     await prisma.user.delete({
