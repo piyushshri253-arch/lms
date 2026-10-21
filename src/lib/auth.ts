@@ -235,6 +235,33 @@ export async function clearLmsSessionCookie() {
   }
 }
 
+const AUTH_USER_SELECT = {
+  id: true,
+  organizationId: true,
+  name: true,
+  email: true,
+  platform: true,
+  role: true,
+  avatar: true,
+  phone: true,
+  customRole: true,
+  permissions: true,
+  status: true,
+  emailVerified: true,
+  sessionVersion: true,
+  isSuspended: true,
+  organization: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      plan: true,
+      subscriptionStatus: true
+    }
+  }
+};
+
 export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
   try {
     const cookieStore = await cookies();
@@ -248,35 +275,17 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
       return null;
     }
 
-    const dbUser = await prisma.user.findUnique({
+    let dbUser = await prisma.user.findUnique({
       where: { id: session.id },
-      select: {
-        id: true,
-        organizationId: true,
-        name: true,
-        email: true,
-        platform: true,
-        role: true,
-        avatar: true,
-        phone: true,
-        customRole: true,
-        permissions: true,
-        status: true,
-        emailVerified: true,
-        sessionVersion: true,
-        isSuspended: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            status: true,
-            plan: true,
-            subscriptionStatus: true
-          }
-        }
-      }
+      select: AUTH_USER_SELECT
     });
+
+    if (!dbUser && session.email) {
+      dbUser = await prisma.user.findFirst({
+        where: { email: session.email.toLowerCase().trim() },
+        select: AUTH_USER_SELECT
+      });
+    }
 
     if (
       !dbUser ||
@@ -376,35 +385,17 @@ export async function getReviewerCurrentUser(): Promise<AuthSessionUser | null> 
     const session = await verifySessionToken(token);
     if (!session) return null;
 
-    const dbUser = await prisma.user.findUnique({
+    let dbUser = await prisma.user.findUnique({
       where: { id: session.id },
-      select: {
-        id: true,
-        organizationId: true,
-        name: true,
-        email: true,
-        platform: true,
-        role: true,
-        avatar: true,
-        phone: true,
-        customRole: true,
-        permissions: true,
-        status: true,
-        emailVerified: true,
-        sessionVersion: true,
-        isSuspended: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            status: true,
-            plan: true,
-            subscriptionStatus: true
-          }
-        }
-      }
+      select: AUTH_USER_SELECT
     });
+
+    if (!dbUser && session.email) {
+      dbUser = await prisma.user.findFirst({
+        where: { email: session.email.toLowerCase().trim() },
+        select: AUTH_USER_SELECT
+      });
+    }
 
     if (
       !dbUser ||
