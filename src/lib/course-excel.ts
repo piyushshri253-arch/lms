@@ -102,6 +102,11 @@ export function downloadCourseExcelTemplate() {
       fill: { fgColor: { rgb: '581C87' } }, // Purple 800 background
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
+    headerAmber: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
+      fill: { fgColor: { rgb: 'B45309' } }, // Amber 700 background
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
     sectionBanner: {
       font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '1E3A8A' } },
       fill: { fgColor: { rgb: 'DBEAFE' } }, // Light blue
@@ -321,7 +326,7 @@ export function downloadCourseExcelTemplate() {
   ];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum');
 
-  // 3. Quizzes & MCQs Sheet Data
+  // 3. Quizzes & MCQs Sheet Data (Mid-Module Knowledge Checks)
   const quizzesAOA: any[][] = [
     [
       'Module (e.g. Module 1)',
@@ -382,7 +387,68 @@ export function downloadCourseExcelTemplate() {
   ];
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
 
-  // 4. User Guide & Format Instructions Sheet
+  // 4. Final Assessment Sheet Data (Dedicated Certification Gate Exam)
+  const finalAssessmentAOA: any[][] = [
+    [
+      'Module / Section (Optional)',
+      'Assessment Title',
+      'Q#',
+      'Question Text *',
+      'Option A *',
+      'Option B *',
+      'Option C *',
+      'Option D *',
+      'Correct Option (A/B/C/D) *',
+      'Explanation (Why this option is correct)',
+      'Passing Score (%)',
+      'Marks / Points (e.g. 10)'
+    ],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', '']
+  ];
+
+  const wsFinalAssessment = XLSX.utils.aoa_to_sheet(finalAssessmentAOA);
+  finalAssessmentAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsFinalAssessment[cellRef]) wsFinalAssessment[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsFinalAssessment[cellRef].s = styles.headerAmber;
+      } else {
+        if (cIdx === 0) wsFinalAssessment[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1) wsFinalAssessment[cellRef].s = styles.boldTopic; // Assessment Title in BOLD
+        else if (cIdx === 2) wsFinalAssessment[cellRef].s = styles.boldCenter;
+        else if (cIdx === 3) wsFinalAssessment[cellRef].s = styles.boldTopic; // Question in BOLD
+        else if (cIdx >= 4 && cIdx <= 7) wsFinalAssessment[cellRef].s = styles.cellNormal;
+        else if (cIdx === 8) wsFinalAssessment[cellRef].s = styles.boldCenter;
+        else if (cIdx === 9) wsFinalAssessment[cellRef].s = styles.cellNormal;
+        else if (cIdx === 10 || cIdx === 11) wsFinalAssessment[cellRef].s = styles.centerNormal;
+      }
+    }
+  });
+
+  wsFinalAssessment['!cols'] = [
+    { wch: 28 }, // Module / Section (Optional)
+    { wch: 35 }, // Assessment Title
+    { wch: 8 },  // Q#
+    { wch: 75 }, // Question Text
+    { wch: 26 }, // Option A
+    { wch: 26 }, // Option B
+    { wch: 26 }, // Option C
+    { wch: 26 }, // Option D
+    { wch: 26 }, // Correct Option
+    { wch: 65 }, // Explanation
+    { wch: 18 }, // Passing Score (%)
+    { wch: 22 }  // Marks / Points (e.g. 10)
+  ];
+  XLSX.utils.book_append_sheet(wb, wsFinalAssessment, 'Final Assessment');
+
+  // 5. User Guide & Format Instructions Sheet
   const wsGuide = buildGuideInstructionsSheet(styles);
   XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
@@ -405,15 +471,15 @@ export function buildGuideInstructionsSheet(styles: any) {
     ],
     [
       '🎥 STEP 2: Curriculum Content Types (LECTURE, ARTICLE, QUIZ, FINAL ASSESSMENT)',
-      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSESSMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in "Quizzes & MCQs"). You can also specify FINAL ASSIGNMENT.'
+      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSESSMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in the dedicated "Final Assessment" tab). You can also specify FINAL ASSIGNMENT.'
     ],
     [
-      '🏆 STEP 3: Mandatory Final Assessment & Certificate Gate',
-      'Every course MUST have a "Final Assessment" (or Final Assignment) at the end of the curriculum before it can be submitted for approval!\n• Content Type: FINAL ASSESSMENT (or FINAL ASSIGNMENT, or name the topic "Final Assessment").\n• Questions & Passing Score: Add comprehensive questions in the "Quizzes & MCQs" tab with your desired Passing Score (%) (e.g. 75% or 80%).\n• Certificate Eligibility: When a student passes this Final Assessment, they immediately unlock the official verifiable Certificate of Completion. If they score below the passing score, they receive retake and review options.'
+      '🏆 STEP 3: Dedicated "Final Assessment" Tab & Certificate Gate',
+      'Every course MUST have a Final Assessment at the end of the curriculum before it can be submitted for approval!\n• Dedicated Tab: Open the dedicated "Final Assessment" tab at the bottom of this workbook to enter your certification exam questions, options, and passing score.\n• Passing Score: Default is 80%. When a student scores at or above the passing score, they immediately unlock the official verifiable Certificate of Completion.\n• Even Questions Rule: The Final Assessment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts are strictly rejected.'
     ],
     [
-      '💯 STEP 4: Quiz Passing Score, Even Questions Rule & Marks per Question',
-      'In the "Quizzes & MCQs" tab:\n• EVEN NUMBER OF QUESTIONS RULE: Every Quiz and Final Assessment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts (like 1, 3, 5, 7) are strictly NOT accepted and cannot be published!\n• MARKS PER QUESTION: Specify individual marks in Column L (default 10 marks per question).\n• PASSING SCORE (%): Set the passing percentage in Column K (e.g. 70% or 80%). When a student passes, the player automatically advances; when they score below, they receive retake options.'
+      '💯 STEP 4: "Quizzes & MCQs" Tab (Mid-Module Quizzes)',
+      'In the "Quizzes & MCQs" tab, configure knowledge-check quizzes for individual modules:\n• EVEN NUMBER OF QUESTIONS RULE: Every Quiz must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts (like 1, 3, 5, 7) are strictly NOT accepted and cannot be published!\n• MARKS PER QUESTION: Specify individual marks in Column L (default 10 marks per question).\n• PASSING SCORE (%): Set the passing percentage in Column K (e.g. 70%). When a student passes, the player automatically advances.'
     ],
     [
       '📹 STEP 5: Bulk Video Uploading (Supports up to 500 MB / 300 MB Videos)',
@@ -481,6 +547,11 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     headerPurple: {
       font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
       fill: { fgColor: { rgb: '581C87' } }, // Purple 800 background
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
+    headerAmber: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
+      fill: { fgColor: { rgb: 'B45309' } }, // Amber 700 background
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     sectionBanner: {
@@ -715,11 +786,29 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 70 }];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
 
-  // 3. Quizzes & MCQs Sheet
+  // 3. Quizzes & MCQs Sheet (Mid-Module Knowledge Checks)
   const quizzesAOA: any[][] = [
     [
       'Module (e.g. Module 1)',
       'Quiz Title (Write once per quiz)',
+      'Q#',
+      'Question Text *',
+      'Option A *',
+      'Option B *',
+      'Option C *',
+      'Option D *',
+      'Correct Option (A/B/C/D) *',
+      'Explanation (Why this option is correct)',
+      'Passing Score (%)',
+      'Marks / Points'
+    ]
+  ];
+
+  // 4. Final Assessment Sheet (Dedicated Certification Gate Exam)
+  const finalAssessmentAOA: any[][] = [
+    [
+      'Module / Section (Optional)',
+      'Assessment Title',
       'Q#',
       'Question Text *',
       'Option A *',
@@ -743,11 +832,13 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
         const questions = Array.isArray(qData?.questions) ? qData.questions : [];
         const isFinal = Boolean(les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || ''));
         const passingScore = qData?.passingScore || (isFinal ? 80 : 70);
+        const targetAOA = isFinal ? finalAssessmentAOA : quizzesAOA;
+
         questions.forEach((q: any, qIdx: number) => {
           const opts = Array.isArray(q.options) ? q.options : [];
           const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
           const letter = ['A', 'B', 'C', 'D'][correctIdx] || 'A';
-          quizzesAOA.push([
+          targetAOA.push([
             qIdx === 0 ? (sec.title || 'Module') : '',
             qIdx === 0 ? (les.title || (isFinal ? 'Final Assessment' : 'Quiz')) : '',
             qIdx + 1,
@@ -767,8 +858,13 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   });
 
   if (quizzesAOA.length === 1) {
-    quizzesAOA.push(['Module 1', 'Sample Knowledge Check', 1, 'Sample Question 1?', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A', 'Correct answer', 70, 10]);
-    quizzesAOA.push(['', '', 2, 'Sample Question 2?', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'B', 'Correct answer', 70, 10]);
+    quizzesAOA.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+    quizzesAOA.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+  }
+
+  if (finalAssessmentAOA.length === 1) {
+    finalAssessmentAOA.push(['', 'Final Assessment', '', '', '', '', '', '', '', '', 80, 10]);
+    finalAssessmentAOA.push(['', '', '', '', '', '', '', '', '', '', '', '']);
   }
 
   const wsQuizzes = XLSX.utils.aoa_to_sheet(quizzesAOA);
@@ -790,7 +886,26 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   wsQuizzes['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, wsQuizzes, 'Quizzes & MCQs');
 
-  // 4. Append User Guide & Format Instructions Sheet
+  const wsFinalAssessment = XLSX.utils.aoa_to_sheet(finalAssessmentAOA);
+  finalAssessmentAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsFinalAssessment[cellRef]) wsFinalAssessment[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsFinalAssessment[cellRef].s = styles.headerAmber;
+      } else {
+        if (cIdx === 0 || cIdx === 1 || cIdx === 3) wsFinalAssessment[cellRef].s = styles.boldTopic;
+        else if (cIdx === 2 || cIdx === 8 || cIdx === 10 || cIdx === 11) wsFinalAssessment[cellRef].s = styles.boldCenter;
+        else wsFinalAssessment[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
+  wsFinalAssessment['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsFinalAssessment, 'Final Assessment');
+
+  // 5. Append User Guide & Format Instructions Sheet
   const wsGuide = buildGuideInstructionsSheet(styles);
   XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide & Instructions');
 
@@ -1175,8 +1290,11 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
   }
 
   // 3. Quizzes & MCQs Sheet Parsing (Auto-populates questions, options & answers into respective module quizzes)
+  const finalAssessmentSheetName = sheetNames.find((name) =>
+    /final\s*(assessment|assignment|exam)/i.test(name)
+  );
   const quizSheetName = sheetNames.find((name) =>
-    /quiz|mcq|assessment|question/i.test(name)
+    name !== finalAssessmentSheetName && /quiz|mcq|assessment|question/i.test(name)
   );
 
   if (quizSheetName && wb.Sheets[quizSheetName]) {
@@ -1489,6 +1607,189 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
         } else if (isFinalAssignment && (!qData.passingScore || qData.passingScore === 70)) {
           qData.passingScore = 80;
         }
+        qData.questions.push(newQuestion);
+      });
+    }
+  }
+
+  // 4. Dedicated Final Assessment Sheet Parsing (Authoritative for Certificate Gate Exam)
+  if (finalAssessmentSheetName && wb.Sheets[finalAssessmentSheetName]) {
+    const faSheet = wb.Sheets[finalAssessmentSheetName];
+    const faRawRows: any[] = XLSX.utils.sheet_to_json(faSheet);
+    const validFaRows = faRawRows.filter((row) => {
+      return Object.entries(row).some(([k, v]) => {
+        const cleanK = k.trim().toLowerCase();
+        return /question|option|correct|prompt|mcq/i.test(cleanK) && String(v || '').trim() !== '';
+      });
+    });
+
+    if (validFaRows.length > 0) {
+      if (!result.sections) {
+        result.sections = [];
+      }
+      const sections = result.sections;
+
+      // Locate or create the Final Assessment lesson
+      let finalLesson = sections
+        .flatMap((s) => s.lessons)
+        .find((l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || ''));
+
+      if (!finalLesson) {
+        if (sections.length === 0) {
+          sections.push({
+            id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
+            title: 'Course Assessment',
+            description: '',
+            order: 1,
+            lessons: []
+          });
+        }
+        const targetSec = sections[sections.length - 1];
+        finalLesson = {
+          id: `les-${Date.now()}-${targetSec.order}-${targetSec.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+          title: 'Final Assessment',
+          description: 'Mandatory comprehensive final assessment for certificate qualification.',
+          type: 'QUIZ',
+          duration: '30:00',
+          durationSeconds: 1800,
+          isFree: false,
+          isPublished: true,
+          isFinalAssignment: true,
+          order: targetSec.lessons.length + 1,
+          quizData: {
+            questions: [],
+            passingScore: 80,
+            attemptLimit: 0
+          },
+          subLessons: []
+        };
+        targetSec.lessons.push(finalLesson);
+      } else {
+        finalLesson.isFinalAssignment = true;
+        if (!finalLesson.title || /quiz/i.test(finalLesson.title)) {
+          finalLesson.title = 'Final Assessment';
+        }
+        if (!finalLesson.type) {
+          finalLesson.type = 'QUIZ';
+        }
+      }
+
+      if (!finalLesson.quizData || typeof finalLesson.quizData === 'string') {
+        try {
+          finalLesson.quizData = typeof finalLesson.quizData === 'string'
+            ? JSON.parse(finalLesson.quizData)
+            : { questions: [], passingScore: 80, attemptLimit: 0 };
+        } catch {
+          finalLesson.quizData = { questions: [], passingScore: 80, attemptLimit: 0 };
+        }
+      }
+
+      const qData: any = finalLesson.quizData;
+      // Dedicated tab is authoritative for final assessment questions
+      qData.questions = [];
+
+      faRawRows.forEach((row, rowIdx) => {
+        const findFAField = (exactKeys: string[], fallbackKeyword?: string, excludeKeyword?: string) => {
+          for (const [rKey, rVal] of Object.entries(row)) {
+            const cleanKey = rKey.trim().toLowerCase();
+            if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
+              if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                return String(rVal).trim();
+              }
+            }
+          }
+          if (fallbackKeyword) {
+            for (const [rKey, rVal] of Object.entries(row)) {
+              const cleanKey = rKey.trim().toLowerCase();
+              if (excludeKeyword && cleanKey.includes(excludeKeyword.toLowerCase())) {
+                continue;
+              }
+              if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
+                if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                  return String(rVal).trim();
+                }
+              }
+            }
+          }
+          return '';
+        };
+
+        const questionText = findFAField(['question text *', 'question text', 'question', 'prompt', 'mcq'], 'question');
+        const optA = findFAField(['option a *', 'option a', 'choice a', 'a']);
+        const optB = findFAField(['option b *', 'option b', 'choice b', 'b']);
+        const optC = findFAField(['option c *', 'option c', 'choice c', 'c']);
+        const optD = findFAField(['option d *', 'option d', 'choice d', 'd']);
+        const correctRaw = findFAField(['correct option (a/b/c/d) *', 'correct option (a/b/c/d)', 'correct option', 'correct answer', 'answer', 'correct key', 'correct'], 'correct', 'explanation');
+        const explanation = findFAField(['explanation (why this option is correct)', 'explanation', 'explanation (optional)', 'rationale', 'solution'], 'explanation');
+        const passScoreRaw = findFAField(['passing score (%)', 'passing score', 'pass %', 'passing grade'], 'pass');
+        const pointsRaw = findFAField(['marks / points (e.g. 10)', 'marks / points', 'marks', 'points', 'mark', 'point', 'score per question', 'score'], 'mark');
+        const titleRaw = findFAField(['assessment title', 'title', 'quiz title'], 'title');
+
+        if (!questionText && !optA && !optB && !optC && !optD && !correctRaw) return;
+
+        if (titleRaw && cleanQuizTitle(titleRaw) && (!finalLesson!.title || finalLesson!.title === 'Final Assessment')) {
+          finalLesson!.title = cleanQuizTitle(titleRaw) || 'Final Assessment';
+        }
+
+        if (passScoreRaw && !isNaN(parseInt(passScoreRaw, 10))) {
+          qData.passingScore = parseInt(passScoreRaw, 10);
+        } else if (!qData.passingScore) {
+          qData.passingScore = 80;
+        }
+
+        // Parse correct option index
+        let cleanCorrect = (correctRaw || '').trim().toUpperCase();
+        const matchLetter = cleanCorrect.match(/([A-D])/);
+        const matchNum = cleanCorrect.match(/([1-4])/);
+        if (['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          // valid
+        } else if (matchLetter && cleanCorrect.length <= 10) {
+          cleanCorrect = matchLetter[1];
+        } else if (matchNum && cleanCorrect.length <= 3) {
+          const numVal = parseInt(matchNum[1], 10);
+          cleanCorrect = ['A', 'B', 'C', 'D'][numVal - 1] || cleanCorrect;
+        } else {
+          const optMatchIdx = [optA, optB, optC, optD].findIndex(
+            (opt) => opt && opt.trim().toLowerCase() === correctRaw.trim().toLowerCase()
+          );
+          if (optMatchIdx >= 0) {
+            cleanCorrect = ['A', 'B', 'C', 'D'][optMatchIdx];
+          }
+        }
+
+        let correctIndex = 0;
+        if (cleanCorrect === 'B' || cleanCorrect === '2') correctIndex = 1;
+        else if (cleanCorrect === 'C' || cleanCorrect === '3') correctIndex = 2;
+        else if (cleanCorrect === 'D' || cleanCorrect === '4') correctIndex = 3;
+
+        const rawOptions = [optA, optB, optC, optD].filter(Boolean);
+        const options = rawOptions.length >= 2 ? rawOptions : [optA || 'Option A', optB || 'Option B', optC || 'Option C', optD || 'Option D'];
+
+        if (options.length > 0 && isNaN(parseInt(cleanCorrect, 10)) && !['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          const matchedIdx = options.findIndex((opt) => opt.toLowerCase() === cleanCorrect.toLowerCase());
+          if (matchedIdx !== -1) {
+            correctIndex = matchedIdx;
+          }
+        }
+
+        if (correctIndex >= options.length) {
+          correctIndex = 0;
+        }
+
+        const points =
+          pointsRaw && !isNaN(parseInt(pointsRaw, 10)) && parseInt(pointsRaw, 10) > 0
+            ? parseInt(pointsRaw, 10)
+            : 10;
+
+        const newQuestion = {
+          id: `q-final-${rowIdx + 1}-${Math.random().toString(36).substring(2, 6)}`,
+          question: questionText || `Question ${rowIdx + 1}`,
+          options,
+          correctIndex,
+          explanation: explanation || '',
+          points
+        };
+
         qData.questions.push(newQuestion);
       });
     }

@@ -305,6 +305,64 @@ async function runTestSuite() {
     'Backend rejects direct submission with format error'
   );
 
+  // 16. Acceptance Criterion 16: Dedicated "Final Assessment" Tab Validates & Binds Accurately
+  console.log('\nTest 16: Dedicated "Final Assessment" worksheet tab validation & parsing');
+  const dedicatedFAWb = XLSX.utils.book_new();
+  const baseWb = createBaseValidWorkbook();
+  XLSX.utils.book_append_sheet(dedicatedFAWb, baseWb.Sheets['Course Details'], 'Course Details');
+  XLSX.utils.book_append_sheet(dedicatedFAWb, baseWb.Sheets['Curriculum'], 'Curriculum');
+  
+  // Mid-module quiz in Quizzes & MCQs
+  const midModuleQuizAOA = [
+    [
+      'Module (e.g. Module 1)', 'Quiz Title (Write once per quiz)', 'Q#', 'Question Text *',
+      'Option A *', 'Option B *', 'Option C *', 'Option D *',
+      'Correct Option (A/B/C/D) *', 'Explanation (Why this option is correct)', 'Passing Score (%)', 'Marks / Points'
+    ],
+    ['Module 1', 'Python Fundamentals Assessment', 1, 'What is .py?', 'Script', 'Binary', 'Image', 'Audio', 'A', 'Script file', 70, 10],
+    ['', '', 2, 'What is print()?', 'Output function', 'Input', 'Loop', 'Class', 'A', 'Output', 70, 10]
+  ];
+  XLSX.utils.book_append_sheet(dedicatedFAWb, XLSX.utils.aoa_to_sheet(midModuleQuizAOA), 'Quizzes & MCQs');
+
+  // Dedicated Final Assessment tab with 4 questions (even count)
+  const dedicatedFAAOA = [
+    [
+      'Module / Section (Optional)', 'Assessment Title', 'Q#', 'Question Text *',
+      'Option A *', 'Option B *', 'Option C *', 'Option D *',
+      'Correct Option (A/B/C/D) *', 'Explanation (Why this option is correct)', 'Passing Score (%)', 'Marks / Points (e.g. 10)'
+    ],
+    ['', 'Final Assessment', 1, 'What is PEP 8?', 'Style guide', 'Compiler', 'Debugger', 'OS', 'A', 'Python style guide', 80, 10],
+    ['', 'Final Assessment', 2, 'Is Python dynamically typed?', 'Yes', 'No', 'Sometimes', 'Never', 'A', 'Dynamic typing', 80, 10],
+    ['', 'Final Assessment', 3, 'Which keyword creates a class?', 'class', 'struct', 'type', 'interface', 'A', 'class keyword', 80, 10],
+    ['', 'Final Assessment', 4, 'What is pip?', 'Package manager', 'Editor', 'Browser', 'Database', 'A', 'Package installer', 80, 10]
+  ];
+  XLSX.utils.book_append_sheet(dedicatedFAWb, XLSX.utils.aoa_to_sheet(dedicatedFAAOA), 'Final Assessment');
+
+  const dedicatedFARes = validateCourseExcel(wbToBuffer(dedicatedFAWb));
+  assert(dedicatedFARes.isValid, 'Workbook with dedicated Final Assessment tab passes validation');
+  assert(dedicatedFARes.blockingCount === 0, 'Zero blocking errors with dedicated Final Assessment tab');
+  assert(dedicatedFARes.summary.hasFinalAssignment === true, 'Summary recognizes Final Assessment from dedicated tab');
+  assert(dedicatedFARes.summary.finalAssignmentQuestionsCount === 4, 'Final Assessment has all 4 questions from dedicated tab');
+  const finalLes = dedicatedFARes.parsedData?.sections?.flatMap(s => s.lessons).find(l => l.isFinalAssignment);
+  const finalQuizData: any = finalLes?.quizData;
+  assert(finalQuizData?.questions?.length === 4, 'Parsed final assessment lesson contains all 4 questions');
+  assert(finalQuizData?.passingScore === 80, 'Parsed final assessment passing score is 80%');
+
+  // 17. Acceptance Criterion 17: Odd question count in dedicated Final Assessment tab is rejected
+  console.log('\nTest 17: Odd question count in dedicated Final Assessment tab rejection');
+  const oddDedicatedFAAOA = [...dedicatedFAAOA.slice(0, 4)]; // 3 questions = odd count
+  const oddDedicatedFAWb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(oddDedicatedFAWb, baseWb.Sheets['Course Details'], 'Course Details');
+  XLSX.utils.book_append_sheet(oddDedicatedFAWb, baseWb.Sheets['Curriculum'], 'Curriculum');
+  XLSX.utils.book_append_sheet(oddDedicatedFAWb, XLSX.utils.aoa_to_sheet(midModuleQuizAOA), 'Quizzes & MCQs');
+  XLSX.utils.book_append_sheet(oddDedicatedFAWb, XLSX.utils.aoa_to_sheet(oddDedicatedFAAOA), 'Final Assessment');
+  const oddDedicatedRes = validateCourseExcel(wbToBuffer(oddDedicatedFAWb));
+  assert(!oddDedicatedRes.isValid, 'Odd question count in dedicated Final Assessment tab is rejected');
+  assert(
+    oddDedicatedRes.errors.some(e => e.location === 'Final Assessment' && e.error.includes('even count required')),
+    'Even count required error reported at Final Assessment location'
+  );
+
   console.log('\n=============================================================');
   console.log(`TEST RESULTS: ${passedTests} PASSED, ${failedTests} FAILED`);
   console.log('=============================================================\n');

@@ -119,7 +119,8 @@ export function validateCourseExcel(
   // 2. Required Worksheets Check
   const detailsSheetName = sheetNames.find((name) => /course|detail|info|basic/i.test(name));
   const curriculumSheetName = sheetNames.find((name) => /curriculum|syllabus|modules|lessons/i.test(name));
-  const quizSheetName = sheetNames.find((name) => /quiz|mcq|assessment|question/i.test(name));
+  const finalAssessmentSheetName = sheetNames.find((name) => /final\s*(assessment|assignment|exam)/i.test(name));
+  const quizSheetName = sheetNames.find((name) => name !== finalAssessmentSheetName && /quiz|mcq|assessment|question/i.test(name));
 
   if (!detailsSheetName) {
     errors.push({
@@ -759,8 +760,10 @@ export function validateCourseExcel(
       const passScoreRaw = findQField(['passing score (%)', 'passing score', 'pass %', 'passing grade'], 'pass');
       const pointsRaw = findQField(['marks / points (e.g. 10)', 'marks / points', 'marks', 'points', 'mark', 'point', 'score'], 'mark');
 
+      const hasAnyQuestionData = Boolean(questionText || optA || optB || optC || optD || correctRaw);
+
       // Skip completely empty question rows
-      if (!questionText && !optA && !optB && !optC && !optD && !correctRaw && !quizTitleRaw && !moduleIdentifier) {
+      if (!hasAnyQuestionData && !quizTitleRaw && !moduleIdentifier) {
         return;
       }
 
@@ -791,7 +794,13 @@ export function validateCourseExcel(
         /final\s*(assessment|assignment|exam)/i.test(quizTitleRaw) ||
         /final\s*(assessment|assignment|exam)/i.test(moduleIdentifier) ||
         activeModuleKey === 'final' ||
-        (!quizTitleRaw && activeQuizEntry?.isFinalAssignment);
+        (!quizTitleRaw && activeQuizEntry?.isFinalAssignment) ||
+        (quizTitleRaw && Boolean(Array.from(quizMap.values()).find(
+          (v) => v.isFinalAssignment && (
+            cleanQuizTitle(v.quizTitle).toLowerCase() === cleanQuizTitle(quizTitleRaw).toLowerCase() ||
+            v.quizTitle.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()
+          )
+        )));
 
       if (quizTitleRaw) {
         activeQuizKey = cleanQuizTitle(quizTitleRaw);
@@ -962,6 +971,203 @@ export function validateCourseExcel(
       }
     });
   }
+
+  // 7b. Dedicated Final Assessment Sheet Validation (Authoritative for Certificate Gate Exam)
+  if (finalAssessmentSheetName && wb.Sheets[finalAssessmentSheetName]) {
+    const faSheet = wb.Sheets[finalAssessmentSheetName];
+    const faRows: any[] = XLSX.utils.sheet_to_json(faSheet);
+
+    const validFaRows = faRows.filter((row) => {
+      return Object.entries(row).some(([k, v]) => {
+        const cleanK = k.trim().toLowerCase();
+        return /question|option|correct|prompt|mcq/i.test(cleanK) && String(v || '').trim() !== '';
+      });
+    });
+
+    if (validFaRows.length > 0) {
+      let finalQuizEntry = quizMap.get('__final_assessment__');
+      if (!finalQuizEntry) {
+        finalQuizEntry = Array.from(quizMap.values()).find((v) => v.isFinalAssignment);
+      }
+
+      if (!finalQuizEntry) {
+        let targetSec = sections[sections.length - 1];
+        if (!targetSec) {
+          targetSec = {
+            id: 'sec-1',
+            title: 'Course Assessment',
+            description: '',
+            order: 1,
+            lessons: []
+          };
+          sections.push(targetSec);
+        }
+        const finalLesson: BuilderLesson = {
+          id: `les-${targetSec.order}-${targetSec.lessons.length + 1}`,
+          title: 'Final Assessment',
+          description: 'Mandatory comprehensive final assessment for certificate qualification.',
+          type: 'QUIZ',
+          duration: '30:00',
+          durationSeconds: 1800,
+          isFree: false,
+          isPublished: true,
+          isFinalAssignment: true,
+          order: targetSec.lessons.length + 1,
+          quizData: {
+            questions: [],
+            passingScore: 80,
+            attemptLimit: 0
+          },
+          subLessons: []
+        };
+        targetSec.lessons.push(finalLesson);
+
+        finalQuizEntry = {
+          key: '__final_assessment__',
+          moduleNum: targetSec.order,
+          quizTitle: 'Final Assessment',
+          isFinalAssignment: true,
+          questions: [],
+          lessonRef: finalLesson
+        };
+        quizMap.set('__final_assessment__', finalQuizEntry);
+      } else {
+        // Dedicated Final Assessment tab is authoritative - clear any legacy questions to avoid duplicates
+        finalQuizEntry.questions = [];
+      }
+
+      faRows.forEach((row, rowIdx) => {
+      const findFAField = (exactKeys: string[], fallbackKeyword?: string, excludeKeyword?: string) => {
+        for (const [rKey, rVal] of Object.entries(row)) {
+          const cleanKey = rKey.trim().toLowerCase();
+          if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
+            if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+              return String(rVal).trim();
+            }
+          }
+        }
+        if (fallbackKeyword) {
+          for (const [rKey, rVal] of Object.entries(row)) {
+            const cleanKey = rKey.trim().toLowerCase();
+            if (excludeKeyword && cleanKey.includes(excludeKeyword.toLowerCase())) {
+              continue;
+            }
+            if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
+              if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                return String(rVal).trim();
+              }
+            }
+          }
+        }
+        return '';
+      };
+
+      const qNumRaw = findFAField(['q#', 'q', 'question number', 'question #']);
+      const questionText = findFAField(['question text *', 'question text', 'question', 'prompt', 'mcq'], 'question');
+      const optA = findFAField(['option a *', 'option a', 'choice a', 'a']);
+      const optB = findFAField(['option b *', 'option b', 'choice b', 'b']);
+      const optC = findFAField(['option c *', 'option c', 'choice c', 'c']);
+      const optD = findFAField(['option d *', 'option d', 'choice d', 'd']);
+      const correctRaw = findFAField(['correct option (a/b/c/d) *', 'correct option (a/b/c/d)', 'correct option', 'correct answer', 'answer', 'correct key', 'correct'], 'correct', 'explanation');
+      const explanation = findFAField(['explanation (why this option is correct)', 'explanation', 'explanation (optional)', 'rationale', 'solution'], 'explanation');
+      const passScoreRaw = findFAField(['passing score (%)', 'passing score', 'pass %', 'passing grade'], 'pass');
+      const pointsRaw = findFAField(['marks / points (e.g. 10)', 'marks / points', 'marks', 'points', 'mark', 'point', 'score'], 'mark');
+      const titleRaw = findFAField(['assessment title', 'title', 'quiz title'], 'title');
+
+      const hasAnyQuestionData = Boolean(questionText || optA || optB || optC || optD || correctRaw);
+
+      // Skip completely empty question rows
+      if (!hasAnyQuestionData) {
+        return;
+      }
+
+      if (titleRaw && cleanQuizTitle(titleRaw) && (!finalQuizEntry!.quizTitle || finalQuizEntry!.quizTitle === 'Final Assessment')) {
+        finalQuizEntry!.quizTitle = cleanQuizTitle(titleRaw) || 'Final Assessment';
+      }
+
+      const currentQIndex = finalQuizEntry!.questions.length + 1;
+      const qNumToDisplay = qNumRaw || String(currentQIndex);
+      const questionLocation = `Final Assessment, Question ${qNumToDisplay}`;
+
+      // Validate Question Text
+      if (!questionText || questionText.trim().length === 0) {
+        errors.push({
+          location: questionLocation,
+          field: 'Question Text',
+          error: 'Missing',
+          action: 'Enter the question text',
+          severity: 'BLOCKING'
+        });
+      }
+
+      // Validate Options
+      const options = [optA, optB, optC, optD];
+      if (!optA || !optB || !optC || !optD) {
+        errors.push({
+          location: questionLocation,
+          field: 'Options',
+          error: 'Missing answer options',
+          action: 'Provide all 4 answer options (Option A, Option B, Option C, Option D)',
+          severity: 'BLOCKING'
+        });
+      }
+
+      // Validate Correct Answer
+      let cleanCorrect = correctRaw.trim().toUpperCase();
+      if (!cleanCorrect) {
+        errors.push({
+          location: questionLocation,
+          field: 'Correct Answer',
+          error: 'Missing',
+          action: 'Select a valid answer option',
+          severity: 'BLOCKING'
+        });
+      } else {
+        const matchLetter = cleanCorrect.match(/([A-D])/);
+        const matchNum = cleanCorrect.match(/([1-4])/);
+        if (['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          // valid
+        } else if (matchLetter && cleanCorrect.length <= 10) {
+          cleanCorrect = matchLetter[1];
+        } else if (matchNum && cleanCorrect.length <= 3) {
+          const numVal = parseInt(matchNum[1], 10);
+          cleanCorrect = ['A', 'B', 'C', 'D'][numVal - 1] || cleanCorrect;
+        } else {
+          const optMatchIdx = options.findIndex((opt) => opt && opt.trim().toLowerCase() === correctRaw.trim().toLowerCase());
+          if (optMatchIdx >= 0) {
+            cleanCorrect = ['A', 'B', 'C', 'D'][optMatchIdx];
+          }
+        }
+
+        if (!['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          errors.push({
+            location: questionLocation,
+            field: 'Correct Answer',
+            error: 'The correct answer must reference one of the available answer options',
+            action: 'Please use the supported answer format shown in the template (A, B, C, or D)',
+            severity: 'BLOCKING'
+          });
+        }
+      }
+
+      finalQuizEntry!.questions.push({
+        id: `q-final-${currentQIndex}`,
+        question: questionText || `Question ${currentQIndex}`,
+        options: [optA || 'Option A', optB || 'Option B', optC || 'Option C', optD || 'Option D'],
+        correctAnswer: cleanCorrect,
+        explanation: explanation || '',
+        points: parseInt(pointsRaw, 10) || 10
+      });
+
+      if (passScoreRaw) {
+        const parsedPass = parseInt(passScoreRaw, 10);
+        if (!isNaN(parsedPass) && parsedPass > 0) {
+          finalQuizEntry!.passingScore = parsedPass;
+        }
+      }
+    });
+  }
+}
 
   // Consolidate orphan / duplicate quizMap entries:
   // If an entry from Curriculum has 0 questions, but another entry has questions, merge them!
