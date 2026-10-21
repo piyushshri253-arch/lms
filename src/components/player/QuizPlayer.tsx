@@ -387,8 +387,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
             <h3 className="text-xl sm:text-2xl font-black text-slate-900">
               {isFinalAssignment
                 ? passed
-                  ? 'Congratulations! You Passed the Final Assignment 🎓'
-                  : 'Final Assignment Not Passed ❌'
+                  ? 'Congratulations! You Passed the Final Assessment 🎓'
+                  : 'Final Assessment Not Passed ❌'
                 : passed
                 ? 'Congratulations! You Passed 🎉'
                 : 'Assessment Not Passed ❌'}
@@ -397,7 +397,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
               {isFinalAssignment
                 ? passed
                   ? `You scored ${scorePercent}%, successfully achieving the ${passingScore}% passing threshold. Your verified Course Certificate of Completion is unlocked!`
-                  : `You scored ${scorePercent}%, which is below the required ${passingScore}% mark. Passing this Final Assignment is required to unlock your certificate.`
+                  : `You scored ${scorePercent}%, which is below the required ${passingScore}% mark. Passing this Final Assessment is required to unlock your certificate.`
                 : passed
                 ? `You scored ${scorePercent}%, successfully reaching the ${passingScore}% passing threshold required by your instructor.`
                 : `You scored ${scorePercent}%, which is below the required ${passingScore}% passing score. Review the questions and retake the quiz to proceed.`}
@@ -426,7 +426,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
             </div>
           </div>
 
-          {/* IF PASSED: Check if Final Assignment or Regular Quiz */}
+          {/* IF PASSED: Check if Final Assessment or Regular Quiz */}
           {passed ? (
             isFinalAssignment ? (
               <div className="w-full max-w-lg p-6 rounded-2xl bg-gradient-to-br from-amber-50 via-yellow-50/70 to-emerald-50 border-2 border-amber-400 shadow-xl space-y-4 animate-in fade-in">
@@ -542,7 +542,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                   </div>
                   <div className="text-left">
                     <h4 className="text-sm sm:text-base font-extrabold text-rose-950">
-                      Certificate Locked — Final Assignment Not Passed
+                      Certificate Locked — Final Assessment Not Passed
                     </h4>
                     <p className="text-xs text-rose-700">
                       Passing mark required: {passingScore}% (Your score: {scorePercent}%)
@@ -550,7 +550,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                   </div>
                 </div>
                 <p className="text-xs text-rose-800 leading-relaxed bg-white/70 p-3 rounded-xl border border-rose-200 text-left">
-                  The verified Certificate of Completion is awarded only after successfully passing this Final Assignment. Review the answers and explanations below, then retake the assignment to earn your certificate!
+                  The verified Certificate of Completion is awarded only after successfully passing this Final Assessment. Review the answers and explanations below, then retake the assessment to earn your certificate!
                 </p>
 
                 <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
@@ -560,7 +560,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                     className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
                   >
                     <Icon name="refresh" size={16} />
-                    <span>Retake Final Assignment</span>
+                    <span>Retake Final Assessment</span>
                   </button>
                   <button
                     type="button"
@@ -667,10 +667,10 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                   type="button"
                   onClick={handleRetry}
                   className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
-                  title="Retake Final Assignment"
+                  title="Retake Final Assessment"
                 >
                   <Icon name="refresh" size={14} />
-                  <span>Retake Final Assignment</span>
+                  <span>Retake Final Assessment</span>
                 </button>
               ) : null
             ) : (
@@ -905,7 +905,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-colors cursor-pointer shadow-md disabled:opacity-50"
             >
               <Icon name={isSubmitting ? 'sync' : 'done_all'} size={15} className={isSubmitting ? 'animate-spin' : ''} />
-              <span>{isSubmitting ? 'Scoring Assessment...' : isFinalAssignment ? 'Submit Final Assignment' : 'Submit Answers'}</span>
+              <span>{isSubmitting ? 'Scoring Assessment...' : isFinalAssignment ? 'Submit Final Assessment' : 'Submit Answers'}</span>
             </button>
           ) : (
             <>
@@ -945,7 +945,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition-colors cursor-pointer shadow-md"
                 >
                   <Icon name="refresh" size={15} />
-                  <span>Retake Final Assignment</span>
+                  <span>Retake Final Assessment</span>
                 </button>
               )}
               {!isFinalAssignment && passed && onAutoAdvanceNext && (

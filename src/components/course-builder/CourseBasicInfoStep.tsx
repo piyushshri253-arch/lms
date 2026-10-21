@@ -145,7 +145,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
               <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-600 text-white">Protected</span>
             </h4>
             <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
-              Course title, URL identifier, topic classification, descriptions, and learning requirements are preserved from the live published course and cannot be altered. In Update Version mode, you can expand the curriculum by adding new modules and lectures, attach resources to new items, and update the final assignment.
+              Course title, URL identifier, topic classification, descriptions, and learning requirements are preserved from the live published course and cannot be altered. In Update Version mode, you can expand the curriculum by adding new modules and lectures, attach resources to new items, and update the final assessment.
             </p>
           </div>
         </div>

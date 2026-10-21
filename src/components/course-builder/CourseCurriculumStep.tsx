@@ -222,8 +222,8 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           totalQuizzes += 1;
-          const isFinal = les.isFinalAssignment || /final\s+assignment/i.test(les.title || '');
-          const label = isFinal ? 'Final Assignment' : `Quiz ${totalQuizzes}`;
+          const isFinal = les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '');
+          const label = isFinal ? 'Final Assessment' : `Quiz ${totalQuizzes}`;
           const entry = { type: 'QUIZ' as const, num: totalQuizzes, label, moduleNum };
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
@@ -645,7 +645,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (isMinorEditMode) {
       showToast({
         title: 'Item Addition Locked 🔒',
-        description: 'Final assignment cannot be added in Quick Minor Edit. Only typo and spelling fixes are allowed.',
+        description: 'Final assessment cannot be added in Quick Minor Edit. Only typo and spelling fixes are allowed.',
         type: 'error'
       });
       return;
@@ -655,7 +655,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       if (sections.length === 0) {
         showToast({
           title: 'Add a Module First',
-          description: 'Please add a module first before adding the Final Assignment.',
+          description: 'Please add a module first before adding the Final Assessment.',
           type: 'info'
         });
         return;
@@ -696,7 +696,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       id: newId,
       clientKey: newId,
       tempId: newId,
-      title: 'Final Assignment',
+      title: 'Final Assessment',
       description: 'Mandatory final assessment required to complete the course and unlock the verified Certificate of Completion.',
       type: 'QUIZ',
       duration: '15:00',
@@ -719,7 +719,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     setActiveContentTab((prev) => ({ ...prev, [targetDrawerKey]: 'QUIZ', [newLesson.id]: 'QUIZ' }));
 
     showToast({
-      title: 'Final Assignment Created 🎓',
+      title: 'Final Assessment Created 🎓',
       description: `Added to Module ${moduleNum}. Students must pass this to unlock their certificate.`,
       type: 'success'
     });
@@ -731,7 +731,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       const sec = sections.find((s) => s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId);
       const les = sec?.lessons.find((l) => l.id === lessonId || l.clientKey === lessonId || l.tempId === lessonId);
       const isNewlyAdded = Boolean((les as any)?.isNewlyAdded);
-      const isFinal = les?.isFinalAssignment || /final\s+assignment/i.test(les?.title || '');
+      const isFinal = les?.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les?.title || '');
       if (!isFinal && !isNewlyAdded) {
         showToast({
           title: 'Live Content Protected 🔒',
@@ -885,7 +885,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     if (!editingLesson) return;
 
     if (isModeB && editingLesson.lesson?.id && originalLessonIds?.has(editingLesson.lesson.id)) {
-      const isFinal = editingLesson.lesson.isFinalAssignment || /final\s+assignment/i.test(editingLesson.lesson.title || '');
+      const isFinal = editingLesson.lesson.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(editingLesson.lesson.title || '');
       if (!isFinal) {
         showToast({
           title: 'Live Content Protected 🔒',
@@ -1265,10 +1265,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   )}
 
                                   {/* Quiz Badge Label */}
-                                  {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                  {les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '') ? (
                                     <span className="font-extrabold text-xs text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide flex items-center gap-1 shadow-2xs">
                                       <Icon name="workspace_premium" size={13} className="text-amber-700" fill />
-                                      <span>FINAL ASSIGNMENT:</span>
+                                      <span>FINAL ASSESSMENT:</span>
                                     </span>
                                   ) : (
                                     <span className="font-extrabold text-xs text-purple-800 bg-purple-100 px-2 py-0.5 rounded shrink-0 font-sans tracking-wide">
@@ -1297,13 +1297,13 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                         handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                       }
                                       onBlur={() => {
-                                        if (les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')) {
-                                          handleUpdateLessonInline(secKey, itemKey, { title: les.title.trim() || 'Final Assignment' });
+                                        if (les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '')) {
+                                          handleUpdateLessonInline(secKey, itemKey, { title: les.title.trim() || 'Final Assessment' });
                                         } else {
                                           handleUpdateLessonInline(secKey, itemKey, { title: cleanQuizTitle(les.title) });
                                         }
                                       }}
-                                      placeholder={les.isFinalAssignment ? "Final Assignment (Certification Exam)" : "Quiz Title (e.g. Knowledge Assessment)"}
+                                      placeholder={les.isFinalAssignment ? "Final Assessment (Certification Exam)" : "Quiz Title (e.g. Knowledge Assessment)"}
                                       className={`w-full border rounded px-2.5 py-1 text-xs font-bold transition-colors ${
                                         isLockedLiveQuiz
                                           ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed select-none'
@@ -1375,10 +1375,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           ? 'bg-purple-900 text-white'
                                           : 'bg-purple-600 hover:bg-purple-700 text-white'
                                       }`}
-                                      title={les.isFinalAssignment ? "Edit Final Assignment Questions & Passing Score" : "Edit Quiz Questions and Passing Score"}
+                                      title={les.isFinalAssignment ? "Edit Final Assessment Questions & Passing Score" : "Edit Quiz Questions and Passing Score"}
                                     >
                                       <Icon name={isDrawerOpen ? 'close' : 'edit'} size={13} />
-                                      <span>{isDrawerOpen ? 'Close Editor' : les.isFinalAssignment ? 'Edit Final Assignment' : 'Edit Quiz'}</span>
+                                      <span>{isDrawerOpen ? 'Close Editor' : les.isFinalAssignment ? 'Edit Final Assessment' : 'Edit Quiz'}</span>
                                     </button>
                                   )}
 
@@ -1402,10 +1402,10 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-100">
                                     <div className="space-y-0.5">
                                       <div className="flex items-center gap-2">
-                                        {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                        {les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '') ? (
                                           <span className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
                                             <Icon name="workspace_premium" size={13} fill />
-                                            <span>Final Assignment (Certificate Gate)</span>
+                                            <span>Final Assessment (Certificate Gate)</span>
                                           </span>
                                         ) : (
                                           <span className="px-2 py-0.5 rounded bg-purple-600 text-white text-[11px] font-black uppercase tracking-wider">
@@ -1413,11 +1413,11 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                           </span>
                                         )}
                                         <h4 className="text-xs font-bold text-slate-800">
-                                          {les.title || (les.isFinalAssignment ? 'Final Assignment' : `Quiz ${itemMeta.num}`)} Question Editor
+                                          {les.title || (les.isFinalAssignment ? 'Final Assessment' : `Quiz ${itemMeta.num}`)} Question Editor
                                         </h4>
                                       </div>
                                       <p className="text-[11px] text-slate-500">
-                                        {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')
+                                        {les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '')
                                           ? 'Configure final exam questions and passing percentage. Students must achieve this score to unlock their verified course completion certificate.'
                                           : 'Add multiple-choice questions, choose correct options, and configure the passing threshold.'}
                                       </p>

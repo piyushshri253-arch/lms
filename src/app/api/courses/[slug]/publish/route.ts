@@ -142,11 +142,11 @@ export async function POST(
       },
       {
         id: 'final_assignment',
-        label: 'Mandatory Final Assignment (Certification Exam)',
+        label: 'Mandatory Final Assessment (Certification Exam)',
         passed: hasValidFinalAssignment,
         message: hasValidFinalAssignment
-          ? 'Mandatory Final Assignment configured.'
-          : 'Every course requires a Final Assignment before it can be submitted for review or approval.',
+          ? 'Mandatory Final Assessment configured.'
+          : 'Every course requires a Final Assessment before it can be submitted for review or approval.',
         step: 2
       },
       {

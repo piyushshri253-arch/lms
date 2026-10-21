@@ -22,7 +22,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
 }) => {
   const { showToast } = useApp();
 
-  // Find existing Final Assignment in the curriculum
+  // Find existing Final Assessment in the curriculum
   const finalAssignmentInfo = useMemo(() => {
     for (let sIdx = 0; sIdx < sections.length; sIdx++) {
       const sec = sections[sIdx];
@@ -66,12 +66,12 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
     return null;
   }, [sections]);
 
-  // Handler to auto-create the Last Module with Final Assignment
+  // Handler to auto-create the Last Module with Final Assessment
   const handleAddFinalAssignment = () => {
     if (isMinorEditMode) {
       showToast({
         title: 'Curriculum Locked 🔒',
-        description: 'Cannot add a new final assignment module in Quick Minor Edit mode.',
+        description: 'Cannot add a new final assessment module in Quick Minor Edit mode.',
         type: 'error'
       });
       return;
@@ -110,7 +110,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
       id: finalLessonId,
       clientKey: finalLessonId,
       tempId: finalLessonId,
-      title: 'Final Assignment',
+      title: 'Final Assessment',
       description: 'Mandatory comprehensive assessment covering all curriculum modules. Students must achieve the configured passing percentage to pass the course and unlock the official Certificate of Completion.',
       type: 'QUIZ',
       duration: '30:00',
@@ -137,13 +137,13 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
     onChangeSections(updated);
 
     showToast({
-      title: 'Final Assignment & Last Module Created! 🏆',
-      description: `Added "Module ${nextModNum}: ${finalModuleTitle}" with Final Assignment exam.`,
+      title: 'Final Assessment & Last Module Created! 🏆',
+      description: `Added "Module ${nextModNum}: ${finalModuleTitle}" with Final Assessment exam.`,
       type: 'success'
     });
   };
 
-  // Update Final Assignment Lesson details
+  // Update Final Assessment Lesson details
   const updateFinalLesson = (patch: Partial<BuilderLesson>) => {
     if (!finalAssignmentInfo) return;
     const { sectionId, lessonId } = finalAssignmentInfo;
@@ -230,19 +230,19 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
     if (nextQuestions.length > 0 && nextQuestions.length % 2 !== 0) {
       showToast({
         title: 'Odd Questions Count ⚠️',
-        description: `Final Assignment now has ${nextQuestions.length} question(s). Note: Even number of questions (2, 4, 6, 8) is required for publishing.`,
+        description: `Final Assessment now has ${nextQuestions.length} question(s). Note: Even number of questions (2, 4, 6, 8) is required for publishing.`,
         type: 'info'
       });
     }
   };
 
-  // Remove entire Final Assignment
+  // Remove entire Final Assessment
   const handleRemoveFinalAssignment = () => {
     if (!finalAssignmentInfo) return;
     if (isMinorEditMode) {
       showToast({
         title: 'Curriculum Locked 🔒',
-        description: 'Cannot remove final assignment in Quick Minor Edit mode.',
+        description: 'Cannot remove final assessment in Quick Minor Edit mode.',
         type: 'error'
       });
       return;
@@ -267,7 +267,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
 
     onChangeSections(updated);
     showToast({
-      title: 'Final Assignment Removed',
+      title: 'Final Assessment Removed',
       description: 'The final certification assessment has been removed.',
       type: 'info'
     });
@@ -291,7 +291,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-xl font-black text-on-surface">Final Assignment (Certificate Gate)</h3>
+                <h3 className="text-xl font-black text-on-surface">Final Assessment (Certificate Gate)</h3>
                 {finalAssignmentInfo ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300">
                     <Icon name="check_circle" size={12} className="text-emerald-600" />
@@ -305,7 +305,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
                 )}
               </div>
               <p className="text-xs text-on-surface-variant mt-1 max-w-2xl">
-                Every course requires a Final Assignment at the end of the curriculum. When enrolled students achieve your required passing percentage, the LMS unlocks their verified Certificate of Completion.
+                Every course requires a Final Assessment at the end of the curriculum. When enrolled students achieve your required passing percentage, the LMS unlocks their verified Certificate of Completion.
               </p>
             </div>
           </div>
@@ -317,13 +317,13 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
               className="px-5 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-extrabold text-sm rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] shrink-0"
             >
               <Icon name="workspace_premium" size={18} fill />
-              <span>+ Add Final Assignment (Auto-adds Last Module)</span>
+              <span>+ Add Final Assessment (Auto-adds Last Module)</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* State A: Final Assignment NOT YET ADDED */}
+      {/* State A: Final Assessment NOT YET ADDED */}
       {!finalAssignmentInfo && (
         <div className="bg-gradient-to-br from-amber-50/60 via-yellow-50/40 to-surface-container-lowest border-2 border-dashed border-amber-300 rounded-3xl p-8 sm:p-12 text-center space-y-6">
           <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center text-3xl shadow-sm">
@@ -331,7 +331,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
           </div>
           <div className="max-w-xl mx-auto space-y-2">
             <h4 className="text-lg font-black text-amber-950">
-              No Final Assignment Configured Yet
+              No Final Assessment Configured Yet
             </h4>
             <p className="text-xs sm:text-sm text-amber-900/80 leading-relaxed">
               Click the button below to automatically append the <strong>final certification module</strong> at the end of your curriculum with 2 pre-configured questions ready to customize.
@@ -345,12 +345,12 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
                 className="px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-amber-500/30 transition-all inline-flex items-center gap-2.5 cursor-pointer transform hover:scale-[1.02]"
               >
                 <Icon name="add_task" size={20} />
-                <span>+ Add Final Assignment (Auto-creates Last Module)</span>
+                <span>+ Add Final Assessment (Auto-creates Last Module)</span>
               </button>
             ) : (
               <span className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 inline-flex items-center gap-1.5 select-none">
                 <Icon name="lock" size={14} className="text-slate-400" />
-                <span>Final Assignment Locked (Quick Minor Edit)</span>
+                <span>Final Assessment Locked (Quick Minor Edit)</span>
               </span>
             )}
           </div>
@@ -371,7 +371,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
         </div>
       )}
 
-      {/* State B: Final Assignment CONFIGURED & EDITABLE */}
+      {/* State B: Final Assessment CONFIGURED & EDITABLE */}
       {finalAssignmentInfo && (
         <div className="space-y-6">
           {/* Module Location Banner */}
@@ -397,7 +397,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
                 className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer self-start sm:self-auto shrink-0 flex items-center gap-1.5"
               >
                 <Icon name="delete" size={14} />
-                <span>Remove Final Assignment</span>
+                <span>Remove Final Assessment</span>
               </button>
             )}
           </div>
@@ -413,9 +413,9 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
                 </label>
                 <input
                   type="text"
-                  value={finalAssignmentInfo.lesson.title || 'Final Assignment'}
+                  value={finalAssignmentInfo.lesson.title || 'Final Assessment'}
                   onChange={(e) => updateFinalLesson({ title: e.target.value })}
-                  placeholder="Final Assignment"
+                  placeholder="Final Assessment"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
                 />
               </div>
@@ -709,7 +709,7 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
             {isMinorEditMode && (
               <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 select-none">
                 <Icon name="lock" size={14} className="text-amber-600 shrink-0" />
-                <span>Final assignment questions locked in Quick Minor Edit. Only typos/spelling fixes are permitted.</span>
+                <span>Final assessment questions locked in Quick Minor Edit. Only typos/spelling fixes are permitted.</span>
               </div>
             )}
 

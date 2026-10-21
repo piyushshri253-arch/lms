@@ -150,7 +150,7 @@ export const CourseMediaStep: React.FC<CourseMediaProps> = ({
               <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-600 text-white">Protected</span>
             </h4>
             <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
-              Course thumbnail is preserved from the live published course to protect course identity and student recognition. Changes are restricted to curriculum expansion and final assignment updates.
+              Course thumbnail is preserved from the live published course to protect course identity and student recognition. Changes are restricted to curriculum expansion and final assessment updates.
             </p>
           </div>
         </div>

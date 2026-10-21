@@ -114,7 +114,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
     },
     {
       id: 'final_assignment',
-      label: 'Mandatory Final Assignment (Certification Exam)',
+      label: 'Mandatory Final Assessment (Certification Exam)',
       passed: hasValidFinalAssignment,
       message: hasValidFinalAssignment
         ? `Configured with ${
@@ -127,8 +127,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               : 70
           }% passing threshold.`
         : finalAssignmentLesson
-        ? 'Final Assignment exists but has no questions yet. Add questions in Curriculum.'
-        : 'Every course requires a Final Assignment before it can be submitted for approval.',
+        ? 'Final Assessment exists but has no questions yet. Add questions in Curriculum or Final Assessment tab.'
+        : 'Every course requires a Final Assessment before it can be submitted for approval.',
       step: 3
     },
     {
@@ -138,7 +138,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
       message: hasEvenQuizQuestions
         ? 'All quizzes contain an even number of questions (2, 4, 6, 8, ...).'
         : `"${oddQuizFound?.title}" has ${oddQuizFound?.count} questions. All quizzes must have an EVEN number of questions (e.g. 2, 4, 6, 8, 10). Odd counts are not accepted.`,
-      step: oddQuizFound?.title?.toLowerCase().includes('final assignment') ? 3 : 1
+      step: (oddQuizFound?.title?.toLowerCase().includes('final assessment') || oddQuizFound?.title?.toLowerCase().includes('final assignment')) ? 3 : 1
     },
     {
       id: 'thumbnail',

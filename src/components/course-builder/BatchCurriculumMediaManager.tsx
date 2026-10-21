@@ -1184,8 +1184,8 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
           totalQuizzes += 1;
-          const isFinal = les.isFinalAssignment || /final\s+assignment/i.test(les.title || '');
-          const label = isFinal ? 'Final Assignment' : `Quiz ${totalQuizzes}`;
+          const isFinal = les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '');
+          const label = isFinal ? 'Final Assessment' : `Quiz ${totalQuizzes}`;
           map[les.id] = { type: 'QUIZ', num: totalQuizzes, label, moduleNum };
         } else if (les.type === 'TEXT') {
           totalArticles += 1;

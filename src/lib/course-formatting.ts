@@ -49,10 +49,10 @@ export function cleanLessonTitle(rawTitle: string | undefined | null): string {
 export interface FormattedLessonItem {
   id: string;
   itemNumber: number;
-  typeLabel: string;        // "Lecture 1", "Article 1", "Quiz 1", or "Final Assignment"
+  typeLabel: string;        // "Lecture 1", "Article 1", "Quiz 1", or "Final Assessment"
   cleanTitle: string;       // "Course Orientation & Tech Stack Setup"
-  sidebarTitle: string;     // "Lecture 1: ...", "Article 1: ...", "Quiz 1: ...", or "Final Assignment: ..."
-  underPlayerTitle: string; // "Lecture 1: ...", "Article 1: ...", "Quiz 1: ...", or "Final Assignment: ..."
+  sidebarTitle: string;     // "Lecture 1: ...", "Article 1: ...", "Quiz 1: ...", or "Final Assessment: ..."
+  underPlayerTitle: string; // "Lecture 1: ...", "Article 1: ...", "Quiz 1: ...", or "Final Assessment: ..."
   isQuiz: boolean;
   isArticle: boolean;
   isFinalAssignment?: boolean;
@@ -93,14 +93,14 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
       const baseClean = cleanLessonTitle(les.title);
 
       if (isFinalAssignment) {
-        const isAssignment = les.title && /assignment/i.test(les.title);
-        const typeLabel = isAssignment ? 'Final Assignment' : 'Final Assessment';
-        const display = baseClean ? `${typeLabel}: ${baseClean}` : typeLabel;
+        const typeLabel = 'Final Assessment';
+        const clean = baseClean.replace(/^final\s*(assessment|assignment|exam)\s*[:\.\-]?\s*/i, '').trim();
+        const display = clean ? `${typeLabel}: ${clean}` : typeLabel;
         map.set(les.id, {
           id: les.id,
           itemNumber: 1,
           typeLabel,
-          cleanTitle: baseClean || typeLabel,
+          cleanTitle: clean || typeLabel,
           sidebarTitle: display,
           underPlayerTitle: display,
           isQuiz: true,

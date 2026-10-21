@@ -389,10 +389,10 @@ function CourseBuilderContent() {
         reasons.push(`Quiz questions modified in lesson "${currLes.title || 'Untitled'}"`);
       }
 
-      // Final assignment flag changed
+      // Final assessment flag changed
       if (Boolean(currLes.isFinalAssignment) !== Boolean(origLes.isFinalAssignment)) {
         hasMajor = true;
-        reasons.push(`Final assignment status modified in lesson "${currLes.title || 'Untitled'}"`);
+        reasons.push(`Final assessment status modified in lesson "${currLes.title || 'Untitled'}"`);
       }
 
       // Lesson type changed
@@ -454,7 +454,7 @@ function CourseBuilderContent() {
     const lesOk = allLes.length >= 1;
     const finalLes = allLes.find((l: any) =>
       Boolean(l.isFinalAssignment) ||
-      (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+      (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || ''))
     );
     const finalOk = Boolean(
       finalLes && (
@@ -828,7 +828,7 @@ function CourseBuilderContent() {
                 duration: l.duration,
                 durationSeconds: l.durationSeconds,
                 isFree: l.isFree,
-                isFinalAssignment: Boolean(l.isFinalAssignment || (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))),
+                isFinalAssignment: Boolean(l.isFinalAssignment || (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || ''))),
                 isPublished: l.isPublished,
                 order: l.order || lIdx + 1
               };
@@ -1189,7 +1189,7 @@ function CourseBuilderContent() {
                 duration: localLes?.duration || l.duration || '10:00',
                 durationSeconds: localLes?.durationSeconds || l.durationSeconds || 600,
                 isFree: localLes?.isFree !== undefined ? Boolean(localLes.isFree) : Boolean(l.isFree),
-                isFinalAssignment: Boolean(localLes?.isFinalAssignment || l.isFinalAssignment || (resolvedType === 'QUIZ' && /final\s+assignment/i.test(resolvedTitle))),
+                isFinalAssignment: Boolean(localLes?.isFinalAssignment || l.isFinalAssignment || (resolvedType === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(resolvedTitle))),
                 isPublished: l.isPublished !== false,
                 order: l.order || lIdx + 1
               };
@@ -1380,8 +1380,8 @@ function CourseBuilderContent() {
                 description: `Quiz "${les.title || 'Untitled Quiz'}" in section "${sec.title}" has ${qCount} question(s). Odd counts are NOT accepted. Quizzes must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10).`,
                 type: 'error'
               });
-              if (les.isFinalAssignment || /final\s+assignment/i.test(les.title || '')) {
-                setCurrentStep(3); // Jump to Final Assignment tab
+              if (les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '')) {
+                setCurrentStep(3); // Jump to Final Assessment tab
               } else {
                 setCurrentStep(1); // Jump to Curriculum tab
               }
@@ -1563,7 +1563,7 @@ function CourseBuilderContent() {
     { title: '1. Basic Information', icon: 'info' },
     { title: '2. Course Curriculum', icon: 'view_timeline' },
     { title: '3. Media & Thumbnail', icon: 'image' },
-    { title: '4. Final Assignment', icon: 'workspace_premium' },
+    { title: '4. Final Assessment', icon: 'workspace_premium' },
     { title: '5. Pricing & Access', icon: 'payments' },
     { title: isInstructor ? '6. Review & Submit' : '6. Publish & Review', icon: 'verified' }
   ];
@@ -1753,7 +1753,7 @@ function CourseBuilderContent() {
         // 1. Basic Information (Title, Slug, Category, Level, Language, Descriptions, Requirements, Audience, Pricing, Thumbnail) is STRICTLY LOCKED and preserved.
         // 2. Existing live modules & lessons cannot be modified or replaced.
         // 3. Newly added modules, lectures, quizzes & articles in Excel are safely merged.
-        // 4. Final assignment questions can be updated.
+        // 4. Final assessment questions can be updated.
         setCourseState((prev) => ({
           ...prev,
           sections: mergeExcelSectionsForUpdateVersion(prev.sections || [], parsed.sections || [])
@@ -2174,7 +2174,7 @@ function CourseBuilderContent() {
                 ? `✨ Minor content updates detected (${changeClassification.reasons.join(', ')}). You can click "Direct Publish Minor Updates 🚀" to push your changes directly to the live course without waiting for auditor approval!`
                 : changeClassification.type === 'MAJOR'
                 ? `⚠️ You are editing Draft Version ${draftVerNumber}.0. You have made major modifications (${changeClassification.reasons.join(', ')}). These changes must be submitted for Auditor Approval once all completeness checklist items are green.`
-                : `Editing Draft Version ${draftVerNumber}.0. Previous live modules, lectures, articles, and quizzes are permanently locked to safeguard enrolled students. You can add new modules, lectures, articles, and quizzes, or update the Final Assignment.`}
+                : `Editing Draft Version ${draftVerNumber}.0. Previous live modules, lectures, articles, and quizzes are permanently locked to safeguard enrolled students. You can add new modules, lectures, articles, and quizzes, or update the Final Assessment.`}
             </p>
           </div>
         </div>
@@ -2483,7 +2483,7 @@ function CourseBuilderContent() {
         </div>
       )}
 
-      {/* Step 4: Final Assignment (Certificate Gate & Exam Studio) */}
+      {/* Step 4: Final Assessment (Certificate Gate & Exam Studio) */}
       {currentStep === 3 && (
         <CourseFinalAssignmentStep
           sections={courseState.sections || []}

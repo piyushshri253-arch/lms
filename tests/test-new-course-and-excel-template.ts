@@ -5,8 +5,8 @@ import fs from 'fs';
 
 console.log('🧪 Starting Test: New Course Mode B Guard & Excel Template Upload...');
 
-// Test 1: Download Template and Validate Upload Round-Trip
-console.log('\n📌 Test 1: Official Template Download & Validation Round-Trip');
+// Test 1: Download Template and Verify Blank Template Structure
+console.log('\n📌 Test 1: Official Template Download & Blank Structure Check');
 downloadCourseExcelTemplate();
 
 const templateFileName = 'MORENA_Course_Upload_Template.xlsx';
@@ -17,42 +17,50 @@ if (!fs.existsSync(templateFileName)) {
 const fileBuf = fs.readFileSync(templateFileName);
 const wb = XLSX.read(fileBuf, { type: 'buffer' });
 
+// Blank template without curriculum content should be blocked until instructor fills in curriculum
 const validationResult = validateCourseExcel(wb);
 console.log(`  Validation result: isValid=${validationResult.isValid}, blockingCount=${validationResult.blockingCount}`);
 
-if (!validationResult.isValid || validationResult.blockingCount > 0) {
-  console.error('Validation errors found in official template:', validationResult.errors);
-  throw new Error('❌ FAIL: Official template failed validation!');
+if (validationResult.isValid) {
+  throw new Error('❌ FAIL: Blank template should require content before publishing!');
 }
-
-console.log('  ✅ PASS: Official downloaded template validates 100% with 0 blocking errors!');
-console.log(`  Summary: ${validationResult.summary.modulesCount} modules, ${validationResult.summary.lecturesCount} lectures, ${validationResult.summary.quizzesCount} quizzes, hasFinalAssignment=${validationResult.summary.hasFinalAssignment}`);
+console.log('  ✅ PASS: Blank template correctly prompts user to fill curriculum before upload');
 
 // Clean up downloaded file
 fs.unlinkSync(templateFileName);
 
-// Test 2: Custom Modified Template Upload
+// Test 2: Custom Instructor Content in Template with Final Assessment
 console.log('\n📌 Test 2: Custom Instructor Content in Template');
-const detailsSheet = wb.Sheets['Course Details'];
-const curSheet = wb.Sheets['Curriculum'];
+const detailsRows: any[][] = [
+  ['Field Name (Topic)', 'Your Value (Fill details in this column)'],
+  ['Course Title *', 'Advanced AI Agentic Systems Masterclass 2026'],
+  ['Subtitle / One-line Pitch', 'Master autonomous AI agents'],
+  ['Primary Category *', 'Development'],
+  ['Course Level *', 'Intermediate'],
+  ['Language of Instruction *', 'English'],
+  ['Course Overview / Long Description *', 'Comprehensive masterclass on modern agentic architectures, tool use, and multi-agent coordination.'],
+  ['What Students Will Learn *', 'Build multi-agent workflows; Implement tool use and memory; Secure API boundaries'],
+  ['Requirements / Prerequisites *', 'Basic TypeScript or Python'],
+  ['Target Audience *', 'Engineers and AI practitioners'],
+  ['Course Price (INR) *', '2999'],
+  ['Discount Price (INR)', '1999']
+];
+wb.Sheets['Course Details'] = XLSX.utils.aoa_to_sheet(detailsRows);
 
-// Let's modify course title and first module title
-const detailsRows: any[][] = XLSX.utils.sheet_to_json(detailsSheet, { header: 1 });
-for (const r of detailsRows) {
-  if (r[0] && String(r[0]).includes('Course Title')) {
-    r[1] = 'Advanced AI Agentic Systems Masterclass 2026';
-  }
-}
-const newDetailsSheet = XLSX.utils.aoa_to_sheet(detailsRows);
-wb.Sheets['Course Details'] = newDetailsSheet;
+const curRows: any[][] = [
+  ['Module Title (Write once per module)', 'Topic / Lesson Title *', 'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *', 'Estimated Duration (mm:ss)', 'Free Preview (Yes / No)', 'Written Article Content / Notes (Markdown for Written Articles)', 'Video URL *'],
+  ['Module 1: Agent Architecture', 'Understanding Autonomous Agent Loops', 'LECTURE', '10:00', 'Yes', '', 'https://cdn.example.com/videos/agents1.mp4'],
+  ['', 'Tool Calling & Execution Best Practices', 'LECTURE', '12:00', 'No', '', 'https://cdn.example.com/videos/agents2.mp4'],
+  ['Course Completion & Certification', 'Final Assessment', 'FINAL ASSESSMENT', '30:00', 'No', 'Mandatory certification exam', '']
+];
+wb.Sheets['Curriculum'] = XLSX.utils.aoa_to_sheet(curRows);
 
-const curRows: any[][] = XLSX.utils.sheet_to_json(curSheet, { header: 1 });
-if (curRows[1]) {
-  curRows[1][0] = 'Module 1: Agent Architecture';
-  curRows[1][1] = 'Understanding Autonomous Agent Loops';
-}
-const newCurSheet = XLSX.utils.aoa_to_sheet(curRows);
-wb.Sheets['Curriculum'] = newCurSheet;
+const qRows: any[][] = [
+  ['Module (e.g. Module 1)', 'Quiz Title (Write once per quiz)', 'Q#', 'Question Text *', 'Option A *', 'Option B *', 'Option C *', 'Option D *', 'Correct Option (A/B/C/D) *', 'Explanation (Why this option is correct)', 'Passing Score (%) (Set on Q1 only)', 'Marks/Points'],
+  ['Course Completion & Certification', 'Final Assessment', 1, 'What is the primary role of an agentic controller?', 'Execute deterministic shell scripts', 'Coordinate perception, reasoning, and tool execution loops', 'Hardcode database passwords', 'Disable unit tests', 'B', 'Agent loops continuously reason and act.', 80, 10],
+  ['Course Completion & Certification', 'Final Assessment', 2, 'Why are even question numbers recommended for quizzes?', 'To balance scoring and distribution', 'No reason', 'A random rule', 'None of the above', 'A', 'Even pairs maintain integer split metrics.', 80, 10]
+];
+wb.Sheets['Quizzes & MCQs'] = XLSX.utils.aoa_to_sheet(qRows);
 
 const customValidation = validateCourseExcel(wb);
 if (!customValidation.isValid || customValidation.blockingCount > 0) {

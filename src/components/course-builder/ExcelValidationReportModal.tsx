@@ -165,7 +165,7 @@ export const ExcelValidationReportModal: React.FC<ExcelValidationReportModalProp
                 <p className="font-bold">All Validation Checks Passed!</p>
                 <p className="text-emerald-800 dark:text-emerald-200/90 leading-relaxed">
                   Workbook structure, mandatory course details, curriculum modules, even-question quiz rules, and
-                  mandatory Final Assignment are 100% compliant. Ready for atomic import into draft.
+                  mandatory Final Assessment are 100% compliant. Ready for atomic import into draft.
                 </p>
               </div>
             </div>

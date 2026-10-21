@@ -200,7 +200,7 @@ export function validateCourseExcel(
       location: 'Curriculum',
       field: 'Headers',
       error: 'Mandatory column header "Content Type" is missing or altered',
-      action: 'Include the "Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSIGNMENT) *" column header in row 1',
+      action: 'Include the "Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *" column header in row 1',
       severity: 'BLOCKING'
     });
   }
@@ -621,7 +621,7 @@ export function validateCourseExcel(
     }
 
     const finalLessonTitle = isFinalAssignment
-      ? (rawLessonTitle && /assignment/i.test(rawLessonTitle) ? 'Final Assignment' : 'Final Assessment')
+      ? 'Final Assessment'
       : isQuiz
       ? cleanQuizTitle(rawLessonTitle) || 'Quiz'
       : cleanedLessonTitle;

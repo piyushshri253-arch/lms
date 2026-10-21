@@ -64,9 +64,9 @@ export function cleanQuizTitle(raw?: string | null): string {
   if (!raw) return '';
   const original = String(raw).trim();
   let str = original;
-  // If it's a Final Assessment or Final Assignment, preserve it cleanly
+  // If it's a Final Assessment or Final Assignment, preserve it cleanly as Final Assessment
   if (/final\s*(assessment|assignment|exam)/i.test(str)) {
-    return /assignment/i.test(str) ? 'Final Assignment' : 'Final Assessment';
+    return 'Final Assessment';
   }
   // Strip leading "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
   str = str.replace(/^(quiz|assessment)\s*\d+[\s:\-\.]*/i, '').trim();
@@ -673,7 +673,7 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       lessons.forEach((les: any, lIdx: number) => {
         let typeStr = 'LECTURE';
         if (les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || '')) || /final\s*(assessment|assignment|exam)/i.test(les.title || '')) {
-          typeStr = /assignment/i.test(les.title || '') ? 'FINAL ASSIGNMENT' : 'FINAL ASSESSMENT';
+          typeStr = 'FINAL ASSESSMENT';
         } else if (les.type === 'TEXT' || les.type === 'ARTICLE') {
           typeStr = 'ARTICLE';
         } else if (les.type === 'QUIZ') {
@@ -1123,7 +1123,7 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
 
           const finalLessonTitle = isFinalAssignment
-            ? (rawLessonTitle && /assignment/i.test(rawLessonTitle) ? 'Final Assignment' : 'Final Assessment')
+            ? 'Final Assessment'
             : isQuiz
             ? (cleanQuizTitle(rawLessonTitle) || '')
             : cleanedLessonTitle;
@@ -1289,7 +1289,7 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           /final\s*(assessment|assignment|exam)/i.test(moduleIdentifier) ||
           (!quizTitleRaw && activeQuizLesson?.isFinalAssignment);
         const cleanedQuizTitle = isFinalAssignment
-          ? (quizTitleRaw && /assignment/i.test(quizTitleRaw) ? 'Final Assignment' : 'Final Assessment')
+          ? 'Final Assessment'
           : quizTitleRaw
           ? cleanQuizTitle(quizTitleRaw)
           : '';

@@ -456,18 +456,18 @@ export function classifyCourseChanges(
           majorChanges.push({
             category: 'ASSIGNMENT',
             field: 'lesson.isFinalAssignment',
-            summary: `Final assignment added: "${incLes.title}"`
+            summary: `Final assessment added: "${incLes.title}"`
           });
         }
         continue;
       }
 
-      // Check Final Assignment flag
+      // Check Final Assessment flag
       if (Boolean(incLes.isFinalAssignment) !== Boolean(existingLes.isFinalAssignment)) {
         majorChanges.push({
           category: 'ASSIGNMENT',
           field: `lesson.${existingLes.id}.isFinalAssignment`,
-          summary: `Assignment status modified for lesson "${existingLes.title}"`
+          summary: `Assessment status modified for lesson "${existingLes.title}"`
         });
       }
 
@@ -791,7 +791,7 @@ export async function createOrGetDraftVersion(
         duration: les.duration,
         durationSeconds: les.durationSeconds,
         isFree: les.isFree,
-        isFinalAssignment: Boolean((les as any).isFinalAssignment || (les.type === 'QUIZ' && /final\s+assignment/i.test(les.title || ''))),
+        isFinalAssignment: Boolean((les as any).isFinalAssignment || (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || ''))),
         isPublished: les.isPublished,
         order: les.order || lIdx + 1
       }))

@@ -716,7 +716,7 @@ export default function LearnPlayerPage() {
                             <span>Certificate Locked</span>
                           </p>
                           <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
-                            Pass the mandatory Final Assignment ({finalAssignmentLesson.title || 'Final Assignment'}) to unlock your certificate.
+                            Pass the mandatory Final Assessment ({finalAssignmentLesson.title || 'Final Assessment'}) to unlock your certificate.
                           </p>
                         </div>
                         <button
@@ -727,7 +727,7 @@ export default function LearnPlayerPage() {
                           }}
                           className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded font-bold text-xs flex items-center justify-center gap-1 cursor-pointer shadow-sm"
                         >
-                          <span>Take Final Assignment</span>
+                          <span>Take Final Assessment</span>
                           <Icon name="arrow_forward" size={13} />
                         </button>
                       </div>
@@ -868,7 +868,7 @@ export default function LearnPlayerPage() {
               <div className="w-full max-w-4xl p-2 sm:p-4 my-2">
                 <QuizPlayer
                   key={activeLesson?.id}
-                  title={activeLesson?.title || (isCurrentFinalAssignment ? 'Final Assignment' : 'Lecture Quiz')}
+                  title={activeLesson?.title || (isCurrentFinalAssignment ? 'Final Assessment' : 'Lecture Quiz')}
                   lessonId={activeLesson?.id}
                   quizData={activeLesson?.quizData}
                   isFinalAssignment={isCurrentFinalAssignment}
@@ -1374,10 +1374,10 @@ export default function LearnPlayerPage() {
                                 </span>
 
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
-                                  {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                  {les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '') ? (
                                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-1 border border-amber-300">
                                       <Icon name="workspace_premium" size={12} className="text-amber-700" fill />
-                                      <span>Final Assignment</span>
+                                      <span>Final Assessment</span>
                                     </span>
                                   ) : (
                                     <span className="flex items-center gap-1">
@@ -1698,10 +1698,10 @@ export default function LearnPlayerPage() {
                                   {itemInfo?.sidebarTitle || les.title}
                                 </span>
                                 <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                  {les.isFinalAssignment || /final\s+assignment/i.test(les.title || '') ? (
+                                  {les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '') ? (
                                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold text-[9px] uppercase tracking-wide flex items-center gap-1 border border-amber-300">
                                       <Icon name="workspace_premium" size={12} className="text-amber-700" fill />
-                                      <span>Final Assignment</span>
+                                      <span>Final Assessment</span>
                                     </span>
                                   ) : (
                                     <span className="flex items-center gap-1">
