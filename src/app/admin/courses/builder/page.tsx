@@ -1101,6 +1101,7 @@ function CourseBuilderContent() {
         if (responseData?.course?.sections && Array.isArray(responseData.course.sections)) {
           const currentState = courseStateRef.current;
           const serverSectionIds = new Set(responseData.course.sections.map((s: any) => s.id));
+          const syncedLocalSecIds = new Set<string>();
 
           const syncedSections: BuilderSection[] = responseData.course.sections.map((s: any, sIdx: number) => {
             const localSec = (currentState.sections || []).find((sec) =>
@@ -1108,7 +1109,13 @@ function CourseBuilderContent() {
               (sec.clientKey && sec.clientKey === s.id) ||
               (sec.tempId && sec.tempId === s.id)
             ) || currentState.sections?.[sIdx];
+
+            if (localSec?.id) syncedLocalSecIds.add(localSec.id);
+            if (localSec?.clientKey) syncedLocalSecIds.add(localSec.clientKey);
+            if (localSec?.tempId) syncedLocalSecIds.add(localSec.tempId);
+
             const serverLessonIds = new Set((s.lessons || []).map((l: any) => l.id));
+            const syncedLocalLesIds = new Set<string>();
 
             const mappedLessons = (s.lessons || []).map((l: any, lIdx: number) => {
               // Local section and lesson lookup to preserve any local videoUrl or resources that were just attached
@@ -1117,6 +1124,10 @@ function CourseBuilderContent() {
                 (les.clientKey && les.clientKey === l.id) ||
                 (les.tempId && les.tempId === l.id)
               ) || localSec?.lessons?.[lIdx];
+
+              if (localLes?.id) syncedLocalLesIds.add(localLes.id);
+              if (localLes?.clientKey) syncedLocalLesIds.add(localLes.clientKey);
+              if (localLes?.tempId) syncedLocalLesIds.add(localLes.tempId);
               const isVideoExplicitlyCleared = Boolean((localLes as any)?.clearVideo || (localLes as any)?.removeVideo || localLes?.videoUrl === '');
               const resolvedVideo = isVideoExplicitlyCleared ? '' : (localLes?.videoUrl || l.videoUrl || '');
               const resolvedPdf = localLes?.pdfUrl || l.pdfUrl || '';
@@ -1198,6 +1209,9 @@ function CourseBuilderContent() {
             // CRITICAL: Retain any newly added local lessons in this section that were not yet included in server response
             const pendingLocalLessons = (localSec?.lessons || []).filter((les, idx) => {
               if (idx < (s.lessons || []).length) return false;
+              if (syncedLocalLesIds.has(les.id)) return false;
+              if (les.clientKey && syncedLocalLesIds.has(les.clientKey)) return false;
+              if (les.tempId && syncedLocalLesIds.has(les.tempId)) return false;
               return !serverLessonIds.has(les.id) && !(les.clientKey && serverLessonIds.has(les.clientKey));
             });
 
@@ -1215,10 +1229,14 @@ function CourseBuilderContent() {
             };
           });
 
-          // CRITICAL: Retain any newly added local sections that were not yet included in server response
-          const pendingLocalSections = (currentState.sections || []).filter(
-            (sec) => !serverSectionIds.has(sec.id) && sec.id.startsWith('sec-')
-          );
+          // CRITICAL: Retain only genuinely new local sections that were added while server save was in-flight
+          const pendingLocalSections = (currentState.sections || []).filter((sec, sIdx) => {
+            if (sIdx < responseData.course.sections.length) return false;
+            if (syncedLocalSecIds.has(sec.id)) return false;
+            if (sec.clientKey && syncedLocalSecIds.has(sec.clientKey)) return false;
+            if (sec.tempId && syncedLocalSecIds.has(sec.tempId)) return false;
+            return !serverSectionIds.has(sec.id) && sec.id.startsWith('sec-');
+          });
 
           const updatedState = {
             ...currentState,
@@ -1754,10 +1772,14 @@ function CourseBuilderContent() {
         // 2. Existing live modules & lessons cannot be modified or replaced.
         // 3. Newly added modules, lectures, quizzes & articles in Excel are safely merged.
         // 4. Final assessment questions can be updated.
-        setCourseState((prev) => ({
-          ...prev,
-          sections: mergeExcelSectionsForUpdateVersion(prev.sections || [], parsed.sections || [])
-        }));
+        setCourseState((prev) => {
+          const updatedState = {
+            ...prev,
+            sections: mergeExcelSectionsForUpdateVersion(prev.sections || [], parsed.sections || [])
+          };
+          courseStateRef.current = updatedState;
+          return updatedState;
+        });
 
         showToast({
           title: 'Update Version: Excel Curriculum Merged 🎉',
@@ -1778,7 +1800,7 @@ function CourseBuilderContent() {
               ? parsed.sections
               : prev.sections;
 
-          return {
+          const updatedState = {
             ...prev,
             title: parsed.title || prev.title,
             slug: parsed.slug || prev.slug,
@@ -1804,6 +1826,8 @@ function CourseBuilderContent() {
             accessDays: parsed.accessDays !== undefined ? parsed.accessDays : prev.accessDays,
             sections: mergedSections,
           };
+          courseStateRef.current = updatedState;
+          return updatedState;
         });
       }
 
