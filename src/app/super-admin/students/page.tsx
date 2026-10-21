@@ -23,6 +23,7 @@ export default function SuperAdminStudentsPage() {
   const [isTroubleshootOpen, setIsTroubleshootOpen] = useState(false);
   const [troubleshootAction, setTroubleshootAction] = useState('GRANT_COURSE_ACCESS');
   const [troubleshootCourseId, setTroubleshootCourseId] = useState('');
+  const [grantCourseId, setGrantCourseId] = useState('');
   const [troubleshootOrderId, setTroubleshootOrderId] = useState('');
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
@@ -125,6 +126,78 @@ export default function SuperAdminStudentsPage() {
       await fetchStudentsAndCourses();
     } catch (err: any) {
       showToast({ title: 'Action Failed', description: err.message, type: 'error' });
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleRemoveCourseAccess = async (studentId: string, courseId: string, courseTitle?: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to remove access to "${courseTitle || 'this course'}" for ${selectedStudent?.name}?\n\nThis will revoke their course enrollment immediately. The student account remains safe.`
+      )
+    ) {
+      return;
+    }
+
+    setIsProcessingAction(true);
+    try {
+      const res = await fetch('/api/super-admin/students/troubleshoot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REVOKE_COURSE_ACCESS',
+          studentId,
+          courseId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove course');
+
+      showToast({
+        title: 'Course Access Removed',
+        description: data.message || `Revoked access to "${courseTitle}".`,
+        type: 'success'
+      });
+      await openStudentInspector(studentId);
+      await fetchStudentsAndCourses();
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleQuickGrantCourse = async (studentId: string) => {
+    if (!grantCourseId) {
+      showToast({ title: 'Select Course', description: 'Please select a course to grant access.', type: 'info' });
+      return;
+    }
+
+    setIsProcessingAction(true);
+    try {
+      const res = await fetch('/api/super-admin/students/troubleshoot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'GRANT_COURSE_ACCESS',
+          studentId,
+          courseId: grantCourseId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to grant course access');
+
+      showToast({
+        title: 'Course Access Granted',
+        description: data.message || 'Course access granted to student.',
+        type: 'success'
+      });
+      setGrantCourseId('');
+      await openStudentInspector(studentId);
+      await fetchStudentsAndCourses();
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
     } finally {
       setIsProcessingAction(false);
     }
@@ -328,6 +401,16 @@ export default function SuperAdminStudentsPage() {
                     <td className="p-4 font-mono text-outline">{s.createdAt}</td>
                     <td className="p-4 pr-6 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Manage Courses Inspector */}
+                        <button
+                          onClick={() => openStudentInspector(s.id)}
+                          className="px-2.5 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-on-primary font-bold text-[11px] border border-primary/20 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                          title="View, Delete, or Grant Courses for this student"
+                        >
+                          <Icon name="school" size={14} />
+                          <span>Manage Courses</span>
+                        </button>
+
                         {/* View As Student Support Mode Button */}
                         <button
                           onClick={() => handleImpersonate(s.id, s.name)}
@@ -441,11 +524,47 @@ export default function SuperAdminStudentsPage() {
             </div>
 
             {/* Enrolled Courses & Progress Grid */}
-            <div className="space-y-3">
-              <h4 className="font-extrabold text-sm text-on-surface flex items-center gap-2">
-                <Icon name="school" size={16} className="text-primary" />
-                <span>Enrolled Curricula ({selectedStudent.enrollments?.length || 0})</span>
-              </h4>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h4 className="font-extrabold text-sm text-on-surface flex items-center gap-2">
+                  <Icon name="school" size={16} className="text-primary" />
+                  <span>Enrolled Curricula ({selectedStudent.enrollments?.length || 0})</span>
+                </h4>
+                <span className="text-[11px] text-outline font-medium">
+                  Super Admin can grant or delete course access below. Deleting only removes this course.
+                </span>
+              </div>
+
+              {/* Quick Grant Course Bar */}
+              <div className="p-3.5 bg-indigo-50/80 border border-indigo-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
+                  <Icon name="add_circle" size={18} className="text-indigo-600" />
+                  <span>Grant Course Access (कोर्स जोड़ें):</span>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={grantCourseId}
+                    onChange={(e) => setGrantCourseId(e.target.value)}
+                    className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 flex-1 sm:w-72 shadow-2xs cursor-pointer"
+                  >
+                    <option value="">-- Select Platform Course --</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title} {c.price ? `(₹${c.price})` : '(Free)'}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!grantCourseId || isProcessingAction}
+                    onClick={() => handleQuickGrantCourse(selectedStudent.id)}
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+                  >
+                    <Icon name="check" size={14} />
+                    <span>Grant Access</span>
+                  </button>
+                </div>
+              </div>
 
               {selectedStudent.enrollments?.length > 0 ? (
                 <div className="space-y-2">
@@ -461,32 +580,48 @@ export default function SuperAdminStudentsPage() {
                     return (
                       <div
                         key={e.id}
-                        className="p-4 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        className="p-4 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs hover:border-outline-variant transition-colors"
                       >
-                        <div>
-                          <p className="font-extrabold text-xs text-on-surface">{e.course?.title}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold text-xs text-on-surface truncate">{e.course?.title}</p>
                           <p className="text-[11px] text-outline font-mono mt-0.5">
-                            Status: <span className="font-bold text-primary">{e.status}</span> • Instructor: {e.course?.instructor?.name}
+                            Status: <span className="font-bold text-primary">{e.status}</span> • Instructor: {e.course?.instructor?.name || 'Platform'} • Price: ₹{e.course?.price || 0}
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-xs font-mono font-bold text-primary">{percent}%</span>
-                            <p className="text-[10px] text-outline font-mono">
-                              {completedInCourse}/{lessons.length} Lectures
-                            </p>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <span className="text-xs font-mono font-bold text-primary">{percent}%</span>
+                              <p className="text-[10px] text-outline font-mono">
+                                {completedInCourse}/{lessons.length} Lectures
+                              </p>
+                            </div>
+                            <div className="w-20 h-2 bg-surface-container rounded-full overflow-hidden">
+                              <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+                            </div>
                           </div>
-                          <div className="w-24 h-2 bg-surface-container rounded-full overflow-hidden">
-                            <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
-                          </div>
+
+                          {/* Direct Delete Course Access Button */}
+                          <button
+                            type="button"
+                            disabled={isProcessingAction}
+                            onClick={() => handleRemoveCourseAccess(selectedStudent.id, e.courseId, e.course?.title)}
+                            className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
+                            title={`Revoke access to ${e.course?.title} for this student`}
+                          >
+                            <Icon name="delete" size={14} className="text-rose-600" />
+                            <span>Remove Course</span>
+                          </button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <p className="text-xs text-outline italic">No active course enrollments.</p>
+                <div className="p-6 text-center border border-dashed border-outline-variant/80 rounded-2xl text-xs text-outline italic">
+                  No active course enrollments. Select a course above to grant access.
+                </div>
               )}
             </div>
 

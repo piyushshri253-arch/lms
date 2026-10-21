@@ -3,12 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
+import { Modal } from '@/components/ui/Modal';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useApp } from '@/context/AppContext';
 
 export default function SuperAdminDashboardPage() {
   const { currentUser, showToast } = useApp();
   const [overview, setOverview] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [students, setStudents] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [grantCourseId, setGrantCourseId] = useState('');
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [range, setRange] = useState('30D');
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -16,9 +25,10 @@ export default function SuperAdminDashboardPage() {
   const fetchOverviewAndAnalytics = async (r: string) => {
     setIsLoading(true);
     try {
-      const [ovRes, anRes] = await Promise.all([
+      const [ovRes, anRes, stRes] = await Promise.all([
         fetch('/api/super-admin/overview'),
-        fetch(`/api/super-admin/analytics?range=${r}`)
+        fetch(`/api/super-admin/analytics?range=${r}`),
+        fetch('/api/super-admin/students')
       ]);
 
       if (ovRes.ok) {
@@ -28,6 +38,11 @@ export default function SuperAdminDashboardPage() {
       if (anRes.ok) {
         const anData = await anRes.json();
         setAnalytics(anData);
+      }
+      if (stRes.ok) {
+        const stData = await stRes.json();
+        setStudents(stData.students || []);
+        if (stData.courses) setCourses(stData.courses);
       }
     } catch {
     } finally {
@@ -69,6 +84,115 @@ export default function SuperAdminDashboardPage() {
       showToast({ title: 'Error', description: err.message, type: 'error' });
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const openStudentInspector = async (studentId: string) => {
+    try {
+      const res = await fetch(`/api/super-admin/students?id=${studentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedStudent(data.student);
+        setIsInspectorOpen(true);
+      }
+    } catch {
+      showToast({ title: 'Error', description: 'Could not load student profile', type: 'error' });
+    }
+  };
+
+  const handleImpersonate = async (studentId: string, studentName: string) => {
+    if (!confirm(`Are you sure you want to enter Support Mode for ${studentName}?`)) return;
+
+    try {
+      const res = await fetch('/api/super-admin/students/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: studentId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to start support mode');
+
+      showToast({
+        title: 'Support Mode Active',
+        description: `Now viewing as ${studentName}.`,
+        type: 'success'
+      });
+
+      window.location.href = data.redirectUrl || '/student/learning';
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    }
+  };
+
+  const handleRemoveCourseAccess = async (studentId: string, courseId: string, courseTitle?: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to remove access to "${courseTitle || 'this course'}" for ${selectedStudent?.name}?\n\nThis will revoke their course enrollment immediately. The student account remains safe.`
+      )
+    ) {
+      return;
+    }
+
+    setIsProcessingAction(true);
+    try {
+      const res = await fetch('/api/super-admin/students/troubleshoot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REVOKE_COURSE_ACCESS',
+          studentId,
+          courseId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove course');
+
+      showToast({
+        title: 'Course Access Removed',
+        description: data.message || `Revoked access to "${courseTitle}".`,
+        type: 'success'
+      });
+      await openStudentInspector(studentId);
+      await fetchOverviewAndAnalytics(range);
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleQuickGrantCourse = async (studentId: string) => {
+    if (!grantCourseId) {
+      showToast({ title: 'Select Course', description: 'Please select a course to grant access.', type: 'info' });
+      return;
+    }
+
+    setIsProcessingAction(true);
+    try {
+      const res = await fetch('/api/super-admin/students/troubleshoot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'GRANT_COURSE_ACCESS',
+          studentId,
+          courseId: grantCourseId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to grant course access');
+
+      showToast({
+        title: 'Course Access Granted',
+        description: data.message || 'Course access granted to student.',
+        type: 'success'
+      });
+      setGrantCourseId('');
+      await openStudentInspector(studentId);
+      await fetchOverviewAndAnalytics(range);
+    } catch (err: any) {
+      showToast({ title: 'Error', description: err.message, type: 'error' });
+    } finally {
+      setIsProcessingAction(false);
     }
   };
 
@@ -121,6 +245,16 @@ export default function SuperAdminDashboardPage() {
 
   const chartData = analytics?.chartData || [];
   const maxRevenue = Math.max(...chartData.map((d: any) => d.revenue), 100);
+
+  const filteredStudents = students.filter((s) => {
+    if (!studentSearch.trim()) return true;
+    const q = studentSearch.toLowerCase();
+    return (
+      s.name?.toLowerCase().includes(q) ||
+      s.email?.toLowerCase().includes(q) ||
+      s.organizationName?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -385,6 +519,166 @@ export default function SuperAdminDashboardPage() {
         </div>
       </div>
 
+      {/* REGISTERED STUDENTS & COURSE PURCHASES CONTROL CENTER */}
+      <div className="bg-surface-container-lowest p-6 sm:p-8 rounded-3xl border border-outline-variant/80 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-mono font-bold text-primary mb-1">
+              <Icon name="person_search" size={16} />
+              <span>STUDENT REGISTRY &amp; COURSE PURCHASES GOVERNANCE</span>
+            </div>
+            <h2 className="text-xl font-extrabold text-on-surface tracking-tight">
+              Registered Students &amp; Purchased Courses ({filteredStudents.length})
+            </h2>
+            <p className="text-xs text-on-surface-variant mt-0.5">
+              Monitor registered students, view purchased courses, revoke/delete individual course access, grant new courses, and enter live student portal in Support Mode.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Icon
+                name="search"
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline"
+              />
+              <input
+                type="text"
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder="Search student or email..."
+                className="w-full bg-surface-container-low border border-outline-variant/80 rounded-2xl pl-10 pr-4 py-2 text-xs font-semibold focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <Link
+              href="/super-admin/students"
+              className="px-4 py-2 bg-primary/10 hover:bg-primary text-primary hover:text-on-primary border border-primary/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
+            >
+              <span>Full Students Registry →</span>
+            </Link>
+          </div>
+        </div>
+
+        {filteredStudents.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-surface-container-low/70 border-b border-outline-variant/60 text-outline uppercase font-extrabold tracking-wider text-[10px]">
+                <tr>
+                  <th className="p-3 pl-4">Student Profile</th>
+                  <th className="p-3">Company / Org</th>
+                  <th className="p-3">Purchased / Enrolled Courses</th>
+                  <th className="p-3">Total Spent</th>
+                  <th className="p-3">Registered Date</th>
+                  <th className="p-3 pr-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/40 font-medium">
+                {filteredStudents.slice(0, 10).map((s) => (
+                  <tr key={s.id} className="hover:bg-surface-container-low/40 transition-colors">
+                    <td className="p-3 pl-4">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar
+                          name={s.name}
+                          avatar={s.avatar}
+                          size="sm"
+                          shape="rounded"
+                          className="w-8 h-8 shrink-0"
+                        />
+                        <div>
+                          <p className="font-bold text-on-surface text-xs leading-tight">{s.name}</p>
+                          <p className="font-mono text-[10px] text-outline mt-0.5">{s.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[11px]">
+                        <Icon name="business" size={12} />
+                        <span>{s.organizationName}</span>
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-primary">
+                          <Icon name="school" size={14} />
+                          <span>{s.enrollmentCount} {s.enrollmentCount === 1 ? 'Course' : 'Courses'}</span>
+                        </div>
+                        {s.enrolledCourses && s.enrolledCourses.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {s.enrolledCourses.slice(0, 2).map((c: any, cIdx: number) => (
+                              <span
+                                key={cIdx}
+                                className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-[10px] truncate max-w-[140px]"
+                                title={c.title}
+                              >
+                                {c.title}
+                              </span>
+                            ))}
+                            {s.enrolledCourses.length > 2 && (
+                              <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-md text-[10px] font-bold">
+                                +{s.enrolledCourses.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-outline italic">No courses yet</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 font-mono font-bold text-emerald-800">
+                      ₹{s.totalSpent}
+                    </td>
+                    <td className="p-3 font-mono text-[11px] text-outline">
+                      {s.createdAt}
+                    </td>
+                    <td className="p-3 pr-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Manage Courses (Inspector) */}
+                        <button
+                          type="button"
+                          onClick={() => openStudentInspector(s.id)}
+                          className="px-2.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-on-primary border border-primary/20 font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                          title="Manage, delete, or grant courses for this student"
+                        >
+                          <Icon name="school" size={14} />
+                          <span>Manage Courses</span>
+                        </button>
+
+                        {/* Support Mode */}
+                        <button
+                          type="button"
+                          onClick={() => handleImpersonate(s.id, s.name)}
+                          className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-700 hover:text-slate-950 border border-amber-500/30 font-mono font-extrabold text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                          title="Open student learning portal in support mode"
+                        >
+                          <Icon name="visibility" size={14} />
+                          <span>Support Mode</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredStudents.length > 10 && (
+              <div className="p-3 border-t border-outline-variant/40 text-center">
+                <Link
+                  href="/super-admin/students"
+                  className="text-xs font-bold text-primary hover:underline"
+                >
+                  View all {filteredStudents.length} registered students in registry →
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-8 text-center text-xs text-outline italic border border-dashed border-outline-variant rounded-2xl">
+            No registered students found matching search.
+          </div>
+        )}
+      </div>
+
       {/* REGISTERED COMPANIES ROSTER & STUDENT DISTRIBUTION */}
       <div className="bg-surface-container-lowest p-6 sm:p-8 rounded-3xl border border-outline-variant/80 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -533,6 +827,186 @@ export default function SuperAdminDashboardPage() {
           })}
         </div>
       </div>
+
+      {/* Student Inspector / Course Management Modal */}
+      <Modal
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        maxWidth="lg"
+        title="Student Profile & Course Access Manager"
+      >
+        {selectedStudent && (
+          <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
+            {/* Student Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/60">
+              <div className="flex items-center gap-3">
+                <UserAvatar
+                  name={selectedStudent.name}
+                  avatar={selectedStudent.avatar}
+                  size="md"
+                  shape="rounded"
+                  className="w-12 h-12"
+                />
+                <div>
+                  <h3 className="font-extrabold text-base text-on-surface flex items-center gap-2">
+                    <span>{selectedStudent.name}</span>
+                    <span
+                      className={`text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded-full ${
+                        selectedStudent.isSuspended ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}
+                    >
+                      {selectedStudent.isSuspended ? 'Suspended' : 'Active'}
+                    </span>
+                  </h3>
+                  <p className="text-xs font-mono text-outline">{selectedStudent.email}</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">
+                    Company: <strong className="text-primary">{selectedStudent.organization?.name || 'Platform (Direct)'}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleImpersonate(selectedStudent.id, selectedStudent.name)}
+                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                >
+                  <Icon name="visibility" size={16} />
+                  <span>Enter Support Mode</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Enrolled Courses & Progress Grid */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h4 className="font-extrabold text-sm text-on-surface flex items-center gap-2">
+                  <Icon name="school" size={16} className="text-primary" />
+                  <span>Enrolled Curricula ({selectedStudent.enrollments?.length || 0})</span>
+                </h4>
+                <span className="text-[11px] text-outline font-medium">
+                  Deleting only removes this specific course from the student's portal.
+                </span>
+              </div>
+
+              {/* Quick Course Grant / Assign Widget */}
+              <div className="p-3.5 bg-indigo-50/80 border border-indigo-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
+                  <Icon name="add_circle" size={18} className="text-indigo-600" />
+                  <span>Grant Course Access (कोर्स जोड़ें):</span>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={grantCourseId}
+                    onChange={(e) => setGrantCourseId(e.target.value)}
+                    className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 flex-1 sm:w-64 shadow-2xs cursor-pointer"
+                  >
+                    <option value="">-- Select Platform Course --</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title} {c.price ? `(₹${c.price})` : '(Free)'}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!grantCourseId || isProcessingAction}
+                    onClick={() => handleQuickGrantCourse(selectedStudent.id)}
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+                  >
+                    <Icon name="check" size={14} />
+                    <span>Grant Access</span>
+                  </button>
+                </div>
+              </div>
+
+              {selectedStudent.enrollments?.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedStudent.enrollments.map((e: any) => {
+                    const lessons = e.course?.sections?.flatMap((s: any) => s.lessons) || [];
+                    const completedInCourse = selectedStudent.lessonProgress?.filter(
+                      (p: any) =>
+                        p.completed &&
+                        p.lesson?.section?.courseId === e.courseId
+                    ).length || 0;
+                    const percent = lessons.length > 0 ? Math.round((completedInCourse / lessons.length) * 100) : 0;
+
+                    return (
+                      <div
+                        key={e.id}
+                        className="p-4 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs hover:border-outline-variant transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold text-xs text-on-surface truncate">{e.course?.title}</p>
+                          <p className="text-[11px] text-outline font-mono mt-0.5">
+                            Status: <span className="font-bold text-primary">{e.status}</span> • Instructor: {e.course?.instructor?.name || 'Platform'} • Price: ₹{e.course?.price || 0}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <span className="text-xs font-mono font-bold text-primary">{percent}%</span>
+                              <p className="text-[10px] text-outline font-mono">
+                                {completedInCourse}/{lessons.length} Lectures
+                              </p>
+                            </div>
+                            <div className="w-20 h-2 bg-surface-container rounded-full overflow-hidden">
+                              <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+                            </div>
+                          </div>
+
+                          {/* Direct Delete / Revoke Course Access Button */}
+                          <button
+                            type="button"
+                            disabled={isProcessingAction}
+                            onClick={() => handleRemoveCourseAccess(selectedStudent.id, e.courseId, e.course?.title)}
+                            className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
+                            title={`Remove ${e.course?.title} from this student`}
+                          >
+                            <Icon name="delete" size={14} className="text-rose-600" />
+                            <span>Remove Course Access</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-6 text-center border border-dashed border-outline-variant/80 rounded-2xl text-xs text-outline italic">
+                  No active course enrollments. Select a course above to grant access.
+                </div>
+              )}
+            </div>
+
+            {/* Orders Ledger */}
+            {selectedStudent.orders?.length > 0 && (
+              <div className="space-y-3 pt-2 border-t border-outline-variant/40">
+                <h4 className="font-extrabold text-sm text-on-surface flex items-center gap-2">
+                  <Icon name="receipt_long" size={16} className="text-primary" />
+                  <span>Purchased Orders ({selectedStudent.orders.length})</span>
+                </h4>
+                <div className="divide-y divide-outline-variant/40 border border-outline-variant/80 rounded-2xl overflow-hidden bg-surface-container-lowest text-xs">
+                  {selectedStudent.orders.map((o: any) => (
+                    <div key={o.id} className="p-3 flex items-center justify-between">
+                      <div>
+                        <span className="font-mono font-bold text-primary">#{o.transactionId}</span>
+                        <p className="text-[11px] text-on-surface mt-0.5">{o.course?.title}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-bold text-emerald-800">₹{o.amount}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800">
+                          {o.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

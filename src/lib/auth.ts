@@ -181,7 +181,8 @@ export async function getSalesCurrentUser(): Promise<AuthSessionUser | null> {
       permissions: parsedPermissions,
       status: dbUser.status,
       emailVerified: dbUser.emailVerified,
-      sessionVersion: dbUser.sessionVersion
+      sessionVersion: dbUser.sessionVersion,
+      impersonatedBy: session.impersonatedBy || null
     };
   } catch {
     return null;
@@ -196,10 +197,11 @@ export async function setLmsSessionCookie(user: AuthSessionUser) {
   const token = await createSessionToken({ ...user, platform: 'LMS' });
   try {
     const cookieStore = await cookies();
-    // Actively purge any sales and impersonation tokens to prevent admin/sales session bleeding into student sessions
     cookieStore.delete(SALES_COOKIE_NAME);
-    cookieStore.delete(IMPERSONATION_COOKIE);
-    cookieStore.delete(LEGACY_IMPERSONATION_COOKIE);
+    if (!user.impersonatedBy) {
+      cookieStore.delete(IMPERSONATION_COOKIE);
+      cookieStore.delete(LEGACY_IMPERSONATION_COOKIE);
+    }
 
     cookieStore.set(LMS_COOKIE_NAME, token, {
       httpOnly: true,
@@ -321,7 +323,8 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
       permissions: parsedPermissions,
       status: dbUser.status,
       emailVerified: dbUser.emailVerified,
-      sessionVersion: dbUser.sessionVersion
+      sessionVersion: dbUser.sessionVersion,
+      impersonatedBy: session.impersonatedBy || null
     };
   } catch {
     return null;

@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     }
 
     // List all students
-    const where: any = { role: 'STUDENT' };
+    const where: any = { role: { in: ['STUDENT', 'USER'] } };
     if (q) {
       where.OR = [
         { name: { contains: q } },
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     if (status === 'SUSPENDED') where.isSuspended = true;
     if (orgId && orgId !== 'ALL') where.organizationId = orgId;
 
-    const [students, organizations] = await Promise.all([
+    const [students, organizations, platformCourses] = await Promise.all([
       prisma.user.findMany({
         where,
         select: {
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
             select: {
               id: true,
               status: true,
-              course: { select: { id: true, title: true } }
+              course: { select: { id: true, title: true, price: true } }
             }
           },
           certificates: { select: { id: true, certificateNumber: true } },
@@ -124,6 +124,10 @@ export async function GET(request: Request) {
       prisma.organization.findMany({
         select: { id: true, name: true, slug: true },
         orderBy: { name: 'asc' }
+      }),
+      prisma.course.findMany({
+        select: { id: true, title: true, price: true, status: true },
+        orderBy: { title: 'asc' }
       })
     ]);
 
@@ -144,6 +148,13 @@ export async function GET(request: Request) {
         organizationPlan: s.organization?.plan || 'STARTER',
         createdAt: s.createdAt.toISOString().split('T')[0],
         enrollmentCount: s.enrollments.length,
+        enrolledCourses: s.enrollments.map((e) => ({
+          enrollmentId: e.id,
+          courseId: e.course?.id,
+          title: e.course?.title,
+          price: e.course?.price,
+          status: e.status
+        })),
         certificateCount: s.certificates.length,
         totalSpent: Math.round(totalSpent * 100) / 100,
         openTicketsCount: s.supportTickets.filter((t) => t.status === 'OPEN').length
@@ -152,7 +163,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       students: formatted,
-      organizations
+      organizations,
+      courses: platformCourses
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 403 });

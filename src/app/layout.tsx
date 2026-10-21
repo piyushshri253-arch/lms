@@ -62,6 +62,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-white text-[#2d2f31] flex flex-col antialiased">
         <AppProvider>
+          <SuperAdminSupportBanner />
           {children}
           <ToastContainer />
         </AppProvider>

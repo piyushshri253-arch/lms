@@ -100,7 +100,16 @@ export async function POST(request: Request) {
       }
     });
 
-    const redirectUrl = targetUser.role === 'ADMIN' ? '/admin' : '/dashboard';
+    let redirectUrl = '/student/learning';
+    if (targetUser.role === 'ADMIN' || targetUser.role === 'LMS_ADMIN') {
+      redirectUrl = '/admin';
+    } else if (targetUser.role === 'INSTRUCTOR') {
+      redirectUrl = '/instructor/dashboard';
+    } else if (targetUser.role === 'REVIEWER') {
+      redirectUrl = '/reviewer';
+    } else {
+      redirectUrl = '/student/learning';
+    }
 
     return NextResponse.json({
       message: `Support Mode active for ${targetUser.name}`,
