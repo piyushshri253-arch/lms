@@ -282,6 +282,29 @@ export async function PUT(request: Request) {
       data
     });
 
+    if ((status === 'APPROVED' || status === 'REJECTED' || status === 'CHANGES_REQUESTED') && updated.instructorId) {
+      try {
+        const instructorUser = await prisma.user.findUnique({
+          where: { id: updated.instructorId },
+          select: { id: true, name: true, email: true }
+        });
+        if (instructorUser?.email) {
+          const { EmailService } = await import('@/lib/email');
+          console.log(`[Super Admin] Sending ${status} decision email to instructor ${instructorUser.email} for course "${updated.title}"`);
+          await EmailService.sendCourseReviewDecisionEmail({
+            decision: status === 'CHANGES_REQUESTED' ? 'REQUEST_CHANGES' : status,
+            course: { id: updated.id, title: updated.title, slug: updated.slug },
+            instructor: { id: instructorUser.id, name: instructorUser.name, email: instructorUser.email },
+            auditor: { name: admin.name, role: 'Super Administrator' },
+            feedback: body.reviewFeedback || body.note || null,
+            organizationId: updated.organizationId
+          });
+        }
+      } catch (emailErr) {
+        console.error('[Super Admin Course Status Email Error]:', emailErr);
+      }
+    }
+
     await prisma.auditLog.create({
       data: {
         adminId: admin.id,

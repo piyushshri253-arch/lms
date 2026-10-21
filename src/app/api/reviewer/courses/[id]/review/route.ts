@@ -306,8 +306,10 @@ export async function POST(
       mediaReviewedType
     } = body;
 
-    const course = await prisma.course.findUnique({
-      where: { id },
+    const course = await prisma.course.findFirst({
+      where: {
+        OR: [{ id }, { slug: id }]
+      },
       include: {
         instructor: { select: { id: true, name: true, email: true } },
         category: { select: { name: true } },
@@ -317,6 +319,15 @@ export async function POST(
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
+    let instructor = course.instructor;
+    if ((!instructor || !instructor.email) && course.instructorId) {
+      const dbInstructor = await prisma.user.findUnique({
+        where: { id: course.instructorId },
+        select: { id: true, name: true, email: true }
+      });
+      if (dbInstructor) instructor = dbInstructor;
     }
 
     const auditMeta = await getCourseAuditMetadata(course.id);
@@ -519,11 +530,12 @@ export async function POST(
           description: `Auditor "${auditor.name}" approved staged version ${applied.liveVersionLabel} for "${course.title}". Previous v1.0 archived.`
         });
 
-        if (course.instructor?.email) {
+        if (instructor?.email) {
+          console.log(`[Auditor Review] Sending VERSION APPROVED email to instructor ${instructor.email} for course "${course.title}"`);
           await EmailService.sendCourseReviewDecisionEmail({
             decision: 'APPROVED',
             course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
-            instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+            instructor: { id: instructor.id, name: instructor.name, email: instructor.email },
             auditor: { name: auditor.name, role: auditor.role },
             feedback: finalNote,
             organizationId: course.organizationId
@@ -561,11 +573,12 @@ export async function POST(
             link: `/instructor/course/${course.id}/review`
           });
 
-          if (course.instructor?.email) {
+          if (instructor?.email) {
+            console.log(`[Auditor Review] Sending VERSION ${action} email to instructor ${instructor.email} for course "${course.title}"`);
             await EmailService.sendCourseReviewDecisionEmail({
               decision: action === 'REQUEST_CHANGES' ? 'REQUEST_CHANGES' : 'REJECTED',
               course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
-              instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+              instructor: { id: instructor.id, name: instructor.name, email: instructor.email },
               auditor: { name: auditor.name, role: auditor.role },
               feedback: finalNote,
               organizationId: course.organizationId
@@ -624,11 +637,12 @@ export async function POST(
           link: `/instructor/course/${course.id}/review`
         });
 
-        if (course.instructor?.email) {
+        if (instructor?.email) {
+          console.log(`[Auditor Review] Sending STANDARD COURSE APPROVED email to instructor ${instructor.email} for course "${course.title}"`);
           await EmailService.sendCourseReviewDecisionEmail({
             decision: 'APPROVED',
             course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
-            instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+            instructor: { id: instructor.id, name: instructor.name, email: instructor.email },
             auditor: { name: auditor.name, role: auditor.role },
             feedback: finalNote,
             organizationId: course.organizationId
@@ -648,11 +662,12 @@ export async function POST(
           link: `/instructor/course/${course.id}/review`
         });
 
-        if (course.instructor?.email) {
+        if (instructor?.email) {
+          console.log(`[Auditor Review] Sending STANDARD COURSE ${action} email to instructor ${instructor.email} for course "${course.title}"`);
           await EmailService.sendCourseReviewDecisionEmail({
             decision: action === 'REQUEST_CHANGES' ? 'REQUEST_CHANGES' : 'REJECTED',
             course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
-            instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+            instructor: { id: instructor.id, name: instructor.name, email: instructor.email },
             auditor: { name: auditor.name, role: auditor.role },
             feedback: finalNote,
             organizationId: course.organizationId

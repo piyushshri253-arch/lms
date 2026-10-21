@@ -285,14 +285,23 @@ export async function POST(
       }
     }
 
-    // Notify Instructor by Email if course status was set to APPROVED or REJECTED
-    if ((targetStatus === 'APPROVED' || targetStatus === 'REJECTED') && course.instructor?.email) {
+    // Notify Instructor by Email if course status was set to APPROVED, REJECTED, or CHANGES_REQUESTED
+    let instructorUser: { id: string; name: string; email: string } | null = course.instructor;
+    if ((!instructorUser || !instructorUser.email) && course.instructorId) {
+      instructorUser = await prisma.user.findUnique({
+        where: { id: course.instructorId },
+        select: { id: true, name: true, email: true }
+      });
+    }
+
+    if ((targetStatus === 'APPROVED' || targetStatus === 'REJECTED' || targetStatus === 'CHANGES_REQUESTED') && instructorUser?.email) {
       try {
         const { EmailService } = await import('@/lib/email');
+        console.log(`[Publish Route] Sending ${targetStatus} email to instructor ${instructorUser.email} for course "${course.title}"`);
         await EmailService.sendCourseReviewDecisionEmail({
-          decision: targetStatus,
+          decision: targetStatus === 'CHANGES_REQUESTED' ? 'REQUEST_CHANGES' : targetStatus,
           course: { id: course.id, title: course.title, category: course.category?.name, slug: course.slug },
-          instructor: { id: course.instructor.id, name: course.instructor.name, email: course.instructor.email },
+          instructor: { id: instructorUser.id, name: instructorUser.name, email: instructorUser.email },
           auditor: { name: user.name, role: user.role },
           feedback: body.reviewFeedback || body.note || null,
           organizationId: course.organizationId

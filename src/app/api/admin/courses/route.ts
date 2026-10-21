@@ -324,9 +324,26 @@ export async function PATCH(request: Request) {
       data: updateData,
       include: {
         category: true,
-        instructor: { select: { id: true, name: true, avatar: true } }
+        instructor: { select: { id: true, name: true, avatar: true, email: true } }
       }
     });
+
+    if ((status === 'APPROVED' || status === 'REJECTED' || status === 'CHANGES_REQUESTED') && updated.instructor?.email) {
+      try {
+        const { EmailService } = await import('@/lib/email');
+        console.log(`[Admin Course Update] Sending ${status} email to instructor ${updated.instructor.email} for course "${updated.title}"`);
+        await EmailService.sendCourseReviewDecisionEmail({
+          decision: status === 'CHANGES_REQUESTED' ? 'REQUEST_CHANGES' : status,
+          course: { id: updated.id, title: updated.title, category: updated.category?.name, slug: updated.slug },
+          instructor: { id: updated.instructor.id, name: updated.instructor.name, email: updated.instructor.email },
+          auditor: { name: auth.sessionData?.user?.name || 'Administrator', role: auth.sessionData?.user?.role || 'Admin' },
+          feedback: body.reviewFeedback || body.note || null,
+          organizationId: updated.organizationId
+        });
+      } catch (emailErr) {
+        console.error('[Admin Course Status Email Error]:', emailErr);
+      }
+    }
 
     const mappedUpdated = {
       id: updated.id,
