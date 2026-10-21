@@ -150,25 +150,25 @@ export function downloadCourseExcelTemplate() {
     ['📌 SECTION 1: BASIC COURSE INFORMATION', '', '', ''],
     [
       'Course Title *',
-      'Mastering Modern AI & Full-Stack Web Development 2026',
+      '',
       'REQUIRED',
       'Enter the official title of your course (e.g., Complete Web Development Bootcamp 2026)'
     ],
     [
       'Course Slug',
-      'mastering-modern-ai-fullstack-2026',
+      '',
       'OPTIONAL',
       'URL slug for the course. Leave empty to auto-generate from the title'
     ],
     [
       'Category *',
-      'Web Development',
+      '',
       'REQUIRED',
       'Select category: Web Development, Artificial Intelligence, Business, Design, Teacher Training, etc.'
     ],
     [
       'Skill Level *',
-      'Foundational',
+      '',
       'REQUIRED',
       'Select difficulty level: Foundational, Intermediate, Advanced, or All Levels'
     ],
@@ -181,44 +181,44 @@ export function downloadCourseExcelTemplate() {
     ['📝 SECTION 2: DESCRIPTIONS & LEARNING OBJECTIVES', '', '', ''],
     [
       'Short Description *',
-      'Build production-ready generative AI web applications with Next.js, React 19, and Node.js.',
+      '',
       'REQUIRED',
       'Compelling 1-2 sentence summary for course preview cards and search results'
     ],
     [
       'Full Course Description *',
-      'This comprehensive masterclass takes you from core web principles to building scalable, production-grade AI-powered applications. Learn modern component architecture, state management, database schemas, secure authentication, and end-to-end deployment.',
+      '',
       'REQUIRED',
       'Comprehensive course overview explaining curriculum scope, target skills, and instructor value'
     ],
     [
       'What Students Will Learn *',
-      'Build modern full-stack web applications with Next.js & React 19; Integrate generative AI APIs and vector search pipelines; Design robust PostgreSQL database schemas and migrations; Deploy high-performance web applications with CI/CD',
+      '',
       'REQUIRED',
       'Separate each learning outcome with a semicolon (;). Example: Outcome 1; Outcome 2; Outcome 3'
     ],
     [
       'Prerequisites & Setup *',
-      'Basic computer literacy and internet access; Fundamental curiosity about programming (no prior advanced experience required)',
+      '',
       'REQUIRED',
       'Prerequisites or required software separated by semicolons (;)'
     ],
     [
       'Target Audience *',
-      'Aspiring software developers and web designers; Computer science students building portfolio master projects; Working professionals upskilling in modern AI and full-stack frameworks',
+      '',
       'REQUIRED',
       'Target learner profiles separated by semicolons (;)'
     ],
     ['💰 SECTION 3: PRICING & ENROLLMENT SETTINGS', '', '', ''],
     [
       'Course Price (INR) *',
-      2999,
+      '',
       'REQUIRED',
       'Standard enrollment price in INR (numeric only, e.g., 2999). Enter 0 for Free courses'
     ],
     [
       'Discount Price (INR)',
-      999,
+      '',
       'OPTIONAL',
       'Optional discounted offer price in INR (must be lower than regular price, e.g., 999). Leave blank if no discount'
     ],
@@ -280,118 +280,16 @@ export function downloadCourseExcelTemplate() {
       'Free Preview (Yes / No)',
       'Written Article Content / Notes (Markdown for Written Articles)'
     ],
-    [
-      'Foundations of Modern Web Architecture',
-      'Course Orientation & Tech Stack Roadmap',
-      'LECTURE',
-      '08:30',
-      'Yes',
-      ''
-    ],
-    [
-      '',
-      'Setting Up Developer Workspace & Tools',
-      'LECTURE',
-      '14:15',
-      'No',
-      ''
-    ],
-    [
-      '',
-      'Git Workflow, Branching & Code Repository Setup',
-      'LECTURE',
-      '16:20',
-      'No',
-      ''
-    ],
-    [
-      '',
-      'CLI Commands & Terminal Mastery for Web Developers',
-      'LECTURE',
-      '12:45',
-      'No',
-      ''
-    ],
-    [
-      '',
-      'Core Architectural Principles & System Design',
-      'ARTICLE',
-      '05:00',
-      'No',
-      '# Core Architectural Principles\n\nWelcome to this written lecture. Here we break down the key concepts with structured explanations, headings, and examples.\n\n## 1. Core Principles\n\nExplain the foundational theory or architecture here:\n- Key principle A\n- Key principle B\n\n> 💡 **Instructor Tip:** Highlight critical best practices, edge cases, or industry standards for students.\n\n## 2. Practical Examples & Implementation\n\nDetail the exact workflow or implementation steps:\n1. Step 1: Initial setup\n2. Step 2: Implementation details\n3. Step 3: Verification\n\n---\n\n## Summary\n\nSummarize the key takeaways and preview what comes next in the curriculum.'
-    ],
-    [
-      '',
-      'Web Architecture & Modern AI Assessment',
-      'QUIZ',
-      '10:00',
-      'No',
-      ''
-    ],
-    [
-      'Frontend Engineering with React 19',
-      'Server Components & Dynamic Routing in Next.js',
-      'LECTURE',
-      '18:45',
-      'No',
-      ''
-    ],
-    [
-      '',
-      'Building Responsive Master Layouts with Tailwind CSS',
-      'LECTURE',
-      '22:10',
-      'No',
-      ''
-    ],
-    [
-      '',
-      'State Management & Custom Hooks Guide',
-      'ARTICLE',
-      '05:00',
-      'No',
-      '# State Management Guide\nDetailed explanation of modern React 19 state patterns with practical code examples and edge cases.'
-    ],
-    [
-      '',
-      'Next.js & React 19 Component Test',
-      'QUIZ',
-      '10:00',
-      'No',
-      ''
-    ],
-    [
-      'Backend APIs & Database Architecture',
-      'Relational Database Modeling with PostgreSQL & Prisma',
-      'LECTURE',
-      '25:30',
-      'No',
-      ''
-    ],
-    [
-      '',
-      'Database Schema Reference Cheatsheet',
-      'ARTICLE',
-      '05:00',
-      'No',
-      '# Database Schema Cheatsheet\nPostgreSQL table schemas, relationships, indexing rules, and migration best practices.'
-    ],
-    [
-      '',
-      'Database & API Architecture Quiz',
-      'QUIZ',
-      '10:00',
-      'No',
-      ''
-    ],
-    [
-      'Course Completion & Certification',
-      'Final Assignment',
-      'FINAL ASSIGNMENT',
-      '30:00',
-      'No',
-      '# Course Final Assignment\n\nMandatory comprehensive assessment covering all curriculum modules. Students must achieve the configured passing percentage (e.g., 80%) to pass the course and unlock the official verifiable Certificate of Completion.'
-    ]
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', '']
   ];
 
   const wsCurriculum = XLSX.utils.aoa_to_sheet(curriculumAOA);
@@ -439,146 +337,12 @@ export function downloadCourseExcelTemplate() {
       'Passing Score (%)',
       'Marks / Points (e.g. 10)'
     ],
-    [
-      'Module 1',
-      'Web Architecture & Modern AI Assessment',
-      1,
-      'What protocol provides encrypted communication over the World Wide Web?',
-      'HTTP',
-      'HTTPS',
-      'FTP',
-      'SMTP',
-      'B',
-      'HTTPS encrypts communication between the client browser and web server using TLS/SSL.',
-      70,
-      10
-    ],
-    [
-      '',
-      '',
-      2,
-      'Which JavaScript engine powers Google Chrome and Node.js runtime?',
-      'SpiderMonkey',
-      'JavaScriptCore',
-      'V8 Engine',
-      'Chakra',
-      'C',
-      'Google open-source V8 engine compiles JavaScript directly to native machine code.',
-      70,
-      10
-    ],
-    [
-      'Module 2',
-      'Next.js & React 19 Component Test',
-      1,
-      'In React, which built-in hook is used to declare and manage local component state?',
-      'useEffect',
-      'useState',
-      'useRef',
-      'useContext',
-      'B',
-      'useState is the standard React hook for managing stateful values in functional components.',
-      70,
-      10
-    ],
-    [
-      '',
-      '',
-      2,
-      'Which hook is used for executing side effects like API fetching or subscriptions?',
-      'useEffect',
-      'useMemo',
-      'useCallback',
-      'useReducer',
-      'A',
-      'useEffect manages lifecycle side effects in React function components.',
-      70,
-      10
-    ],
-    [
-      'Module 3',
-      'Database & API Architecture Quiz',
-      1,
-      'Which database language is primarily used for defining and querying relational databases?',
-      'HTML',
-      'CSS',
-      'SQL',
-      'JSON',
-      'C',
-      'SQL (Structured Query Language) is the standard query language for relational databases like PostgreSQL.',
-      70,
-      10
-    ],
-    [
-      '',
-      '',
-      2,
-      'Which SQL clause is used to filter records based on a specific condition?',
-      'WHERE',
-      'ORDER BY',
-      'GROUP BY',
-      'SELECT',
-      'A',
-      'The WHERE clause filters rows satisfying given Boolean conditions.',
-      70,
-      10
-    ],
-    [
-      'Course Completion & Certification',
-      'Final Assignment',
-      1,
-      'Which architectural approach separates client presentation from server database logic with secure APIs?',
-      'Monolithic with no boundaries',
-      'Client-Server Architecture with REST/GraphQL APIs',
-      'Single-threaded mainframe',
-      'Static HTML only',
-      'B',
-      'Modern web systems use structured client-server architecture with protected API boundaries.',
-      80,
-      10
-    ],
-    [
-      '',
-      '',
-      2,
-      'When designing a production database schema, what ensures relational integrity across related tables?',
-      'Arbitrary JSON strings',
-      'Foreign Key Constraints & Relations',
-      'Global public variables',
-      'Random IDs without indexes',
-      'B',
-      'Foreign key constraints enforce relational integrity between parent and child tables.',
-      80,
-      10
-    ],
-    [
-      '',
-      '',
-      3,
-      'Why is HTTPS required for modern web applications and user authentication?',
-      'It speeds up CSS rendering',
-      'It encrypts sensitive credentials and session tokens over the network',
-      'It decreases video file size',
-      'It allows unrestricted CORS access',
-      'B',
-      'HTTPS uses TLS to encrypt payload data, protecting passwords and auth tokens from eavesdropping.',
-      80,
-      10
-    ],
-    [
-      '',
-      '',
-      4,
-      'Which HTTP method is idempotent and conventionally used to replace or update a full resource in REST APIs?',
-      'POST',
-      'PUT',
-      'DELETE',
-      'PATCH',
-      'B',
-      'PUT is an idempotent HTTP verb used for full resource updates.',
-      80,
-      10
-    ]
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', '']
   ];
 
   const wsQuizzes = XLSX.utils.aoa_to_sheet(quizzesAOA);
