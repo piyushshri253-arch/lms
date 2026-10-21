@@ -42,7 +42,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
 
   const finalAssignmentLesson = allLessons.find((l: any) =>
     Boolean(l.isFinalAssignment) ||
-    (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+    (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || ''))
   );
 
   const hasValidFinalAssignment = Boolean(

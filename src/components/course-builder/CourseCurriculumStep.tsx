@@ -636,7 +636,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     return sections.some((s) =>
       s.lessons?.some((l) =>
         Boolean(l.isFinalAssignment) ||
-        (l.type === 'QUIZ' && /final\s+assignment/i.test(l.title || ''))
+        (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || ''))
       )
     );
   }, [sections]);

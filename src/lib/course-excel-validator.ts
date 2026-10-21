@@ -556,14 +556,14 @@ export function validateCourseExcel(
     }
 
     const typeUpper = (lessonTypeRaw || '').toUpperCase().trim();
-    const isExplicitFinal = /final\s*assignment/i.test(typeUpper);
+    const isExplicitFinal = /final\s*(assessment|assignment|exam)/i.test(typeUpper);
     const isExplicitQuiz = isExplicitFinal || /quiz|assessment|mcq|exam/i.test(typeUpper);
     const isExplicitArticle = !isExplicitFinal && !isExplicitQuiz && /article|text|written|note|reading/i.test(typeUpper);
     const isExplicitLecture = !isExplicitFinal && !isExplicitQuiz && !isExplicitArticle && /lecture|video/i.test(typeUpper);
 
     const hasExplicitType = isExplicitFinal || isExplicitQuiz || isExplicitArticle || isExplicitLecture;
 
-    const isFinalAssignment = isExplicitFinal || /final\s*assignment/i.test(rawLessonTitle);
+    const isFinalAssignment = isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle);
     const isQuiz = isFinalAssignment || isExplicitQuiz || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
     const isText = !isFinalAssignment && !isQuiz && (isExplicitArticle || (!hasExplicitType && /article|notes|reading/i.test(rawLessonTitle)));
     const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
@@ -574,7 +574,7 @@ export function validateCourseExcel(
         location: lessonLocation,
         field: 'Content Type',
         error: `Invalid content type: "${lessonTypeRaw}"`,
-        action: 'Specify LECTURE, ARTICLE, QUIZ, or FINAL ASSIGNMENT',
+        action: 'Specify LECTURE, ARTICLE, QUIZ, or FINAL ASSESSMENT',
         severity: 'BLOCKING'
       });
     }
@@ -621,7 +621,7 @@ export function validateCourseExcel(
     }
 
     const finalLessonTitle = isFinalAssignment
-      ? 'Final Assignment'
+      ? (rawLessonTitle && /assignment/i.test(rawLessonTitle) ? 'Final Assignment' : 'Final Assessment')
       : isQuiz
       ? cleanQuizTitle(rawLessonTitle) || 'Quiz'
       : cleanedLessonTitle;
@@ -683,6 +683,7 @@ export function validateCourseExcel(
 
   // 7. Quizzes & MCQs Sheet Validation (Strict Even Questions Rule & Correct Answers)
   const quizMap: Map<string, {
+    key: string;
     moduleNum: number;
     quizTitle: string;
     isFinalAssignment: boolean;
@@ -695,11 +696,14 @@ export function validateCourseExcel(
   sections.forEach((sec) => {
     sec.lessons.forEach((les) => {
       if (les.type === 'QUIZ') {
-        const key = `${sec.order}__${(les.title || '').toLowerCase().trim()}`;
+        const isFinal = Boolean(les.isFinalAssignment) || /final\s*(assessment|assignment|exam)/i.test(les.title || '');
+        const normTitle = (les.title || (isFinal ? 'Final Assessment' : 'Quiz')).toLowerCase().trim();
+        const key = isFinal ? '__final_assessment__' : `${sec.order}__${normTitle}`;
         quizMap.set(key, {
+          key,
           moduleNum: sec.order,
-          quizTitle: les.title || 'Quiz',
-          isFinalAssignment: Boolean(les.isFinalAssignment),
+          quizTitle: les.title || (isFinal ? 'Final Assessment' : 'Quiz'),
+          isFinalAssignment: isFinal,
           questions: [],
           lessonRef: les
         });
@@ -714,6 +718,7 @@ export function validateCourseExcel(
 
     let activeModuleKey = '1';
     let activeQuizKey = '';
+    let activeQuizEntry: any = null;
 
     quizRows.forEach((row, rowIdx) => {
       const findQField = (exactKeys: string[], fallbackKeyword?: string, excludeKeyword?: string) => {
@@ -761,57 +766,125 @@ export function validateCourseExcel(
 
       // Resolve module number
       if (moduleIdentifier) {
-        const numMatch = moduleIdentifier.match(/\d+/);
-        if (numMatch) {
-          activeModuleKey = numMatch[0];
+        if (/final\s*(assessment|assignment|exam)/i.test(moduleIdentifier)) {
+          activeModuleKey = 'final';
         } else {
-          activeModuleKey = moduleIdentifier;
+          const numMatch = moduleIdentifier.match(/\d+/);
+          if (numMatch) {
+            activeModuleKey = numMatch[0];
+          } else {
+            const matchedSec = sections.find(
+              (s) =>
+                cleanModuleTitle(s.title).toLowerCase() === cleanModuleTitle(moduleIdentifier).toLowerCase() ||
+                s.title.toLowerCase().includes(moduleIdentifier.toLowerCase())
+            );
+            if (matchedSec) {
+              activeModuleKey = String(matchedSec.order);
+            } else {
+              activeModuleKey = moduleIdentifier;
+            }
+          }
         }
       }
 
-      const modNumInt = parseInt(activeModuleKey, 10) || 1;
       const isFinalAssignment =
-        /final\s*assignment/i.test(quizTitleRaw) ||
-        /final\s*assignment/i.test(moduleIdentifier);
+        /final\s*(assessment|assignment|exam)/i.test(quizTitleRaw) ||
+        /final\s*(assessment|assignment|exam)/i.test(moduleIdentifier) ||
+        activeModuleKey === 'final' ||
+        (!quizTitleRaw && activeQuizEntry?.isFinalAssignment);
 
       if (quizTitleRaw) {
         activeQuizKey = cleanQuizTitle(quizTitleRaw);
       }
 
-      const effectiveQuizTitle = isFinalAssignment ? 'Final Assignment' : (activeQuizKey || 'Quiz');
-      const lookupKey = `${modNumInt}__${effectiveQuizTitle.toLowerCase().trim()}`;
+      let quizEntry: any = null;
 
-      let quizEntry = quizMap.get(lookupKey);
+      // 1. If no new quiz title or module was specified and an active quiz entry exists, continue with it!
+      if (!quizTitleRaw && !moduleIdentifier && activeQuizEntry) {
+        quizEntry = activeQuizEntry;
+      } else if (!quizTitleRaw && activeQuizEntry && activeQuizEntry.isFinalAssignment && isFinalAssignment) {
+        quizEntry = activeQuizEntry;
+      } else if (!quizTitleRaw && activeQuizEntry && String(activeQuizEntry.moduleNum) === String(activeModuleKey)) {
+        quizEntry = activeQuizEntry;
+      }
+
+      // 2. Otherwise resolve target quiz
       if (!quizEntry) {
-        // Try finding by title across quizMap
-        for (const [k, v] of quizMap.entries()) {
-          if (v.quizTitle.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim()) {
-            quizEntry = v;
-            break;
+        if (isFinalAssignment) {
+          quizEntry = quizMap.get('__final_assessment__');
+          if (!quizEntry) {
+            quizEntry = Array.from(quizMap.values()).find((v) => v.isFinalAssignment);
+          }
+          if (!quizEntry) {
+            quizEntry = {
+              key: '__final_assessment__',
+              moduleNum: sections.length || 1,
+              quizTitle: quizTitleRaw || 'Final Assessment',
+              isFinalAssignment: true,
+              questions: []
+            };
+            quizMap.set('__final_assessment__', quizEntry);
+          }
+        } else {
+          const modNumInt = parseInt(activeModuleKey, 10) || 1;
+          const effectiveQuizTitle = activeQuizKey || 'Quiz';
+          const lookupKey = `${modNumInt}__${effectiveQuizTitle.toLowerCase().trim()}`;
+
+          quizEntry = quizMap.get(lookupKey);
+
+          if (!quizEntry) {
+            // If this module only has 1 quiz registered from Curriculum (excluding final assessment), bind directly!
+            const quizzesInModule = Array.from(quizMap.values()).filter(
+              (v) => v.moduleNum === modNumInt && !v.isFinalAssignment
+            );
+            if (quizzesInModule.length === 1) {
+              quizEntry = quizzesInModule[0];
+            } else if (quizzesInModule.length > 1) {
+              // Find by matching title
+              quizEntry = quizzesInModule.find(
+                (v) =>
+                  v.quizTitle.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim() ||
+                  v.quizTitle.toLowerCase().includes(effectiveQuizTitle.toLowerCase()) ||
+                  effectiveQuizTitle.toLowerCase().includes(v.quizTitle.toLowerCase())
+              );
+            }
+          }
+
+          if (!quizEntry) {
+            // Try finding by title across quizMap
+            for (const [k, v] of quizMap.entries()) {
+              if (!v.isFinalAssignment && v.quizTitle.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim()) {
+                quizEntry = v;
+                break;
+              }
+            }
+          }
+
+          if (!quizEntry) {
+            quizEntry = {
+              key: lookupKey,
+              moduleNum: modNumInt,
+              quizTitle: effectiveQuizTitle,
+              isFinalAssignment: false,
+              questions: []
+            };
+            quizMap.set(lookupKey, quizEntry);
           }
         }
       }
 
-      if (!quizEntry) {
-        quizEntry = {
-          moduleNum: modNumInt,
-          quizTitle: effectiveQuizTitle,
-          isFinalAssignment,
-          questions: []
-        };
-        quizMap.set(lookupKey, quizEntry);
-      }
+      activeQuizEntry = quizEntry;
 
       const currentQIndex = quizEntry.questions.length + 1;
       const qNumToDisplay = qNumRaw || String(currentQIndex);
 
-      const locationPrefix = isFinalAssignment
-        ? `Final Assignment`
-        : `Module ${modNumInt}, ${effectiveQuizTitle}`;
+      const locationPrefix = quizEntry.isFinalAssignment
+        ? `Final Assessment`
+        : `Module ${quizEntry.moduleNum}, ${quizEntry.quizTitle}`;
       const questionLocation = `${locationPrefix}, Question ${qNumToDisplay}`;
 
       // Validate Question Text
-      if (!questionText || questionText.trim().length < 3) {
+      if (!questionText || questionText.trim().length === 0) {
         errors.push({
           location: questionLocation,
           field: 'Question Text',
@@ -833,8 +906,8 @@ export function validateCourseExcel(
         });
       }
 
-      // Validate Correct Answer
-      const cleanCorrect = correctRaw.trim().toUpperCase();
+      // Validate Correct Answer with intelligent normalization
+      let cleanCorrect = correctRaw.trim().toUpperCase();
       if (!cleanCorrect) {
         errors.push({
           location: questionLocation,
@@ -844,11 +917,23 @@ export function validateCourseExcel(
           severity: 'BLOCKING'
         });
       } else {
-        const isLetter = ['A', 'B', 'C', 'D'].includes(cleanCorrect);
-        const isNumber = ['1', '2', '3', '4'].includes(cleanCorrect);
-        const matchesOptionText = options.some((opt) => opt && opt.trim().toLowerCase() === correctRaw.trim().toLowerCase());
+        const matchLetter = cleanCorrect.match(/([A-D])/);
+        const matchNum = cleanCorrect.match(/([1-4])/);
+        if (['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          // already valid
+        } else if (matchLetter && cleanCorrect.length <= 10) {
+          cleanCorrect = matchLetter[1];
+        } else if (matchNum && cleanCorrect.length <= 3) {
+          const numVal = parseInt(matchNum[1], 10);
+          cleanCorrect = ['A', 'B', 'C', 'D'][numVal - 1] || cleanCorrect;
+        } else {
+          const optMatchIdx = options.findIndex((opt) => opt && opt.trim().toLowerCase() === correctRaw.trim().toLowerCase());
+          if (optMatchIdx >= 0) {
+            cleanCorrect = ['A', 'B', 'C', 'D'][optMatchIdx];
+          }
+        }
 
-        if (!isLetter && !isNumber && !matchesOptionText) {
+        if (!['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
           errors.push({
             location: questionLocation,
             field: 'Correct Answer',
@@ -861,14 +946,47 @@ export function validateCourseExcel(
 
       // Push valid question record
       quizEntry.questions.push({
-        id: `q-${modNumInt}-${currentQIndex}`,
+        id: `q-${quizEntry.moduleNum}-${currentQIndex}`,
         question: questionText || `Question ${currentQIndex}`,
         options: [optA || 'Option A', optB || 'Option B', optC || 'Option C', optD || 'Option D'],
         correctAnswer: cleanCorrect,
         explanation: explanation || '',
         points: parseInt(pointsRaw, 10) || 10
       });
+
+      if (passScoreRaw) {
+        const parsedPass = parseInt(passScoreRaw, 10);
+        if (!isNaN(parsedPass) && parsedPass > 0) {
+          quizEntry.passingScore = parsedPass;
+        }
+      }
     });
+  }
+
+  // Consolidate orphan / duplicate quizMap entries:
+  // If an entry from Curriculum has 0 questions, but another entry has questions, merge them!
+  for (const [key, quiz] of Array.from(quizMap.entries())) {
+    if (quiz.questions.length === 0) {
+      if (quiz.isFinalAssignment) {
+        const otherFinal = Array.from(quizMap.values()).find(
+          (q) => q !== quiz && q.isFinalAssignment && q.questions.length > 0
+        );
+        if (otherFinal) {
+          quiz.questions = otherFinal.questions;
+          if (otherFinal.passingScore) quiz.passingScore = otherFinal.passingScore;
+          quizMap.delete(otherFinal.key);
+        }
+      } else {
+        const siblingWithQuestions = Array.from(quizMap.values()).find(
+          (q) => q !== quiz && q.moduleNum === quiz.moduleNum && !q.isFinalAssignment && q.questions.length > 0
+        );
+        if (siblingWithQuestions && !siblingWithQuestions.lessonRef) {
+          quiz.questions = siblingWithQuestions.questions;
+          if (siblingWithQuestions.passingScore) quiz.passingScore = siblingWithQuestions.passingScore;
+          quizMap.delete(siblingWithQuestions.key);
+        }
+      }
+    }
   }
 
   // 8. Quiz Even Number of Questions Rule Validation
@@ -881,7 +999,7 @@ export function validateCourseExcel(
     totalQuestionsCount += qCount;
 
     const quizLoc = quiz.isFinalAssignment
-      ? 'Final Assignment'
+      ? 'Final Assessment'
       : `Module ${quiz.moduleNum}, ${quiz.quizTitle}`;
 
     if (quiz.isFinalAssignment) {
@@ -940,43 +1058,43 @@ export function validateCourseExcel(
   // Also check if any quiz lesson in sections was missed in quizMap
   sections.forEach((sec) => {
     sec.lessons.forEach((les) => {
-      if (les.isFinalAssignment || /final\s*assignment/i.test(les.title || '')) {
+      if (les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '')) {
         finalAssignmentFound = true;
       }
     });
   });
 
-  // 9. Mandatory Final Assignment Validation
+  // 9. Mandatory Final Assessment Validation
   if (!finalAssignmentFound) {
     errors.push({
-      location: 'Final Assignment',
-      field: 'Final Assignment',
-      error: 'Final Assignment is missing',
-      action: 'Please add the required final assignment details before uploading the course.',
+      location: 'Final Assessment',
+      field: 'Final Assessment',
+      error: 'Final Assessment is missing',
+      action: 'Please add the required final assessment details before uploading the course.',
       severity: 'BLOCKING'
     });
   } else {
-    // If final assignment was found as a lesson, check instructions
+    // If final assessment was found as a lesson, check instructions
     const finalLesson = sections
       .flatMap((s) => s.lessons)
-      .find((l) => l.isFinalAssignment || /final\s*assignment/i.test(l.title || ''));
+      .find((l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || ''));
 
     if (finalLesson) {
       if (!finalLesson.title || !finalLesson.title.trim()) {
         errors.push({
-          location: 'Final Assignment',
-          field: 'Assignment Title',
+          location: 'Final Assessment',
+          field: 'Assessment Title',
           error: 'Missing',
-          action: 'Enter assignment title',
+          action: 'Enter assessment title',
           severity: 'BLOCKING'
         });
       }
       if (!finalLesson.description || finalLesson.description.trim().length < 5) {
         errors.push({
-          location: 'Final Assignment',
+          location: 'Final Assessment',
           field: 'Instructions',
           error: 'Missing',
-          action: 'Enter assignment instructions or description',
+          action: 'Enter assessment instructions or description',
           severity: 'BLOCKING'
         });
       }

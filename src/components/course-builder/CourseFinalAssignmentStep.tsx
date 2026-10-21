@@ -31,8 +31,8 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
         const les = lessons[lIdx];
         if (
           les.isFinalAssignment ||
-          (les.type === 'QUIZ' && /final\s*assignment/i.test(les.title || '')) ||
-          /final\s*assignment/i.test(les.title || '')
+          (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || '')) ||
+          /final\s*(assessment|assignment|exam)/i.test(les.title || '')
         ) {
           let parsedQuiz: QuizConfig = { questions: [], passingScore: 80, attemptLimit: 0 };
           if (les.quizData && typeof les.quizData === 'object') {

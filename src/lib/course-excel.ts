@@ -64,9 +64,9 @@ export function cleanQuizTitle(raw?: string | null): string {
   if (!raw) return '';
   const original = String(raw).trim();
   let str = original;
-  // If it's a Final Assignment, preserve it cleanly
-  if (/final\s*assignment/i.test(str)) {
-    return 'Final Assignment';
+  // If it's a Final Assessment or Final Assignment, preserve it cleanly
+  if (/final\s*(assessment|assignment|exam)/i.test(str)) {
+    return /assignment/i.test(str) ? 'Final Assignment' : 'Final Assessment';
   }
   // Strip leading "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
   str = str.replace(/^(quiz|assessment)\s*\d+[\s:\-\.]*/i, '').trim();
@@ -275,7 +275,7 @@ export function downloadCourseExcelTemplate() {
     [
       'Module Title (Write once per module)',
       'Topic / Lesson Title *',
-      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSIGNMENT) *',
+      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *',
       'Duration (mm:ss)',
       'Free Preview (Yes / No)',
       'Written Article Content / Notes (Markdown for Written Articles)'
@@ -404,16 +404,16 @@ export function buildGuideInstructionsSheet(styles: any) {
       '1. Navigate to the "Course Details" tab.\n2. Enter your course Title, Category, Language, Skill Level, and Pricing.\n3. All core topic fields are highlighted in BOLD font, and essential fields are marked with "REQUIRED" status.\n4. For "What Students Will Learn", "Prerequisites", and "Target Audience", separate each bullet point with a semicolon (;).'
     ],
     [
-      '🎥 STEP 2: Curriculum Content Types (LECTURE, ARTICLE, QUIZ, FINAL ASSIGNMENT)',
-      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSIGNMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in "Quizzes & MCQs").'
+      '🎥 STEP 2: Curriculum Content Types (LECTURE, ARTICLE, QUIZ, FINAL ASSESSMENT)',
+      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSESSMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in "Quizzes & MCQs"). You can also specify FINAL ASSIGNMENT.'
     ],
     [
-      '🏆 STEP 3: Mandatory Final Assignment & Certificate Gate',
-      'Every course MUST have a "Final Assignment" at the end of the curriculum before it can be submitted for approval!\n• Content Type: FINAL ASSIGNMENT (or name the topic "Final Assignment").\n• Questions & Passing Score: Add comprehensive questions in the "Quizzes & MCQs" tab with your desired Passing Score (%) (e.g. 75% or 80%).\n• Certificate Eligibility: When a student passes this Final Assignment, they immediately unlock the official verifiable Certificate of Completion. If they score below the passing score, they receive retake and review options.'
+      '🏆 STEP 3: Mandatory Final Assessment & Certificate Gate',
+      'Every course MUST have a "Final Assessment" (or Final Assignment) at the end of the curriculum before it can be submitted for approval!\n• Content Type: FINAL ASSESSMENT (or FINAL ASSIGNMENT, or name the topic "Final Assessment").\n• Questions & Passing Score: Add comprehensive questions in the "Quizzes & MCQs" tab with your desired Passing Score (%) (e.g. 75% or 80%).\n• Certificate Eligibility: When a student passes this Final Assessment, they immediately unlock the official verifiable Certificate of Completion. If they score below the passing score, they receive retake and review options.'
     ],
     [
       '💯 STEP 4: Quiz Passing Score, Even Questions Rule & Marks per Question',
-      'In the "Quizzes & MCQs" tab:\n• EVEN NUMBER OF QUESTIONS RULE: Every Quiz and Final Assignment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts (like 1, 3, 5, 7) are strictly NOT accepted and cannot be published!\n• MARKS PER QUESTION: Specify individual marks in Column L (default 10 marks per question).\n• PASSING SCORE (%): Set the passing percentage in Column K (e.g. 70% or 80%). When a student passes, the player automatically advances; when they score below, they receive retake options.'
+      'In the "Quizzes & MCQs" tab:\n• EVEN NUMBER OF QUESTIONS RULE: Every Quiz and Final Assessment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts (like 1, 3, 5, 7) are strictly NOT accepted and cannot be published!\n• MARKS PER QUESTION: Specify individual marks in Column L (default 10 marks per question).\n• PASSING SCORE (%): Set the passing percentage in Column K (e.g. 70% or 80%). When a student passes, the player automatically advances; when they score below, they receive retake options.'
     ],
     [
       '📹 STEP 5: Bulk Video Uploading (Supports up to 500 MB / 300 MB Videos)',
@@ -429,11 +429,11 @@ export function buildGuideInstructionsSheet(styles: any) {
     ],
     [
       '🚫 STEP 8: Clean Titles (Avoid Redundant Numbering Prefixes)',
-      'Do not manually type prefixes like "Module 1:" or "Lecture 1:" in the title cells. The LMS platform automatically numbers and formats all modules (Module 1, Module 2) and lessons (Lecture 1, Article 1, Quiz 1, Final Assignment) dynamically!'
+      'Do not manually type prefixes like "Module 1:" or "Lecture 1:" in the title cells. The LMS platform automatically numbers and formats all modules (Module 1, Module 2) and lessons (Lecture 1, Article 1, Quiz 1, Final Assessment) dynamically!'
     ],
     [
       '🚀 STEP 9: Save & Upload Spreadsheet into Course Builder',
-      'After filling in your details, save your Excel spreadsheet (.xlsx). In the LMS Course Builder, click the "Upload Excel (.xlsx)" button and select your file. Your entire curriculum, articles, quizzes, and Final Assignment will be generated automatically in seconds!'
+      'After filling in your details, save your Excel spreadsheet (.xlsx). In the LMS Course Builder, click the "Upload Excel (.xlsx)" button and select your file. Your entire curriculum, articles, quizzes, and Final Assessment will be generated automatically in seconds!'
     ]
   ];
 
@@ -657,7 +657,7 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     [
       'Module Title (Write once per module)',
       'Topic / Lesson Title *',
-      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSIGNMENT) *',
+      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *',
       'Duration (mm:ss)',
       'Free Preview (Yes / No)',
       'Written Article Content / Notes (Markdown for Written Articles)'
@@ -672,8 +672,8 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     } else {
       lessons.forEach((les: any, lIdx: number) => {
         let typeStr = 'LECTURE';
-        if (les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*assignment/i.test(les.title || '')) || /final\s*assignment/i.test(les.title || '')) {
-          typeStr = 'FINAL ASSIGNMENT';
+        if (les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || '')) || /final\s*(assessment|assignment|exam)/i.test(les.title || '')) {
+          typeStr = /assignment/i.test(les.title || '') ? 'FINAL ASSIGNMENT' : 'FINAL ASSESSMENT';
         } else if (les.type === 'TEXT' || les.type === 'ARTICLE') {
           typeStr = 'ARTICLE';
         } else if (les.type === 'QUIZ') {
@@ -741,7 +741,7 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
           try { qData = JSON.parse(qData); } catch {}
         }
         const questions = Array.isArray(qData?.questions) ? qData.questions : [];
-        const isFinal = Boolean(les.isFinalAssignment || /final\s*assignment/i.test(les.title || ''));
+        const isFinal = Boolean(les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || ''));
         const passingScore = qData?.passingScore || (isFinal ? 80 : 70);
         questions.forEach((q: any, qIdx: number) => {
           const opts = Array.isArray(q.options) ? q.options : [];
@@ -749,7 +749,7 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
           const letter = ['A', 'B', 'C', 'D'][correctIdx] || 'A';
           quizzesAOA.push([
             qIdx === 0 ? (sec.title || 'Module') : '',
-            qIdx === 0 ? (les.title || (isFinal ? 'Final Assignment' : 'Quiz')) : '',
+            qIdx === 0 ? (les.title || (isFinal ? 'Final Assessment' : 'Quiz')) : '',
             qIdx + 1,
             q.question || '',
             opts[0] || '',
@@ -1029,6 +1029,8 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           'module'
         );
         const lessonTypeRaw = findField([
+          'content type (lecture / article / quiz / final assessment) *',
+          'content type (lecture / article / quiz / final assessment)',
           'content type (lecture / article / quiz / final assignment) *',
           'content type (lecture / article / quiz / final assignment)',
           'content type (lecture / article / quiz) *',
@@ -1107,7 +1109,7 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
         // 2. Lecture / Lesson Creation:
         if (rawLessonTitle || lessonDesc || durationStr) {
           const typeUpper = (lessonTypeRaw || '').toUpperCase();
-          const isExplicitFinal = /final\s*assignment/i.test(typeUpper);
+          const isExplicitFinal = /final\s*(assessment|assignment|exam)/i.test(typeUpper);
           const isExplicitQuiz = isExplicitFinal || /quiz|assessment|mcq|exam/i.test(typeUpper);
           const isExplicitArticle = !isExplicitFinal && !isExplicitQuiz && /article|text|written|note|reading/i.test(typeUpper);
           const isExplicitLecture = !isExplicitFinal && !isExplicitQuiz && !isExplicitArticle && /lecture|video/i.test(typeUpper);
@@ -1115,13 +1117,13 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           // Only fall back to title heuristics if Content Type column was blank/unspecified
           const hasExplicitType = isExplicitFinal || isExplicitQuiz || isExplicitArticle || isExplicitLecture;
 
-          const isFinalAssignment = isExplicitFinal || /final\s*assignment/i.test(rawLessonTitle);
+          const isFinalAssignment = isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle);
           const isQuiz = isFinalAssignment || isExplicitQuiz || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
           const isText = !isFinalAssignment && !isQuiz && (isExplicitArticle || (!hasExplicitType && /article|notes|reading/i.test(rawLessonTitle)));
           const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
 
           const finalLessonTitle = isFinalAssignment
-            ? 'Final Assignment'
+            ? (rawLessonTitle && /assignment/i.test(rawLessonTitle) ? 'Final Assignment' : 'Final Assessment')
             : isQuiz
             ? (cleanQuizTitle(rawLessonTitle) || '')
             : cleanedLessonTitle;
@@ -1283,81 +1285,129 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
 
         const secOrder = activeSection.order || 1;
         const isFinalAssignment =
-          /final\s*assignment/i.test(quizTitleRaw) ||
-          /final\s*assignment/i.test(moduleIdentifier);
+          /final\s*(assessment|assignment|exam)/i.test(quizTitleRaw) ||
+          /final\s*(assessment|assignment|exam)/i.test(moduleIdentifier) ||
+          (!quizTitleRaw && activeQuizLesson?.isFinalAssignment);
         const cleanedQuizTitle = isFinalAssignment
-          ? 'Final Assignment'
+          ? (quizTitleRaw && /assignment/i.test(quizTitleRaw) ? 'Final Assignment' : 'Final Assessment')
           : quizTitleRaw
           ? cleanQuizTitle(quizTitleRaw)
           : '';
 
-        // 2. Resolve Target Quiz Lesson inside activeSection:
-        if (quizTitleRaw) {
+        // 2. Resolve Target Quiz Lesson:
+        if (isFinalAssignment) {
+          // Final Assessment resolves across any section to ensure accurate single-lesson binding
+          let foundQuiz = sections
+            .flatMap((s) => s.lessons)
+            .find((l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || ''));
+
+          if (!foundQuiz) {
+            const lastSec = sections[sections.length - 1] || activeSection;
+            foundQuiz = lastSec.lessons.find((l) => l.type === 'QUIZ' && (!l.quizData || (l.quizData as any).questions?.length === 0));
+            if (foundQuiz) {
+              foundQuiz.isFinalAssignment = true;
+              foundQuiz.title = 'Final Assessment';
+            }
+          }
+
+          if (!foundQuiz) {
+            const targetSec = sections[sections.length - 1] || activeSection;
+            foundQuiz = {
+              id: `les-${Date.now()}-${targetSec.order}-${targetSec.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
+              title: 'Final Assessment',
+              description: 'Mandatory comprehensive final assessment for certificate qualification.',
+              type: 'QUIZ',
+              duration: '30:00',
+              durationSeconds: 1800,
+              isFree: false,
+              isPublished: true,
+              isFinalAssignment: true,
+              order: targetSec.lessons.length + 1,
+              quizData: {
+                questions: [],
+                passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 80 : 80,
+                attemptLimit: 0
+              },
+              subLessons: []
+            };
+            targetSec.lessons.push(foundQuiz);
+          } else {
+            foundQuiz.isFinalAssignment = true;
+            if (!foundQuiz.title || /quiz/i.test(foundQuiz.title)) {
+              foundQuiz.title = 'Final Assessment';
+            }
+          }
+
+          activeQuizLesson = foundQuiz;
+        } else if (quizTitleRaw) {
           // Explicit Quiz Title given on this row:
           let foundQuiz = activeSection.lessons.find((l) => {
-            if (l.type !== 'QUIZ') return false;
-            if (isFinalAssignment && (l.isFinalAssignment || /final\s*assignment/i.test(l.title || ''))) return true;
+            if (l.type !== 'QUIZ' || l.isFinalAssignment) return false;
             if (cleanedQuizTitle && l.title.toLowerCase().trim() === cleanedQuizTitle.toLowerCase().trim()) return true;
             if (l.title.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()) return true;
             return false;
           });
 
           if (!foundQuiz) {
+            // If activeSection has only 1 QUIZ lesson (excluding final assessment), bind to it!
+            const quizzesInSec = activeSection.lessons.filter((l) => l.type === 'QUIZ' && !l.isFinalAssignment);
+            if (quizzesInSec.length === 1) {
+              foundQuiz = quizzesInSec[0];
+            }
+          }
+
+          if (!foundQuiz) {
             // Check if there is an empty QUIZ lesson created by curriculum with no questions yet
             foundQuiz = activeSection.lessons.find(
-              (l) => l.type === 'QUIZ' && (!l.quizData || (l.quizData as any).questions?.length === 0)
+              (l) => l.type === 'QUIZ' && !l.isFinalAssignment && (!l.quizData || (l.quizData as any).questions?.length === 0)
             );
             if (foundQuiz) {
-              foundQuiz.title = cleanedQuizTitle;
-              if (isFinalAssignment) foundQuiz.isFinalAssignment = true;
+              foundQuiz.title = cleanedQuizTitle || 'Quiz';
             }
           }
 
           if (!foundQuiz) {
             foundQuiz = {
               id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-              title: isFinalAssignment ? 'Final Assignment' : cleanedQuizTitle,
-              description: isFinalAssignment ? 'Mandatory Final Assignment for Certification' : `Assessment for Module ${secOrder}`,
+              title: cleanedQuizTitle || 'Quiz',
+              description: `Assessment for Module ${secOrder}`,
               type: 'QUIZ',
-              duration: isFinalAssignment ? '30:00' : '10:00',
-              durationSeconds: isFinalAssignment ? 1800 : 600,
+              duration: '10:00',
+              durationSeconds: 600,
               isFree: false,
               isPublished: true,
-              isFinalAssignment: isFinalAssignment,
+              isFinalAssignment: false,
               order: activeSection.lessons.length + 1,
               quizData: {
                 questions: [],
-                passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || (isFinalAssignment ? 80 : 70) : (isFinalAssignment ? 80 : 70),
+                passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
                 attemptLimit: 0
               },
               subLessons: []
             };
             activeSection.lessons.push(foundQuiz);
-          } else if (isFinalAssignment) {
-            foundQuiz.isFinalAssignment = true;
-            foundQuiz.title = 'Final Assignment';
           }
 
           activeQuizLesson = foundQuiz;
         } else {
           // Quiz Title is BLANK on this row: inherit activeQuizLesson!
           if (!activeQuizLesson || !activeSection.lessons.some((l) => l.id === activeQuizLesson!.id)) {
-            activeQuizLesson = activeSection.lessons.find((l) => l.type === 'QUIZ') || null;
+            activeQuizLesson = activeSection.lessons.find((l) => l.type === 'QUIZ' && !l.isFinalAssignment) || null;
             if (!activeQuizLesson) {
               activeQuizLesson = {
                 id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-                title: isFinalAssignment ? 'Final Assignment' : '',
-                description: isFinalAssignment ? 'Mandatory Final Assignment for Certification' : `Assessment for Module ${secOrder}`,
+                title: 'Quiz',
+                description: `Assessment for Module ${secOrder}`,
                 type: 'QUIZ',
-                duration: isFinalAssignment ? '30:00' : '10:00',
-                durationSeconds: isFinalAssignment ? 1800 : 600,
+                duration: '10:00',
+                durationSeconds: 600,
                 isFree: false,
                 isPublished: true,
-                isFinalAssignment: isFinalAssignment,
+                isFinalAssignment: false,
                 order: activeSection.lessons.length + 1,
                 quizData: {
                   questions: [],
-                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || (isFinalAssignment ? 80 : 70) : (isFinalAssignment ? 80 : 70),
+                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
                   attemptLimit: 0
                 },
                 subLessons: []
@@ -1369,8 +1419,26 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
 
         const quizLesson = activeQuizLesson;
 
-        // Parse correct option index
-        const cleanCorrect = correctRaw.trim().toUpperCase();
+        // Parse correct option index with intelligent normalization
+        let cleanCorrect = (correctRaw || '').trim().toUpperCase();
+        const matchLetter = cleanCorrect.match(/([A-D])/);
+        const matchNum = cleanCorrect.match(/([1-4])/);
+        if (['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+          // already valid
+        } else if (matchLetter && cleanCorrect.length <= 10) {
+          cleanCorrect = matchLetter[1];
+        } else if (matchNum && cleanCorrect.length <= 3) {
+          const numVal = parseInt(matchNum[1], 10);
+          cleanCorrect = ['A', 'B', 'C', 'D'][numVal - 1] || cleanCorrect;
+        } else {
+          const optMatchIdx = [optA, optB, optC, optD].findIndex(
+            (opt) => opt && opt.trim().toLowerCase() === correctRaw.trim().toLowerCase()
+          );
+          if (optMatchIdx >= 0) {
+            cleanCorrect = ['A', 'B', 'C', 'D'][optMatchIdx];
+          }
+        }
+
         let correctIndex = 0;
         if (cleanCorrect === 'B' || cleanCorrect === '2') correctIndex = 1;
         else if (cleanCorrect === 'C' || cleanCorrect === '3') correctIndex = 2;
@@ -1492,15 +1560,15 @@ export function mergeExcelSectionsForUpdateVersion(
       // Clone original lessons to preserve IDs, resources, videoUrls, content
       const mergedLessons: BuilderLesson[] = origSec.lessons.map((l) => ({ ...l }));
 
-      // Find final assignment if present in original or parsed
+      // Find final assessment / assignment if present in original or parsed
       const origFinalIdx = mergedLessons.findIndex(
-        (l) => l.isFinalAssignment || /final\s+assignment/i.test(l.title || '')
+        (l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')
       );
       const parsedFinal = parsedSec.lessons?.find(
-        (l) => l.isFinalAssignment || /final\s+assignment/i.test(l.title || '')
+        (l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')
       );
 
-      // Final assignment can be updated
+      // Final assessment / assignment can be updated
       if (origFinalIdx !== -1 && parsedFinal) {
         mergedLessons[origFinalIdx] = {
           ...mergedLessons[origFinalIdx],
@@ -1516,8 +1584,8 @@ export function mergeExcelSectionsForUpdateVersion(
 
       // Check for newly added lessons in this parsed section
       (parsedSec.lessons || []).forEach((parsedLes) => {
-        // Skip if this is the final assignment already handled
-        if (parsedLes.isFinalAssignment || /final\s+assignment/i.test(parsedLes.title || '')) {
+        // Skip if this is the final assessment already handled
+        if (parsedLes.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(parsedLes.title || '')) {
           if (origFinalIdx !== -1) return;
         }
 

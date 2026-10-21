@@ -73,7 +73,7 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
     (sec.lessons || []).forEach((les: any) => {
       const isFinalAssignment = Boolean(
         les.isFinalAssignment ||
-        /final\s+assignment/i.test(les.title?.trim() || '')
+        /final\s*(assessment|assignment|exam)/i.test(les.title?.trim() || '')
       );
 
       const isQuiz =
@@ -93,8 +93,9 @@ export function generateCurriculumDisplayMap(sections: any[]): Map<string, Forma
       const baseClean = cleanLessonTitle(les.title);
 
       if (isFinalAssignment) {
-        const typeLabel = 'Final Assignment';
-        const display = baseClean ? `Final Assignment: ${baseClean}` : 'Final Assignment';
+        const isAssignment = les.title && /assignment/i.test(les.title);
+        const typeLabel = isAssignment ? 'Final Assignment' : 'Final Assessment';
+        const display = baseClean ? `${typeLabel}: ${baseClean}` : typeLabel;
         map.set(les.id, {
           id: les.id,
           itemNumber: 1,

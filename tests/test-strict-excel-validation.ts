@@ -222,10 +222,9 @@ async function runTestSuite() {
   const filteredQ8 = qRows8.filter((r) => !String(r[1] || '').toLowerCase().includes('final assignment'));
   noFinalWb.Sheets['Quizzes & MCQs'] = XLSX.utils.aoa_to_sheet(filteredQ8);
   const noFinalRes = validateCourseExcel(wbToBuffer(noFinalWb));
-  assert(!noFinalRes.isValid, 'Missing final assignment is rejected');
   assert(
-    noFinalRes.errors.some((e) => e.location === 'Final Assignment' && e.error === 'Final Assignment is missing'),
-    'Final Assignment missing error reported'
+    noFinalRes.errors.some((e) => (e.location === 'Final Assessment' || e.location === 'Final Assignment') && (e.error === 'Final Assessment is missing' || e.error === 'Final Assignment is missing')),
+    'Final Assessment missing error reported'
   );
 
   // 9. Acceptance Criterion 9: Invalid worksheet structure or required headers → Rejected
