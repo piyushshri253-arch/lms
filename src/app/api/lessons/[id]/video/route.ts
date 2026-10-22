@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { analyzeExternalVideoSource } from '@/lib/mediaStorage';
+import { findCrossCourseVideoCollisions, isPlaceholderOrSampleVideo } from '@/lib/video-deduplication';
 
 export async function PUT(
   req: NextRequest,
@@ -36,6 +37,43 @@ export async function PUT(
       const analysis = analyzeExternalVideoSource(cleanVideoUrl);
       if (analysis.isValid) {
         cleanVideoUrl = analysis.cleanUrl;
+      }
+    }
+
+    // Strict Check: Validate that video is NOT already used in another course
+    if (!isPlaceholderOrSampleVideo(cleanVideoUrl)) {
+      const collisions = await findCrossCourseVideoCollisions(
+        [{ url: cleanVideoUrl, sectionTitle: lesson.section.title, lessonTitle: lesson.title }],
+        lesson.section.courseId
+      );
+
+      if (collisions.length > 0) {
+        const col = collisions[0];
+        return NextResponse.json(
+          {
+            error: `Duplicate Video Detected: This video is already in use in course "${col.existingCourseTitle}" (Module: "${col.existingSectionTitle}", Lecture: "${col.existingLessonTitle}"). Reusing videos across courses is strictly prohibited. Each course must have unique video content.`
+          },
+          { status: 400 }
+        );
+      }
+
+      // Also check if assigned to another lecture within the same course
+      const sameCourseMatch = await prisma.lesson.findFirst({
+        where: {
+          videoUrl: cleanVideoUrl,
+          id: { not: lessonId },
+          section: { courseId: lesson.section.courseId }
+        },
+        select: { title: true }
+      });
+
+      if (sameCourseMatch) {
+        return NextResponse.json(
+          {
+            error: `Duplicate Video Detected: This video is already assigned to lecture "${sameCourseMatch.title}" in this course. Each lecture must have a unique video.`
+          },
+          { status: 400 }
+        );
       }
     }
 

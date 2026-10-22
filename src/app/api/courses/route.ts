@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTenantRole, getCurrentUser, enforceTenantPlanLimits, handleAuthError } from '@/lib/auth';
 import { z } from 'zod';
+import { validateVideoUniquenessForCourse } from '@/lib/video-deduplication';
 
 export async function GET(request: Request) {
   try {
@@ -354,6 +355,18 @@ export async function POST(request: Request) {
     }
 
     const data = result.data;
+
+    // Strict Cross-Course & Intra-Course Video Uniqueness Check
+    if (data.sections && Array.isArray(data.sections) && data.sections.length > 0) {
+      const uniquenessCheck = await validateVideoUniquenessForCourse(data.sections);
+      if (!uniquenessCheck.isValid) {
+        return NextResponse.json(
+          { error: uniquenessCheck.error || 'Duplicate video detected. Each course must have unique video content.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const resolvedCatName = data.category || data.categoryName || 'Engineering';
 
     // Find or create category inside this organization

@@ -381,6 +381,7 @@ export function validateCourseExcel(
   const sections: BuilderSection[] = [];
   let currentSection: BuilderSection | null = null;
   let activeModuleIndex = 0;
+  const seenVideoUrlMap = new Map<string, string>();
 
   // Track raw curriculum rows for precise error reporting
   rawCurriculumObjects.forEach((row, rowIdx) => {
@@ -617,6 +618,23 @@ export function validateCourseExcel(
             action: 'Enter a valid supported URL',
             severity: 'BLOCKING'
           });
+        } else {
+          // Check for duplicate video URL within this Excel spreadsheet
+          const normKey = cleanUrl.toLowerCase().replace(/\/+$/, '');
+          const isSample = /mov_bbb\.mp4|bigbuckbunny|sample|elephantsdream|forbiggerblazes/i.test(normKey);
+          if (!isSample && !normKey.startsWith('blob:') && !normKey.startsWith('data:')) {
+            if (seenVideoUrlMap.has(normKey)) {
+              errors.push({
+                location: lessonLocation,
+                field: 'Video URL',
+                error: `Duplicate Video URL: This video URL is already assigned to "${seenVideoUrlMap.get(normKey)}". Each lecture must have a unique video.`,
+                action: 'Assign a unique video file or URL to this lecture.',
+                severity: 'BLOCKING'
+              });
+            } else {
+              seenVideoUrlMap.set(normKey, `${lessonLocation} ("${cleanedLessonTitle || 'Lecture'}")`);
+            }
+          }
         }
       }
     }

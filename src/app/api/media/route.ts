@@ -38,7 +38,18 @@ export async function GET(req: NextRequest) {
     const allAssetUrls = assets.map((a) => a.url);
     const linkedLessons = await prisma.lesson.findMany({
       where: { videoUrl: { in: allAssetUrls } },
-      select: { id: true, title: true, videoUrl: true, section: { select: { title: true, course: { select: { title: true } } } } }
+      select: {
+        id: true,
+        title: true,
+        videoUrl: true,
+        section: {
+          select: {
+            title: true,
+            courseId: true,
+            course: { select: { id: true, title: true } }
+          }
+        }
+      }
     });
 
     const urlToLessonMap = new Map<string, any[]>();
@@ -49,6 +60,7 @@ export async function GET(req: NextRequest) {
           id: l.id,
           title: l.title,
           sectionTitle: l.section.title,
+          courseId: l.section.course.id,
           courseTitle: l.section.course.title
         });
         urlToLessonMap.set(l.videoUrl, existing);

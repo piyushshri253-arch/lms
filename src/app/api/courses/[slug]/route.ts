@@ -17,6 +17,7 @@ import {
 } from '@/lib/course-versioning';
 import { getCourseSecurityPolicy } from '@/lib/content-security';
 import { createNotification } from '@/lib/notification';
+import { validateVideoUniquenessForCourse } from '@/lib/video-deduplication';
 
 export async function GET(
   request: Request,
@@ -517,6 +518,17 @@ export async function PUT(
           }
         });
         categoryId = newCat.id;
+      }
+    }
+
+    // Strict Cross-Course & Intra-Course Video Uniqueness Check
+    if (body.sections && Array.isArray(body.sections)) {
+      const uniquenessCheck = await validateVideoUniquenessForCourse(body.sections, course.id);
+      if (!uniquenessCheck.isValid) {
+        return NextResponse.json(
+          { error: uniquenessCheck.error || 'Duplicate video detected. Each course must have unique video content.' },
+          { status: 400 }
+        );
       }
     }
 

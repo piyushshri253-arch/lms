@@ -11,6 +11,7 @@ import {
   analyzeExternalVideoSource,
   ensureVideoUploadDir
 } from '@/lib/mediaStorage';
+import { findCrossCourseVideoCollisions, isPlaceholderOrSampleVideo } from '@/lib/video-deduplication';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -185,6 +186,33 @@ export async function POST(req: NextRequest) {
         if (existingCourse) validCourseId = existingCourse.id;
       }
 
+      // Check if this video file was already uploaded and attached to another course
+      if (isVideoFile && validCourseId) {
+        const duplicateAsset = await prisma.mediaAsset.findFirst({
+          where: {
+            type: 'VIDEO',
+            sizeBytes: file.size,
+            name: { in: [assetName, file.name, cleanBase] },
+            AND: [
+              { courseId: { not: validCourseId } },
+              { courseId: { not: null } }
+            ]
+          }
+        });
+        if (duplicateAsset && duplicateAsset.courseId) {
+          const otherCourse = await prisma.course.findUnique({
+            where: { id: duplicateAsset.courseId },
+            select: { title: true }
+          });
+          return NextResponse.json(
+            {
+              error: `Duplicate Video Detected: This video file (${file.name}) was already uploaded for course "${otherCourse?.title || duplicateAsset.courseId}". Instructors cannot reuse the same video across different courses.`
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       if (rawLessonId && !rawLessonId.startsWith('les-') && !rawLessonId.startsWith('sub-')) {
         const existingLesson = await prisma.lesson
           .findUnique({
@@ -320,6 +348,24 @@ export async function POST(req: NextRequest) {
     const analysis = analyzeExternalVideoSource(url);
     if (!analysis.isValid) {
       return NextResponse.json({ error: analysis.errorMessage || 'Invalid video URL.' }, { status: 400 });
+    }
+
+    // Strict Cross-Course Duplicate Check on External Stream URL
+    if (!isPlaceholderOrSampleVideo(analysis.cleanUrl)) {
+      const collisions = await findCrossCourseVideoCollisions(
+        [{ url: analysis.cleanUrl, sectionTitle: 'External Stream', lessonTitle: title || 'External Video' }],
+        courseId || undefined
+      );
+
+      if (collisions.length > 0) {
+        const col = collisions[0];
+        return NextResponse.json(
+          {
+            error: `Duplicate Video Detected: This video URL is already in use in course "${col.existingCourseTitle}" (Module: "${col.existingSectionTitle}", Lecture: "${col.existingLessonTitle}"). Reusing videos across courses is strictly prohibited. Each course must have unique video content.`
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const assetName = title || `${analysis.provider} Lecture Asset`;

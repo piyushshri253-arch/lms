@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { validateCourseExcel } from '@/lib/course-excel-validator';
+import { validateVideoUniquenessForCourse } from '@/lib/video-deduplication';
 
 // 25MB maximum upload limit for course Excel files
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
@@ -82,6 +83,43 @@ export async function POST(request: Request) {
 
     // Run authoritative server-side validation
     const validationResult = validateCourseExcel(buffer, { requireVideoReference });
+
+    // Strict Check: Verify that parsed video URLs are NOT already used in other courses in DB
+    if (validationResult.parsedData?.sections) {
+      try {
+        const uniquenessCheck = await validateVideoUniquenessForCourse(
+          validationResult.parsedData.sections
+        );
+
+        if (!uniquenessCheck.isValid) {
+          validationResult.isValid = false;
+
+          for (const col of uniquenessCheck.collisions) {
+            validationResult.blockingCount += 1;
+            validationResult.errors.push({
+              location: `${col.incomingSectionTitle}, ${col.incomingLessonTitle}`,
+              field: 'Video URL',
+              error: `Duplicate Video Detected: This video URL (${col.videoUrl}) is already in use in course "${col.existingCourseTitle}" (Module: "${col.existingSectionTitle}", Lecture: "${col.existingLessonTitle}"). Reusing videos across courses is strictly prohibited. Each course must have unique video recordings.`,
+              action: 'Provide a new, unique video recording for this lecture.',
+              severity: 'BLOCKING'
+            });
+          }
+
+          for (const intra of uniquenessCheck.intraDuplicates) {
+            validationResult.blockingCount += 1;
+            validationResult.errors.push({
+              location: intra.lessons.map((l) => `${l.sectionTitle} -> ${l.lessonTitle}`).join(', '),
+              field: 'Video URL',
+              error: `Duplicate Video in Template: Video URL (${intra.url}) is assigned to multiple lectures in this spreadsheet.`,
+              action: 'Assign a unique video to each lecture.',
+              severity: 'BLOCKING'
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('Error during cross-course video uniqueness validation:', err);
+      }
+    }
 
     // Secure Audit Log
     console.log('[Excel Validation Audit]', {
