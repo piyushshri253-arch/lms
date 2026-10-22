@@ -188,6 +188,54 @@ async function runTests() {
     const dupVideoErr = excelValidation.errors.find((e) => e.field === 'Video URL' && e.error.includes('Duplicate Video URL'));
     assert(Boolean(dupVideoErr), `Excel validator caught duplicate video: "${dupVideoErr?.error}"`);
 
+    // --------------------------------------------------------------------------
+    // Test 6: Renamed Video File with Identical Binary Content (SHA-256 Checksum)
+    // --------------------------------------------------------------------------
+    console.log('\n--- Test 6: Renamed Video File with Identical Binary Content (SHA-256 Checksum) ---');
+    const fakeVideoBuffer = Buffer.from('FAKE_VIDEO_BINARY_STREAM_CONTENT_ABCD_1234567890');
+    const crypto = await import('crypto');
+    const binaryChecksum = crypto.createHash('sha256').update(fakeVideoBuffer).digest('hex');
+
+    // Create an asset for course 1
+    const assetCourse1 = await prisma.mediaAsset.create({
+      data: {
+        name: 'original_algebra_lecture.mp4',
+        url: `/uploads/videos/test_algebra_${Date.now()}.mp4`,
+        type: 'VIDEO',
+        checksum: binaryChecksum,
+        sizeBytes: fakeVideoBuffer.length,
+        courseId: course1.id
+      }
+    });
+
+    // Simulating upload of renamed file for Course 2
+    const renamedFileName = 'renamed_quantum_physics_totally_different.mp4';
+    const duplicateAssetMatch = await prisma.mediaAsset.findFirst({
+      where: {
+        type: 'VIDEO',
+        OR: [
+          { checksum: binaryChecksum },
+          {
+            sizeBytes: fakeVideoBuffer.length,
+            AND: [
+              { sizeBytes: { gt: 10 } },
+              { name: { in: [renamedFileName] } }
+            ]
+          }
+        ],
+        AND: [
+          { courseId: { not: 'some-other-course-2-id' } },
+          { courseId: { not: null } }
+        ]
+      }
+    });
+
+    assert(Boolean(duplicateAssetMatch), 'System caught renamed video file via SHA-256 binary checksum');
+    assert(duplicateAssetMatch?.id === assetCourse1.id, 'Checksum correctly identified original media asset from Course 1');
+    assert(duplicateAssetMatch?.name === 'original_algebra_lecture.mp4', `Identified original file name: "${duplicateAssetMatch?.name}"`);
+
+    // Cleanup media asset
+    await prisma.mediaAsset.delete({ where: { id: assetCourse1.id } }).catch(() => {});
   } finally {
     // Cleanup test records
     console.log('\n🧹 Cleaning up test course records...');

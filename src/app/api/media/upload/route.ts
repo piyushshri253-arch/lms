@@ -12,6 +12,7 @@ import {
   ensureVideoUploadDir
 } from '@/lib/mediaStorage';
 import { findCrossCourseVideoCollisions, isPlaceholderOrSampleVideo } from '@/lib/video-deduplication';
+import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
         .replace(/\s+/g, '_') || (isVideoFile ? 'lecture' : 'resource');
       const safeFilename = `${Date.now()}_${cleanBase}${ext || (isVideoFile ? '.mp4' : '.doc')}`;
       const buffer = Buffer.from(await file.arrayBuffer());
+      const fileChecksum = crypto.createHash('sha256').update(buffer).digest('hex');
 
       const publicVideoUrl = `/uploads/videos/${safeFilename}`;
 
@@ -186,27 +188,41 @@ export async function POST(req: NextRequest) {
         if (existingCourse) validCourseId = existingCourse.id;
       }
 
-      // Check if this video file was already uploaded and attached to another course
-      if (isVideoFile && validCourseId) {
+      // Strict Tamper-Proof Check: Detect duplicate video content even if instructor RENAMED the file
+      if (isVideoFile) {
         const duplicateAsset = await prisma.mediaAsset.findFirst({
           where: {
             type: 'VIDEO',
-            sizeBytes: file.size,
-            name: { in: [assetName, file.name, cleanBase] },
+            OR: [
+              { checksum: fileChecksum },
+              {
+                sizeBytes: file.size,
+                AND: [
+                  { sizeBytes: { gt: 1024 } },
+                  { name: { in: [assetName, file.name, cleanBase] } }
+                ]
+              }
+            ],
             AND: [
-              { courseId: { not: validCourseId } },
+              ...(validCourseId ? [{ courseId: { not: validCourseId } }] : []),
               { courseId: { not: null } }
             ]
           }
         });
+
         if (duplicateAsset && duplicateAsset.courseId) {
           const otherCourse = await prisma.course.findUnique({
             where: { id: duplicateAsset.courseId },
             select: { title: true }
           });
+          const wasRenamed = duplicateAsset.name !== file.name && duplicateAsset.name !== assetName;
+          const renameNote = wasRenamed
+            ? `Although the video file was renamed to "${file.name}", the underlying video content is identical to "${duplicateAsset.name}"`
+            : `This video file (${file.name})`;
+
           return NextResponse.json(
             {
-              error: `Duplicate Video Detected: This video file (${file.name}) was already uploaded for course "${otherCourse?.title || duplicateAsset.courseId}". Instructors cannot reuse the same video across different courses.`
+              error: `Duplicate Video Content Detected: ${renameNote}, which is already in use in course "${otherCourse?.title || duplicateAsset.courseId}". Instructors cannot reuse the same video recordings across different courses even by renaming the file.`
             },
             { status: 400 }
           );
@@ -293,6 +309,7 @@ export async function POST(req: NextRequest) {
             type: isImageFile ? 'IMAGE' : isDocFile ? 'DOCUMENT' : 'VIDEO',
             provider: 'DIRECT_UPLOAD',
             format: (ext || '').replace('.', '') || (isVideoFile ? 'mp4' : 'doc'),
+            checksum: fileChecksum,
             sizeBytes: file.size,
             durationSeconds,
             durationText,
@@ -313,6 +330,7 @@ export async function POST(req: NextRequest) {
               type: isImageFile ? 'IMAGE' : isDocFile ? 'DOCUMENT' : 'VIDEO',
               provider: 'DIRECT_UPLOAD',
               format: (ext || '').replace('.', '') || (isVideoFile ? 'mp4' : 'doc'),
+              checksum: fileChecksum,
               sizeBytes: file.size,
               durationSeconds,
               durationText,

@@ -1169,6 +1169,7 @@ model MediaAsset {
   type            String        // IMAGE, VIDEO, DOCUMENT, PDF
   provider        String        @default("LOCAL") // DIRECT_UPLOAD, S3, CLOUDINARY, YOUTUBE, VIMEO, HLS_STREAM, CDN_STORAGE, EXTERNAL_URL
   format          String?       // mp4, webm, mov, m3u8, etc.
+  checksum        String?       // SHA-256 fingerprint for tamper-proof content deduplication
   sizeBytes       Int           @default(0)
   durationSeconds Int           @default(0)
   durationText    String        @default("10:00")
