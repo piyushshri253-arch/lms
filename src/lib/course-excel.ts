@@ -1236,7 +1236,7 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           const isFinalAssignment =
             (isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle)) &&
             !/^(module\s*\d+\s*)?quiz/i.test(rawLessonTitle.trim());
-          const isQuiz = isFinalAssignment || isExplicitQuiz || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
+          const isQuiz = isFinalAssignment || isExplicitQuiz || /quiz|mcq/i.test(rawLessonTitle) || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
           const isText = !isFinalAssignment && !isQuiz && (isExplicitArticle || (!hasExplicitType && /article|notes|reading/i.test(rawLessonTitle)));
           const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
 
