@@ -86,7 +86,7 @@ export interface CourseVersionState {
   liveVersionLabel: string; // e.g., "v1.0"
   pendingVersionNumber: number | null;
   pendingVersionLabel: string | null; // e.g., "v2.0"
-  status: 'LIVE_SYNCED' | 'DRAFT_VERSION' | 'PENDING_REVIEW' | 'VERSION_REJECTED';
+  status: 'LIVE_SYNCED' | 'DRAFT_VERSION' | 'PENDING_REVIEW' | 'VERSION_REJECTED' | 'APPROVED';
   detectedChanges: DetectedCourseChange[];
   stagedSnapshot: StagedCourseSnapshot | null;
   submittedAt: string | null;
@@ -96,6 +96,12 @@ export interface CourseVersionState {
   reviewerFeedback: string | null;
   history: CourseVersionHistoryEntry[];
   updatedAt: string;
+  uploadedExcel?: {
+    fileName: string;
+    fileSize?: number;
+    fileData?: string;
+    uploadedAt?: string;
+  } | null;
 }
 
 export const DEFAULT_COURSE_VERSION_STATE = (courseId: string): CourseVersionState => ({
@@ -953,7 +959,8 @@ export async function applyMinorUpdateToLiveCourse(
 }
 
 /**
- * Applies a staged version snapshot to the Live PUBLISHED course once approved by an Auditor / Reviewer / Super Admin.
+ * Applies a staged version snapshot by publishing Version 2.0+ as a SEPARATE LIVE COURSE
+ * in the database alongside Version 1.0, preserving Version 1.0 completely untouched (zero deletions, zero overwrites).
  */
 export async function applyApprovedVersionToLiveCourse(
   courseId: string,
@@ -973,148 +980,152 @@ export async function applyApprovedVersionToLiveCourse(
   }
 
   const snap = versionState.stagedSnapshot;
-  const nextVersionNumber = (versionState.liveVersionNumber || 1) + 1;
-  const nextVersionLabel = `v${nextVersionNumber}.0`;
-  const previousLiveLessonIds = course.sections.flatMap((s) => s.lessons).map((l) => l.id);
-  const allAppliedLessonIds: string[] = [];
+  const nextVersionNumber = versionState.pendingVersionNumber || ((versionState.liveVersionNumber || 1) + 1);
+  const nextVersionLabel = versionState.pendingVersionLabel || `v${nextVersionNumber}.0`;
+  const currentLiveVersionNumber = versionState.liveVersionNumber || 1;
+  const currentLiveVersionLabel = versionState.liveVersionLabel || `v${currentLiveVersionNumber}.0`;
 
-  if (snap) {
+  // 1. Ensure original course (v1.0 or current live version) is cleanly labeled with its version
+  //    and remains 100% active and untouched (no lessons or sections deleted or overwritten!)
+  const baseTitle = course.title.replace(/\s*\(v\d+(\.\d+)?\)\s*$/i, '').trim();
+  const baseSlug = course.slug.replace(/-v\d+$/i, '').trim();
+
+  // If original course title doesn't end with (v...), append (v1.0)
+  if (!/\(v\d+(\.\d+)?\)$/i.test(course.title)) {
     await prisma.course.update({
       where: { id: course.id },
       data: {
-        title: snap.title !== undefined ? snap.title : course.title,
-        description: snap.description !== undefined ? snap.description : course.description,
-        shortDescription: snap.shortDescription !== undefined ? snap.shortDescription : course.shortDescription,
-        price: snap.price !== undefined ? Number(snap.price) : course.price,
-        discountPrice: snap.discountPrice !== undefined ? snap.discountPrice : course.discountPrice,
-        currency: snap.currency !== undefined ? snap.currency : course.currency,
-        level: snap.level !== undefined ? snap.level : course.level,
-        language: snap.language !== undefined ? snap.language : course.language,
-        durationHours: snap.durationHours !== undefined ? Number(snap.durationHours) : course.durationHours,
-        thumbnail: snap.thumbnail !== undefined ? snap.thumbnail : course.thumbnail,
-        banner: snap.banner !== undefined ? snap.banner : course.banner,
-        accessType: snap.accessType !== undefined ? snap.accessType : course.accessType,
-        accessDays: snap.accessDays !== undefined ? snap.accessDays : course.accessDays,
-        whatYouWillLearn: snap.whatYouWillLearn ? JSON.stringify(snap.whatYouWillLearn) : course.whatYouWillLearn,
-        requirements: snap.requirements ? JSON.stringify(snap.requirements) : course.requirements,
-        targetAudience: snap.targetAudience ? JSON.stringify(snap.targetAudience) : course.targetAudience,
-        seoTitle: snap.seoTitle !== undefined ? snap.seoTitle : course.seoTitle,
-        seoDescription: snap.seoDescription !== undefined ? snap.seoDescription : course.seoDescription,
-        status: 'PUBLISHED',
-        reviewedAt: new Date(),
-        reviewedById: reviewer.id,
-        reviewFeedback: reviewerNote || null
+        title: `${baseTitle} (${currentLiveVersionLabel})`
+      }
+    }).catch(() => {});
+  }
+
+  // 2. Generate unique slug and title for the new upgraded version course
+  let newSlug = `${baseSlug}-v${nextVersionNumber}`;
+  const slugCollision = await prisma.course.findFirst({
+    where: {
+      slug: newSlug,
+      ...(course.organizationId ? { organizationId: course.organizationId } : {})
+    }
+  });
+  if (slugCollision) {
+    newSlug = `${baseSlug}-v${nextVersionNumber}-${Date.now().toString(36).slice(-4)}`;
+  }
+
+  const newTitle = snap?.title
+    ? (/\(v\d+(\.\d+)?\)$/i.test(snap.title)
+        ? snap.title
+        : `${snap.title.replace(/\s*\(v\d+(\.\d+)?\)\s*$/i, '').trim()} (${nextVersionLabel})`)
+    : `${baseTitle} (${nextVersionLabel})`;
+
+  // 3. Create the NEW Course record in Prisma for Version 2.0+
+  const newCourse = await prisma.course.create({
+    data: {
+      organizationId: course.organizationId,
+      instructorId: course.instructorId,
+      categoryId: course.categoryId,
+      title: newTitle,
+      slug: newSlug,
+      description: snap?.description !== undefined ? snap.description : course.description,
+      shortDescription: snap?.shortDescription !== undefined ? snap.shortDescription : course.shortDescription,
+      price: snap?.price !== undefined ? Number(snap.price) : course.price,
+      discountPrice: snap?.discountPrice !== undefined ? snap.discountPrice : course.discountPrice,
+      currency: snap?.currency || course.currency,
+      level: snap?.level || course.level,
+      language: snap?.language || course.language,
+      durationHours: snap?.durationHours !== undefined ? Number(snap.durationHours) : course.durationHours,
+      thumbnail: snap?.thumbnail !== undefined ? snap.thumbnail : course.thumbnail,
+      banner: snap?.banner !== undefined ? snap.banner : course.banner,
+      accessType: snap?.accessType || course.accessType,
+      accessDays: snap?.accessDays !== undefined ? snap.accessDays : course.accessDays,
+      whatYouWillLearn: snap?.whatYouWillLearn ? JSON.stringify(snap.whatYouWillLearn) : course.whatYouWillLearn,
+      requirements: snap?.requirements ? JSON.stringify(snap.requirements) : course.requirements,
+      targetAudience: snap?.targetAudience ? JSON.stringify(snap.targetAudience) : course.targetAudience,
+      seoTitle: snap?.seoTitle !== undefined ? snap.seoTitle : course.seoTitle,
+      seoDescription: snap?.seoDescription !== undefined ? snap.seoDescription : course.seoDescription,
+      status: 'PUBLISHED',
+      reviewedAt: new Date(),
+      reviewedById: reviewer.id,
+      reviewFeedback: reviewerNote || null
+    }
+  });
+
+  // 4. Populate Curriculum Sections and Lessons for the NEW course
+  const allAppliedLessonIds: string[] = [];
+  const sectionsSource = (snap?.sections && Array.isArray(snap.sections) && snap.sections.length > 0)
+    ? snap.sections
+    : course.sections.map((s) => ({
+        title: s.title,
+        order: s.order,
+        description: s.description || undefined,
+        lessons: s.lessons.map((l) => ({
+          title: l.title,
+          description: l.description || undefined,
+          type: l.type,
+          content: l.content,
+          videoUrl: l.videoUrl,
+          pdfUrl: l.pdfUrl,
+          fileUrl: l.fileUrl,
+          quizData: l.quizData,
+          duration: l.duration,
+          durationSeconds: l.durationSeconds,
+          isFree: l.isFree,
+          isPublished: l.isPublished,
+          order: l.order,
+          resources: (l as any).resources || '[]'
+        }))
+      }));
+
+  for (let sIdx = 0; sIdx < sectionsSource.length; sIdx++) {
+    const secData = sectionsSource[sIdx];
+    const createdSection = await prisma.courseSection.create({
+      data: {
+        courseId: newCourse.id,
+        title: secData.title || `Module ${sIdx + 1}`,
+        description: (secData as any).description || null,
+        order: secData.order || sIdx + 1
       }
     });
 
-    // Apply staged sections & lessons
-    if (snap.sections && Array.isArray(snap.sections)) {
-      const incomingSectionIds: string[] = [];
-      for (let sIdx = 0; sIdx < snap.sections.length; sIdx++) {
-        const secData = snap.sections[sIdx];
-        let section = course.sections.find((s) => s.id === secData.id);
-        if (section) {
-          section = await prisma.courseSection.update({
-            where: { id: section.id },
-            data: {
-              title: secData.title || `Module ${sIdx + 1}`,
-              order: secData.order || sIdx + 1
-            },
-            include: { lessons: true }
-          });
-        } else {
-          section = await prisma.courseSection.create({
-            data: {
-              courseId: course.id,
-              title: secData.title || `Module ${sIdx + 1}`,
-              order: secData.order || sIdx + 1
-            },
-            include: { lessons: true }
-          });
-        }
-        incomingSectionIds.push(section.id);
+    if (secData.lessons && Array.isArray(secData.lessons)) {
+      for (let lIdx = 0; lIdx < secData.lessons.length; lIdx++) {
+        const lesData = secData.lessons[lIdx];
+        const quizDataStr =
+          typeof lesData.quizData === 'object' && lesData.quizData !== null
+            ? JSON.stringify(lesData.quizData)
+            : typeof lesData.quizData === 'string'
+            ? lesData.quizData
+            : null;
 
-        if (secData.lessons && Array.isArray(secData.lessons)) {
-          const incomingLessonIds: string[] = [];
-          for (let lIdx = 0; lIdx < secData.lessons.length; lIdx++) {
-            const lesData = secData.lessons[lIdx];
-            const quizDataStr =
-              typeof lesData.quizData === 'object' && lesData.quizData !== null
-                ? JSON.stringify(lesData.quizData)
-                : typeof lesData.quizData === 'string'
-                ? lesData.quizData
-                : null;
-            const existingLesson = (section.lessons || []).find((l) => l.id === lesData.id);
-            if (existingLesson) {
-              const updatedLesson = await prisma.lesson.update({
-                where: { id: existingLesson.id },
-                data: {
-                  title: lesData.title,
-                  type: lesData.type || 'VIDEO',
-                  content: lesData.content !== undefined ? lesData.content : undefined,
-                  videoUrl: lesData.videoUrl !== undefined ? lesData.videoUrl : undefined,
-                  pdfUrl: lesData.pdfUrl !== undefined ? lesData.pdfUrl : undefined,
-                  fileUrl: lesData.fileUrl !== undefined ? lesData.fileUrl : undefined,
-                  quizData: quizDataStr,
-                  duration: lesData.duration || '10:00',
-                  durationSeconds: lesData.durationSeconds || 600,
-                  isFree: lesData.isFree !== undefined ? !!lesData.isFree : undefined,
-                  isPublished: lesData.isPublished !== undefined ? lesData.isPublished : undefined,
-                  order: lesData.order || lIdx + 1
-                }
-              });
-              incomingLessonIds.push(updatedLesson.id);
-              allAppliedLessonIds.push(updatedLesson.id);
-            } else {
-              const newLesson = await prisma.lesson.create({
-                data: {
-                  sectionId: section.id,
-                  title: lesData.title || `Lesson ${lIdx + 1}`,
-                  type: lesData.type || 'VIDEO',
-                  content: lesData.content || null,
-                  videoUrl: lesData.videoUrl || null,
-                  pdfUrl: lesData.pdfUrl || null,
-                  fileUrl: lesData.fileUrl || null,
-                  quizData: quizDataStr,
-                  duration: lesData.duration || '10:00',
-                  durationSeconds: lesData.durationSeconds || 600,
-                  isFree: !!lesData.isFree,
-                  isPublished: lesData.isPublished !== false,
-                  order: lesData.order || lIdx + 1
-                }
-              });
-              incomingLessonIds.push(newLesson.id);
-              allAppliedLessonIds.push(newLesson.id);
-            }
+        const effectiveType = lesData.type || (quizDataStr ? 'QUIZ' : 'VIDEO');
+
+        const createdLesson = await prisma.lesson.create({
+          data: {
+            sectionId: createdSection.id,
+            title: lesData.title || `Lesson ${lIdx + 1}`,
+            description: (lesData as any).description || null,
+            type: effectiveType,
+            content: lesData.content || null,
+            videoUrl: lesData.videoUrl || null,
+            pdfUrl: lesData.pdfUrl || null,
+            fileUrl: lesData.fileUrl || null,
+            quizData: quizDataStr,
+            duration: lesData.duration || '10:00',
+            durationSeconds: lesData.durationSeconds || 600,
+            isFree: !!lesData.isFree,
+            isPublished: lesData.isPublished !== false,
+            resources: (lesData as any).resources || '[]',
+            order: lesData.order || lIdx + 1
           }
-          const lessonsToDelete = (section.lessons || []).filter((l) => !incomingLessonIds.includes(l.id));
-          for (const lToDel of lessonsToDelete) {
-            await prisma.lesson.delete({ where: { id: lToDel.id } }).catch(() => {});
-          }
-        }
-      }
-      const sectionsToDelete = course.sections.filter((s) => !incomingSectionIds.includes(s.id));
-      for (const sToDel of sectionsToDelete) {
-        await prisma.courseSection.delete({ where: { id: sToDel.id } }).catch(() => {});
+        });
+        allAppliedLessonIds.push(createdLesson.id);
       }
     }
   }
 
-  const existingHistory = (versionState.history || []).map((h) => {
-    const updatedH: CourseVersionHistoryEntry = {
-      ...h,
-      status: 'SUPERSEDED'
-    };
-    if (h.versionNumber === (versionState.liveVersionNumber || 1) && (!h.lessonIds || h.lessonIds.length === 0)) {
-      updatedH.lessonIds = previousLiveLessonIds;
-    }
-    return updatedH;
-  });
-
-  const totalModules = snap?.sections?.length || course.sections.length;
-  const totalLessons =
-    snap?.sections?.reduce((acc, s) => acc + (s.lessons?.length || 0), 0) ||
-    course.sections.reduce((acc, s) => acc + s.lessons.length, 0);
+  // 5. Version History Entry for New Course
+  const totalModules = sectionsSource.length;
+  const totalLessons = sectionsSource.reduce((acc, s) => acc + (s.lessons?.length || 0), 0);
 
   const newHistoryEntry: CourseVersionHistoryEntry = {
     versionNumber: nextVersionNumber,
@@ -1130,13 +1141,30 @@ export async function applyApprovedVersionToLiveCourse(
     price: snap?.price !== undefined ? Number(snap.price) : course.price,
     modulesCount: totalModules,
     lessonsCount: totalLessons,
-    lessonIds: snap?.sections ? allAppliedLessonIds : previousLiveLessonIds,
+    lessonIds: allAppliedLessonIds,
     snapshot: snap || undefined
   };
 
-  const updatedState = await saveCourseVersionState(course.id, {
+  // 6. Save Version State for the NEW Course (Version 2.0+)
+  await saveCourseVersionState(newCourse.id, {
     liveVersionNumber: nextVersionNumber,
     liveVersionLabel: nextVersionLabel,
+    pendingVersionNumber: null,
+    pendingVersionLabel: null,
+    status: 'LIVE_SYNCED',
+    detectedChanges: [],
+    stagedSnapshot: null,
+    uploadedExcel: versionState.uploadedExcel || null,
+    reviewedAt: new Date().toISOString(),
+    reviewedBy: `${reviewer.name} (${reviewer.role})`,
+    reviewerFeedback: reviewerNote || null,
+    history: [newHistoryEntry]
+  });
+
+  // 7. Clear staged draft on the original course (Version 1.0) and keep it LIVE_SYNCED
+  const updatedOriginalState = await saveCourseVersionState(course.id, {
+    liveVersionNumber: currentLiveVersionNumber,
+    liveVersionLabel: currentLiveVersionLabel,
     pendingVersionNumber: null,
     pendingVersionLabel: null,
     status: 'LIVE_SYNCED',
@@ -1145,20 +1173,28 @@ export async function applyApprovedVersionToLiveCourse(
     reviewedAt: new Date().toISOString(),
     reviewedBy: `${reviewer.name} (${reviewer.role})`,
     reviewerFeedback: reviewerNote || null,
-    history: [newHistoryEntry, ...existingHistory]
+    history: [newHistoryEntry, ...(versionState.history || [])]
   });
 
+  // 8. Notify Instructor
   if (course.instructorId) {
     await createNotification({
       organizationId: course.organizationId,
       userId: course.instructorId,
-      title: `🎉 Course Version ${nextVersionLabel} Approved & Published!`,
-      message: `Your major updates to "${course.title}" have been approved by ${reviewer.name} and are now LIVE (${nextVersionLabel}).`,
+      title: `🎉 Course Version ${nextVersionLabel} Published Live!`,
+      message: `Your updated course "${newTitle}" is now live as an independent course alongside "${course.title}". Both versions are active!`,
       type: 'COURSES',
       category: 'COURSES',
-      link: `/instructor/course-versions?courseId=${course.id}`
-    });
+      link: `/instructor?tab=PUBLISHED`
+    }).catch(() => {});
   }
 
-  return updatedState;
+  return {
+    ...updatedOriginalState,
+    newCourseId: newCourse.id,
+    newCourseSlug: newCourse.slug,
+    newCourseTitle: newCourse.title,
+    liveVersionLabel: nextVersionLabel,
+    liveVersionNumber: nextVersionNumber
+  };
 }

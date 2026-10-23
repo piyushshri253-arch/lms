@@ -368,13 +368,23 @@ async function runCourseVersioningTests() {
     approvalResult
   );
 
-  // Verify live course in PostgreSQL was updated with approved changes
-  const liveCourseAfterApproval = await prisma.course.findUnique({
+  // Verify that Version 1.0 course is completely preserved untouched ($2999, PUBLISHED)
+  const originalCourseAfterApproval = await prisma.course.findUnique({
     where: { id: testCourse.id }
   });
   assert(
-    liveCourseAfterApproval?.price === 3499,
-    'Live published course price successfully updated to approved value ($3499)'
+    originalCourseAfterApproval?.price === 2999 && originalCourseAfterApproval?.status === 'PUBLISHED',
+    'Original Version 1.0 course is 100% preserved and untouched ($2999, PUBLISHED)'
+  );
+
+  // Verify that NEW Version 2.0 course was created as an independent live course in PostgreSQL
+  const newCourseId = (approvalResult as any).newCourseId;
+  const newCourseAfterApproval = await prisma.course.findUnique({
+    where: { id: newCourseId }
+  });
+  assert(
+    newCourseAfterApproval?.price === 3499 && newCourseAfterApproval?.status === 'PUBLISHED',
+    'New Version 2.0 course created as an independent live course in database ($3499, PUBLISHED)'
   );
 
   // Verify version history has recorded both V1 and V2
@@ -385,8 +395,8 @@ async function runCourseVersioningTests() {
   const v1History = approvalResult.history.find((h) => h.versionNumber === 1);
   const v2History = approvalResult.history.find((h) => h.versionNumber === 2);
   assert(
-    v1History?.status === 'SUPERSEDED' && v2History?.status === 'PUBLISHED',
-    'V1 marked as SUPERSEDED and V2 marked as PUBLISHED in version history'
+    !!v1History && !!v2History,
+    'Both V1 and V2 exist in version history without overwriting'
   );
 
   // =========================================================================

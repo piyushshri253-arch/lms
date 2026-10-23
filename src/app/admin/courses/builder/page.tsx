@@ -839,6 +839,43 @@ function CourseBuilderContent() {
         setOriginalCourseState(JSON.parse(JSON.stringify(loadedState)));
         if (data.versionState) {
           setCourseVersionState(data.versionState);
+          if (data.versionState.uploadedExcel) {
+            setUploadedExcel(data.versionState.uploadedExcel);
+            uploadedExcelRef.current = data.versionState.uploadedExcel;
+            try {
+              localStorage.setItem(excelStorageKey, JSON.stringify(data.versionState.uploadedExcel));
+            } catch {}
+          }
+        }
+
+        // Fallback: check localStorage for cached excel file info
+        if (!uploadedExcelRef.current) {
+          try {
+            const raw =
+              localStorage.getItem(excelStorageKey) ||
+              localStorage.getItem(`morena_uploaded_excel_${c.id}`) ||
+              localStorage.getItem(`morena_uploaded_excel_${c.slug}`);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed?.fileName) {
+                setUploadedExcel(parsed);
+                uploadedExcelRef.current = parsed;
+              }
+            }
+          } catch {}
+        }
+
+        // If still null and course has content, provide synthetic record so user can download & replace
+        if (!uploadedExcelRef.current && (c.sections?.length > 0 || c.status === 'PUBLISHED' || c.status === 'ARCHIVED')) {
+          const exportName = `${(c.slug || c.title || 'Course_Curriculum').replace(/[^a-zA-Z0-9_\-]/g, '_')}_v${data.versionState?.liveVersionNumber || 1}.0.xlsx`;
+          const syntheticRecord: UploadedExcelRecord = {
+            fileName: exportName,
+            fileSize: 24576,
+            fileData: '',
+            uploadedAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : new Date().toISOString()
+          };
+          setUploadedExcel(syntheticRecord);
+          uploadedExcelRef.current = syntheticRecord;
         }
       }
     } catch {
@@ -1908,7 +1945,7 @@ function CourseBuilderContent() {
     if (!uploadedExcel) return;
 
     try {
-      if (uploadedExcel.fileData) {
+      if (uploadedExcel.fileData && uploadedExcel.fileData.startsWith('data:')) {
         // Direct download of the exact uploaded file
         const link = document.createElement('a');
         link.href = uploadedExcel.fileData;
@@ -1923,10 +1960,11 @@ function CourseBuilderContent() {
         });
       } else {
         // Fallback: export populated course spreadsheet
-        exportCourseToExcelFile(courseStateRef.current, uploadedExcel.fileName || `${courseStateRef.current.slug || 'Course'}_Curriculum.xlsx`);
+        const dlName = uploadedExcel.fileName || `${(courseStateRef.current.slug || courseStateRef.current.title || 'Course_Curriculum').replace(/[^a-zA-Z0-9_\-]/g, '_')}.xlsx`;
+        exportCourseToExcelFile(courseStateRef.current, dlName);
         showToast({
-          title: 'Excel Downloaded 📥',
-          description: `Exported populated course curriculum spreadsheet. Edit in Excel and re-upload here.`,
+          title: 'Course Excel Downloaded 📥',
+          description: `Downloaded "${dlName}". Add new modules & quizzes in Excel, then click Replace to update!`,
           type: 'success'
         });
       }

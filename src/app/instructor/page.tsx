@@ -229,6 +229,30 @@ function InstructorCoursesStudioInner() {
   const handleSubmitForApproval = async (courseId: string, courseSlug?: string) => {
     setActionInProgressId(courseId);
     try {
+      const targetCourse = courses.find((c) => c.id === courseId);
+      if (targetCourse?.hasDraftVersion && (targetCourse.status === 'PUBLISHED' || targetCourse.status === 'ARCHIVED')) {
+        const res = await fetch('/api/instructor/course-versions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'SUBMIT_FOR_REVIEW', courseId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to submit version draft for review');
+
+        setCourses((prev) =>
+          prev.map((c) => (c.id === courseId ? { ...c, versionStatus: 'PENDING_REVIEW' } : c))
+        );
+
+        showToast({
+          title: 'Version Draft Submitted! 🛡️',
+          description: data.message || 'Version draft submitted to Course Auditor for approval.',
+          type: 'success'
+        });
+        notifyCoursesChanged();
+        fetchInstructorCourses(true);
+        return;
+      }
+
       const identifier = courseSlug || courseId;
       const res = await fetch(`/api/courses/${identifier}/publish`, {
         method: 'POST',
@@ -251,6 +275,7 @@ function InstructorCoursesStudioInner() {
         type: 'success'
       });
       notifyCoursesChanged();
+      fetchInstructorCourses(true);
     } catch (err: any) {
       showToast({
         title: 'Submission Incomplete',
@@ -278,26 +303,24 @@ function InstructorCoursesStudioInner() {
         throw new Error(data.error || 'Failed to publish course');
       }
 
-      setCourses((prev) =>
-        prev.map((c) => (c.id === courseId ? { ...c, status: 'PUBLISHED' } : c))
-      );
-
       showToast({
         title: 'Course Published Live! 🚀',
-        description: 'Your approved course is now live on the landing page for student enrollments.',
+        description: data.message || 'Your course is now published live on the platform.',
         type: 'success'
       });
       notifyCoursesChanged();
+      fetchInstructorCourses(true);
     } catch (err: any) {
       showToast({
-        title: 'Publishing Error',
-        description: err.message || 'Failed to publish course.',
+        title: 'Publish Failed',
+        description: err.message || 'Could not publish course live.',
         type: 'error'
       });
     } finally {
       setActionInProgressId(null);
     }
   };
+
 
   // Move course back to Draft state (Unpublish)
   const handleMoveToDraft = async (course: CourseAuthored) => {

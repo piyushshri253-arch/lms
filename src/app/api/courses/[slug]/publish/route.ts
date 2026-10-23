@@ -236,10 +236,10 @@ export async function POST(
         targetStatus = 'PUBLISHED';
         responseMessage = 'Congratulations! Your approved course is now published live on the platform! 🚀';
       } else if (course.status === 'PUBLISHED') {
-        // When an already-published course is submitted for approval after editing:
-        // Set status to IN_REVIEW so Course Auditor and Admins can review and approve the updated content!
-        targetStatus = 'IN_REVIEW';
-        responseMessage = 'Course updates submitted for Super Admin & Auditor review! Once approved, your changes will be published live.';
+        // When an already-published course has its version draft submitted for review:
+        // KEEP course.status = 'PUBLISHED' in the DB so live students continue learning without disruption!
+        targetStatus = 'PUBLISHED';
+        responseMessage = 'Course updates submitted for Super Admin & Auditor review! The live version remains active for students.';
       } else if (course.status === 'IN_REVIEW') {
         targetStatus = 'IN_REVIEW';
         responseMessage = 'Course curriculum updates successfully submitted for Super Admin & Auditor review!';
@@ -277,8 +277,11 @@ export async function POST(
       try {
         const { getCourseVersionState, applyApprovedVersionToLiveCourse } = await import('@/lib/course-versioning');
         const verState = await getCourseVersionState(course.id);
-        if (verState.stagedSnapshot && (course.status === 'APPROVED' || verState.status === 'PENDING_REVIEW')) {
-          await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
+        if (verState.stagedSnapshot && (course.status === 'APPROVED' || verState.status === 'PENDING_REVIEW' || verState.status === 'APPROVED' || isPublishingApprovedCourse)) {
+          const applied = await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
+          if (applied?.newCourseTitle) {
+            responseMessage = `Version ${applied.liveVersionLabel} published live as an independent course ("${applied.newCourseTitle}"). Both versions are active! 🚀`;
+          }
         }
       } catch (verErr) {
         console.error('[Publish Version Sync Error]:', verErr);
@@ -311,16 +314,20 @@ export async function POST(
       }
     }
 
-    if (targetStatus === 'IN_REVIEW') {
+    const shouldNotifyReviewers = targetStatus === 'IN_REVIEW' || (course.status === 'PUBLISHED' && targetStatus === 'PUBLISHED' && !isPublishingApprovedCourse);
+    if (shouldNotifyReviewers) {
       // Also update version state to PENDING_REVIEW if course versioning is active
       try {
         const { getCourseVersionState, saveCourseVersionState } = await import('@/lib/course-versioning');
         const verState = await getCourseVersionState(course.id);
         if (verState.stagedSnapshot || verState.status === 'DRAFT_VERSION') {
+          const nextLabel = verState.pendingVersionLabel || `v${(verState.liveVersionNumber || 1) + 1}.0`;
           await saveCourseVersionState(course.id, {
             status: 'PENDING_REVIEW',
+            pendingVersionLabel: nextLabel,
             submittedAt: new Date().toISOString(),
-            submittedBy: user.name
+            submittedBy: user.name,
+            reviewerFeedback: null
           });
         }
       } catch {}
