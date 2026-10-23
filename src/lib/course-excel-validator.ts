@@ -963,9 +963,6 @@ export function validateCourseExcel(
 
           if (!quizEntry) {
             let targetSec = sections.find((s) => s.order === modNumInt) || sections[modNumInt - 1];
-            if (!targetSec && sections.length > 0) {
-              targetSec = sections[Math.min(modNumInt - 1, sections.length - 1)];
-            }
             if (!targetSec) {
               targetSec = {
                 id: `sec-${modNumInt}`,

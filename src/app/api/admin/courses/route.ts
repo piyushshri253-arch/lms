@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       const hasDraftVersion = Boolean(
         c.status === 'PUBLISHED' &&
         verState &&
-        (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW')
+        (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW' || verState.status === 'APPROVED')
       );
       return {
         id: c.id,
@@ -95,47 +95,7 @@ export async function GET(request: Request) {
       };
     });
 
-    const versionDraftItems: any[] = [];
-    if (!status || status === 'DRAFT') {
-      for (const course of courses) {
-        const verState = versionMap.get(course.id);
-        const hasDraftVersion = Boolean(
-          course.status === 'PUBLISHED' &&
-          verState &&
-          (verState.status === 'DRAFT_VERSION' ||
-           (verState.status === 'PENDING_REVIEW' && course.status === 'PUBLISHED'))
-        );
-        if (hasDraftVersion) {
-          const draftVerNumber = verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2);
-          versionDraftItems.push({
-            id: `draft_ver_${course.id}`,
-            originalCourseId: course.id,
-            isVersionDraftItem: true,
-            title: `${course.title} (Draft v${draftVerNumber}.0)`,
-            slug: course.slug,
-            description: verState?.stagedSnapshot?.description || course.description,
-            price: verState?.stagedSnapshot?.price !== undefined ? verState.stagedSnapshot.price : course.price,
-            level: verState?.stagedSnapshot?.level || course.level,
-            category: course.category?.name || 'General',
-            instructor: course.instructor?.name || 'Academic Faculty',
-            instructorAvatar: course.instructor?.avatar,
-            isPublished: false,
-            status: 'DRAFT',
-            hasDraftVersion: false,
-            draftVersionNumber: draftVerNumber,
-            liveVersionNumber: verState?.liveVersionNumber || 1,
-            versionStatus: verState?.status,
-            studentsCount: 0,
-            reviewsCount: 0,
-            modulesCount: verState?.stagedSnapshot?.sections?.length || 0,
-            rating: 5.0,
-            createdAt: verState?.updatedAt || course.createdAt
-          });
-        }
-      }
-    }
-
-    return NextResponse.json({ courses: [...mapped, ...versionDraftItems] });
+    return NextResponse.json({ courses: mapped });
   } catch (error: any) {
     console.error('Error fetching admin courses:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

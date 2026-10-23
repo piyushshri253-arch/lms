@@ -1826,8 +1826,14 @@ export function mergeExcelSectionsForUpdateVersion(
   if (!existingSections || existingSections.length === 0) return parsedSections;
 
   const isFinalExamLesson = (l: BuilderLesson | any): boolean => {
+    if (!l) return false;
+    const rawTitle = String(l?.title || '').trim().toLowerCase();
+    // A regular module quiz like "Quiz", "Module 1 Quiz", "Topic Quiz", "Protocal" is NEVER a final exam
+    if (l?.type === 'QUIZ' && !/final\s*(assessment|assignment|exam)/i.test(rawTitle)) {
+      return false;
+    }
     return Boolean(l?.isFinalAssignment) ||
-      (!/^(module\s*\d+\s*)?quiz/i.test(l?.title || '') && /final\s*(assessment|assignment|exam)/i.test(l?.title || ''));
+      (!/^(module\s*\d+\s*)?quiz/i.test(rawTitle) && /final\s*(assessment|assignment|exam)/i.test(rawTitle));
   };
 
   const normalizeSecKey = (t?: string | null): string => {
@@ -1967,6 +1973,7 @@ export function mergeExcelSectionsForUpdateVersion(
   });
 
   // Now inspect any remaining parsed sections from Excel:
+  const newSectionsToInsert: BuilderSection[] = [];
   parsedSections.forEach((parsedSec, pIdx) => {
     if (matchedParsedIndices.has(pIdx)) return;
 
@@ -2015,7 +2022,7 @@ export function mergeExcelSectionsForUpdateVersion(
     }
 
     // Completely GENUINE NEW module from Excel!
-    const newSecId = `sec-${Date.now()}-${result.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+    const newSecId = `sec-${Date.now()}-${result.length + newSectionsToInsert.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
     const newLessons: BuilderLesson[] = [];
 
     (parsedSec.lessons || []).forEach((l, lIdx) => {
@@ -2030,20 +2037,33 @@ export function mergeExcelSectionsForUpdateVersion(
         clientKey: newLessonId,
         tempId: newLessonId,
         isNewlyAdded: true,
+        isFinalAssignment: isFinalExamLesson(l),
         order: newLessons.length + 1
       });
     });
 
-    result.push({
+    newSectionsToInsert.push({
       ...parsedSec,
       id: newSecId,
       clientKey: newSecId,
       tempId: newSecId,
       isNewlyAdded: true,
-      order: result.length + 1,
+      order: result.length + newSectionsToInsert.length + 1,
       lessons: newLessons
     });
   });
+
+  // Insert new modules before the standalone Final Assessment section (if present at end of course)
+  const finalSecIdxInResult = result.findIndex((s) =>
+    (s.lessons || []).some((l) => isFinalExamLesson(l)) &&
+    ((s.lessons || []).length === 1 || /final\s*(assessment|exam|certification)/i.test(s.title || ''))
+  );
+
+  if (finalSecIdxInResult !== -1 && finalSecIdxInResult === result.length - 1) {
+    result.splice(finalSecIdxInResult, 0, ...newSectionsToInsert);
+  } else {
+    result.push(...newSectionsToInsert);
+  }
 
   // Re-number section and lesson orders cleanly
   return result.map((sec, sIdx) => ({

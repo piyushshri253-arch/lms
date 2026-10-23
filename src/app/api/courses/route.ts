@@ -113,7 +113,7 @@ export async function GET(request: Request) {
       const hasDraftVersion = Boolean(
         course.status === 'PUBLISHED' &&
         verState &&
-        (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW')
+        (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW' || verState.status === 'APPROVED')
       );
       const draftVersionNumber = verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2);
       const liveVersionNumber = verState?.liveVersionNumber || 1;
@@ -198,84 +198,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // When managing courses, generate a duplicate draft entry for any published course with a draft version in progress
-    const versionDraftItems: any[] = [];
-    if (manage) {
-      for (const course of courses) {
-        const verState = versionMap.get(course.id);
-        const hasDraftVersion = Boolean(
-          course.status === 'PUBLISHED' &&
-          verState &&
-          (verState.status === 'DRAFT_VERSION' || verState.status === 'PENDING_REVIEW')
-        );
-        if (hasDraftVersion) {
-          const snap = verState?.stagedSnapshot;
-          const draftVersionNumber = verState?.pendingVersionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber + 1 : 2);
-          const liveVersionNumber = verState?.liveVersionNumber || 1;
-
-          versionDraftItems.push({
-            id: `draft_ver_${course.id}`,
-            originalCourseId: course.id,
-            isVersionDraftItem: true,
-            slug: course.slug,
-            organizationId: course.organizationId,
-            title: `${course.title} (Draft v${draftVersionNumber}.0)`,
-            subtitle: snap?.shortDescription || course.shortDescription || '',
-            description: snap?.description || course.description,
-            price: snap?.price !== undefined ? snap.price : course.price,
-            originalPrice: snap?.discountPrice || course.discountPrice || undefined,
-            currency: (course as any).currency || 'INR',
-            category: course.category?.name || 'General',
-            categoryId: course.categoryId,
-            level: snap?.level || course.level,
-            thumbnail: snap?.thumbnail && snap.thumbnail.trim() ? snap.thumbnail.trim() : (course.thumbnail && course.thumbnail.trim() ? course.thumbnail.trim() : null),
-            banner: (snap as any)?.banner && (snap as any).banner.trim() ? (snap as any).banner.trim() : ((course as any).banner && (course as any).banner.trim() ? (course as any).banner.trim() : null),
-            rating: 5.0,
-            reviewsCount: 0,
-            studentsCount: 0,
-            durationHours: snap?.durationHours !== undefined ? snap.durationHours : course.durationHours,
-            language: snap?.language || course.language,
-            subtitles: ['English', 'Hindi'],
-            bestseller: false,
-            isNew: true,
-            status: 'DRAFT',
-            hasDraftVersion: false,
-            draftVersionNumber,
-            liveVersionNumber,
-            versionStatus: verState?.status,
-            reviewFeedback: verState?.reviewerFeedback || null,
-            reviewedAt: verState?.reviewedAt || null,
-            createdAt: verState?.updatedAt || course.updatedAt,
-            updatedAt: verState?.updatedAt || course.updatedAt,
-            accessType: snap?.accessType || (course as any).accessType || 'LIFETIME',
-            accessDays: snap?.accessDays || (course as any).accessDays || null,
-            instructor: {
-              id: course.instructor.id,
-              name: course.instructor.name,
-              title: course.instructor.bio || 'Lead Instructor & Systems Architect',
-              avatar: course.instructor.avatar && course.instructor.avatar.trim() ? course.instructor.avatar.trim() : null
-            },
-            modules: (snap?.sections || course.sections || []).map((sec: any, secIdx: number) => ({
-              id: sec.id || `sec-${secIdx}`,
-              title: sec.title,
-              description: sec.description || '',
-              moduleNumber: secIdx + 1,
-              lessons: (sec.lessons || []).map((les: any) => ({
-                id: les.id,
-                title: les.title,
-                description: les.description || '',
-                duration: les.duration || '10:00',
-                type: les.type || 'VIDEO',
-                isFree: les.isFree || false
-              }))
-            }))
-          });
-        }
-      }
-    }
-
-    const allCourses = [...mappedCourses, ...versionDraftItems];
-    return NextResponse.json({ courses: allCourses });
+    return NextResponse.json({ courses: mappedCourses });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
