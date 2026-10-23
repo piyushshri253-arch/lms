@@ -200,21 +200,6 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
   };
 
   const handleSelectFromLibrary = async (asset: any) => {
-    // Strict Check: Cannot reuse videos across different courses
-    if (asset.usedInLessons && asset.usedInLessons.length > 0) {
-      const otherCourseUsage = asset.usedInLessons.find(
-        (l: any) => l.courseId && l.courseId !== courseId
-      );
-      if (otherCourseUsage) {
-        showToast({
-          title: 'Duplicate Video Not Allowed 🚫',
-          description: `This video is already in use in course "${otherCourseUsage.courseTitle}". Each course must have unique video content.`,
-          type: 'error'
-        });
-        return;
-      }
-    }
-
     if (!lessonId) {
       if (onSuccess) onSuccess(asset.url, asset.durationText);
       handleClose();
@@ -550,72 +535,43 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
               </div>
             ) : (
               <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                {filteredAssets.map((asset) => {
-                  const otherCourseUsage = asset.usedInLessons?.find(
-                    (l: any) => l.courseId && l.courseId !== courseId
-                  );
-
-                  return (
-                    <div
-                      key={asset.id}
-                      className={`p-3 bg-surface-container-low/70 border rounded-2xl flex items-center justify-between gap-3 transition-colors ${
-                        otherCourseUsage
-                          ? 'border-amber-500/40 opacity-80'
-                          : 'border-outline-variant/60 hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                            otherCourseUsage
-                              ? 'bg-amber-500/10 text-amber-600'
-                              : 'bg-primary/10 text-primary'
-                          }`}
-                        >
-                          <Icon name="movie" size={20} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-on-surface truncate">{asset.name}</p>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-on-surface-variant font-mono mt-0.5">
-                            <span className="uppercase px-1.5 py-0.2 rounded bg-surface border border-outline-variant/50 text-primary font-bold">
-                              {asset.provider}
-                            </span>
-                            <span>{asset.durationText || '10:00'}</span>
-                            {asset.sizeBytes > 0 && (
-                              <span>{(asset.sizeBytes / (1024 * 1024)).toFixed(1)} MB</span>
-                            )}
-                            {otherCourseUsage ? (
-                              <span className="text-amber-800 font-bold bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-300">
-                                In use: {otherCourseUsage.courseTitle}
-                              </span>
-                            ) : asset.isUsed ? (
-                              <span className="text-emerald-700 font-bold">Attached ({asset.usedInLessons.length})</span>
-                            ) : null}
-                          </div>
-                        </div>
+                {filteredAssets.map((asset) => (
+                  <div
+                    key={asset.id}
+                    className="p-3 bg-surface-container-low/70 border border-outline-variant/60 hover:border-primary/50 rounded-2xl flex items-center justify-between gap-3 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Icon name="movie" size={20} />
                       </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectFromLibrary(asset)}
-                          className={`px-3 py-1.5 font-bold text-[11px] rounded-xl shadow-xs cursor-pointer ${
-                            otherCourseUsage
-                              ? 'bg-amber-600 text-white hover:bg-amber-700'
-                              : 'bg-primary text-on-primary hover:bg-primary-container'
-                          }`}
-                          title={
-                            otherCourseUsage
-                              ? `Used in "${otherCourseUsage.courseTitle}". Reuse across courses is blocked.`
-                              : 'Attach to lesson'
-                          }
-                        >
-                          {otherCourseUsage ? 'In Another Course' : 'Select & Attach'}
-                        </button>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-on-surface truncate">{asset.name}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-on-surface-variant font-mono mt-0.5">
+                          <span className="uppercase px-1.5 py-0.2 rounded bg-surface border border-outline-variant/50 text-primary font-bold">
+                            {asset.provider}
+                          </span>
+                          <span>{asset.durationText || '10:00'}</span>
+                          {asset.sizeBytes > 0 && (
+                            <span>{(asset.sizeBytes / (1024 * 1024)).toFixed(1)} MB</span>
+                          )}
+                          {asset.isUsed && (
+                            <span className="text-emerald-700 font-bold">Attached ({asset.usedInLessons.length})</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectFromLibrary(asset)}
+                        className="px-3 py-1.5 bg-primary text-on-primary font-bold text-[11px] rounded-xl hover:bg-primary-container shadow-xs cursor-pointer"
+                      >
+                        Select &amp; Attach
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -11,7 +11,6 @@ import {
   analyzeExternalVideoSource,
   ensureVideoUploadDir
 } from '@/lib/mediaStorage';
-import { findCrossCourseVideoCollisions, isPlaceholderOrSampleVideo } from '@/lib/video-deduplication';
 import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
@@ -188,47 +187,6 @@ export async function POST(req: NextRequest) {
         if (existingCourse) validCourseId = existingCourse.id;
       }
 
-      // Strict Tamper-Proof Check: Detect duplicate video content even if instructor RENAMED the file
-      if (isVideoFile) {
-        const duplicateAsset = await prisma.mediaAsset.findFirst({
-          where: {
-            type: 'VIDEO',
-            OR: [
-              { checksum: fileChecksum },
-              {
-                sizeBytes: file.size,
-                AND: [
-                  { sizeBytes: { gt: 1024 } },
-                  { name: { in: [assetName, file.name, cleanBase] } }
-                ]
-              }
-            ],
-            AND: [
-              ...(validCourseId ? [{ courseId: { not: validCourseId } }] : []),
-              { courseId: { not: null } }
-            ]
-          }
-        });
-
-        if (duplicateAsset && duplicateAsset.courseId) {
-          const otherCourse = await prisma.course.findUnique({
-            where: { id: duplicateAsset.courseId },
-            select: { title: true }
-          });
-          const wasRenamed = duplicateAsset.name !== file.name && duplicateAsset.name !== assetName;
-          const renameNote = wasRenamed
-            ? `Although the video file was renamed to "${file.name}", the underlying video content is identical to "${duplicateAsset.name}"`
-            : `This video file (${file.name})`;
-
-          return NextResponse.json(
-            {
-              error: `Duplicate Video Content Detected: ${renameNote}, which is already in use in course "${otherCourse?.title || duplicateAsset.courseId}". Instructors cannot reuse the same video recordings across different courses even by renaming the file.`
-            },
-            { status: 400 }
-          );
-        }
-      }
-
       if (rawLessonId && !rawLessonId.startsWith('les-') && !rawLessonId.startsWith('sub-')) {
         const existingLesson = await prisma.lesson
           .findUnique({
@@ -366,24 +324,6 @@ export async function POST(req: NextRequest) {
     const analysis = analyzeExternalVideoSource(url);
     if (!analysis.isValid) {
       return NextResponse.json({ error: analysis.errorMessage || 'Invalid video URL.' }, { status: 400 });
-    }
-
-    // Strict Cross-Course Duplicate Check on External Stream URL
-    if (!isPlaceholderOrSampleVideo(analysis.cleanUrl)) {
-      const collisions = await findCrossCourseVideoCollisions(
-        [{ url: analysis.cleanUrl, sectionTitle: 'External Stream', lessonTitle: title || 'External Video' }],
-        courseId || undefined
-      );
-
-      if (collisions.length > 0) {
-        const col = collisions[0];
-        return NextResponse.json(
-          {
-            error: `Duplicate Video Detected: This video URL is already in use in course "${col.existingCourseTitle}" (Module: "${col.existingSectionTitle}", Lecture: "${col.existingLessonTitle}"). Reusing videos across courses is strictly prohibited. Each course must have unique video content.`
-          },
-          { status: 400 }
-        );
-      }
     }
 
     const assetName = title || `${analysis.provider} Lecture Asset`;
