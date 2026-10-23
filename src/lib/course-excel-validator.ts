@@ -557,14 +557,17 @@ export function validateCourseExcel(
     }
 
     const typeUpper = (lessonTypeRaw || '').toUpperCase().trim();
-    const isExplicitFinal = /final\s*(assessment|assignment|exam)/i.test(typeUpper);
-    const isExplicitQuiz = isExplicitFinal || /quiz|assessment|mcq|exam/i.test(typeUpper);
+    const hasQuizKeyword = /quiz|mcq/i.test(typeUpper);
+    const isExplicitFinal = !hasQuizKeyword && /final\s*(assessment|assignment|exam)/i.test(typeUpper);
+    const isExplicitQuiz = hasQuizKeyword || isExplicitFinal || /assessment|exam/i.test(typeUpper);
     const isExplicitArticle = !isExplicitFinal && !isExplicitQuiz && /article|text|written|note|reading/i.test(typeUpper);
     const isExplicitLecture = !isExplicitFinal && !isExplicitQuiz && !isExplicitArticle && /lecture|video/i.test(typeUpper);
 
     const hasExplicitType = isExplicitFinal || isExplicitQuiz || isExplicitArticle || isExplicitLecture;
 
-    const isFinalAssignment = isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle);
+    const isFinalAssignment =
+      (isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle)) &&
+      !/^(module\s*\d+\s*)?quiz/i.test(rawLessonTitle.trim());
     const isQuiz = isFinalAssignment || isExplicitQuiz || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
     const isText = !isFinalAssignment && !isQuiz && (isExplicitArticle || (!hasExplicitType && /article|notes|reading/i.test(rawLessonTitle)));
     const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
@@ -624,7 +627,7 @@ export function validateCourseExcel(
     const finalLessonTitle = isFinalAssignment
       ? 'Final Assessment'
       : isQuiz
-      ? cleanQuizTitle(rawLessonTitle) || 'Quiz'
+      ? cleanQuizTitle(rawLessonTitle) || rawLessonTitle || 'Quiz'
       : cleanedLessonTitle;
 
     const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' = isQuiz
@@ -779,7 +782,8 @@ export function validateCourseExcel(
             const matchedSec = sections.find(
               (s) =>
                 cleanModuleTitle(s.title).toLowerCase() === cleanModuleTitle(moduleIdentifier).toLowerCase() ||
-                s.title.toLowerCase().includes(moduleIdentifier.toLowerCase())
+                s.title.toLowerCase().includes(moduleIdentifier.toLowerCase()) ||
+                moduleIdentifier.toLowerCase().includes(cleanModuleTitle(s.title).toLowerCase())
             );
             if (matchedSec) {
               activeModuleKey = String(matchedSec.order);
@@ -788,11 +792,28 @@ export function validateCourseExcel(
             }
           }
         }
+      } else if (quizTitleRaw) {
+        // Module column is blank, but a new quiz title is written on this row
+        const titleModMatch = quizTitleRaw.match(/module\s*(\d+)/i);
+        if (titleModMatch) {
+          activeModuleKey = titleModMatch[1];
+        } else {
+          // Check if this quizTitleRaw uniquely matches a registered quiz in quizMap
+          const candidateQuizzes = Array.from(quizMap.values()).filter(
+            (v) =>
+              !v.isFinalAssignment &&
+              (cleanQuizTitle(v.quizTitle).toLowerCase() === cleanQuizTitle(quizTitleRaw).toLowerCase() ||
+                v.quizTitle.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim())
+          );
+          if (candidateQuizzes.length === 1) {
+            activeModuleKey = String(candidateQuizzes[0].moduleNum);
+          }
+        }
       }
 
       const isFinalAssignment =
-        /final\s*(assessment|assignment|exam)/i.test(quizTitleRaw) ||
-        /final\s*(assessment|assignment|exam)/i.test(moduleIdentifier) ||
+        (/final\s*(assessment|assignment|exam)/i.test(quizTitleRaw) && !/^(module\s*\d+\s*)?quiz/i.test(quizTitleRaw)) ||
+        (/final\s*(assessment|assignment|exam)/i.test(moduleIdentifier) && !/quiz/i.test(moduleIdentifier)) ||
         activeModuleKey === 'final' ||
         (!quizTitleRaw && activeQuizEntry?.isFinalAssignment) ||
         (quizTitleRaw && Boolean(Array.from(quizMap.values()).find(
@@ -926,9 +947,14 @@ export function validateCourseExcel(
           }
 
           if (!quizEntry) {
-            // Try finding by title across quizMap
+            // Try finding by title within this specific module
             for (const [, v] of quizMap.entries()) {
-              if (!v.isFinalAssignment && v.quizTitle.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim()) {
+              if (
+                !v.isFinalAssignment &&
+                v.moduleNum === modNumInt &&
+                (v.quizTitle.toLowerCase().trim() === effectiveQuizTitle.toLowerCase().trim() ||
+                  cleanQuizTitle(v.quizTitle).toLowerCase() === cleanQuizTitle(effectiveQuizTitle).toLowerCase())
+              ) {
                 quizEntry = v;
                 break;
               }
@@ -1357,13 +1383,23 @@ export function validateCourseExcel(
     }
 
     if (qCount === 0) {
-      errors.push({
-        location: quizLoc,
-        field: 'Question Count',
-        error: `${quiz.quizTitle} has 0 questions`,
-        action: 'Add an even number of questions (minimum 2 questions)',
-        severity: 'BLOCKING'
-      });
+      if (quiz.isFinalAssignment) {
+        errors.push({
+          location: quizLoc,
+          field: 'Question Count',
+          error: `${quiz.quizTitle} has 0 questions`,
+          action: 'Add an even number of questions (minimum 2 questions)',
+          severity: 'BLOCKING'
+        });
+      } else {
+        errors.push({
+          location: quizLoc,
+          field: 'Question Count',
+          error: `${quiz.quizTitle} has 0 questions in spreadsheet`,
+          action: 'Add questions in the Quizzes & MCQs sheet or via the Course Builder Question Editor after import',
+          severity: 'WARNING'
+        });
+      }
     } else if (qCount % 2 !== 0) {
       errors.push({
         location: quizLoc,
@@ -1375,7 +1411,7 @@ export function validateCourseExcel(
     }
 
     // Attach validated questions to lesson reference for clean course builder import
-    if (quiz.lessonRef && qCount > 0) {
+    if (quiz.lessonRef) {
       if (!quiz.lessonRef.quizData || typeof quiz.lessonRef.quizData === 'string') {
         quiz.lessonRef.quizData = {
           questions: [],

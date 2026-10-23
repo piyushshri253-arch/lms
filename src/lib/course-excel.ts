@@ -1223,16 +1223,19 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
 
         // 2. Lecture / Lesson Creation:
         if (rawLessonTitle || lessonDesc || durationStr) {
-          const typeUpper = (lessonTypeRaw || '').toUpperCase();
-          const isExplicitFinal = /final\s*(assessment|assignment|exam)/i.test(typeUpper);
-          const isExplicitQuiz = isExplicitFinal || /quiz|assessment|mcq|exam/i.test(typeUpper);
+          const typeUpper = (lessonTypeRaw || '').toUpperCase().trim();
+          const hasQuizKeyword = /quiz|mcq/i.test(typeUpper);
+          const isExplicitFinal = !hasQuizKeyword && /final\s*(assessment|assignment|exam)/i.test(typeUpper);
+          const isExplicitQuiz = hasQuizKeyword || isExplicitFinal || /assessment|exam/i.test(typeUpper);
           const isExplicitArticle = !isExplicitFinal && !isExplicitQuiz && /article|text|written|note|reading/i.test(typeUpper);
           const isExplicitLecture = !isExplicitFinal && !isExplicitQuiz && !isExplicitArticle && /lecture|video/i.test(typeUpper);
 
           // Only fall back to title heuristics if Content Type column was blank/unspecified
           const hasExplicitType = isExplicitFinal || isExplicitQuiz || isExplicitArticle || isExplicitLecture;
 
-          const isFinalAssignment = isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle);
+          const isFinalAssignment =
+            (isExplicitFinal || /final\s*(assessment|assignment|exam)/i.test(rawLessonTitle)) &&
+            !/^(module\s*\d+\s*)?quiz/i.test(rawLessonTitle.trim());
           const isQuiz = isFinalAssignment || isExplicitQuiz || (!hasExplicitType && /quiz|assessment|mcq/i.test(rawLessonTitle));
           const isText = !isFinalAssignment && !isQuiz && (isExplicitArticle || (!hasExplicitType && /article|notes|reading/i.test(rawLessonTitle)));
           const isPdf = !isFinalAssignment && !isQuiz && !isText && /pdf|doc|file|handout/i.test(typeUpper);
@@ -1240,7 +1243,7 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           const finalLessonTitle = isFinalAssignment
             ? 'Final Assessment'
             : isQuiz
-            ? (cleanQuizTitle(rawLessonTitle) || '')
+            ? (cleanQuizTitle(rawLessonTitle) || rawLessonTitle || 'Quiz')
             : cleanedLessonTitle;
           const durationSeconds = parseDurationToSeconds(durationStr);
           const normalizedType: 'VIDEO' | 'PDF' | 'QUIZ' | 'TEXT' = isQuiz
@@ -1822,15 +1825,48 @@ export function mergeExcelSectionsForUpdateVersion(
   if (!parsedSections || parsedSections.length === 0) return existingSections || [];
   if (!existingSections || existingSections.length === 0) return parsedSections;
 
+  const isFinalExamLesson = (l: BuilderLesson | any): boolean => {
+    return Boolean(l?.isFinalAssignment) ||
+      (!/^(module\s*\d+\s*)?quiz/i.test(l?.title || '') && /final\s*(assessment|assignment|exam)/i.test(l?.title || ''));
+  };
+
   const normalizeSecKey = (t?: string | null): string => {
     if (!t) return '';
     return cleanModuleTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   };
 
-  const normalizeLesKey = (t?: string | null): string => {
+  const normalizeLesKey = (t?: string | null, type?: string): string => {
     if (!t) return '';
+    const raw = String(t).trim().toLowerCase();
+    if (type === 'QUIZ' || /quiz/i.test(raw)) {
+      return 'quiz_' + raw.replace(/[^a-z0-9]/g, '');
+    }
     return cleanLectureTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   };
+
+  // Find if live course already has a Final Assessment
+  let globalOrigFinalSecIdx = -1;
+  let globalOrigFinalLesIdx = -1;
+  existingSections.forEach((s, sIdx) => {
+    (s.lessons || []).forEach((l, lIdx) => {
+      if (isFinalExamLesson(l)) {
+        globalOrigFinalSecIdx = sIdx;
+        globalOrigFinalLesIdx = lIdx;
+      }
+    });
+  });
+
+  // Find authoritative Final Assessment in parsedSections if present
+  let globalParsedFinalLesson: BuilderLesson | undefined;
+  for (const ps of parsedSections) {
+    const fl = ps.lessons?.find((l) => isFinalExamLesson(l));
+    if (fl && fl.quizData && Array.isArray((fl.quizData as any).questions) && (fl.quizData as any).questions.length > 0) {
+      globalParsedFinalLesson = fl;
+      break;
+    } else if (fl && !globalParsedFinalLesson) {
+      globalParsedFinalLesson = fl;
+    }
+  }
 
   const result: BuilderSection[] = [];
   const matchedParsedIndices = new Set<number>();
@@ -1862,14 +1898,10 @@ export function mergeExcelSectionsForUpdateVersion(
       const mergedLessons: BuilderLesson[] = origSec.lessons.map((l) => ({ ...l }));
 
       // Find final assessment / assignment if present in original or parsed
-      const origFinalIdx = mergedLessons.findIndex(
-        (l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')
-      );
-      const parsedFinal = parsedSec.lessons?.find(
-        (l) => l.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(l.title || '')
-      );
+      const origFinalIdx = mergedLessons.findIndex((l) => isFinalExamLesson(l));
+      const parsedFinal = parsedSec.lessons?.find((l) => isFinalExamLesson(l)) || (origFinalIdx !== -1 ? globalParsedFinalLesson : undefined);
 
-      // Final assessment / assignment can be updated
+      // Final assessment questions and criteria can be updated from Excel
       if (origFinalIdx !== -1 && parsedFinal) {
         mergedLessons[origFinalIdx] = {
           ...mergedLessons[origFinalIdx],
@@ -1878,35 +1910,49 @@ export function mergeExcelSectionsForUpdateVersion(
         };
       }
 
-      // Existing lesson titles set for matching
-      const existingLessonCleanKeys = new Set(
-        origSec.lessons.map((l) => normalizeLesKey(l.title))
-      );
-
-      // Check for newly added lessons in this parsed section
+      // Check for newly added or updated lessons in this parsed section
       (parsedSec.lessons || []).forEach((parsedLes) => {
         // Skip if this is the final assessment already handled
-        if (parsedLes.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(parsedLes.title || '')) {
-          if (origFinalIdx !== -1) return;
+        if (isFinalExamLesson(parsedLes)) {
+          if (globalOrigFinalSecIdx !== -1) return;
         }
 
-        const pLesKey = normalizeLesKey(parsedLes.title);
+        const pLesKey = normalizeLesKey(parsedLes.title, parsedLes.type);
 
-        // Check if already in original or already added to mergedLessons
-        const matchesExistingByTitle = existingLessonCleanKeys.has(pLesKey);
-        const alreadyInMerged = mergedLessons.some((ml) => normalizeLesKey(ml.title) === pLesKey);
+        // Check if already in mergedLessons
+        const existingIdx = mergedLessons.findIndex(
+          (ml) => normalizeLesKey(ml.title, ml.type) === pLesKey
+        );
 
-        if (!matchesExistingByTitle && !alreadyInMerged) {
-          // This is a GENUINELY NEW lesson added in Excel!
-          const newLessonId = `les-${Date.now()}-${mergedLessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
-          mergedLessons.push({
-            ...parsedLes,
-            id: newLessonId,
-            clientKey: newLessonId,
-            tempId: newLessonId,
-            isNewlyAdded: true,
-            order: mergedLessons.length + 1
-          });
+        if (existingIdx !== -1) {
+          // If this is an existing quiz, update its quiz questions & passing score!
+          if (parsedLes.type === 'QUIZ' && parsedLes.quizData) {
+            mergedLessons[existingIdx] = {
+              ...mergedLessons[existingIdx],
+              quizData: parsedLes.quizData,
+              description: parsedLes.description || mergedLessons[existingIdx].description
+            };
+          }
+          return;
+        }
+
+        // This is a GENUINELY NEW lesson or quiz added in Excel!
+        const newLessonId = `les-${Date.now()}-${mergedLessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+        const newLessonItem: BuilderLesson = {
+          ...parsedLes,
+          id: newLessonId,
+          clientKey: newLessonId,
+          tempId: newLessonId,
+          isNewlyAdded: true,
+          order: mergedLessons.length + 1
+        };
+
+        // If the section ends with a Final Assessment, insert BEFORE the final assessment!
+        const currentFinalIdx = mergedLessons.findIndex((l) => isFinalExamLesson(l));
+        if (currentFinalIdx !== -1) {
+          mergedLessons.splice(currentFinalIdx, 0, newLessonItem);
+        } else {
+          mergedLessons.push(newLessonItem);
         }
       });
 
@@ -1930,18 +1976,39 @@ export function mergeExcelSectionsForUpdateVersion(
     const existingInResult = result.find((r) => normalizeSecKey(r.title) === pSecKey);
     if (existingInResult) {
       (parsedSec.lessons || []).forEach((parsedLes) => {
-        const pLesKey = normalizeLesKey(parsedLes.title);
-        const alreadyExists = existingInResult.lessons.some((l) => normalizeLesKey(l.title) === pLesKey);
-        if (!alreadyExists) {
+        if (isFinalExamLesson(parsedLes) && globalOrigFinalSecIdx !== -1) {
+          return;
+        }
+
+        const pLesKey = normalizeLesKey(parsedLes.title, parsedLes.type);
+        const existingIdx = existingInResult.lessons.findIndex(
+          (l) => normalizeLesKey(l.title, l.type) === pLesKey
+        );
+
+        if (existingIdx !== -1) {
+          if (parsedLes.type === 'QUIZ' && parsedLes.quizData) {
+            existingInResult.lessons[existingIdx] = {
+              ...existingInResult.lessons[existingIdx],
+              quizData: parsedLes.quizData,
+              description: parsedLes.description || existingInResult.lessons[existingIdx].description
+            };
+          }
+        } else {
           const newLessonId = `les-${Date.now()}-${existingInResult.lessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
-          existingInResult.lessons.push({
+          const newLessonItem: BuilderLesson = {
             ...parsedLes,
             id: newLessonId,
             clientKey: newLessonId,
             tempId: newLessonId,
             isNewlyAdded: true,
             order: existingInResult.lessons.length + 1
-          });
+          };
+          const currentFinalIdx = existingInResult.lessons.findIndex((l) => isFinalExamLesson(l));
+          if (currentFinalIdx !== -1) {
+            existingInResult.lessons.splice(currentFinalIdx, 0, newLessonItem);
+          } else {
+            existingInResult.lessons.push(newLessonItem);
+          }
         }
       });
       return;
@@ -1949,16 +2016,22 @@ export function mergeExcelSectionsForUpdateVersion(
 
     // Completely GENUINE NEW module from Excel!
     const newSecId = `sec-${Date.now()}-${result.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
-    const newLessons: BuilderLesson[] = (parsedSec.lessons || []).map((l, lIdx) => {
+    const newLessons: BuilderLesson[] = [];
+
+    (parsedSec.lessons || []).forEach((l, lIdx) => {
+      // Do not duplicate final assessment if course already has one
+      if (isFinalExamLesson(l) && globalOrigFinalSecIdx !== -1) {
+        return;
+      }
       const newLessonId = `les-${Date.now()}-${lIdx + 1}-${Math.random().toString(36).slice(2, 7)}`;
-      return {
+      newLessons.push({
         ...l,
         id: newLessonId,
         clientKey: newLessonId,
         tempId: newLessonId,
         isNewlyAdded: true,
-        order: lIdx + 1
-      };
+        order: newLessons.length + 1
+      });
     });
 
     result.push({
