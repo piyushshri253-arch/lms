@@ -136,7 +136,7 @@ export async function POST(
       }
 
       return newCourse;
-    });
+    }, { maxWait: 20000, timeout: 60000 });
 
     // Record Audit Log
     await createAuditLog({

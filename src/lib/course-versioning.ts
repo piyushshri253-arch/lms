@@ -850,94 +850,85 @@ export async function createOrGetDraftVersion(
     }))
   };
 
-  // 4. Duplicate root/source course into new Draft Course record inside a database transaction
-  const newDraft = await prisma.$transaction(async (tx) => {
-    // Generate unique slug for draft version
-    const uniqueSlug = `${rootCourse.slug}-v${nextVerNum}-${Date.now().toString(36).slice(-4)}`;
+  // 4. Duplicate root/source course into new Draft Course record with nested sections and lessons
+  const uniqueSlug = `${rootCourse.slug}-v${nextVerNum}-${Date.now().toString(36).slice(-4)}`;
 
-    const createdDraftCourse = await tx.course.create({
+  const sectionsCreateData = rootCourse.sections.map((sec) => ({
+    title: sec.title,
+    description: sec.description || null,
+    order: sec.order,
+    lessons: {
+      create: sec.lessons.map((les) => ({
+        title: les.title,
+        description: les.description || null,
+        type: les.type,
+        content: les.content,
+        videoUrl: les.videoUrl,
+        pdfUrl: les.pdfUrl,
+        fileUrl: les.fileUrl,
+        quizData: les.quizData,
+        duration: les.duration,
+        durationSeconds: les.durationSeconds,
+        order: les.order,
+        isFree: les.isFree,
+        isPublished: les.isPublished,
+        resources: (les as any).resources || '[]'
+      }))
+    }
+  }));
+
+  const newDraft = await prisma.course.create({
+    data: {
+      organizationId: rootCourse.organizationId,
+      instructorId: rootCourse.instructorId,
+      categoryId: rootCourse.categoryId,
+      title: rootCourse.title,
+      slug: uniqueSlug,
+      description: rootCourse.description,
+      shortDescription: rootCourse.shortDescription,
+      price: rootCourse.price,
+      discountPrice: rootCourse.discountPrice,
+      currency: rootCourse.currency || 'INR',
+      level: rootCourse.level,
+      language: rootCourse.language,
+      durationHours: rootCourse.durationHours,
+      thumbnail: rootCourse.thumbnail,
+      banner: rootCourse.banner,
+      trailerVideoUrl: rootCourse.trailerVideoUrl,
+      accessType: rootCourse.accessType,
+      accessDays: rootCourse.accessDays,
+      whatYouWillLearn: rootCourse.whatYouWillLearn,
+      requirements: rootCourse.requirements,
+      targetAudience: rootCourse.targetAudience,
+      tags: rootCourse.tags,
+      seoTitle: rootCourse.seoTitle,
+      seoDescription: rootCourse.seoDescription,
+      status: 'DRAFT',
+      parentCourseId: rootCourse.id,
+      versionNumber: nextVerNum,
+      versionLabel: nextVerLabel,
+      isNew: true,
+      ...(sectionsCreateData.length > 0 ? { sections: { create: sectionsCreateData } } : {})
+    },
+    include: {
+      sections: {
+        include: { lessons: true }
+      }
+    }
+  });
+
+  if (user?.id && rootCourse.organizationId) {
+    await prisma.auditLog.create({
       data: {
         organizationId: rootCourse.organizationId,
-        instructorId: rootCourse.instructorId,
-        categoryId: rootCourse.categoryId,
-        title: rootCourse.title,
-        slug: uniqueSlug,
-        description: rootCourse.description,
-        shortDescription: rootCourse.shortDescription,
-        price: rootCourse.price,
-        discountPrice: rootCourse.discountPrice,
-        currency: rootCourse.currency || 'INR',
-        level: rootCourse.level,
-        language: rootCourse.language,
-        durationHours: rootCourse.durationHours,
-        thumbnail: rootCourse.thumbnail,
-        banner: rootCourse.banner,
-        trailerVideoUrl: rootCourse.trailerVideoUrl,
-        accessType: rootCourse.accessType,
-        accessDays: rootCourse.accessDays,
-        whatYouWillLearn: rootCourse.whatYouWillLearn,
-        requirements: rootCourse.requirements,
-        targetAudience: rootCourse.targetAudience,
-        tags: rootCourse.tags,
-        seoTitle: rootCourse.seoTitle,
-        seoDescription: rootCourse.seoDescription,
-        status: 'DRAFT',
-        parentCourseId: rootCourse.id,
-        versionNumber: nextVerNum,
-        versionLabel: nextVerLabel,
-        isNew: true
+        adminId: user.id,
+        action: 'CREATE_COURSE_VERSION_DRAFT',
+        entity: 'Course',
+        entityId: newDraft.id,
+        description: `User "${user.name}" created draft version ${nextVerLabel} for course "${rootCourse.title}".`
       }
-    });
-
-    // Clone all sections and lessons
-    for (const sec of rootCourse.sections) {
-      const createdSection = await tx.courseSection.create({
-        data: {
-          courseId: createdDraftCourse.id,
-          title: sec.title,
-          description: sec.description || null,
-          order: sec.order
-        }
-      });
-
-      for (const les of sec.lessons) {
-        await tx.lesson.create({
-          data: {
-            sectionId: createdSection.id,
-            title: les.title,
-            description: les.description || null,
-            type: les.type,
-            content: les.content,
-            videoUrl: les.videoUrl,
-            pdfUrl: les.pdfUrl,
-            fileUrl: les.fileUrl,
-            quizData: les.quizData,
-            duration: les.duration,
-            durationSeconds: les.durationSeconds,
-            order: les.order,
-            isFree: les.isFree,
-            isPublished: les.isPublished,
-            resources: (les as any).resources || '[]'
-          }
-        });
-      }
-    }
-
-    if (user?.id && rootCourse.organizationId) {
-      await tx.auditLog.create({
-        data: {
-          organizationId: rootCourse.organizationId,
-          adminId: user.id,
-          action: 'CREATE_COURSE_VERSION_DRAFT',
-          entity: 'Course',
-          entityId: createdDraftCourse.id,
-          description: `User "${user.name}" created draft version ${nextVerLabel} for course "${rootCourse.title}".`
-        }
-      });
-    }
-
-    return createdDraftCourse;
-  });
+    }).catch(() => {});
+  }
 
   // 5. Update Version State on root course
   const updatedRootState = await saveCourseVersionState(rootCourse.id, {
