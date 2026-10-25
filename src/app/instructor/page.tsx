@@ -34,7 +34,11 @@ interface CourseAuthored {
   slug: string;
   thumbnail?: string;
   price: number;
-  status: 'DRAFT' | 'IN_REVIEW' | 'PUBLISHED' | 'APPROVED' | 'REJECTED' | string;
+  status: 'DRAFT' | 'IN_REVIEW' | 'PUBLISHED' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'ARCHIVED' | 'INACTIVE' | string;
+  parentCourseId?: string | null;
+  parentCourseTitle?: string | null;
+  versionNumber?: number;
+  versionLabel?: string;
   level: string;
   category?: string;
   studentsCount: number;
@@ -107,11 +111,38 @@ function InstructorCoursesStudioInner() {
   const [selectedCourseForToggle, setSelectedCourseForToggle] = useState<CourseAuthored | null>(null);
   const [isToggleModalOpen, setIsToggleModalOpen] = useState(false);
 
-  const handleUpdateVersion = (course: CourseAuthored) => {
-    // Navigate directly into Course Builder in version_draft mode.
-    // Live curriculum is preserved/locked; instructor can download live excel and add new modules/quizzes.
-    // A version draft is only auto-saved if the instructor actually modifies or replaces curriculum.
-    router.push(`/instructor/courses/builder?courseId=${encodeURIComponent(course.id)}&mode=version_draft`);
+  const handleUpdateVersion = async (course: CourseAuthored) => {
+    setActionInProgressId(course.id);
+    try {
+      showToast({
+        title: 'Initializing Update Version...',
+        description: `Duplicating course into an independent draft version...`,
+        type: 'info'
+      });
+      const res = await fetch(`/api/courses/${encodeURIComponent(course.id)}/update-version`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to initialize update version.');
+      }
+      showToast({
+        title: data.reused ? 'Draft Resumed' : 'Version Draft Created 🎉',
+        description: data.message || 'Draft version ready. Opening course editor...',
+        type: 'success'
+      });
+      notifyCoursesChanged();
+      const targetUrl = data.draftUrl || `/instructor/courses/builder?courseId=${encodeURIComponent(data.draftCourse?.id || course.id)}&mode=version_draft`;
+      router.push(targetUrl);
+    } catch (err: any) {
+      showToast({
+        title: 'Update Version Failed',
+        description: err.message || 'Could not create new draft version.',
+        type: 'error'
+      });
+    } finally {
+      setActionInProgressId(null);
+    }
   };
 
   // Delete Draft Course Modal State (Instructors can delete DRAFT courses)
@@ -366,8 +397,9 @@ function InstructorCoursesStudioInner() {
     setActionInProgressId(courseToDelete.id);
     try {
       const isVersionDraft = Boolean(
-        courseToDelete.hasDraftVersion &&
-        (courseToDelete.status === 'PUBLISHED' || courseToDelete.status === 'ARCHIVED')
+        courseToDelete.parentCourseId ||
+        (courseToDelete.hasDraftVersion &&
+        (courseToDelete.status === 'PUBLISHED' || courseToDelete.status === 'ARCHIVED'))
       );
 
       if (isVersionDraft) {
@@ -381,7 +413,13 @@ function InstructorCoursesStudioInner() {
         }
 
         setCourses((prev) =>
-          prev.map((c) => (c.id === courseToDelete.id ? { ...c, hasDraftVersion: false, versionStatus: null } : c))
+          prev
+            .filter((c) => c.id !== courseToDelete.id)
+            .map((c) =>
+              c.id === (courseToDelete.parentCourseId || courseToDelete.id)
+                ? { ...c, hasDraftVersion: false, versionStatus: null }
+                : c
+            )
         );
 
         showToast({
@@ -389,6 +427,7 @@ function InstructorCoursesStudioInner() {
           description: `Draft revision for "${courseToDelete.title}" has been deleted. Your live published course remains active and untouched!`,
           type: 'success'
         });
+        fetchInstructorCourses(true);
       } else {
         const identifier = courseToDelete.id || courseToDelete.slug;
         const res = await fetch(`/api/courses/${encodeURIComponent(identifier)}`, {
@@ -566,17 +605,17 @@ function InstructorCoursesStudioInner() {
     c.status === 'IN_REVIEW' ||
     c.status === 'PENDING' ||
     c.status === 'PENDING_APPROVAL' ||
-    (c.hasDraftVersion && c.versionStatus === 'PENDING_REVIEW')
+    (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && c.versionStatus === 'PENDING_REVIEW')
   ).length;
   const draftCount = courses.filter((c) =>
     c.status === 'DRAFT' ||
-    (c.hasDraftVersion && (c.versionStatus === 'DRAFT_VERSION' || !c.versionStatus))
+    (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && (c.versionStatus === 'DRAFT_VERSION' || !c.versionStatus))
   ).length;
   const inactiveCount = courses.filter((c) => c.status === 'ARCHIVED' || c.status === 'INACTIVE').length;
   const rejectedCount = courses.filter((c) =>
     c.status === 'REJECTED' ||
     c.status === 'CHANGES_REQUESTED' ||
-    (c.hasDraftVersion && c.versionStatus === 'VERSION_REJECTED')
+    (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && c.versionStatus === 'VERSION_REJECTED')
   ).length;
 
   // Filtered Courses
@@ -590,13 +629,13 @@ function InstructorCoursesStudioInner() {
           c.status === 'IN_REVIEW' ||
           c.status === 'PENDING' ||
           c.status === 'PENDING_APPROVAL' ||
-          (c.hasDraftVersion && c.versionStatus === 'PENDING_REVIEW')
+          (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && c.versionStatus === 'PENDING_REVIEW')
         );
       }
       if (activeTab === 'DRAFT') {
         return (
           c.status === 'DRAFT' ||
-          (c.hasDraftVersion && (c.versionStatus === 'DRAFT_VERSION' || !c.versionStatus))
+          (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && (c.versionStatus === 'DRAFT_VERSION' || !c.versionStatus))
         );
       }
       if (activeTab === 'INACTIVE') {
@@ -606,7 +645,7 @@ function InstructorCoursesStudioInner() {
         return (
           c.status === 'REJECTED' ||
           c.status === 'CHANGES_REQUESTED' ||
-          (c.hasDraftVersion && c.versionStatus === 'VERSION_REJECTED')
+          (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && c.versionStatus === 'VERSION_REJECTED')
         );
       }
       return true;
@@ -1455,54 +1494,84 @@ function InstructorCoursesStudioInner() {
                     className="bg-slate-50 border border-slate-200 hover:border-violet-400 hover:bg-white rounded-2xl p-5 flex flex-col justify-between transition-all group shadow-2xs"
                   >
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        {/* Status Badge */}
-                        <span
-                          className={`px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
-                            isDraftTab && hasVersionDraft
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
-                              : isApproved
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : isUnderReview
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : isRejected
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : isPublished
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : isArchived
-                              ? 'bg-slate-200/80 text-slate-700 border border-slate-300'
-                              : 'bg-slate-200/70 text-slate-700 border border-slate-300'
-                          }`}
-                        >
-                          {isDraftTab && hasVersionDraft ? (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
-                              <span>Draft Revision (v{course.draftVersionNumber || 2}.0)</span>
-                            </>
-                          ) : isApproved ? (
-                            'Approved by Auditor ✅'
-                          ) : isUnderReview ? (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
-                              <span>{hasPendingVersionReview ? `Under Review (v${course.draftVersionNumber || 2}.0)` : 'Under Review'}</span>
-                            </>
-                          ) : isPublished ? (
-                            hasVersionDraft
-                              ? `Live • Draft v${course.draftVersionNumber || 2}.0 in progress`
-                              : 'Live on Landing Page'
-                          ) : isRejected ? (
-                            'Changes Requested'
-                          ) : isArchived ? (
-                            'Inactive'
-                          ) : (
-                            'Draft'
-                          )}
-                        </span>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        {/* Status & Version Badges */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
+                              course.parentCourseId && isDraft
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
+                                : isDraftTab && hasVersionDraft
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
+                                : isApproved
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : isUnderReview
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : isRejected
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : isPublished
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : isArchived
+                                ? 'bg-slate-200/80 text-slate-700 border border-slate-300'
+                                : 'bg-slate-200/70 text-slate-700 border border-slate-300'
+                            }`}
+                          >
+                            {course.parentCourseId && isDraft ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+                                <span>Version Draft ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
+                              </>
+                            ) : course.parentCourseId && isUnderReview ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
+                                <span>Under Review ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
+                              </>
+                            ) : isDraftTab && hasVersionDraft ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+                                <span>Draft Revision (v{course.draftVersionNumber || 2}.0)</span>
+                              </>
+                            ) : isApproved ? (
+                              'Approved by Auditor ✅'
+                            ) : isUnderReview ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
+                                <span>{hasPendingVersionReview ? `Under Review (v${course.draftVersionNumber || 2}.0)` : 'Under Review'}</span>
+                              </>
+                            ) : isPublished ? (
+                              hasVersionDraft
+                                ? `Live • Draft v${course.draftVersionNumber || 2}.0 in progress`
+                                : `Live (${course.versionLabel || `v${course.versionNumber || 1}.0`})`
+                            ) : isRejected ? (
+                              'Changes Requested'
+                            ) : isArchived ? (
+                              'Inactive'
+                            ) : (
+                              'Draft'
+                            )}
+                          </span>
+
+                          {/* Version Badge */}
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-violet-100 text-violet-800 border border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-700">
+                            {course.versionLabel || `v${course.versionNumber || 1}.0`}
+                          </span>
+
+                          <span className="text-[10px] font-mono text-slate-400">
+                            ID: {course.id.slice(-6)}
+                          </span>
+                        </div>
 
                         <span className="font-mono text-sm font-black text-emerald-600">
                           {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
                         </span>
                       </div>
+
+                      {course.parentCourseId && (
+                        <div className="text-[11px] font-semibold text-violet-800 bg-violet-50/90 dark:bg-violet-950/40 dark:text-violet-200 border border-violet-200 dark:border-violet-800 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5">
+                          <Icon name="device_hub" size={13} className="text-violet-600 shrink-0" />
+                          <span className="line-clamp-1">Version update for: <strong>{course.parentCourseTitle || 'Original Published Course'}</strong></span>
+                        </div>
+                      )}
 
                       <h3 className="font-bold text-sm text-slate-900 group-hover:text-violet-600 transition-colors line-clamp-2">
                         {course.title}
@@ -1731,20 +1800,28 @@ function InstructorCoursesStudioInner() {
                             <>
                               <Link
                                 href={
-                                  (isDraftTab && hasVersionDraft)
+                                  (isDraftTab && hasVersionDraft) || course.parentCourseId
                                     ? `/instructor/courses/builder?courseId=${course.id}&mode=version_draft`
                                     : `/instructor/courses/builder?courseId=${course.id}`
                                 }
-                                className="text-xs font-bold text-slate-700 hover:text-violet-700 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
+                                className="text-xs font-bold text-slate-700 hover:text-violet-700 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors inline-flex items-center gap-1 shadow-2xs"
                                 title="Edit curriculum, lectures, and settings"
                               >
                                 <Icon name="edit" size={13} />
-                                <span>{(isDraftTab && hasVersionDraft) ? `Resume Draft (v${course.draftVersionNumber || 2}.0)` : 'Edit'}</span>
+                                <span>
+                                  {course.parentCourseId
+                                    ? `Resume Draft (${course.versionLabel || `v${course.versionNumber || 2}.0`})`
+                                    : (isDraftTab && hasVersionDraft)
+                                    ? `Resume Draft (v${course.draftVersionNumber || 2}.0)`
+                                    : isRejected
+                                    ? 'Edit & Resubmit'
+                                    : 'Edit'}
+                                </span>
                               </Link>
 
                               <Link
                                 href={`/instructor/courses/preview/${encodeURIComponent(course.id)}`}
-                                className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1"
+                                className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 shadow-2xs"
                                 title="Preview course exactly as students see it"
                               >
                                 <Icon name="visibility" size={13} />
@@ -1779,7 +1856,7 @@ function InstructorCoursesStudioInner() {
                                   ) : (
                                     <Icon name="send" size={13} />
                                   )}
-                                  <span>Submit</span>
+                                  <span>Submit for Approval</span>
                                 </button>
                               )}
 
@@ -1791,11 +1868,11 @@ function InstructorCoursesStudioInner() {
                                     setCourseToDelete(course);
                                     setIsDeleteDraftModalOpen(true);
                                   }}
-                                  className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                  title={hasVersionDraft ? 'Discard this draft revision (live course remains untouched)' : 'Delete this draft course permanently'}
+                                  className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-2xs"
+                                  title={course.parentCourseId ? 'Discard this draft revision (live original course remains untouched)' : hasVersionDraft ? 'Discard this draft revision (live course remains untouched)' : 'Delete this draft course permanently'}
                                 >
                                   <Icon name="delete" size={13} />
-                                  <span>{hasVersionDraft ? 'Discard' : 'Del'}</span>
+                                  <span>{course.parentCourseId || hasVersionDraft ? 'Discard Draft' : 'Del'}</span>
                                 </button>
                               )}
                             </>
@@ -1835,8 +1912,8 @@ function InstructorCoursesStudioInner() {
           }
         }}
         maxWidth="md"
-        title={courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED') ? 'Discard Version Draft' : 'Delete Draft Course'}
-        subtitle={courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED') ? 'Discard in-progress version changes' : 'This action cannot be undone'}
+        title={courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')) ? 'Discard Version Draft' : 'Delete Draft Course'}
+        subtitle={courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')) ? 'Discard in-progress version changes' : 'This action cannot be undone'}
       >
         <div className="space-y-4">
           <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3">
@@ -1845,14 +1922,14 @@ function InstructorCoursesStudioInner() {
             </div>
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-rose-950">
-                {courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED') ? (
+                {courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')) ? (
                   <>Are you sure you want to <strong>discard</strong> this version draft?</>
                 ) : (
                   <>Are you sure you want to <strong>"permanently delete"</strong> this draft?</>
                 )}
               </h4>
               <p className="text-xs text-rose-800 leading-relaxed">
-                {courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED') ? (
+                {courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')) ? (
                   <>
                     You are discarding the in-progress draft changes for <strong className="font-semibold text-rose-950">&quot;{courseToDelete?.title}&quot;</strong>.
                     All unsubmitted curriculum modifications for this draft will be removed.
@@ -1868,13 +1945,13 @@ function InstructorCoursesStudioInner() {
           </div>
 
           <div className={`p-3 rounded-xl border text-xs ${
-            courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')
+            courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED'))
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-medium'
               : 'bg-slate-50 border-slate-200 text-slate-600'
           }`}>
-            {courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED') ? (
+            {courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')) ? (
               <span>
-                🛡️ <strong>Live Published Course 100% Safe:</strong> Your live published course on the landing page and all enrolled student access remain active and completely untouched! Only the in-progress draft revision is discarded.
+                🛡️ <strong>Live Published Course 100% Safe:</strong> {courseToDelete?.parentCourseId ? `The original published course ("${courseToDelete?.parentCourseTitle || 'Published Course'}") and all enrolled students remain active and completely untouched!` : 'Your live published course on the landing page and all enrolled student access remain active and completely untouched! Only the in-progress draft revision is discarded.'}
               </span>
             ) : (
               <span>
@@ -1909,7 +1986,7 @@ function InstructorCoursesStudioInner() {
               ) : (
                 <>
                   <Icon name="delete" size={14} />
-                  <span>{courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED') ? 'Discard Draft Revision' : 'Delete Draft'}</span>
+                  <span>{courseToDelete?.parentCourseId || (courseToDelete?.hasDraftVersion && (courseToDelete?.status === 'PUBLISHED' || courseToDelete?.status === 'ARCHIVED')) ? 'Discard Draft Revision' : 'Delete Draft'}</span>
                 </>
               )}
             </button>

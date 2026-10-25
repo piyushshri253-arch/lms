@@ -540,6 +540,11 @@ model Course {
   instructorId     String
   instructor       User            @relation("InstructorCourses", fields: [instructorId], references: [id])
   status           String          @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  parentCourseId   String?
+  parentCourse     Course?         @relation("CourseVersions", fields: [parentCourseId], references: [id], onDelete: SetNull)
+  childVersions    Course[]        @relation("CourseVersions")
+  versionNumber    Int             @default(1)
+  versionLabel     String          @default("v1.0")
   durationHours    Float           @default(0.0)
   language         String          @default("English")
   whatYouWillLearn String          @default("[]") // JSON array of string points

@@ -54,6 +54,15 @@ export async function GET(request: Request) {
       include: {
         category: true,
         instructor: true,
+        parentCourse: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            versionNumber: true,
+            versionLabel: true
+          }
+        },
         sections: {
           include: {
             lessons: {
@@ -143,6 +152,10 @@ export async function GET(request: Request) {
         bestseller: course.bestseller,
         isNew: course.isNew,
         status: course.status,
+        parentCourseId: (course as any).parentCourseId || null,
+        parentCourseTitle: (course as any).parentCourse?.title || null,
+        versionNumber: (course as any).versionNumber || (verState?.liveVersionNumber ? verState.liveVersionNumber : 1),
+        versionLabel: (course as any).versionLabel || (verState?.liveVersionLabel ? verState.liveVersionLabel : `v${(course as any).versionNumber || 1}.0`),
         hasDraftVersion,
         draftVersionNumber,
         liveVersionNumber,

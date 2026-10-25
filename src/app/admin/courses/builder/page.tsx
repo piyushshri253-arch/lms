@@ -42,6 +42,9 @@ const getDefaultCourseState = () => ({
   discountPrice: 1999,
   currency: 'INR',
   status: 'DRAFT' as const,
+  parentCourseId: null as string | null,
+  versionNumber: 1,
+  versionLabel: 'v1.0',
   accessType: 'LIFETIME',
   accessDays: null,
   whatYouWillLearn: [] as string[],
@@ -196,6 +199,9 @@ function CourseBuilderContent() {
     discountPrice: number | null;
     currency: string;
     status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+    parentCourseId?: string | null;
+    versionNumber?: number;
+    versionLabel?: string;
     accessType: string;
     accessDays: number | null;
     whatYouWillLearn: string[];
@@ -777,6 +783,9 @@ function CourseBuilderContent() {
           discountPrice: c.originalPrice || c.discountPrice || null,
           currency: c.currency || 'INR',
           status: c.status || 'DRAFT',
+          parentCourseId: c.parentCourseId || null,
+          versionNumber: c.versionNumber || 1,
+          versionLabel: c.versionLabel || 'v1.0',
           accessType: c.accessType || 'LIFETIME',
           accessDays: c.accessDays || null,
           whatYouWillLearn: parseArrayField(c.whatYouWillLearn),
@@ -2181,6 +2190,31 @@ function CourseBuilderContent() {
             </div>
             <p className="text-xs sm:text-sm font-semibold leading-relaxed text-blue-900/90 dark:text-blue-100/90">
               You are performing a quick minor edit on your live published course (fixing typos, title, description, or minor wording). Spreadsheet download is disabled in this mode. For curriculum restructuring or adding new modules, use &quot;Update Version&quot; from My Courses.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Independent Version Draft Banner */}
+      {courseState.parentCourseId && courseState.status === 'DRAFT' && (
+        <div className="border-2 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm bg-violet-50 dark:bg-violet-950/30 border-violet-400 dark:border-violet-600/50">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-violet-500/20 text-violet-700 dark:text-violet-400">
+            <Icon name="device_hub" size={24} />
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-black text-sm sm:text-base text-violet-900 dark:text-violet-100">
+                Editing Independent Version Draft ({courseState.versionLabel || 'v2.0'})
+              </h4>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-violet-600 text-white">
+                Version Draft
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                Original Version 1.0 Live &amp; Untouched
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold leading-relaxed text-violet-900/90 dark:text-violet-100/90">
+              You are editing an independent duplicate draft for Version {courseState.versionLabel || 'v2.0'}. You can modify syllabus, lecture videos, articles, quizzes, assignments, and pricing completely independently. Modifying this draft will NOT affect the live published Version 1.0 course. When you are done, click &quot;Submit for Approval&quot; to send it for Auditor review!
             </p>
           </div>
         </div>

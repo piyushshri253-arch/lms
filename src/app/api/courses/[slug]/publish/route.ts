@@ -278,9 +278,9 @@ export async function POST(
         const { getCourseVersionState, applyApprovedVersionToLiveCourse } = await import('@/lib/course-versioning');
         const verState = await getCourseVersionState(course.id);
         if (verState.stagedSnapshot && (course.status === 'APPROVED' || verState.status === 'PENDING_REVIEW' || verState.status === 'APPROVED' || isPublishingApprovedCourse)) {
-          const applied = await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
-          if (applied?.newCourseTitle) {
-            responseMessage = `Version ${applied.liveVersionLabel} published live as an independent course ("${applied.newCourseTitle}"). Both versions are active! 🚀`;
+          const applied: any = await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
+          if (applied?.newCourseTitle || applied?.newCourseId) {
+            responseMessage = `Version ${applied.liveVersionLabel} published live as an independent course. Both versions are active! 🚀`;
           }
         }
       } catch (verErr) {
@@ -319,16 +319,26 @@ export async function POST(
       // Also update version state to PENDING_REVIEW if course versioning is active
       try {
         const { getCourseVersionState, saveCourseVersionState } = await import('@/lib/course-versioning');
-        const verState = await getCourseVersionState(course.id);
-        if (verState.stagedSnapshot || verState.status === 'DRAFT_VERSION') {
-          const nextLabel = verState.pendingVersionLabel || `v${(verState.liveVersionNumber || 1) + 1}.0`;
-          await saveCourseVersionState(course.id, {
+        const rootCourseId = (course as any).parentCourseId || course.id;
+        const verState = await getCourseVersionState(rootCourseId);
+        if (verState.stagedSnapshot || verState.status === 'DRAFT_VERSION' || (course as any).parentCourseId) {
+          const nextLabel = verState.pendingVersionLabel || (course as any).versionLabel || `v${(verState.liveVersionNumber || 1) + 1}.0`;
+          await saveCourseVersionState(rootCourseId, {
             status: 'PENDING_REVIEW',
             pendingVersionLabel: nextLabel,
             submittedAt: new Date().toISOString(),
             submittedBy: user.name,
             reviewerFeedback: null
           });
+          if ((course as any).parentCourseId) {
+            await saveCourseVersionState(course.id, {
+              status: 'PENDING_REVIEW',
+              pendingVersionLabel: nextLabel,
+              submittedAt: new Date().toISOString(),
+              submittedBy: user.name,
+              reviewerFeedback: null
+            });
+          }
         }
       } catch {}
 

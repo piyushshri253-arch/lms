@@ -717,23 +717,40 @@ export async function createOrGetDraftVersion(
   isNewDraft: boolean;
   versionState: CourseVersionState;
   draftUrl: string;
+  draftCourse?: any;
 }> {
   const versionState = await getCourseVersionState(courseId);
 
-  // If an active draft already exists (either being edited or pending review), reuse it without duplication
-  if (
-    (versionState.status === 'DRAFT_VERSION' || versionState.status === 'PENDING_REVIEW') &&
-    versionState.stagedSnapshot
-  ) {
-    return {
-      isNewDraft: false,
-      versionState,
-      draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(courseId)}&mode=version_draft`
-    };
+  // 1. Fetch current target course with its sections and lessons
+  const targetCourse = await prisma.course.findUnique({
+    where: { id: courseId },
+    include: {
+      sections: {
+        orderBy: { order: 'asc' },
+        include: {
+          lessons: {
+            orderBy: { order: 'asc' }
+          }
+        }
+      },
+      childVersions: {
+        select: { id: true, versionNumber: true, versionLabel: true, status: true }
+      }
+    }
+  });
+
+  if (!targetCourse) {
+    throw new Error('Course not found');
   }
 
-  const liveCourse = await prisma.course.findUnique({
-    where: { id: courseId },
+  const rootCourseId = targetCourse.parentCourseId || targetCourse.id;
+
+  // 2. Check if an active draft course already exists for this root course in PostgreSQL
+  const existingDraftCourse = await prisma.course.findFirst({
+    where: {
+      parentCourseId: rootCourseId,
+      status: 'DRAFT'
+    },
     include: {
       sections: {
         orderBy: { order: 'asc' },
@@ -746,40 +763,69 @@ export async function createOrGetDraftVersion(
     }
   });
 
-  if (!liveCourse) {
-    throw new Error('Course not found');
+  if (existingDraftCourse) {
+    const rootVerState = await getCourseVersionState(rootCourseId);
+    return {
+      isNewDraft: false,
+      versionState: rootVerState,
+      draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(existingDraftCourse.id)}&mode=version_draft`,
+      draftCourse: existingDraftCourse
+    };
   }
+
+  // 3. Determine root course and compute next version number
+  const rootCourse =
+    targetCourse.id === rootCourseId
+      ? targetCourse
+      : await prisma.course.findUnique({
+          where: { id: rootCourseId },
+          include: {
+            sections: {
+              orderBy: { order: 'asc' },
+              include: { lessons: { orderBy: { order: 'asc' } } }
+            },
+            childVersions: {
+              select: { id: true, versionNumber: true, versionLabel: true, status: true }
+            }
+          }
+        });
+
+  if (!rootCourse) {
+    throw new Error('Root course not found');
+  }
+
+  const allChildVersions = rootCourse.childVersions || [];
+  const allVersionNumbers = [rootCourse.versionNumber || 1, ...allChildVersions.map((c) => c.versionNumber || 1)];
+  const nextVerNum = Math.max(...allVersionNumbers, 1) + 1;
+  const nextVerLabel = `v${nextVerNum}.0`;
 
   let whatYouWillLearn: string[] = [];
   let requirements: string[] = [];
   let targetAudience: string[] = [];
-  try { whatYouWillLearn = JSON.parse(liveCourse.whatYouWillLearn || '[]'); } catch {}
-  try { requirements = JSON.parse(liveCourse.requirements || '[]'); } catch {}
-  try { targetAudience = JSON.parse(liveCourse.targetAudience || '[]'); } catch {}
-
-  const nextVerNum = (versionState.liveVersionNumber || 1) + 1;
-  const nextVerLabel = `v${nextVerNum}.0`;
+  try { whatYouWillLearn = JSON.parse(rootCourse.whatYouWillLearn || '[]'); } catch {}
+  try { requirements = JSON.parse(rootCourse.requirements || '[]'); } catch {}
+  try { targetAudience = JSON.parse(rootCourse.targetAudience || '[]'); } catch {}
 
   const stagedSnapshot: StagedCourseSnapshot = {
-    title: liveCourse.title,
-    description: liveCourse.description,
-    shortDescription: liveCourse.shortDescription || '',
-    price: liveCourse.price,
-    discountPrice: liveCourse.discountPrice,
-    currency: liveCourse.currency,
-    level: liveCourse.level,
-    language: liveCourse.language,
-    durationHours: liveCourse.durationHours,
-    thumbnail: liveCourse.thumbnail,
-    banner: liveCourse.banner || '',
-    accessType: liveCourse.accessType,
-    accessDays: liveCourse.accessDays,
+    title: rootCourse.title,
+    description: rootCourse.description,
+    shortDescription: rootCourse.shortDescription || '',
+    price: rootCourse.price,
+    discountPrice: rootCourse.discountPrice,
+    currency: rootCourse.currency,
+    level: rootCourse.level,
+    language: rootCourse.language,
+    durationHours: rootCourse.durationHours,
+    thumbnail: rootCourse.thumbnail,
+    banner: rootCourse.banner || '',
+    accessType: rootCourse.accessType,
+    accessDays: rootCourse.accessDays,
     whatYouWillLearn,
     requirements,
     targetAudience,
-    seoTitle: liveCourse.seoTitle || '',
-    seoDescription: liveCourse.seoDescription || '',
-    sections: liveCourse.sections.map((sec, sIdx) => ({
+    seoTitle: rootCourse.seoTitle || '',
+    seoDescription: rootCourse.seoDescription || '',
+    sections: rootCourse.sections.map((sec, sIdx) => ({
       id: sec.id,
       title: sec.title,
       description: sec.description || '',
@@ -804,7 +850,97 @@ export async function createOrGetDraftVersion(
     }))
   };
 
-  const updatedState = await saveCourseVersionState(courseId, {
+  // 4. Duplicate root/source course into new Draft Course record inside a database transaction
+  const newDraft = await prisma.$transaction(async (tx) => {
+    // Generate unique slug for draft version
+    const uniqueSlug = `${rootCourse.slug}-v${nextVerNum}-${Date.now().toString(36).slice(-4)}`;
+
+    const createdDraftCourse = await tx.course.create({
+      data: {
+        organizationId: rootCourse.organizationId,
+        instructorId: rootCourse.instructorId,
+        categoryId: rootCourse.categoryId,
+        title: rootCourse.title,
+        slug: uniqueSlug,
+        description: rootCourse.description,
+        shortDescription: rootCourse.shortDescription,
+        price: rootCourse.price,
+        discountPrice: rootCourse.discountPrice,
+        currency: rootCourse.currency || 'INR',
+        level: rootCourse.level,
+        language: rootCourse.language,
+        durationHours: rootCourse.durationHours,
+        thumbnail: rootCourse.thumbnail,
+        banner: rootCourse.banner,
+        trailerVideoUrl: rootCourse.trailerVideoUrl,
+        accessType: rootCourse.accessType,
+        accessDays: rootCourse.accessDays,
+        whatYouWillLearn: rootCourse.whatYouWillLearn,
+        requirements: rootCourse.requirements,
+        targetAudience: rootCourse.targetAudience,
+        tags: rootCourse.tags,
+        seoTitle: rootCourse.seoTitle,
+        seoDescription: rootCourse.seoDescription,
+        status: 'DRAFT',
+        parentCourseId: rootCourse.id,
+        versionNumber: nextVerNum,
+        versionLabel: nextVerLabel,
+        isNew: true
+      }
+    });
+
+    // Clone all sections and lessons
+    for (const sec of rootCourse.sections) {
+      const createdSection = await tx.courseSection.create({
+        data: {
+          courseId: createdDraftCourse.id,
+          title: sec.title,
+          description: sec.description || null,
+          order: sec.order
+        }
+      });
+
+      for (const les of sec.lessons) {
+        await tx.lesson.create({
+          data: {
+            sectionId: createdSection.id,
+            title: les.title,
+            description: les.description || null,
+            type: les.type,
+            content: les.content,
+            videoUrl: les.videoUrl,
+            pdfUrl: les.pdfUrl,
+            fileUrl: les.fileUrl,
+            quizData: les.quizData,
+            duration: les.duration,
+            durationSeconds: les.durationSeconds,
+            order: les.order,
+            isFree: les.isFree,
+            isPublished: les.isPublished,
+            resources: (les as any).resources || '[]'
+          }
+        });
+      }
+    }
+
+    if (user?.id && rootCourse.organizationId) {
+      await tx.auditLog.create({
+        data: {
+          organizationId: rootCourse.organizationId,
+          adminId: user.id,
+          action: 'CREATE_COURSE_VERSION_DRAFT',
+          entity: 'Course',
+          entityId: createdDraftCourse.id,
+          description: `User "${user.name}" created draft version ${nextVerLabel} for course "${rootCourse.title}".`
+        }
+      });
+    }
+
+    return createdDraftCourse;
+  });
+
+  // 5. Update Version State on root course
+  const updatedRootState = await saveCourseVersionState(rootCourse.id, {
     status: 'DRAFT_VERSION',
     pendingVersionNumber: nextVerNum,
     pendingVersionLabel: nextVerLabel,
@@ -814,24 +950,69 @@ export async function createOrGetDraftVersion(
     submittedBy: user?.name || null
   });
 
+  // Also initialize version state for the draft course itself
+  await saveCourseVersionState(newDraft.id, {
+    courseId: newDraft.id,
+    liveVersionNumber: rootCourse.versionNumber || 1,
+    liveVersionLabel: rootCourse.versionLabel || 'v1.0',
+    pendingVersionNumber: nextVerNum,
+    pendingVersionLabel: nextVerLabel,
+    status: 'DRAFT_VERSION',
+    stagedSnapshot,
+    detectedChanges: [],
+    submittedAt: null,
+    submittedBy: user?.name || null,
+    history: updatedRootState.history
+  });
+
   return {
     isNewDraft: true,
-    versionState: updatedState,
-    draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(courseId)}&mode=version_draft`
+    versionState: updatedRootState,
+    draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(newDraft.id)}&mode=version_draft`,
+    draftCourse: newDraft
   };
 }
 
 /**
  * Discards / Deletes an in-progress draft version for a course.
- * Resets status to LIVE_SYNCED and clears stagedSnapshot,
+ * Deletes the draft Course record from PostgreSQL if one was created,
  * leaving the live published course active and 100% untouched.
  */
 export async function discardDraftVersion(
   courseId: string,
   user?: { id?: string; name?: string; role?: string }
 ): Promise<CourseVersionState> {
-  const currentState = await getCourseVersionState(courseId);
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, parentCourseId: true, status: true, title: true, organizationId: true }
+  });
+
+  const rootCourseId = course?.parentCourseId || courseId;
+  const currentState = await getCourseVersionState(rootCourseId);
   const discardedVersion = currentState.pendingVersionLabel || `v${(currentState.liveVersionNumber || 1) + 1}.0`;
+
+  // If this is a child draft version, delete this course record from DB
+  if (course && course.parentCourseId && course.status === 'DRAFT') {
+    await prisma.courseSection.deleteMany({ where: { courseId: course.id } }).catch(() => {});
+    await prisma.course.delete({
+      where: { id: course.id }
+    }).catch(() => {});
+    await prisma.platformSetting.delete({ where: { key: `course_version_${course.id}` } }).catch(() => {});
+  } else {
+    // Delete any draft children of this root course
+    const childDrafts = await prisma.course.findMany({
+      where: {
+        parentCourseId: rootCourseId,
+        status: 'DRAFT'
+      },
+      select: { id: true }
+    });
+    for (const d of childDrafts) {
+      await prisma.courseSection.deleteMany({ where: { courseId: d.id } }).catch(() => {});
+      await prisma.course.delete({ where: { id: d.id } }).catch(() => {});
+      await prisma.platformSetting.delete({ where: { key: `course_version_${d.id}` } }).catch(() => {});
+    }
+  }
 
   const updatedState: CourseVersionState = {
     ...currentState,
@@ -846,26 +1027,20 @@ export async function discardDraftVersion(
     updatedAt: new Date().toISOString()
   };
 
-  await saveCourseVersionState(courseId, updatedState);
+  await saveCourseVersionState(rootCourseId, updatedState);
 
-  if (user?.id) {
+  if (user?.id && course?.organizationId) {
     try {
-      const course = await prisma.course.findUnique({
-        where: { id: courseId },
-        select: { organizationId: true, title: true }
+      await prisma.auditLog.create({
+        data: {
+          organizationId: course.organizationId,
+          adminId: user.id,
+          action: 'DISCARD_COURSE_VERSION_DRAFT',
+          entity: 'Course',
+          entityId: rootCourseId,
+          description: `${user.role || 'User'} "${user.name || 'Instructor'}" deleted/discarded draft Version ${discardedVersion} for "${course.title}". Live published course remains active.`
+        }
       });
-      if (course?.organizationId) {
-        await prisma.auditLog.create({
-          data: {
-            organizationId: course.organizationId,
-            adminId: user.id,
-            action: 'DISCARD_COURSE_VERSION_DRAFT',
-            entity: 'Course',
-            entityId: courseId,
-            description: `${user.role || 'User'} "${user.name || 'Instructor'}" deleted/discarded draft Version ${discardedVersion} for "${course.title}". Live published course remains active.`
-          }
-        });
-      }
     } catch {}
   }
 
@@ -979,6 +1154,55 @@ export async function applyApprovedVersionToLiveCourse(
     throw new Error('Course not found');
   }
 
+  // 0. If the course being approved is ALREADY an independent draft version course:
+  if (course.parentCourseId) {
+    const publishedDraft = await prisma.course.update({
+      where: { id: course.id },
+      data: {
+        status: 'PUBLISHED',
+        reviewedAt: new Date(),
+        reviewedById: reviewer.id,
+        reviewFeedback: reviewerNote || null
+      }
+    });
+
+    const rootCourseId = course.parentCourseId;
+    const rootVerState = await getCourseVersionState(rootCourseId);
+    const updatedHistory: CourseVersionHistoryEntry[] = [
+      {
+        versionNumber: course.versionNumber || 2,
+        versionLabel: course.versionLabel || 'v2.0',
+        publishedAt: new Date().toISOString(),
+        approvedBy: `${reviewer.name} (${reviewer.role})`,
+        changeSummary: ['Curriculum and course updates approved and published LIVE'],
+        price: course.price,
+        modulesCount: course.sections.length,
+        lessonsCount: course.sections.reduce((acc, s) => acc + s.lessons.length, 0)
+      },
+      ...rootVerState.history
+    ];
+
+    const updatedRootState = await saveCourseVersionState(rootCourseId, {
+      liveVersionNumber: course.versionNumber || 2,
+      liveVersionLabel: course.versionLabel || 'v2.0',
+      pendingVersionNumber: null,
+      pendingVersionLabel: null,
+      status: 'APPROVED',
+      stagedSnapshot: null,
+      detectedChanges: [],
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: `${reviewer.name} (${reviewer.role})`,
+      reviewerFeedback: reviewerNote || null,
+      history: updatedHistory
+    });
+
+    return {
+      ...updatedRootState,
+      status: 'APPROVED' as const,
+      newCourseId: course.id
+    };
+  }
+
   const snap = versionState.stagedSnapshot;
   const nextVersionNumber = versionState.pendingVersionNumber || ((versionState.liveVersionNumber || 1) + 1);
   const nextVersionLabel = versionState.pendingVersionLabel || `v${nextVersionNumber}.0`;
@@ -1044,6 +1268,9 @@ export async function applyApprovedVersionToLiveCourse(
       seoTitle: snap?.seoTitle !== undefined ? snap.seoTitle : course.seoTitle,
       seoDescription: snap?.seoDescription !== undefined ? snap.seoDescription : course.seoDescription,
       status: 'PUBLISHED',
+      parentCourseId: course.id,
+      versionNumber: nextVersionNumber,
+      versionLabel: nextVersionLabel,
       reviewedAt: new Date(),
       reviewedById: reviewer.id,
       reviewFeedback: reviewerNote || null
