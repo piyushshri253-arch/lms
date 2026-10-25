@@ -96,6 +96,8 @@ export interface CourseVersionState {
   reviewerFeedback: string | null;
   history: CourseVersionHistoryEntry[];
   updatedAt: string;
+  originalSectionIds?: string[];
+  originalLessonIds?: string[];
   uploadedExcel?: {
     fileName: string;
     fileSize?: number;
@@ -764,10 +766,22 @@ export async function createOrGetDraftVersion(
   });
 
   if (existingDraftCourse) {
-    const rootVerState = await getCourseVersionState(rootCourseId);
+    let draftVerState = await getCourseVersionState(existingDraftCourse.id);
+    if (!draftVerState.originalSectionIds || draftVerState.originalSectionIds.length === 0) {
+      const origSecIds = existingDraftCourse.sections.map((s) => s.id);
+      const origLesIds = existingDraftCourse.sections.flatMap((s) => (s.lessons || []).map((l) => l.id));
+      draftVerState = await saveCourseVersionState(existingDraftCourse.id, {
+        originalSectionIds: origSecIds,
+        originalLessonIds: origLesIds
+      });
+      await saveCourseVersionState(rootCourseId, {
+        originalSectionIds: origSecIds,
+        originalLessonIds: origLesIds
+      });
+    }
     return {
       isNewDraft: false,
-      versionState: rootVerState,
+      versionState: draftVerState,
       draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(existingDraftCourse.id)}&mode=version_draft`,
       draftCourse: existingDraftCourse
     };
@@ -930,6 +944,9 @@ export async function createOrGetDraftVersion(
     }).catch(() => {});
   }
 
+  const originalSectionIds = newDraft.sections.map((s) => s.id);
+  const originalLessonIds = newDraft.sections.flatMap((s) => (s.lessons || []).map((l) => l.id));
+
   // 5. Update Version State on root course
   const updatedRootState = await saveCourseVersionState(rootCourse.id, {
     status: 'DRAFT_VERSION',
@@ -938,11 +955,13 @@ export async function createOrGetDraftVersion(
     stagedSnapshot,
     detectedChanges: [],
     submittedAt: null,
-    submittedBy: user?.name || null
+    submittedBy: user?.name || null,
+    originalSectionIds,
+    originalLessonIds
   });
 
   // Also initialize version state for the draft course itself
-  await saveCourseVersionState(newDraft.id, {
+  const draftVersionState = await saveCourseVersionState(newDraft.id, {
     courseId: newDraft.id,
     liveVersionNumber: rootCourse.versionNumber || 1,
     liveVersionLabel: rootCourse.versionLabel || 'v1.0',
@@ -953,12 +972,14 @@ export async function createOrGetDraftVersion(
     detectedChanges: [],
     submittedAt: null,
     submittedBy: user?.name || null,
+    originalSectionIds,
+    originalLessonIds,
     history: updatedRootState.history
   });
 
   return {
     isNewDraft: true,
-    versionState: updatedRootState,
+    versionState: draftVersionState,
     draftUrl: `/instructor/courses/builder?courseId=${encodeURIComponent(newDraft.id)}&mode=version_draft`,
     draftCourse: newDraft
   };

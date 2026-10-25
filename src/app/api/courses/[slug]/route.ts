@@ -195,6 +195,44 @@ export async function GET(
     try { targetAudience = JSON.parse((course as any).targetAudience || '[]'); } catch { targetAudience = []; }
 
     const versionState = await getCourseVersionState(course.id);
+    if (course.parentCourseId && (!versionState.originalSectionIds || versionState.originalSectionIds.length === 0)) {
+      const parentVerState = await getCourseVersionState(course.parentCourseId);
+      if (parentVerState.originalSectionIds && parentVerState.originalSectionIds.length > 0) {
+        versionState.originalSectionIds = parentVerState.originalSectionIds;
+        versionState.originalLessonIds = parentVerState.originalLessonIds;
+        await saveCourseVersionState(course.id, {
+          originalSectionIds: parentVerState.originalSectionIds,
+          originalLessonIds: parentVerState.originalLessonIds
+        });
+      } else {
+        const parentCourse = await prisma.course.findUnique({
+          where: { id: course.parentCourseId },
+          include: { sections: { include: { lessons: true }, orderBy: { order: 'asc' } } }
+        });
+        if (parentCourse) {
+          const origSecIds: string[] = [];
+          const origLesIds: string[] = [];
+          parentCourse.sections.forEach((pSec) => {
+            const matchSec = course.sections.find((s) => s.title === pSec.title && s.order === pSec.order) || course.sections.find((s) => s.order === pSec.order);
+            if (matchSec) {
+              origSecIds.push(matchSec.id);
+              pSec.lessons.forEach((pLes) => {
+                const matchLes = matchSec.lessons.find((l) => l.title === pLes.title && l.order === pLes.order) || matchSec.lessons.find((l) => l.order === pLes.order);
+                if (matchLes) origLesIds.push(matchLes.id);
+              });
+            }
+          });
+          if (origSecIds.length > 0) {
+            versionState.originalSectionIds = origSecIds;
+            versionState.originalLessonIds = origLesIds;
+            await saveCourseVersionState(course.id, {
+              originalSectionIds: origSecIds,
+              originalLessonIds: origLesIds
+            });
+          }
+        }
+      }
+    }
     const liveVersionNumber = versionState.liveVersionNumber || 1;
     let studentEnrolledVersion: number | null = null;
     let hasNewerVersion = false;
@@ -703,32 +741,55 @@ export async function PUT(
       }
     }
 
+    const isChildVersionDraft = Boolean(course.parentCourseId);
+    let originalSecIdsSet = new Set<string>();
+    let originalLesIdsSet = new Set<string>();
+
+    if (isChildVersionDraft) {
+      const vState = await getCourseVersionState(course.id);
+      (vState.originalSectionIds || []).forEach((id) => originalSecIdsSet.add(id));
+      (vState.originalLessonIds || []).forEach((id) => originalLesIdsSet.add(id));
+    }
+
+    const courseUpdateData = isChildVersionDraft
+      ? {
+          // Locked in child version draft: title, thumbnail, shortDescription, description, level, language, durationHours, category, seo
+          price: body.price !== undefined ? Number(body.price) : undefined,
+          discountPrice: body.discountPrice !== undefined ? (body.discountPrice ? Number(body.discountPrice) : null) : undefined,
+          currency: body.currency !== undefined ? body.currency : undefined,
+          status: body.status !== undefined ? body.status : undefined,
+          reviewFeedback: body.status === 'IN_REVIEW' ? null : undefined,
+          accessType: body.accessType !== undefined ? body.accessType : undefined,
+          accessDays: body.accessDays !== undefined ? (body.accessDays ? Number(body.accessDays) : null) : undefined
+        }
+      : {
+          title: body.title !== undefined ? body.title.trim() : undefined,
+          slug: newSlug || undefined,
+          description: body.description !== undefined ? body.description : undefined,
+          shortDescription: body.shortDescription !== undefined ? body.shortDescription : undefined,
+          price: body.price !== undefined ? Number(body.price) : undefined,
+          discountPrice: body.discountPrice !== undefined ? (body.discountPrice ? Number(body.discountPrice) : null) : undefined,
+          currency: body.currency !== undefined ? body.currency : undefined,
+          thumbnail: body.thumbnail !== undefined ? body.thumbnail : undefined,
+          banner: body.banner !== undefined ? body.banner : undefined,
+          status: body.status !== undefined ? body.status : undefined,
+          reviewFeedback: body.status === 'IN_REVIEW' ? null : undefined,
+          level: body.level !== undefined ? body.level : undefined,
+          language: body.language !== undefined ? body.language : undefined,
+          durationHours: body.durationHours !== undefined ? Number(body.durationHours) : undefined,
+          categoryId: categoryId || undefined,
+          whatYouWillLearn: body.whatYouWillLearn ? JSON.stringify(body.whatYouWillLearn) : undefined,
+          requirements: body.requirements ? JSON.stringify(body.requirements) : undefined,
+          targetAudience: body.targetAudience ? JSON.stringify(body.targetAudience) : undefined,
+          seoTitle: body.seoTitle !== undefined ? body.seoTitle : undefined,
+          seoDescription: body.seoDescription !== undefined ? body.seoDescription : undefined,
+          accessType: body.accessType !== undefined ? body.accessType : undefined,
+          accessDays: body.accessDays !== undefined ? (body.accessDays ? Number(body.accessDays) : null) : undefined
+        };
+
     const updated = await prisma.course.update({
       where: { id: course.id },
-      data: {
-        title: body.title !== undefined ? body.title.trim() : undefined,
-        slug: newSlug || undefined,
-        description: body.description !== undefined ? body.description : undefined,
-        shortDescription: body.shortDescription !== undefined ? body.shortDescription : undefined,
-        price: body.price !== undefined ? Number(body.price) : undefined,
-        discountPrice: body.discountPrice !== undefined ? (body.discountPrice ? Number(body.discountPrice) : null) : undefined,
-        currency: body.currency !== undefined ? body.currency : undefined,
-        thumbnail: body.thumbnail !== undefined ? body.thumbnail : undefined,
-        banner: body.banner !== undefined ? body.banner : undefined,
-        status: body.status !== undefined ? body.status : undefined,
-        reviewFeedback: body.status === 'IN_REVIEW' ? null : undefined,
-        level: body.level !== undefined ? body.level : undefined,
-        language: body.language !== undefined ? body.language : undefined,
-        durationHours: body.durationHours !== undefined ? Number(body.durationHours) : undefined,
-        categoryId: categoryId || undefined,
-        whatYouWillLearn: body.whatYouWillLearn ? JSON.stringify(body.whatYouWillLearn) : undefined,
-        requirements: body.requirements ? JSON.stringify(body.requirements) : undefined,
-        targetAudience: body.targetAudience ? JSON.stringify(body.targetAudience) : undefined,
-        seoTitle: body.seoTitle !== undefined ? body.seoTitle : undefined,
-        seoDescription: body.seoDescription !== undefined ? body.seoDescription : undefined,
-        accessType: body.accessType !== undefined ? body.accessType : undefined,
-        accessDays: body.accessDays !== undefined ? (body.accessDays ? Number(body.accessDays) : null) : undefined
-      }
+      data: courseUpdateData
     });
 
     // Synchronize Curriculum Sections and Lessons if provided
@@ -740,11 +801,12 @@ export async function PUT(
         let section = course.sections.find((s) => s.id === secData.id);
 
         if (section) {
+          const isOrigSec = isChildVersionDraft && originalSecIdsSet.has(section.id);
           section = await prisma.courseSection.update({
             where: { id: section.id },
             data: {
-              title: secData.title || `Module ${sIdx + 1}`,
-              description: secData.description !== undefined ? secData.description : undefined,
+              title: isOrigSec ? section.title : (secData.title || `Module ${sIdx + 1}`),
+              description: isOrigSec ? section.description : (secData.description !== undefined ? secData.description : undefined),
               order: secData.order || sIdx + 1
             },
             include: { lessons: true }
@@ -849,20 +911,21 @@ export async function PUT(
             }
 
             if (existingLesson) {
+              const isOrigLes = isChildVersionDraft && originalLesIdsSet.has(existingLesson.id);
               const updatedLesson = await prisma.lesson.update({
                 where: { id: existingLesson.id },
                 data: {
-                  title: lesData.title !== undefined ? lesData.title : existingLesson.title,
-                  description: lesData.description !== undefined ? lesData.description : undefined,
-                  type: lesType,
-                  content: lesData.content !== undefined ? lesData.content : undefined,
-                  videoUrl: cleanVideoUrl !== undefined ? cleanVideoUrl : (lesData.clearVideo ? null : existingLesson.videoUrl),
-                  pdfUrl: cleanPdfUrl !== undefined ? cleanPdfUrl : undefined,
-                  fileUrl: cleanFileUrl !== undefined ? cleanFileUrl : undefined,
-                  quizData: quizDataStr,
-                  resources: subLessonsStr,
-                  duration: lesData.duration || existingLesson.duration || '10:00',
-                  durationSeconds: lesData.durationSeconds || existingLesson.durationSeconds || 600,
+                  title: isOrigLes ? existingLesson.title : (lesData.title !== undefined ? lesData.title : existingLesson.title),
+                  description: isOrigLes ? existingLesson.description : (lesData.description !== undefined ? lesData.description : undefined),
+                  type: isOrigLes ? existingLesson.type : lesType,
+                  content: isOrigLes ? existingLesson.content : (lesData.content !== undefined ? lesData.content : undefined),
+                  videoUrl: isOrigLes ? existingLesson.videoUrl : (cleanVideoUrl !== undefined ? cleanVideoUrl : (lesData.clearVideo ? null : existingLesson.videoUrl)),
+                  pdfUrl: isOrigLes ? existingLesson.pdfUrl : (cleanPdfUrl !== undefined ? cleanPdfUrl : undefined),
+                  fileUrl: isOrigLes ? existingLesson.fileUrl : (cleanFileUrl !== undefined ? cleanFileUrl : undefined),
+                  quizData: isOrigLes ? existingLesson.quizData : quizDataStr,
+                  resources: isOrigLes ? existingLesson.resources : subLessonsStr,
+                  duration: isOrigLes ? existingLesson.duration : (lesData.duration || existingLesson.duration || '10:00'),
+                  durationSeconds: isOrigLes ? existingLesson.durationSeconds : (lesData.durationSeconds || existingLesson.durationSeconds || 600),
                   isFree: lesData.isFree !== undefined ? !!lesData.isFree : undefined,
                   isPublished: lesData.isPublished !== undefined ? lesData.isPublished : undefined,
                   order: lesData.order || lIdx + 1
@@ -893,16 +956,43 @@ export async function PUT(
             }
           }
 
-          const lessonsToDelete = (section.lessons || []).filter((l) => !incomingLessonIds.includes(l.id));
+          const lessonsToDelete = (section.lessons || []).filter(
+            (l) => !incomingLessonIds.includes(l.id) && (!isChildVersionDraft || !originalLesIdsSet.has(l.id))
+          );
           for (const lToDel of lessonsToDelete) {
             await prisma.lesson.delete({ where: { id: lToDel.id } }).catch(() => {});
           }
         }
       }
 
-      const sectionsToDelete = course.sections.filter((s) => !incomingSectionIds.includes(s.id));
+      const sectionsToDelete = course.sections.filter(
+        (s) => !incomingSectionIds.includes(s.id) && (!isChildVersionDraft || !originalSecIdsSet.has(s.id))
+      );
       for (const sToDel of sectionsToDelete) {
         await prisma.courseSection.delete({ where: { id: sToDel.id } }).catch(() => {});
+      }
+    }
+
+    if (isChildVersionDraft && isSubmittingForReview) {
+      const auditors = await prisma.user.findMany({
+        where: {
+          role: { in: ['REVIEWER', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'] },
+          status: 'ACTIVE'
+        },
+        select: { id: true }
+      });
+      for (const aud of auditors) {
+        if (aud.id !== user.id) {
+          await createNotification({
+            organizationId: course.organizationId,
+            userId: aud.id,
+            title: `🛡️ Course Version (${course.versionLabel || 'v2.0'}) Submitted for Review`,
+            message: `${user.name} submitted draft version ${course.versionLabel || 'v2.0'} of course "${course.title}".`,
+            type: 'COURSES',
+            category: 'COURSES',
+            link: `/reviewer/courses/${course.id}`
+          });
+        }
       }
     }
 

@@ -229,7 +229,21 @@ function CourseBuilderContent() {
       return false;
     }
 
-    // 2. CRITICAL: A course that is in DRAFT, IN_REVIEW, PENDING, or REJECTED has NOT been published live yet.
+    // 2. Child version draft or explicit version draft mode
+    const isChildVersionDraft = Boolean(courseState.parentCourseId);
+    const modeParam = searchParams.get('mode') === 'version_draft';
+    if (isChildVersionDraft || modeParam) {
+      return true;
+    }
+
+    // 3. For published/live courses: Only activate Mode B when explicitly having an active draft version
+    const isPublishedLive = courseState.status === 'PUBLISHED' || courseState.status === 'ARCHIVED';
+    const hasActiveDraftVersion = isPublishedLive && (courseVersionState?.status === 'DRAFT_VERSION' || courseVersionState?.status === 'PENDING_REVIEW');
+    if (isPublishedLive && hasActiveDraftVersion) {
+      return true;
+    }
+
+    // 4. CRITICAL: A course that is in DRAFT, IN_REVIEW, PENDING, or REJECTED without parentCourseId has NOT been published live yet.
     // When editing from Pending or Draft, it must edit the course directly without creating or triggering a version update!
     const isUnpublished =
       courseState.status === 'DRAFT' ||
@@ -240,25 +254,28 @@ function CourseBuilderContent() {
       return false;
     }
 
-    // 3. For published/live courses: Only activate Mode B when explicitly in version draft mode
-    const modeParam = searchParams.get('mode') === 'version_draft';
-    const isPublishedLive = courseState.status === 'PUBLISHED' || courseState.status === 'ARCHIVED';
-    const hasActiveDraftVersion = isPublishedLive && (courseVersionState?.status === 'DRAFT_VERSION' || courseVersionState?.status === 'PENDING_REVIEW');
-
-    return Boolean(isPublishedLive && (modeParam || hasActiveDraftVersion));
-  }, [searchParams, isMinorEditMode, courseVersionState, courseState.status, courseState.id, activeCourseId, editSlugOrId]);
+    return false;
+  }, [searchParams, isMinorEditMode, courseVersionState, courseState.status, courseState.id, courseState.parentCourseId, activeCourseId, editSlugOrId]);
 
   const liveVerNumber = courseVersionState?.liveVersionNumber || 1;
   const draftVerNumber = courseVersionState?.draftVersionNumber || courseVersionState?.pendingVersionNumber || liveVerNumber + 1;
 
   // Track original live sections and lessons from published course (for Mode B version updates)
   const originalSectionIds = useMemo(() => {
-    if (!isModeB || !originalCourseState?.sections) return new Set<string>();
+    if (!isModeB) return new Set<string>();
+    if (courseVersionState?.originalSectionIds && Array.isArray(courseVersionState.originalSectionIds) && courseVersionState.originalSectionIds.length > 0) {
+      return new Set<string>(courseVersionState.originalSectionIds);
+    }
+    if (!originalCourseState?.sections) return new Set<string>();
     return new Set<string>(originalCourseState.sections.map((s: any) => s.id).filter(Boolean));
-  }, [isModeB, originalCourseState]);
+  }, [isModeB, courseVersionState?.originalSectionIds, originalCourseState]);
 
   const originalLessonIds = useMemo(() => {
-    if (!isModeB || !originalCourseState?.sections) return new Set<string>();
+    if (!isModeB) return new Set<string>();
+    if (courseVersionState?.originalLessonIds && Array.isArray(courseVersionState.originalLessonIds) && courseVersionState.originalLessonIds.length > 0) {
+      return new Set<string>(courseVersionState.originalLessonIds);
+    }
+    if (!originalCourseState?.sections) return new Set<string>();
     const set = new Set<string>();
     for (const s of originalCourseState.sections) {
       for (const l of s.lessons || []) {
@@ -266,7 +283,7 @@ function CourseBuilderContent() {
       }
     }
     return set;
-  }, [isModeB, originalCourseState]);
+  }, [isModeB, courseVersionState?.originalLessonIds, originalCourseState]);
 
   // Real-time Minor vs Major change classifier for published courses
   const changeClassification = useMemo<{
@@ -369,6 +386,24 @@ function CourseBuilderContent() {
     if (currLessonsMap.size !== origLessonsMap.size) {
       hasMajor = true;
       reasons.push(`Lesson count changed (${origLessonsMap.size} → ${currLessonsMap.size})`);
+    }
+
+    if (isModeB && originalLessonIds.size > 0) {
+      for (const [id, currLes] of currLessonsMap.entries()) {
+        if (!originalLessonIds.has(id)) {
+          hasMajor = true;
+          reasons.push(`New curriculum item added: "${currLes.title || 'New Item'}"`);
+        }
+      }
+    }
+
+    if (isModeB && originalSectionIds.size > 0) {
+      for (const sec of currSections) {
+        if (sec.id && !originalSectionIds.has(sec.id)) {
+          hasMajor = true;
+          reasons.push(`New module added: "${sec.title || 'New Module'}"`);
+        }
+      }
     }
 
     for (const [id, currLes] of currLessonsMap.entries()) {
