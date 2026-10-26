@@ -9,6 +9,7 @@ import {
   Clock,
   FileText,
   XCircle,
+  PauseCircle,
   Users,
   TrendingUp,
   CheckCircle,
@@ -282,7 +283,7 @@ export default function InstructorDashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-rose-700">Inactive Courses</span>
                 <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <XCircle className="w-4 h-4" />
+                  <PauseCircle className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-3 text-3xl font-black text-rose-600 tracking-tight">

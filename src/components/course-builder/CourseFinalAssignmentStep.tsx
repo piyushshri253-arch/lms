@@ -320,6 +320,17 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
               <span>+ Add Final Assessment (Auto-adds Last Module)</span>
             </button>
           )}
+
+          {finalAssignmentInfo && !isMinorEditMode && (
+            <button
+              type="button"
+              onClick={handleRemoveFinalAssignment}
+              className="px-4 py-2.5 text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl border border-rose-200 transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+            >
+              <Icon name="delete" size={14} />
+              <span>Remove Final Assessment</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -374,33 +385,6 @@ export const CourseFinalAssignmentStep: React.FC<CourseFinalAssignmentStepProps>
       {/* State B: Final Assessment CONFIGURED & EDITABLE */}
       {finalAssignmentInfo && (
         <div className="space-y-6">
-          {/* Module Location Banner */}
-          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
-                M{finalAssignmentInfo.sectionIndex + 1}
-              </div>
-              <div>
-                <p className="text-xs font-black text-amber-950">
-                  Location: Module {finalAssignmentInfo.sectionIndex + 1} — {finalAssignmentInfo.sectionTitle}
-                </p>
-                <p className="text-[11px] text-amber-800">
-                  Positioned at the end of the curriculum as the student qualification exam.
-                </p>
-              </div>
-            </div>
-
-            {!isMinorEditMode && (
-              <button
-                type="button"
-                onClick={handleRemoveFinalAssignment}
-                className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer self-start sm:self-auto shrink-0 flex items-center gap-1.5"
-              >
-                <Icon name="delete" size={14} />
-                <span>Remove Final Assessment</span>
-              </button>
-            )}
-          </div>
 
           {/* Exam Configuration Card */}
           <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
