@@ -412,15 +412,25 @@ function InstructorCoursesStudioInner() {
           throw new Error(data.error || 'Failed to delete version draft');
         }
 
-        setCourses((prev) =>
-          prev
-            .filter((c) => c.id !== courseToDelete.id)
-            .map((c) =>
-              c.id === (courseToDelete.parentCourseId || courseToDelete.id)
-                ? { ...c, hasDraftVersion: false, versionStatus: null }
-                : c
-            )
-        );
+        setCourses((prev) => {
+          if (courseToDelete.parentCourseId) {
+            return prev
+              .filter((c) => c.id !== courseToDelete.id)
+              .map((c) =>
+                c.id === courseToDelete.parentCourseId
+                  ? { ...c, hasDraftVersion: false, versionStatus: null }
+                  : c
+              );
+          } else {
+            return prev
+              .filter((c) => c.parentCourseId !== courseToDelete.id)
+              .map((c) =>
+                c.id === courseToDelete.id
+                  ? { ...c, hasDraftVersion: false, versionStatus: null }
+                  : c
+              );
+          }
+        });
 
         showToast({
           title: 'Version Draft Discarded 🗑️',
@@ -607,10 +617,37 @@ function InstructorCoursesStudioInner() {
     c.status === 'PENDING_APPROVAL' ||
     (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && c.versionStatus === 'PENDING_REVIEW')
   ).length;
-  const draftCount = courses.filter((c) =>
-    c.status === 'DRAFT' ||
-    (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && (c.versionStatus === 'DRAFT_VERSION' || !c.versionStatus))
-  ).length;
+  const isDraftCourse = (c: CourseAuthored) => {
+    // 1. Regular course in DRAFT status
+    if (c.status === 'DRAFT') return true;
+
+    // 2. Child version draft course (has parentCourseId, not live published or approved, not currently under active review)
+    if (
+      Boolean(c.parentCourseId) &&
+      c.status !== 'PUBLISHED' &&
+      c.status !== 'APPROVED' &&
+      c.status !== 'IN_REVIEW' &&
+      c.status !== 'PENDING' &&
+      c.status !== 'PENDING_APPROVAL'
+    ) {
+      return true;
+    }
+
+    // 3. Parent course with in-progress version draft where child is not listed separately
+    const hasSeparateChild = courses.some((other) => other.parentCourseId === c.id);
+    if (
+      !hasSeparateChild &&
+      c.hasDraftVersion &&
+      c.versionStatus !== 'PENDING_REVIEW' &&
+      c.versionStatus !== 'APPROVED'
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const draftCount = courses.filter(isDraftCourse).length;
   const inactiveCount = courses.filter((c) => c.status === 'ARCHIVED' || c.status === 'INACTIVE').length;
   const rejectedCount = courses.filter((c) =>
     c.status === 'REJECTED' ||
@@ -633,10 +670,7 @@ function InstructorCoursesStudioInner() {
         );
       }
       if (activeTab === 'DRAFT') {
-        return (
-          c.status === 'DRAFT' ||
-          (!courses.some((other) => other.parentCourseId === c.id) && c.hasDraftVersion && (c.versionStatus === 'DRAFT_VERSION' || !c.versionStatus))
-        );
+        return isDraftCourse(c);
       }
       if (activeTab === 'INACTIVE') {
         return c.status === 'ARCHIVED' || c.status === 'INACTIVE';
@@ -1477,16 +1511,30 @@ function InstructorCoursesStudioInner() {
                 // Version state flags
                 const hasPendingVersionReview = Boolean(course.hasDraftVersion && course.versionStatus === 'PENDING_REVIEW');
                 const hasApprovedVersion = Boolean(course.hasDraftVersion && course.versionStatus === 'APPROVED');
-                const hasVersionDraft = Boolean(course.hasDraftVersion && (course.versionStatus === 'DRAFT_VERSION' || !course.versionStatus));
+                const hasVersionDraft = Boolean(course.hasDraftVersion && (course.versionStatus === 'DRAFT_VERSION' || !course.versionStatus || course.versionStatus === 'VERSION_REJECTED'));
                 const hasRejectedVersion = Boolean(course.hasDraftVersion && course.versionStatus === 'VERSION_REJECTED');
 
                 const isApproved = course.status === 'APPROVED' || hasApprovedVersion;
                 const isUnderReview = !isApproved && (course.status === 'IN_REVIEW' || course.status === 'PENDING' || course.status === 'PENDING_APPROVAL' || hasPendingVersionReview);
                 const isRejected = !isApproved && !isUnderReview && (course.status === 'REJECTED' || course.status === 'CHANGES_REQUESTED' || hasRejectedVersion);
-                const isDraft = !isApproved && !isUnderReview && !isRejected && (course.status === 'DRAFT' || (isDraftTab && hasVersionDraft));
+                const isDraft = !isApproved && !isUnderReview && (
+                  course.status === 'DRAFT' ||
+                  Boolean(course.parentCourseId) ||
+                  (isDraftTab && hasVersionDraft)
+                );
                 const isArchived = (course.status === 'ARCHIVED' || course.status === 'INACTIVE') && !isDraftTab && !isReviewTab;
                 const isPublished = course.status === 'PUBLISHED' && !isDraftTab && !isReviewTab;
                 const isBusy = actionInProgressId === course.id;
+
+                const canDeleteOrDiscard = !isApproved && !isUnderReview && course.status !== 'PUBLISHED' && (
+                  isDraft ||
+                  isRejected ||
+                  Boolean(course.parentCourseId) ||
+                  course.status === 'DRAFT' ||
+                  course.status === 'REJECTED' ||
+                  course.status === 'CHANGES_REQUESTED' ||
+                  hasVersionDraft
+                );
 
                 return (
                   <div
@@ -1499,7 +1547,11 @@ function InstructorCoursesStudioInner() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span
                             className={`px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
-                              course.parentCourseId && isDraft
+                              course.parentCourseId && isUnderReview
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : course.parentCourseId && isRejected
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : course.parentCourseId
                                 ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
                                 : isDraftTab && hasVersionDraft
                                 ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
@@ -1516,16 +1568,23 @@ function InstructorCoursesStudioInner() {
                                 : 'bg-slate-200/70 text-slate-700 border border-slate-300'
                             }`}
                           >
-                            {course.parentCourseId && isDraft ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
-                                <span>Version Draft ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
-                              </>
-                            ) : course.parentCourseId && isUnderReview ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
-                                <span>Under Review ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
-                              </>
+                            {course.parentCourseId ? (
+                              isUnderReview ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
+                                  <span>Under Review ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
+                                </>
+                              ) : isRejected ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                                  <span>Changes Requested</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+                                  <span>Version Draft ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
+                                </>
+                              )
                             ) : isDraftTab && hasVersionDraft ? (
                               <>
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
@@ -1727,6 +1786,22 @@ function InstructorCoursesStudioInner() {
                                 </button>
                               )}
 
+                              {hasVersionDraft && !hasPendingVersionReview && !hasApprovedVersion && (
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => {
+                                    setCourseToDelete(course);
+                                    setIsDeleteDraftModalOpen(true);
+                                  }}
+                                  className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-2xs"
+                                  title="Discard in-progress version draft (live course remains untouched)"
+                                >
+                                  <Icon name="delete" size={13} />
+                                  <span>Discard Draft</span>
+                                </button>
+                              )}
+
                               {/* D. Active / Inactive Toggle */}
                               <button
                                 type="button"
@@ -1860,7 +1935,7 @@ function InstructorCoursesStudioInner() {
                                 </button>
                               )}
 
-                              {isDraft && (
+                              {canDeleteOrDiscard && (
                                 <button
                                   type="button"
                                   disabled={isBusy}

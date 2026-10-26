@@ -751,7 +751,7 @@ export async function createOrGetDraftVersion(
   const existingDraftCourse = await prisma.course.findFirst({
     where: {
       parentCourseId: rootCourseId,
-      status: 'DRAFT'
+      status: { in: ['DRAFT', 'CHANGES_REQUESTED', 'REJECTED'] }
     },
     include: {
       sections: {
@@ -986,6 +986,28 @@ export async function createOrGetDraftVersion(
 }
 
 /**
+ * Safely deletes a course record and its cascading/linked relations without FK violations.
+ */
+async function safelyDeleteCourseRecord(id: string) {
+  try {
+    await prisma.order.updateMany({ where: { courseId: id }, data: { courseId: null } }).catch(() => {});
+    await prisma.certificate.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.enrollment.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.review.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.wishlist.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.bookmark.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.assignment.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.lessonProgress.deleteMany({ where: { lesson: { section: { courseId: id } } } }).catch(() => {});
+    await prisma.lesson.deleteMany({ where: { section: { courseId: id } } }).catch(() => {});
+    await prisma.courseSection.deleteMany({ where: { courseId: id } }).catch(() => {});
+    await prisma.course.delete({ where: { id } }).catch(() => {});
+    await prisma.platformSetting.delete({ where: { key: `course_version_${id}` } }).catch(() => {});
+  } catch (err) {
+    console.error(`Error deleting course record ${id}:`, err);
+  }
+}
+
+/**
  * Discards / Deletes an in-progress draft version for a course.
  * Deletes the draft Course record from PostgreSQL if one was created,
  * leaving the live published course active and 100% untouched.
@@ -1003,27 +1025,21 @@ export async function discardDraftVersion(
   const currentState = await getCourseVersionState(rootCourseId);
   const discardedVersion = currentState.pendingVersionLabel || `v${(currentState.liveVersionNumber || 1) + 1}.0`;
 
-  // If this is a child draft version, delete this course record from DB
-  if (course && course.parentCourseId && course.status === 'DRAFT') {
-    await prisma.courseSection.deleteMany({ where: { courseId: course.id } }).catch(() => {});
-    await prisma.course.delete({
-      where: { id: course.id }
-    }).catch(() => {});
-    await prisma.platformSetting.delete({ where: { key: `course_version_${course.id}` } }).catch(() => {});
-  } else {
-    // Delete any draft children of this root course
-    const childDrafts = await prisma.course.findMany({
-      where: {
-        parentCourseId: rootCourseId,
-        status: 'DRAFT'
-      },
-      select: { id: true }
-    });
-    for (const d of childDrafts) {
-      await prisma.courseSection.deleteMany({ where: { courseId: d.id } }).catch(() => {});
-      await prisma.course.delete({ where: { id: d.id } }).catch(() => {});
-      await prisma.platformSetting.delete({ where: { key: `course_version_${d.id}` } }).catch(() => {});
-    }
+  // If this target course is a child draft version (not live published/approved), delete it from DB
+  if (course && course.parentCourseId && course.status !== 'PUBLISHED' && course.status !== 'APPROVED') {
+    await safelyDeleteCourseRecord(course.id);
+  }
+
+  // Also clean up any un-published child draft versions belonging to this root course
+  const childDrafts = await prisma.course.findMany({
+    where: {
+      parentCourseId: rootCourseId,
+      status: { notIn: ['PUBLISHED', 'APPROVED'] }
+    },
+    select: { id: true }
+  });
+  for (const d of childDrafts) {
+    await safelyDeleteCourseRecord(d.id);
   }
 
   const updatedState: CourseVersionState = {
@@ -1036,6 +1052,8 @@ export async function discardDraftVersion(
     submittedAt: null,
     submittedBy: null,
     reviewerFeedback: null,
+    originalSectionIds: [],
+    originalLessonIds: [],
     updatedAt: new Date().toISOString()
   };
 

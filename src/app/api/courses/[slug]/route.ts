@@ -12,6 +12,7 @@ import {
   saveCourseVersionState,
   classifyCourseChanges,
   applyMinorUpdateToLiveCourse,
+  discardDraftVersion,
   StagedCourseSnapshot,
   getStudentEnrolledVersion
 } from '@/lib/course-versioning';
@@ -1062,9 +1063,9 @@ export async function DELETE(
           { status: 403 }
         );
       }
-      if (course.status !== 'DRAFT') {
+      if (course.status === 'PUBLISHED' || course.status === 'APPROVED') {
         return NextResponse.json(
-          { error: 'Action not allowed: Instructors can only delete draft courses. Published or live courses can be deactivated instead.' },
+          { error: 'Action not allowed: Instructors cannot delete live published courses. Published courses can be deactivated instead.' },
           { status: 403 }
         );
       }
@@ -1080,9 +1081,34 @@ export async function DELETE(
       where: { courseId: course.id }
     }).catch(() => {});
 
+    await prisma.enrollment.deleteMany({
+      where: { courseId: course.id }
+    }).catch(() => {});
+
+    await prisma.lessonProgress.deleteMany({
+      where: { lesson: { section: { courseId: course.id } } }
+    }).catch(() => {});
+
+    await prisma.courseSection.deleteMany({
+      where: { courseId: course.id }
+    }).catch(() => {});
+
     await prisma.course.delete({
       where: { id: course.id }
     });
+
+    await prisma.platformSetting.delete({
+      where: { key: `course_version_${course.id}` }
+    }).catch(() => {});
+
+    // If this was a child draft version, also reset parent course's version state to LIVE_SYNCED
+    if (course.parentCourseId) {
+      await discardDraftVersion(course.parentCourseId, {
+        id: user.id,
+        name: user.name,
+        role: user.role
+      }).catch(() => {});
+    }
 
     await prisma.auditLog.create({
       data: {
