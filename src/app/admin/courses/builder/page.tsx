@@ -1053,6 +1053,7 @@ function CourseBuilderContent() {
         status: isSubmitting && isInstructorUser ? 'IN_REVIEW' : state.status,
         submitForApproval: isSubmitting,
         submitVersionForReview: isSubmitting && isModeB,
+        isMinorEditMode: Boolean(isMinorEditMode),
         whatYouWillLearn: state.whatYouWillLearn,
         requirements: state.requirements,
         targetAudience: state.targetAudience,
@@ -1129,7 +1130,7 @@ function CourseBuilderContent() {
         }
 
         if (!res.ok) throw new Error(responseData?.error || 'Failed to update course');
-        if (responseData?.versionState) {
+        if (!isMinorEditMode && responseData?.versionState) {
           setCourseVersionState(responseData.versionState);
         }
         if (responseData?.course?.id) {
@@ -1518,8 +1519,8 @@ function CourseBuilderContent() {
 
       if (isDirectMinorPublish) {
         showToast({
-          title: 'Minor Updates Published Live! 🚀',
-          description: 'Your minor content updates have been published directly to the live course without needing auditor review.',
+          title: 'Changes Submitted & Live! 🚀',
+          description: `Minor updates saved directly into current version (${courseState.versionLabel || `v${courseState.versionNumber || 1}.0`}). No new version created.`,
           type: 'success'
         });
 
@@ -2139,7 +2140,7 @@ function CourseBuilderContent() {
             className={`h-9 px-4 sm:px-5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 whitespace-nowrap ${
               !isChecklistComplete
                 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
-                : (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR') || isMinorEditMode
+                : (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR')
                 ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25 cursor-pointer'
                 : isModeB && changeClassification.type === 'UNCHANGED'
                 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none'
@@ -2153,13 +2154,15 @@ function CourseBuilderContent() {
                   {isInstructor
                     ? courseState.status === 'APPROVED'
                       ? 'Publishing Live...'
-                      : (isModeB && changeClassification.type === 'MINOR') || isMinorEditMode
+                      : isMinorEditMode
+                      ? 'Submitting...'
+                      : isModeB && changeClassification.type === 'MINOR'
                       ? 'Publishing Live Updates...'
                       : courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING'
                       ? 'Updating Submission...'
                       : 'Submitting...'
                     : isMinorEditMode
-                    ? 'Publishing Live Updates...'
+                    ? 'Submitting...'
                     : 'Publishing...'}
                 </span>
               </>
@@ -2171,8 +2174,8 @@ function CourseBuilderContent() {
                 </>
               ) : isMinorEditMode ? (
                 <>
-                  <Icon name="rocket_launch" size={16} />
-                  <span>Direct Publish Minor Updates 🚀</span>
+                  <Icon name="send" size={16} />
+                  <span>Submit</span>
                 </>
               ) : courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING' ? (
                 <>
@@ -2209,8 +2212,8 @@ function CourseBuilderContent() {
               )
             ) : isMinorEditMode ? (
               <>
-                <Icon name="rocket_launch" size={16} />
-                <span>Direct Publish Minor Updates 🚀</span>
+                <Icon name="send" size={16} />
+                <span>Submit</span>
               </>
             ) : (
               <>
@@ -2244,11 +2247,11 @@ function CourseBuilderContent() {
                 Direct Update (Live Course)
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                Live Version Active
+                Current Version ({courseState.versionLabel || `v${courseState.versionNumber || 1}.0`})
               </span>
             </div>
             <p className="text-xs sm:text-sm font-semibold leading-relaxed text-blue-900/90 dark:text-blue-100/90">
-              You are performing a quick minor edit on your live published course (fixing typos, title, description, or minor wording). Spreadsheet download is disabled in this mode. For curriculum restructuring or adding new modules, use &quot;Update Version&quot; from My Courses.
+              You are performing a quick minor edit on your live published course (fixing typos, title, description, or minor wording). Your edits apply directly to this version without creating a new version draft. For curriculum restructuring or adding new modules, use &quot;Update Version&quot; from My Courses.
             </p>
           </div>
         </div>

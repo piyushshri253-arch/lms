@@ -216,7 +216,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               <span>
                 {userRole === 'INSTRUCTOR'
                   ? isMinorEditMode
-                    ? 'Minor Update (Direct Publish Live) 🚀'
+                    ? `Minor Edit (${courseData.versionLabel || `v${courseData.versionNumber || 1}.0`}) 📝`
                     : isModeB
                     ? isMinorChange
                       ? 'Minor Update (Direct Publish Live) 🚀'
@@ -233,7 +233,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                     ? 'Ready for Review'
                     : 'Action Required Before Submitting'
                   : isMinorEditMode
-                  ? 'Minor Update (Direct Publish Live) 🚀'
+                  ? `Minor Edit (${courseData.versionLabel || `v${courseData.versionNumber || 1}.0`}) 📝`
                   : canPublish
                   ? 'Ready for Live Platform Release'
                   : 'Action Required Before Submitting'}
@@ -259,7 +259,9 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
 
           {/* Large Main Heading */}
           <h3 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-on-surface">
-            {isMinorEditMode || (isModeB && isMinorChange)
+            {isMinorEditMode
+              ? `Minor Edits on Live Course (${courseData.versionLabel || `v${courseData.versionNumber || 1}.0`}) 📝`
+              : isModeB && isMinorChange
               ? 'Minor Content Updates Ready to Publish Live! 🚀'
               : userRole === 'INSTRUCTOR'
               ? isModeB
@@ -283,7 +285,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           {/* Descriptive Content (Full Width) */}
           <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed max-w-4xl font-medium">
             {isMinorEditMode
-              ? '✨ Quick Minor Edit mode active. Since your changes are minor adjustments (spelling, text, descriptions, or resources), you can publish them directly to your live course right away—no auditor approval required!'
+              ? `✨ Quick Minor Edit active on ${courseData.versionLabel || `v${courseData.versionNumber || 1}.0`}. Your minor fixes (typos, descriptions, wording) will save directly into this current version without creating a new version draft or requiring review.`
               : userRole === 'INSTRUCTOR'
               ? isModeB
                 ? isMinorChange
@@ -383,7 +385,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               className={`px-6 py-2.5 font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 transition-all ${
                 !canPublish
                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
-                  : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange) || isMinorEditMode
+                  : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30 hover:shadow-lg cursor-pointer hover:scale-[1.02]'
                   : 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer hover:scale-[1.02]'
               }`}
@@ -393,7 +395,9 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                 <Icon name="sync" size={16} className="animate-spin" />
                 <span>
                   {userRole === 'INSTRUCTOR'
-                    ? (isModeB && isMinorChange) || isMinorEditMode
+                    ? isMinorEditMode
+                      ? 'Submitting...'
+                      : isModeB && isMinorChange
                       ? 'Publishing Live Updates...'
                       : courseData.status === 'APPROVED'
                       ? 'Publishing Live...'
@@ -401,15 +405,15 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                       ? 'Updating Submission...'
                       : 'Submitting...'
                     : isMinorEditMode
-                    ? 'Publishing Live Updates...'
+                    ? 'Submitting...'
                     : 'Publishing...'}
                 </span>
               </>
             ) : userRole === 'INSTRUCTOR' ? (
               isMinorEditMode ? (
                 <>
-                  <Icon name="rocket_launch" size={16} />
-                  <span>Direct Publish Minor Updates 🚀</span>
+                  <Icon name="send" size={16} />
+                  <span>Submit</span>
                 </>
               ) : isModeB ? (
                 isMinorChange ? (
@@ -451,8 +455,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               )
             ) : isMinorEditMode ? (
               <>
-                <Icon name="rocket_launch" size={16} />
-                <span>Direct Publish Minor Updates 🚀</span>
+                <Icon name="send" size={16} />
+                <span>Submit</span>
               </>
             ) : (
               <>

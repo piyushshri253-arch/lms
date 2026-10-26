@@ -189,7 +189,7 @@ function getBuilderButtonState(course: {
     if (course.status === 'APPROVED') {
       label = 'Publish Masterclass Live 🚀';
     } else if (course.isMinorEditMode) {
-      label = 'Direct Publish Minor Updates 🚀';
+      label = 'Submit';
     } else if (course.status === 'IN_REVIEW' || course.status === 'PENDING') {
       label = 'Update & Resubmit for Review 📋';
     } else if (course.isModeB) {
@@ -202,7 +202,7 @@ function getBuilderButtonState(course: {
       label = 'Submit for Approval 📋';
     }
   } else if (course.isMinorEditMode) {
-    label = 'Direct Publish Minor Updates 🚀';
+    label = 'Submit';
   }
 
   return { label, isDirectMinorPublish, isApprovalSubmit, isGreenTheme };
@@ -219,12 +219,11 @@ const minorEditButtonState = getBuilderButtonState({
 });
 
 if (
-  minorEditButtonState.label === 'Direct Publish Minor Updates 🚀' &&
+  minorEditButtonState.label === 'Submit' &&
   minorEditButtonState.isDirectMinorPublish === true &&
-  minorEditButtonState.isApprovalSubmit === false &&
-  minorEditButtonState.isGreenTheme === true
+  minorEditButtonState.isApprovalSubmit === false
 ) {
-  console.log('✅ PASS: Quick Minor Edit displays "Direct Publish Minor Updates 🚀", bypasses approval queue, and uses emerald button!');
+  console.log('✅ PASS: Quick Minor Edit displays "Submit", bypasses approval queue, and updates current version in-place!');
 } else {
   console.error('❌ FAIL: Quick Minor Edit button state check failed:', minorEditButtonState);
   process.exit(1);

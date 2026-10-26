@@ -572,9 +572,10 @@ export async function PUT(
     );
 
     if (course.status === 'PUBLISHED' && !body.forceDirectAdminOverride) {
+      const isQuickMinorEdit = Boolean(body.isMinorEditMode);
       const classification = classifyCourseChanges(course, body);
 
-      if (classification.hasMajorChanges) {
+      if (!isQuickMinorEdit && classification.hasMajorChanges) {
         // Any change set with major or uncertain changes MUST be staged into a draft snapshot.
         // The live published course remains completely untouched!
         const currentVer = await getCourseVersionState(course.id);
