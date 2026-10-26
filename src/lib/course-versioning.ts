@@ -1130,7 +1130,10 @@ export async function applyMinorUpdateToLiveCourse(
             data: {
               title: les.title !== undefined ? les.title.trim() : undefined,
               description: les.description !== undefined ? les.description : undefined,
-              content: les.content !== undefined ? les.content : undefined
+              content: les.content !== undefined ? les.content : undefined,
+              pdfUrl: les.pdfUrl !== undefined ? les.pdfUrl : undefined,
+              fileUrl: les.fileUrl !== undefined ? les.fileUrl : undefined,
+              resources: les.resources !== undefined ? (typeof les.resources === 'string' ? les.resources : JSON.stringify(les.resources)) : undefined
             }
           }).catch(() => {});
         }

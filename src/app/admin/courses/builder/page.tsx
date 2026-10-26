@@ -292,7 +292,7 @@ function CourseBuilderContent() {
     isMinor: boolean;
     isMajor: boolean;
   }>(() => {
-    if (!originalCourseState || !isModeB) {
+    if (!originalCourseState || (!isModeB && !isMinorEditMode)) {
       return { type: 'UNCHANGED', reasons: [], isMinor: false, isMajor: false };
     }
 
@@ -484,7 +484,7 @@ function CourseBuilderContent() {
       return { type: 'MINOR', reasons, isMinor: true, isMajor: false };
     }
     return { type: 'UNCHANGED', reasons: [], isMinor: false, isMajor: false };
-  }, [courseState, originalCourseState, isModeB]);
+  }, [courseState, originalCourseState, isModeB, isMinorEditMode]);
 
   // Completeness Checklist validator: Submit / Publish action is ONLY active when all checklist items pass
   const isChecklistComplete = useMemo(() => {
@@ -1492,12 +1492,24 @@ function CourseBuilderContent() {
       }
 
       const isInstructor = currentUser?.role === 'INSTRUCTOR';
-      const isDirectMinorPublish = isModeB && changeClassification.type === 'MINOR';
-      const isApprovalSubmit = isModeB
+      const isDirectMinorPublish = isMinorEditMode || (isModeB && changeClassification.type === 'MINOR');
+      const isApprovalSubmit = isMinorEditMode
+        ? false
+        : isModeB
         ? changeClassification.type === 'MAJOR'
         : (isInstructor && courseState.status !== 'APPROVED');
 
-      const savedInfo = await handleSaveDraft({ submitForApproval: isApprovalSubmit });
+      if (isMinorEditMode && changeClassification.type === 'MAJOR') {
+        showToast({
+          title: 'Major Changes Blocked ⚠️',
+          description: `Major changes detected (${changeClassification.reasons.join(', ')}). Quick Minor Edit only allows minor text/typo updates directly to live. To make major changes, please use "Update Version" from My Courses.`,
+          type: 'error'
+        });
+        setIsPublishing(false);
+        return;
+      }
+
+      const savedInfo = await handleSaveDraft({ submitForApproval: isApprovalSubmit, silent: true });
       const targetIdentifier = savedInfo?.slug || savedInfo?.id || courseState.slug || courseState.id;
 
       if (!targetIdentifier) {
@@ -2127,7 +2139,7 @@ function CourseBuilderContent() {
             className={`h-9 px-4 sm:px-5 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 whitespace-nowrap ${
               !isChecklistComplete
                 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
-                : (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR')
+                : (isInstructor && courseState.status === 'APPROVED') || (isModeB && changeClassification.type === 'MINOR') || isMinorEditMode
                 ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/25 cursor-pointer'
                 : isModeB && changeClassification.type === 'UNCHANGED'
                 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none'
@@ -2141,11 +2153,13 @@ function CourseBuilderContent() {
                   {isInstructor
                     ? courseState.status === 'APPROVED'
                       ? 'Publishing Live...'
-                      : isModeB && changeClassification.type === 'MINOR'
+                      : (isModeB && changeClassification.type === 'MINOR') || isMinorEditMode
                       ? 'Publishing Live Updates...'
                       : courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING'
                       ? 'Updating Submission...'
                       : 'Submitting...'
+                    : isMinorEditMode
+                    ? 'Publishing Live Updates...'
                     : 'Publishing...'}
                 </span>
               </>
@@ -2154,6 +2168,11 @@ function CourseBuilderContent() {
                 <>
                   <Icon name="rocket_launch" size={16} />
                   <span>Publish Masterclass Live 🚀</span>
+                </>
+              ) : isMinorEditMode ? (
+                <>
+                  <Icon name="rocket_launch" size={16} />
+                  <span>Direct Publish Minor Updates 🚀</span>
                 </>
               ) : courseState.status === 'IN_REVIEW' || (courseState.status as string) === 'PENDING' ? (
                 <>
@@ -2188,6 +2207,11 @@ function CourseBuilderContent() {
                   <span>Submit for Approval 📋</span>
                 </>
               )
+            ) : isMinorEditMode ? (
+              <>
+                <Icon name="rocket_launch" size={16} />
+                <span>Direct Publish Minor Updates 🚀</span>
+              </>
             ) : (
               <>
                 <Icon name="rocket_launch" size={16} />
@@ -2641,6 +2665,7 @@ function CourseBuilderContent() {
           accessType={courseState.accessType}
           accessDays={courseState.accessDays}
           onChange={handleUpdateField}
+          isMinorEditMode={isMinorEditMode}
         />
       )}
 
@@ -2654,6 +2679,7 @@ function CourseBuilderContent() {
           onUnpublish={handleUnpublishCourse}
           isPublishing={isPublishing}
           isModeB={isModeB}
+          isMinorEditMode={isMinorEditMode}
           isMinorChange={changeClassification.type === 'MINOR'}
           minorReasons={changeClassification.reasons}
         />

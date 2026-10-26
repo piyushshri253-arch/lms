@@ -10,6 +10,7 @@ interface CoursePricingProps {
   accessType: string;
   accessDays?: number | null;
   onChange: (field: string, val: any) => void;
+  isMinorEditMode?: boolean;
 }
 
 export const CoursePricingStep: React.FC<CoursePricingProps> = ({
@@ -18,7 +19,8 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
   currency = 'INR',
   accessType,
   accessDays,
-  onChange
+  onChange,
+  isMinorEditMode = false
 }) => {
   const isFree = price === 0;
   const curr = currency || 'INR';
@@ -35,14 +37,34 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
           </p>
         </div>
 
+        {/* Quick Minor Edit Pricing Lock Notice */}
+        {isMinorEditMode && (
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 rounded-2xl flex items-start gap-3">
+            <Icon name="lock" size={20} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                Pricing &amp; Access Locked in Quick Minor Edit Mode
+              </h4>
+              <p className="text-[11px] sm:text-xs text-amber-800/80 dark:text-amber-300/80">
+                Course pricing and student access policies cannot be modified during minor edits of a live course. To alter pricing or launch promotional discounts, please create an &quot;Update Version&quot; from My Courses.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Free vs Paid Selector */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div
             onClick={() => {
+              if (isMinorEditMode) return;
               onChange('price', 0);
               onChange('discountPrice', null);
             }}
-            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+            className={`p-5 rounded-2xl border-2 transition-all ${
+              isMinorEditMode
+                ? 'opacity-60 cursor-not-allowed'
+                : 'cursor-pointer'
+            } ${
               isFree
                 ? 'border-primary bg-primary/5 shadow-xs'
                 : 'border-outline-variant hover:border-primary/40 bg-surface'
@@ -56,6 +78,7 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
                 type="radio"
                 name="pricing_mode"
                 checked={isFree}
+                disabled={isMinorEditMode}
                 onChange={() => {}}
                 className="text-primary focus:ring-primary"
               />
@@ -68,9 +91,14 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
 
           <div
             onClick={() => {
+              if (isMinorEditMode) return;
               if (price === 0) onChange('price', curr === 'INR' ? 1499 : 49);
             }}
-            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+            className={`p-5 rounded-2xl border-2 transition-all ${
+              isMinorEditMode
+                ? 'opacity-60 cursor-not-allowed'
+                : 'cursor-pointer'
+            } ${
               !isFree
                 ? 'border-primary bg-primary/5 shadow-xs'
                 : 'border-outline-variant hover:border-primary/40 bg-surface'
@@ -106,8 +134,14 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
               <div className="grid grid-cols-2 gap-3 max-w-md">
                 <button
                   type="button"
-                  onClick={() => onChange('currency', 'INR')}
-                  className={`p-3 rounded-xl border text-left font-bold text-xs flex items-center justify-between transition-all cursor-pointer ${
+                  disabled={isMinorEditMode}
+                  onClick={() => {
+                    if (isMinorEditMode) return;
+                    onChange('currency', 'INR');
+                  }}
+                  className={`p-3 rounded-xl border text-left font-bold text-xs flex items-center justify-between transition-all ${
+                    isMinorEditMode ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                  } ${
                     curr === 'INR'
                       ? 'border-primary bg-primary/10 text-primary shadow-xs'
                       : 'border-outline-variant bg-surface text-on-surface'
@@ -125,8 +159,14 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => onChange('currency', 'USD')}
-                  className={`p-3 rounded-xl border text-left font-bold text-xs flex items-center justify-between transition-all cursor-pointer ${
+                  disabled={isMinorEditMode}
+                  onClick={() => {
+                    if (isMinorEditMode) return;
+                    onChange('currency', 'USD');
+                  }}
+                  className={`p-3 rounded-xl border text-left font-bold text-xs flex items-center justify-between transition-all ${
+                    isMinorEditMode ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                  } ${
                     curr === 'USD'
                       ? 'border-primary bg-primary/10 text-primary shadow-xs'
                       : 'border-outline-variant bg-surface text-on-surface'
@@ -158,10 +198,13 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
                     type="number"
                     min="1"
                     required
+                    disabled={isMinorEditMode}
                     value={price}
                     onChange={(e) => onChange('price', Number(e.target.value))}
                     placeholder={curr === 'INR' ? '1499' : '49'}
-                    className="w-full pl-8 pr-4 py-3 bg-surface border border-outline-variant rounded-xl text-sm font-mono font-bold text-on-surface focus:outline-none focus:border-primary"
+                    className={`w-full pl-8 pr-4 py-3 bg-surface border border-outline-variant rounded-xl text-sm font-mono font-bold text-on-surface focus:outline-none focus:border-primary ${
+                      isMinorEditMode ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
               </div>
@@ -177,12 +220,15 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
                   <input
                     type="number"
                     min="0"
+                    disabled={isMinorEditMode}
                     value={discountPrice || ''}
                     onChange={(e) =>
                       onChange('discountPrice', e.target.value ? Number(e.target.value) : null)
                     }
                     placeholder={curr === 'INR' ? 'e.g. 999' : 'e.g. 29'}
-                    className="w-full pl-8 pr-4 py-3 bg-surface border border-outline-variant rounded-xl text-sm font-mono font-bold text-on-surface focus:outline-none focus:border-primary"
+                    className={`w-full pl-8 pr-4 py-3 bg-surface border border-outline-variant rounded-xl text-sm font-mono font-bold text-on-surface focus:outline-none focus:border-primary ${
+                      isMinorEditMode ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
               </div>
@@ -203,10 +249,13 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div
             onClick={() => {
+              if (isMinorEditMode) return;
               onChange('accessType', 'LIFETIME');
               onChange('accessDays', null);
             }}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            className={`p-4 rounded-2xl border transition-all ${
+              isMinorEditMode ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            } ${
               accessType === 'LIFETIME'
                 ? 'border-primary bg-primary/5'
                 : 'border-outline-variant bg-surface'
@@ -220,10 +269,13 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
 
           <div
             onClick={() => {
+              if (isMinorEditMode) return;
               onChange('accessType', 'LIMITED_DAYS');
               if (!accessDays) onChange('accessDays', 365);
             }}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            className={`p-4 rounded-2xl border transition-all ${
+              isMinorEditMode ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            } ${
               accessType === 'LIMITED_DAYS'
                 ? 'border-primary bg-primary/5'
                 : 'border-outline-variant bg-surface'
@@ -244,10 +296,13 @@ export const CoursePricingStep: React.FC<CoursePricingProps> = ({
             <input
               type="number"
               min="7"
+              disabled={isMinorEditMode}
               value={accessDays || 365}
               onChange={(e) => onChange('accessDays', Number(e.target.value))}
               placeholder="365"
-              className="w-48 bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-mono font-bold"
+              className={`w-48 bg-surface border border-outline-variant rounded-xl px-4 py-2.5 text-xs font-mono font-bold ${
+                isMinorEditMode ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
             />
           </div>
         )}

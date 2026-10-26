@@ -21,6 +21,7 @@ interface CoursePublishStepProps {
   onUnpublish?: () => Promise<void>;
   isPublishing: boolean;
   isModeB?: boolean;
+  isMinorEditMode?: boolean;
   isMinorChange?: boolean;
   minorReasons?: string[];
 }
@@ -33,6 +34,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
   onUnpublish,
   isPublishing,
   isModeB = false,
+  isMinorEditMode = false,
   isMinorChange = false,
   minorReasons = []
 }) => {
@@ -185,7 +187,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           <div className="flex flex-wrap items-center gap-2.5">
             <span
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
-                isModeB && isMinorChange
+                (isModeB && isMinorChange) || isMinorEditMode
                   ? 'bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-500/40'
                   : isModeB
                   ? 'bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/40'
@@ -204,7 +206,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                 className={`w-2 h-2 rounded-full ${
                   courseData.status === 'IN_REVIEW'
                     ? 'bg-amber-500 animate-pulse'
-                    : courseData.status === 'APPROVED' || courseData.status === 'PUBLISHED' || (isModeB && isMinorChange)
+                    : courseData.status === 'APPROVED' || courseData.status === 'PUBLISHED' || (isModeB && isMinorChange) || isMinorEditMode
                     ? 'bg-emerald-500 animate-pulse'
                     : canPublish
                     ? 'bg-emerald-500'
@@ -213,7 +215,9 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               />
               <span>
                 {userRole === 'INSTRUCTOR'
-                  ? isModeB
+                  ? isMinorEditMode
+                    ? 'Minor Update (Direct Publish Live) 🚀'
+                    : isModeB
                     ? isMinorChange
                       ? 'Minor Update (Direct Publish Live) 🚀'
                       : 'Major Version Draft (Auditor Review Required) 📋'
@@ -228,6 +232,8 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                     : canPublish
                     ? 'Ready for Review'
                     : 'Action Required Before Submitting'
+                  : isMinorEditMode
+                  ? 'Minor Update (Direct Publish Live) 🚀'
                   : canPublish
                   ? 'Ready for Live Platform Release'
                   : 'Action Required Before Submitting'}
@@ -253,11 +259,11 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
 
           {/* Large Main Heading */}
           <h3 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-on-surface">
-            {userRole === 'INSTRUCTOR'
+            {isMinorEditMode || (isModeB && isMinorChange)
+              ? 'Minor Content Updates Ready to Publish Live! 🚀'
+              : userRole === 'INSTRUCTOR'
               ? isModeB
-                ? isMinorChange
-                  ? 'Minor Content Updates Ready to Publish Live! 🚀'
-                  : 'Major Version Draft Ready for Review 📋'
+                ? 'Major Version Draft Ready for Review 📋'
                 : courseData.status === 'APPROVED'
                 ? 'Course Approved! Ready to Go Live 🚀'
                 : courseData.status === 'IN_REVIEW' || courseData.status === 'PENDING'
@@ -276,7 +282,9 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
 
           {/* Descriptive Content (Full Width) */}
           <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed max-w-4xl font-medium">
-            {userRole === 'INSTRUCTOR'
+            {isMinorEditMode
+              ? '✨ Quick Minor Edit mode active. Since your changes are minor adjustments (spelling, text, descriptions, or resources), you can publish them directly to your live course right away—no auditor approval required!'
+              : userRole === 'INSTRUCTOR'
               ? isModeB
                 ? isMinorChange
                   ? `✨ Minor content updates detected (${minorReasons.length > 0 ? minorReasons.join(', ') : 'wording/text adjustments'}). Since these changes don't alter course pricing or curriculum structure, you can publish them directly to your live course right away—no auditor review required!`
@@ -298,7 +306,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
           </p>
 
           {/* Detected Minor Reasons Pills */}
-          {isModeB && isMinorChange && minorReasons.length > 0 && (
+          {((isModeB && isMinorChange) || isMinorEditMode) && minorReasons.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Detected Edits:</span>
               {minorReasons.map((reason, idx) => (
@@ -375,7 +383,7 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
               className={`px-6 py-2.5 font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center gap-2 transition-all ${
                 !canPublish
                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed shadow-none'
-                  : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange)
+                  : (userRole === 'INSTRUCTOR' && courseData.status === 'APPROVED') || (isModeB && isMinorChange) || isMinorEditMode
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30 hover:shadow-lg cursor-pointer hover:scale-[1.02]'
                   : 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer hover:scale-[1.02]'
               }`}
@@ -385,18 +393,25 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                 <Icon name="sync" size={16} className="animate-spin" />
                 <span>
                   {userRole === 'INSTRUCTOR'
-                    ? isModeB && isMinorChange
+                    ? (isModeB && isMinorChange) || isMinorEditMode
                       ? 'Publishing Live Updates...'
                       : courseData.status === 'APPROVED'
                       ? 'Publishing Live...'
                       : courseData.status === 'IN_REVIEW' || courseData.status === 'PENDING'
                       ? 'Updating Submission...'
                       : 'Submitting...'
+                    : isMinorEditMode
+                    ? 'Publishing Live Updates...'
                     : 'Publishing...'}
                 </span>
               </>
             ) : userRole === 'INSTRUCTOR' ? (
-              isModeB ? (
+              isMinorEditMode ? (
+                <>
+                  <Icon name="rocket_launch" size={16} />
+                  <span>Direct Publish Minor Updates 🚀</span>
+                </>
+              ) : isModeB ? (
                 isMinorChange ? (
                   <>
                     <Icon name="rocket_launch" size={16} />
@@ -434,6 +449,11 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
                   <span>Submit for Quality Review 📋</span>
                 </>
               )
+            ) : isMinorEditMode ? (
+              <>
+                <Icon name="rocket_launch" size={16} />
+                <span>Direct Publish Minor Updates 🚀</span>
+              </>
             ) : (
               <>
                 <Icon name="rocket_launch" size={16} />
