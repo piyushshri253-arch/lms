@@ -79,6 +79,9 @@ export interface Course {
   isEnrolled?: boolean;
   isWishlisted?: boolean;
   status?: string;
+  parentCourseId?: string | null;
+  versionNumber?: number;
+  versionLabel?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

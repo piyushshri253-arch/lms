@@ -39,6 +39,21 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
     });
   }, [(course as any).updatedAt, course.createdAt]);
 
+  // Format Version Label (e.g. "v1.0", "v2.0")
+  const versionLabel = React.useMemo(() => {
+    if (course.versionLabel && course.versionLabel.trim()) {
+      return course.versionLabel.trim();
+    }
+    if ((course as any).versionNumber) {
+      return `v${(course as any).versionNumber}.0`;
+    }
+    const titleMatch = course.title?.match(/\((v\d+(\.\d+)?)\)/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1];
+    }
+    return 'v1.0';
+  }, [course.versionLabel, (course as any).versionNumber, course.title]);
+
   const isRecentlyAdded = React.useMemo(() => {
     if (!course.createdAt) return false;
     const diff = Date.now() - new Date(course.createdAt).getTime();
@@ -129,6 +144,11 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
               </span>
             </div>
           )}
+          {/* Version Badge (Top-Left) */}
+          <div className="absolute top-2 left-2 z-20 bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm tracking-wider flex items-center gap-1 border border-white/20">
+            <Icon name="layers" size={11} className="text-violet-400" />
+            <span>{versionLabel}</span>
+          </div>
           {course.price === 0 && (
             <div className="absolute top-2 right-2 z-20 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-sm tracking-wider uppercase">
               Free
@@ -148,13 +168,19 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
             {course.instructor?.name || 'Faculty of Teacher Excellence'}
           </p>
 
-          {/* Updated Date */}
-          {formattedUpdateDate && (
-            <div className="flex items-center gap-1 text-[11px] text-[#5022c3] font-medium mb-1 bg-purple-50/80 px-1.5 py-0.5 rounded w-fit">
-              <Icon name="update" size={12} className="text-[#5022c3] shrink-0" />
-              <span>Updated {formattedUpdateDate}</span>
-            </div>
-          )}
+          {/* Version & Updated Date */}
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-violet-50 text-[#5022c3] border border-violet-200/80">
+              <Icon name="layers" size={11} className="text-[#5022c3]" />
+              <span>{versionLabel}</span>
+            </span>
+            {formattedUpdateDate && (
+              <div className="flex items-center gap-1 text-[11px] text-[#5022c3] font-medium bg-purple-50/80 px-1.5 py-0.5 rounded">
+                <Icon name="update" size={12} className="text-[#5022c3] shrink-0" />
+                <span>Updated {formattedUpdateDate}</span>
+              </div>
+            )}
+          </div>
 
           {/* Ratings Row (Clickable -> direct jump to Reviews) */}
           <div
@@ -204,35 +230,41 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
             )}
           </div>
 
-          {/* Badges */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {Number(course.price || 0) === 0 && (
-              <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
-                Free Course
-              </span>
-            )}
-            {isRecentlyAdded && (
-              <span className="bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                Just Added
-              </span>
-            )}
-            {course.bestseller && (
-              <span className="bg-[#eceb98] text-[#3d3c0a] text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
-                Bestseller
-              </span>
-            )}
-            {course.isNew && !isRecentlyAdded && (
-              <span className="bg-teal-100 text-teal-900 text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
-                New
-              </span>
-            )}
-            {!course.bestseller && !course.isNew && (Number(course.rating) || 0) >= 4.8 && (
-              <span className="bg-purple-100 text-[#5022c3] text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
-                Highest Rated
-              </span>
-            )}
-          </div>
+            {/* Badges */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {Number(course.price || 0) === 0 && (
+                <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
+                  Free Course
+                </span>
+              )}
+              {course.versionNumber && course.versionNumber > 1 && (
+                <span className="bg-violet-700 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-none uppercase tracking-wide flex items-center gap-1 shadow-xs">
+                  <Icon name="layers" size={11} className="text-violet-200" />
+                  <span>{versionLabel}</span>
+                </span>
+              )}
+              {isRecentlyAdded && (
+                <span className="bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  Just Added
+                </span>
+              )}
+              {course.bestseller && (
+                <span className="bg-[#eceb98] text-[#3d3c0a] text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
+                  Bestseller
+                </span>
+              )}
+              {course.isNew && !isRecentlyAdded && (
+                <span className="bg-teal-100 text-teal-900 text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
+                  New
+                </span>
+              )}
+              {!course.bestseller && !course.isNew && (Number(course.rating) || 0) >= 4.8 && (
+                <span className="bg-purple-100 text-[#5022c3] text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
+                  Highest Rated
+                </span>
+              )}
+            </div>
 
           {/* Direct Card Action Button (Mobile & Quick Add) */}
           <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-2">
@@ -271,9 +303,15 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
           }`}
         >
           {/* Header */}
-          <h4 className="font-bold text-[#2d2f31] text-base leading-snug mb-2">
-            {course.title}
-          </h4>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h4 className="font-bold text-[#2d2f31] text-base leading-snug">
+              {course.title}
+            </h4>
+            <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black rounded bg-violet-100 text-[#5022c3] border border-violet-200">
+              <Icon name="layers" size={12} className="text-[#5022c3]" />
+              <span>{versionLabel}</span>
+            </span>
+          </div>
           <p className="text-xs text-emerald-800 font-semibold mb-2 flex items-center gap-1">
             <Icon name="update" size={13} />
             <span>Updated {formattedUpdateDate || 'Recently'}</span>

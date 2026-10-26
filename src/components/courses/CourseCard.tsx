@@ -32,6 +32,21 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
     });
   }, [(course as any).updatedAt, course.createdAt]);
 
+  // Format Version Label (e.g. "v1.0", "v2.0")
+  const versionLabel = React.useMemo(() => {
+    if (course.versionLabel && course.versionLabel.trim()) {
+      return course.versionLabel.trim();
+    }
+    if ((course as any).versionNumber) {
+      return `v${(course as any).versionNumber}.0`;
+    }
+    const titleMatch = course.title?.match(/\((v\d+(\.\d+)?)\)/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1];
+    }
+    return 'v1.0';
+  }, [course.versionLabel, (course as any).versionNumber, course.title]);
+
   if (variant === 'featured') {
     return (
       <Link
@@ -61,13 +76,22 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
               Bestseller
             </div>
           )}
+          <div className="absolute top-4 right-4 z-20 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded text-xs font-bold text-white uppercase tracking-wide shadow-sm border border-white/20 flex items-center gap-1">
+            <Icon name="layers" size={12} className="text-violet-400" />
+            <span>{versionLabel}</span>
+          </div>
         </div>
         <div className="p-6 md:p-8 flex flex-col justify-between md:w-1/2">
           <div>
             <div className="flex justify-between items-start mb-2">
-              <span className="text-xs font-bold text-secondary uppercase tracking-wider">
-                {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-secondary uppercase tracking-wider">
+                  {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
+                </span>
+                <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-primary/10 text-primary border border-primary/20">
+                  {versionLabel}
+                </span>
+              </div>
               <div className="flex items-center gap-1 text-on-surface">
                 <Icon name="star" fill size={16} className="text-amber-500" />
                 <span className="text-sm font-bold">{(Number(course.rating) || 5.0).toFixed(1)}</span>
@@ -133,6 +157,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
             <span className="bg-surface-container text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
               {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
             </span>
+            <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-primary/10 text-primary border border-primary/20">
+              {versionLabel}
+            </span>
             <span className="flex items-center text-xs text-on-surface-variant">
               <Icon name="star" fill size={14} className="text-amber-500 mr-1" />
               {(Number(course.rating) || 5.0).toFixed(1)}
@@ -165,6 +192,10 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
           NEW
         </div>
       )}
+      <div className="absolute top-2.5 right-2.5 z-20 bg-slate-900/85 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider flex items-center gap-1 border border-white/20 shadow-sm">
+        <Icon name="layers" size={11} className="text-violet-400" />
+        <span>{versionLabel}</span>
+      </div>
 
       <div className="h-44 w-full overflow-hidden bg-neutral-950 relative flex items-center justify-center">
         {course.thumbnail ? (
@@ -188,9 +219,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
 
       <div className="p-4 flex flex-col flex-1">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-            {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+              {typeof course.category === 'object' && course.category !== null ? ((course.category as any).name || 'General') : (course.category || 'General')}
+            </span>
+            <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded bg-primary/10 text-primary border border-primary/20">
+              {versionLabel}
+            </span>
+          </div>
           <div className="flex items-center gap-1">
             <Icon name="star" fill size={14} className="text-amber-500" />
             <span className="text-xs font-bold text-on-surface">{(Number(course.rating) || 5.0).toFixed(1)}</span>

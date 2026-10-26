@@ -30,6 +30,21 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
     });
   }, [(course as any).updatedAt, course.createdAt]);
 
+  // Format Version Label (e.g. "v1.0", "v2.0")
+  const versionLabel = React.useMemo(() => {
+    if (course.versionLabel && course.versionLabel.trim()) {
+      return course.versionLabel.trim();
+    }
+    if ((course as any).versionNumber) {
+      return `v${(course as any).versionNumber}.0`;
+    }
+    const titleMatch = course.title?.match(/\((v\d+(\.\d+)?)\)/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1];
+    }
+    return 'v1.0';
+  }, [course.versionLabel, (course as any).versionNumber, course.title]);
+
   return (
     <div className="mb-10">
       <h2 className="text-xl font-bold text-[#2d2f31] tracking-tight mb-3">
@@ -43,6 +58,11 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* 16:9 Featured Thumbnail */}
           <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 aspect-[16/9] overflow-hidden border border-[#d1d7dc] bg-neutral-950 relative flex items-center justify-center">
+            {/* Version Badge (Top-Left) */}
+            <div className="absolute top-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-black px-2 py-0.5 rounded shadow-sm tracking-wider flex items-center gap-1 border border-white/20">
+              <Icon name="layers" size={11} className="text-violet-400" />
+              <span>{versionLabel}</span>
+            </div>
             {course.thumbnail ? (
               <>
                 <img
@@ -83,7 +103,12 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
               </p>
 
               {/* Meta & Duration */}
-              <div className="text-xs text-[#6a6f73] flex items-center gap-2 mb-2">
+              <div className="text-xs text-[#6a6f73] flex items-center gap-2 mb-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-violet-50 text-[#5022c3] border border-violet-200/80">
+                  <Icon name="layers" size={11} className="text-[#5022c3]" />
+                  <span>{versionLabel}</span>
+                </span>
+                <span>·</span>
                 <span>Updated {formattedUpdateDate || 'Recently'}</span>
                 <span>·</span>
                 <span>{course.durationHours || 24} total hours</span>

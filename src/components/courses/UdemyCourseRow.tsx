@@ -30,6 +30,21 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
     });
   }, [(course as any).updatedAt, course.createdAt]);
 
+  // Format Version Label (e.g. "v1.0", "v2.0")
+  const versionLabel = React.useMemo(() => {
+    if (course.versionLabel && course.versionLabel.trim()) {
+      return course.versionLabel.trim();
+    }
+    if ((course as any).versionNumber) {
+      return `v${(course as any).versionNumber}.0`;
+    }
+    const titleMatch = course.title?.match(/\((v\d+(\.\d+)?)\)/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1];
+    }
+    return 'v1.0';
+  }, [course.versionLabel, (course as any).versionNumber, course.title]);
+
   return (
     <div className="border-b border-[#d1d7dc] py-4 flex flex-col sm:flex-row gap-4 items-start group">
       {/* 1. Left Thumbnail (16:9) */}
@@ -37,6 +52,11 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
         href={`/courses/${course.slug || course.id}`}
         className="w-full sm:w-[240px] md:w-[260px] shrink-0 aspect-[16/9] overflow-hidden border border-[#d1d7dc] bg-neutral-950 relative flex items-center justify-center cursor-pointer"
       >
+        {/* Version Badge (Top-Left) */}
+        <div className="absolute top-2 left-2 z-20 bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm tracking-wider flex items-center gap-1 border border-white/20">
+          <Icon name="layers" size={11} className="text-violet-400" />
+          <span>{versionLabel}</span>
+        </div>
         {course.thumbnail ? (
           <>
             <img
@@ -110,8 +130,13 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
           </span>
         </div>
 
-        {/* Metadata (Updated date, Hours, Level, Badges) */}
+        {/* Metadata (Version, Updated date, Hours, Level, Badges) */}
         <div className="flex flex-wrap items-center gap-2 text-xs text-[#6a6f73] mb-1.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-violet-50 text-[#5022c3] border border-violet-200/80">
+            <Icon name="layers" size={11} className="text-[#5022c3]" />
+            <span>{versionLabel}</span>
+          </span>
+          <span>·</span>
           {formattedUpdateDate && (
             <>
               <span className="font-medium text-[#5022c3]">Updated {formattedUpdateDate}</span>
@@ -128,6 +153,12 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
           {Number(course.price || 0) === 0 && (
             <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wide">
               Free Course
+            </span>
+          )}
+          {course.versionNumber && course.versionNumber > 1 && (
+            <span className="bg-violet-700 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-none uppercase tracking-wide flex items-center gap-1 shadow-xs">
+              <Icon name="layers" size={11} className="text-violet-200" />
+              <span>{versionLabel}</span>
             </span>
           )}
           {course.bestseller && (
