@@ -1514,12 +1514,12 @@ function InstructorCoursesStudioInner() {
                 const hasVersionDraft = Boolean(course.hasDraftVersion && (course.versionStatus === 'DRAFT_VERSION' || !course.versionStatus || course.versionStatus === 'VERSION_REJECTED'));
                 const hasRejectedVersion = Boolean(course.hasDraftVersion && course.versionStatus === 'VERSION_REJECTED');
 
-                const isApproved = course.status === 'APPROVED' || hasApprovedVersion;
+                const isApproved = course.status === 'APPROVED';
                 const isUnderReview = !isApproved && (course.status === 'IN_REVIEW' || course.status === 'PENDING' || course.status === 'PENDING_APPROVAL' || hasPendingVersionReview);
                 const isRejected = !isApproved && !isUnderReview && (course.status === 'REJECTED' || course.status === 'CHANGES_REQUESTED' || hasRejectedVersion);
-                const isDraft = !isApproved && !isUnderReview && (
+                const isDraft = !isApproved && !isUnderReview && course.status !== 'PUBLISHED' && (
                   course.status === 'DRAFT' ||
-                  Boolean(course.parentCourseId) ||
+                  (Boolean(course.parentCourseId) && course.status !== 'PUBLISHED') ||
                   (isDraftTab && hasVersionDraft)
                 );
                 const isArchived = (course.status === 'ARCHIVED' || course.status === 'INACTIVE') && !isDraftTab && !isReviewTab;
@@ -1547,15 +1547,7 @@ function InstructorCoursesStudioInner() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span
                             className={`px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
-                              course.parentCourseId && isUnderReview
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : course.parentCourseId && isRejected
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : course.parentCourseId
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
-                                : isDraftTab && hasVersionDraft
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
-                                : isApproved
+                              isApproved
                                 ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                 : isUnderReview
                                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -1565,46 +1557,38 @@ function InstructorCoursesStudioInner() {
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 : isArchived
                                 ? 'bg-slate-200/80 text-slate-700 border border-slate-300'
-                                : 'bg-slate-200/70 text-slate-700 border border-slate-300'
+                                : 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
                             }`}
                           >
-                            {course.parentCourseId ? (
-                              isUnderReview ? (
-                                <>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
-                                  <span>Under Review ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
-                                </>
-                              ) : isRejected ? (
-                                <>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                                  <span>Changes Requested</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
-                                  <span>Version Draft ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
-                                </>
-                              )
-                            ) : isDraftTab && hasVersionDraft ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
-                                <span>Draft Revision (v{course.draftVersionNumber || 2}.0)</span>
-                              </>
-                            ) : isApproved ? (
+                            {isApproved ? (
                               'Approved by Auditor ✅'
                             ) : isUnderReview ? (
                               <>
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
-                                <span>{hasPendingVersionReview ? `Under Review (v${course.draftVersionNumber || 2}.0)` : 'Under Review'}</span>
+                                <span>
+                                  {course.parentCourseId
+                                    ? `Under Review (${course.versionLabel || `v${course.versionNumber || 2}.0`})`
+                                    : hasPendingVersionReview
+                                    ? `Under Review (v${course.draftVersionNumber || 2}.0)`
+                                    : 'Under Review'}
+                                </span>
+                              </>
+                            ) : isRejected ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                                <span>Changes Requested</span>
                               </>
                             ) : isPublished ? (
                               hasVersionDraft
                                 ? `Live • Draft v${course.draftVersionNumber || 2}.0 in progress`
                                 : `Live (${course.versionLabel || `v${course.versionNumber || 1}.0`})`
-                            ) : isRejected ? (
-                              'Changes Requested'
                             ) : isArchived ? (
                               'Inactive'
+                            ) : course.parentCourseId || (isDraftTab && hasVersionDraft) ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+                                <span>Version Draft ({course.versionLabel || `v${course.versionNumber || 2}.0`})</span>
+                              </>
                             ) : (
                               'Draft'
                             )}
@@ -1625,7 +1609,7 @@ function InstructorCoursesStudioInner() {
                         </span>
                       </div>
 
-                      {course.parentCourseId && (
+                      {course.parentCourseId && course.status !== 'PUBLISHED' && (
                         <div className="text-[11px] font-semibold text-violet-800 bg-violet-50/90 dark:bg-violet-950/40 dark:text-violet-200 border border-violet-200 dark:border-violet-800 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5">
                           <Icon name="device_hub" size={13} className="text-violet-600 shrink-0" />
                           <span className="line-clamp-1">Version update for: <strong>{course.parentCourseTitle || 'Original Published Course'}</strong></span>
@@ -1751,20 +1735,6 @@ function InstructorCoursesStudioInner() {
                                   <Icon name="hourglass_top" size={13} className="text-amber-600 animate-spin" />
                                   <span>v{course.draftVersionNumber || 2}.0 Under Review</span>
                                 </span>
-                              ) : hasApprovedVersion ? (
-                                <button
-                                  type="button"
-                                  disabled={isBusy}
-                                  onClick={() => handlePublishApprovedCourse(course.id, course.slug)}
-                                  className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                >
-                                  {isBusy ? (
-                                    <Icon name="sync" size={13} className="animate-spin" />
-                                  ) : (
-                                    <Icon name="rocket_launch" size={13} />
-                                  )}
-                                  <span>Publish Live</span>
-                                </button>
                               ) : (
                                 <button
                                   type="button"
@@ -1884,7 +1854,7 @@ function InstructorCoursesStudioInner() {
                               >
                                 <Icon name="edit" size={13} />
                                 <span>
-                                  {course.parentCourseId
+                                  {course.parentCourseId && course.status !== 'PUBLISHED'
                                     ? `Resume Draft (${course.versionLabel || `v${course.versionNumber || 2}.0`})`
                                     : (isDraftTab && hasVersionDraft)
                                     ? `Resume Draft (v${course.draftVersionNumber || 2}.0)`

@@ -624,6 +624,43 @@ export async function POST(
       reviewHistory: [newHistoryEntry, ...auditMeta.reviewHistory]
     });
 
+    // Synchronize Course Version State for Child & Parent Course
+    try {
+      if (course.parentCourseId) {
+        if (action === 'APPROVE') {
+          await saveCourseVersionState(course.id, {
+            status: 'APPROVED',
+            pendingVersionNumber: course.versionNumber || 2,
+            pendingVersionLabel: course.versionLabel || `v${course.versionNumber || 2}.0`,
+            reviewedAt: new Date().toISOString(),
+            reviewedBy: `${auditor.name} (${auditor.role})`,
+            reviewerFeedback: null
+          });
+          // Parent course (v1.0) remains LIVE_SYNCED and MUST NOT show "Approved by Auditor" or "Publish Live"
+          await saveCourseVersionState(course.parentCourseId, {
+            status: 'LIVE_SYNCED',
+            pendingVersionNumber: null,
+            pendingVersionLabel: null
+          });
+        } else {
+          await saveCourseVersionState(course.id, {
+            status: 'VERSION_REJECTED',
+            reviewedAt: new Date().toISOString(),
+            reviewedBy: `${auditor.name} (${auditor.role})`,
+            reviewerFeedback: finalNote
+          });
+          await saveCourseVersionState(course.parentCourseId, {
+            status: 'VERSION_REJECTED',
+            reviewedAt: new Date().toISOString(),
+            reviewedBy: `${auditor.name} (${auditor.role})`,
+            reviewerFeedback: finalNote
+          });
+        }
+      }
+    } catch (vErr) {
+      console.error('[Auditor Review Version Sync Error]:', vErr);
+    }
+
     // Requirement #18: Notify Instructor with link to /instructor/course/[id]/review & Email
     if (course.instructorId) {
       if (action === 'APPROVE') {

@@ -275,12 +275,28 @@ export async function POST(
 
     if (targetStatus === 'PUBLISHED') {
       try {
-        const { getCourseVersionState, applyApprovedVersionToLiveCourse } = await import('@/lib/course-versioning');
-        const verState = await getCourseVersionState(course.id);
-        if (verState.stagedSnapshot && (course.status === 'APPROVED' || verState.status === 'PENDING_REVIEW' || verState.status === 'APPROVED' || isPublishingApprovedCourse)) {
+        const { getCourseVersionState, saveCourseVersionState, applyApprovedVersionToLiveCourse } = await import('@/lib/course-versioning');
+        if (course.parentCourseId) {
+          // This is a child version course (e.g. v2.0, v3.0) being published live!
           const applied: any = await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
-          if (applied?.newCourseTitle || applied?.newCourseId) {
-            responseMessage = `Version ${applied.liveVersionLabel} published live as an independent course. Both versions are active! 🚀`;
+          if (applied?.liveVersionLabel) {
+            responseMessage = `Version ${applied.liveVersionLabel} published live as an independent course! Both versions are active on the website. 🚀`;
+          }
+        } else {
+          const verState = await getCourseVersionState(course.id);
+          if (verState.stagedSnapshot && (course.status === 'APPROVED' || verState.status === 'PENDING_REVIEW' || verState.status === 'APPROVED' || isPublishingApprovedCourse)) {
+            const applied: any = await applyApprovedVersionToLiveCourse(course.id, user, 'Published live by Instructor/Admin');
+            if (applied?.newCourseTitle || applied?.newCourseId) {
+              responseMessage = `Version ${applied.liveVersionLabel} published live as an independent course. Both versions are active! 🚀`;
+            }
+          } else {
+            await saveCourseVersionState(course.id, {
+              status: 'LIVE_SYNCED',
+              liveVersionNumber: course.versionNumber || 1,
+              liveVersionLabel: course.versionLabel || 'v1.0',
+              pendingVersionNumber: null,
+              pendingVersionLabel: null
+            });
           }
         }
       } catch (verErr) {

@@ -1198,26 +1198,33 @@ export async function applyApprovedVersionToLiveCourse(
 
     const rootCourseId = course.parentCourseId;
     const rootVerState = await getCourseVersionState(rootCourseId);
+    const currentVerNum = course.versionNumber || 2;
+    const currentVerLabel = course.versionLabel || `v${currentVerNum}.0`;
+
+    const newHistoryEntry: CourseVersionHistoryEntry = {
+      versionNumber: currentVerNum,
+      versionLabel: currentVerLabel,
+      status: 'PUBLISHED',
+      publishedAt: new Date().toISOString(),
+      approvedBy: `${reviewer.name} (${reviewer.role})`,
+      changeSummary: ['Curriculum and course updates approved and published LIVE'],
+      price: course.price,
+      modulesCount: course.sections.length,
+      lessonsCount: course.sections.reduce((acc, s) => acc + s.lessons.length, 0)
+    };
+
     const updatedHistory: CourseVersionHistoryEntry[] = [
-      {
-        versionNumber: course.versionNumber || 2,
-        versionLabel: course.versionLabel || 'v2.0',
-        publishedAt: new Date().toISOString(),
-        approvedBy: `${reviewer.name} (${reviewer.role})`,
-        changeSummary: ['Curriculum and course updates approved and published LIVE'],
-        price: course.price,
-        modulesCount: course.sections.length,
-        lessonsCount: course.sections.reduce((acc, s) => acc + s.lessons.length, 0)
-      },
-      ...rootVerState.history
+      newHistoryEntry,
+      ...(rootVerState.history || [])
     ];
 
-    const updatedRootState = await saveCourseVersionState(rootCourseId, {
-      liveVersionNumber: course.versionNumber || 2,
-      liveVersionLabel: course.versionLabel || 'v2.0',
+    // 1. Child course is now published live as an independent course version!
+    const updatedChildState = await saveCourseVersionState(course.id, {
+      liveVersionNumber: currentVerNum,
+      liveVersionLabel: currentVerLabel,
       pendingVersionNumber: null,
       pendingVersionLabel: null,
-      status: 'APPROVED',
+      status: 'LIVE_SYNCED',
       stagedSnapshot: null,
       detectedChanges: [],
       reviewedAt: new Date().toISOString(),
@@ -1226,10 +1233,26 @@ export async function applyApprovedVersionToLiveCourse(
       history: updatedHistory
     });
 
+    // 2. Root course (v1.0) remains LIVE_SYNCED at its own original version number!
+    const rootLiveNum = rootVerState.liveVersionNumber || 1;
+    const rootLiveLabel = rootVerState.liveVersionLabel || `v${rootLiveNum}.0`;
+    await saveCourseVersionState(rootCourseId, {
+      liveVersionNumber: rootLiveNum,
+      liveVersionLabel: rootLiveLabel,
+      pendingVersionNumber: null,
+      pendingVersionLabel: null,
+      status: 'LIVE_SYNCED',
+      stagedSnapshot: null,
+      detectedChanges: [],
+      history: updatedHistory
+    });
+
     return {
-      ...updatedRootState,
-      status: 'APPROVED' as const,
-      newCourseId: course.id
+      ...updatedChildState,
+      status: 'LIVE_SYNCED' as const,
+      newCourseId: course.id,
+      liveVersionNumber: currentVerNum,
+      liveVersionLabel: currentVerLabel
     };
   }
 
