@@ -327,14 +327,14 @@ async function runTestSuite() {
   // Dedicated Final Assessment tab with 4 questions (even count)
   const dedicatedFAAOA = [
     [
-      'Module / Section (Optional)', 'Assessment Title', 'Q#', 'Question Text *',
+      'Assessment Title', 'Q#', 'Question Text *',
       'Option A *', 'Option B *', 'Option C *', 'Option D *',
       'Correct Option (A/B/C/D) *', 'Explanation (Why this option is correct)', 'Passing Score (%)', 'Marks / Points (e.g. 10)'
     ],
-    ['', 'Final Assessment', 1, 'What is PEP 8?', 'Style guide', 'Compiler', 'Debugger', 'OS', 'A', 'Python style guide', 80, 10],
-    ['', 'Final Assessment', 2, 'Is Python dynamically typed?', 'Yes', 'No', 'Sometimes', 'Never', 'A', 'Dynamic typing', 80, 10],
-    ['', 'Final Assessment', 3, 'Which keyword creates a class?', 'class', 'struct', 'type', 'interface', 'A', 'class keyword', 80, 10],
-    ['', 'Final Assessment', 4, 'What is pip?', 'Package manager', 'Editor', 'Browser', 'Database', 'A', 'Package installer', 80, 10]
+    ['Final Assessment', 1, 'What is PEP 8?', 'Style guide', 'Compiler', 'Debugger', 'OS', 'A', 'Python style guide', 80, 10],
+    ['Final Assessment', 2, 'Is Python dynamically typed?', 'Yes', 'No', 'Sometimes', 'Never', 'A', 'Dynamic typing', 80, 10],
+    ['Final Assessment', 3, 'Which keyword creates a class?', 'class', 'struct', 'type', 'interface', 'A', 'class keyword', 80, 10],
+    ['Final Assessment', 4, 'What is pip?', 'Package manager', 'Editor', 'Browser', 'Database', 'A', 'Package installer', 80, 10]
   ];
   XLSX.utils.book_append_sheet(dedicatedFAWb, XLSX.utils.aoa_to_sheet(dedicatedFAAOA), 'Final Assessment');
 

@@ -458,22 +458,10 @@ export function downloadCourseExcelTemplate() {
       'Article Content / Notes (Markdown or Text) *',
       'Resource / Reference Links (Optional)'
     ],
-    [
-      'Module 1: Foundations',
-      'Developer Environment Setup Guide',
-      '08:00',
-      'Yes',
-      '# Developer Setup Guide\n\nWelcome to this comprehensive course! In this written guide, you will configure your local workspace, install Node.js (v20+), Git, and VS Code extensions.\n\n### Prerequisites\n- Terminal access (bash / zsh / PowerShell)\n- Modern web browser\n\n### Step 1: Install Dependencies\nRun `npm install -g pnpm` to set up our recommended fast package manager.',
-      'https://nodejs.org; https://code.visualstudio.com'
-    ],
-    [
-      'Module 1: Foundations',
-      'Full-Stack Architecture Cheatsheet',
-      '05:00',
-      'No',
-      '# Architecture Cheatsheet\n\nThis article outlines the core architectural layers:\n- **Client Layer**: Server-rendered React components with Next.js App Router\n- **API / Edge Layer**: Lightweight edge routes and middleware authentication\n- **Data Layer**: PostgreSQL with connection pooling and typed ORM queries',
-      'https://nextjs.org/docs'
-    ]
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', '']
   ];
 
   const wsArticles = XLSX.utils.aoa_to_sheet(articlesAOA);
@@ -566,7 +554,6 @@ export function downloadCourseExcelTemplate() {
   // 4. Final Assessment Sheet Data (Dedicated Certification Gate Exam)
   const finalAssessmentAOA: any[][] = [
     [
-      'Module / Section (Optional)',
       'Assessment Title',
       'Q#',
       'Question Text *',
@@ -579,12 +566,12 @@ export function downloadCourseExcelTemplate() {
       'Passing Score (%)',
       'Marks / Points (e.g. 10)'
     ],
-    ['', '', '', '', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', '', '', '', '']
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '']
   ];
 
   const wsFinalAssessment = XLSX.utils.aoa_to_sheet(finalAssessmentAOA);
@@ -596,20 +583,18 @@ export function downloadCourseExcelTemplate() {
       if (isHeader) {
         wsFinalAssessment[cellRef].s = styles.headerAmber;
       } else {
-        if (cIdx === 0) wsFinalAssessment[cellRef].s = styles.boldTopic;
-        else if (cIdx === 1) wsFinalAssessment[cellRef].s = styles.boldTopic; // Assessment Title in BOLD
-        else if (cIdx === 2) wsFinalAssessment[cellRef].s = styles.boldCenter;
-        else if (cIdx === 3) wsFinalAssessment[cellRef].s = styles.boldTopic; // Question in BOLD
-        else if (cIdx >= 4 && cIdx <= 7) wsFinalAssessment[cellRef].s = styles.cellNormal;
-        else if (cIdx === 8) wsFinalAssessment[cellRef].s = styles.boldCenter;
-        else if (cIdx === 9) wsFinalAssessment[cellRef].s = styles.cellNormal;
-        else if (cIdx === 10 || cIdx === 11) wsFinalAssessment[cellRef].s = styles.centerNormal;
+        if (cIdx === 0) wsFinalAssessment[cellRef].s = styles.boldTopic; // Assessment Title in BOLD
+        else if (cIdx === 1) wsFinalAssessment[cellRef].s = styles.boldCenter; // Q#
+        else if (cIdx === 2) wsFinalAssessment[cellRef].s = styles.boldTopic; // Question in BOLD
+        else if (cIdx >= 3 && cIdx <= 6) wsFinalAssessment[cellRef].s = styles.cellNormal;
+        else if (cIdx === 7) wsFinalAssessment[cellRef].s = styles.boldCenter;
+        else if (cIdx === 8) wsFinalAssessment[cellRef].s = styles.cellNormal;
+        else if (cIdx === 9 || cIdx === 10) wsFinalAssessment[cellRef].s = styles.centerNormal;
       }
     }
   });
 
   wsFinalAssessment['!cols'] = [
-    { wch: 28 }, // Module / Section (Optional)
     { wch: 35 }, // Assessment Title
     { wch: 8 },  // Q#
     { wch: 75 }, // Question Text
@@ -1059,7 +1044,6 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   // 4. Final Assessment Sheet (Dedicated Certification Gate Exam)
   const finalAssessmentAOA: any[][] = [
     [
-      'Module / Section (Optional)',
       'Assessment Title',
       'Q#',
       'Question Text *',
@@ -1084,26 +1068,42 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
         const questions = Array.isArray(qData?.questions) ? qData.questions : [];
         const isFinal = Boolean(les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || ''));
         const passingScore = qData?.passingScore || (isFinal ? 80 : 70);
-        const targetAOA = isFinal ? finalAssessmentAOA : quizzesAOA;
 
         questions.forEach((q: any, qIdx: number) => {
           const opts = Array.isArray(q.options) ? q.options : [];
           const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
           const letter = ['A', 'B', 'C', 'D'][correctIdx] || 'A';
-          targetAOA.push([
-            qIdx === 0 ? (sec.title || 'Module') : '',
-            qIdx === 0 ? (les.title || (isFinal ? 'Final Assessment' : 'Quiz')) : '',
-            qIdx + 1,
-            q.question || '',
-            opts[0] || '',
-            opts[1] || '',
-            opts[2] || '',
-            opts[3] || '',
-            letter,
-            q.explanation || '',
-            qIdx === 0 ? passingScore : '',
-            q.points || 10
-          ]);
+
+          if (isFinal) {
+            finalAssessmentAOA.push([
+              qIdx === 0 ? (les.title || 'Final Assessment') : '',
+              qIdx + 1,
+              q.question || '',
+              opts[0] || '',
+              opts[1] || '',
+              opts[2] || '',
+              opts[3] || '',
+              letter,
+              q.explanation || '',
+              qIdx === 0 ? passingScore : '',
+              q.points || 10
+            ]);
+          } else {
+            quizzesAOA.push([
+              qIdx === 0 ? (sec.title || 'Module') : '',
+              qIdx === 0 ? (les.title || 'Quiz') : '',
+              qIdx + 1,
+              q.question || '',
+              opts[0] || '',
+              opts[1] || '',
+              opts[2] || '',
+              opts[3] || '',
+              letter,
+              q.explanation || '',
+              qIdx === 0 ? passingScore : '',
+              q.points || 10
+            ]);
+          }
         });
       }
     });
@@ -1115,8 +1115,8 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   }
 
   if (finalAssessmentAOA.length === 1) {
-    finalAssessmentAOA.push(['', 'Final Assessment', '', '', '', '', '', '', '', '', 80, 10]);
-    finalAssessmentAOA.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+    finalAssessmentAOA.push(['Final Assessment', '', '', '', '', '', '', '', '', 80, 10]);
+    finalAssessmentAOA.push(['', '', '', '', '', '', '', '', '', '', '']);
   }
 
   const wsQuizzes = XLSX.utils.aoa_to_sheet(quizzesAOA);
@@ -1147,14 +1147,14 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       if (isHeader) {
         wsFinalAssessment[cellRef].s = styles.headerAmber;
       } else {
-        if (cIdx === 0 || cIdx === 1 || cIdx === 3) wsFinalAssessment[cellRef].s = styles.boldTopic;
-        else if (cIdx === 2 || cIdx === 8 || cIdx === 10 || cIdx === 11) wsFinalAssessment[cellRef].s = styles.boldCenter;
+        if (cIdx === 0 || cIdx === 2) wsFinalAssessment[cellRef].s = styles.boldTopic;
+        else if (cIdx === 1 || cIdx === 7 || cIdx === 9 || cIdx === 10) wsFinalAssessment[cellRef].s = styles.boldCenter;
         else wsFinalAssessment[cellRef].s = styles.cellNormal;
       }
     }
   });
 
-  wsFinalAssessment['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }, { wch: 18 }];
+  wsFinalAssessment['!cols'] = [{ wch: 35 }, { wch: 8 }, { wch: 75 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 65 }, { wch: 18 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, wsFinalAssessment, 'Final Assessment');
 
   // 5. Append User Guide & Format Instructions Sheet
