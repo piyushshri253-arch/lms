@@ -469,20 +469,6 @@ export const CoursePublishStep: React.FC<CoursePublishStepProps> = ({
         </div>
       </div>
 
-      {/* Live Course Notification & Edit Alert */}
-      {courseData.status === 'PUBLISHED' && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <Icon name="verified" size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <div className="text-xs">
-              <span className="font-bold">This course is currently LIVE on Morena Teach.</span>{' '}
-              <span className="text-emerald-800 dark:text-emerald-300">
-                You can make curriculum, video, or pricing adjustments and click <strong>&quot;Submit Changes for Approval 📋&quot;</strong> to send your updates to the QA Auditor Studio.
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Reviewer Feedback / Critique Note Alert */}
       {courseData.reviewFeedback && (
