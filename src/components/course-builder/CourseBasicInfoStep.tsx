@@ -532,57 +532,7 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
           </div>
         </div>
 
-        {/* 2. Target Audience */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 shadow-xs space-y-4">
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
-              <Icon name="groups" size={16} className="text-tertiary" />
-              <span>WHO THIS COURSE IS FOR</span>
-            </h4>
-            <p className="text-[11px] text-on-surface-variant mt-0.5">Who can benefit from this course</p>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newAudience}
-              onChange={(e) => setNewAudience(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' &&
-                (e.preventDefault(), addPoint('targetAudience', newAudience, setNewAudience))}
-              placeholder="e.g. Backend Engineers"
-              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={() => addPoint('targetAudience', newAudience, setNewAudience)}
-              className="px-3 py-2 bg-tertiary text-on-tertiary text-xs font-bold rounded-xl cursor-pointer"
-            >
-              Add
-            </button>
-          </div>
-
-          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {audiencePoints.map((aud, idx) => (
-              <div
-                key={idx}
-                className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
-              >
-                <span className="text-on-surface font-medium leading-tight">{aud}</span>
-                <button
-                  type="button"
-                  onClick={() => removePoint('targetAudience', idx)}
-                  className="text-outline hover:text-rose-600 cursor-pointer"
-                  title="Remove target profile"
-                >
-                  <Icon name="close" size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 3. Prerequisites & Requirements */}
+        {/* 2. Prerequisites & Requirements */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 shadow-xs space-y-4">
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
@@ -625,6 +575,56 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                   onClick={() => removePoint('requirements', idx)}
                   className="text-outline hover:text-rose-600 cursor-pointer"
                   title="Remove prerequisite"
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 3. Target Audience */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 shadow-xs space-y-4">
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+              <Icon name="groups" size={16} className="text-tertiary" />
+              <span>WHO THIS COURSE IS FOR</span>
+            </h4>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">Who can benefit from this course</p>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newAudience}
+              onChange={(e) => setNewAudience(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === 'Enter' &&
+                (e.preventDefault(), addPoint('targetAudience', newAudience, setNewAudience))}
+              placeholder="e.g. Backend Engineers"
+              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={() => addPoint('targetAudience', newAudience, setNewAudience)}
+              className="px-3 py-2 bg-tertiary text-on-tertiary text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {audiencePoints.map((aud, idx) => (
+              <div
+                key={idx}
+                className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
+              >
+                <span className="text-on-surface font-medium leading-tight">{aud}</span>
+                <button
+                  type="button"
+                  onClick={() => removePoint('targetAudience', idx)}
+                  className="text-outline hover:text-rose-600 cursor-pointer"
+                  title="Remove target profile"
                 >
                   <Icon name="close" size={14} />
                 </button>

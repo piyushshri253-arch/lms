@@ -325,16 +325,16 @@ export function downloadCourseExcelTemplate() {
       'Separate each learning outcome with a semicolon (;). Example: Build modern apps with Next.js; Design PostgreSQL schemas'
     ],
     [
-      'Who This Course Is For (Target Audience) *',
-      '',
-      'REQUIRED',
-      'Target learner profiles separated by semicolons (;). Example: Full-Stack Developers; DevOps Engineers; Technical Leads'
-    ],
-    [
       'Before You Begin (Prerequisites & Requirements) *',
       '',
       'REQUIRED',
       'Prerequisites or required background separated by semicolons (;). Example: Basic JavaScript; Familiarity with Git'
+    ],
+    [
+      'Who This Course Is For (Target Audience) *',
+      '',
+      'REQUIRED',
+      'Target learner profiles separated by semicolons (;). Example: Full-Stack Developers; DevOps Engineers; Technical Leads'
     ],
     ['💰 SECTION 3: PRICING & ENROLLMENT SETTINGS', '', '', ''],
     [
@@ -828,16 +828,16 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       'Separate each learning outcome with a semicolon (;)'
     ],
     [
-      'Who This Course Is For (Target Audience) *',
-      toMultiString(course.targetAudience),
-      'REQUIRED',
-      'Separate target learner groups with a semicolon (;)'
-    ],
-    [
       'Before You Begin (Prerequisites & Requirements) *',
       toMultiString(course.requirements),
       'REQUIRED',
       'Separate prerequisites with a semicolon (;)'
+    ],
+    [
+      'Who This Course Is For (Target Audience) *',
+      toMultiString(course.targetAudience),
+      'REQUIRED',
+      'Separate target learner groups with a semicolon (;)'
     ],
     ['💰 SECTION 3: PRICING & ENROLLMENT ACCESS', '', '', ''],
     [
@@ -1244,12 +1244,28 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
 
     // Helper to find value by multiple possible aliases
     const findValue = (...aliases: string[]) => {
+      // Pass 1: Exact matches (with or without asterisk/colons)
       for (const alias of aliases) {
-        const direct = keyValues[alias.toLowerCase()];
-        if (direct !== undefined && direct !== null && String(direct).trim() !== '') return direct;
-        // Fuzzy search in keys
+        const lower = alias.toLowerCase();
+        if (keyValues[lower] !== undefined && keyValues[lower] !== null && String(keyValues[lower]).trim() !== '') {
+          return keyValues[lower];
+        }
+        const cleanAlias = lower.replace(/[*:]/g, '').trim();
         for (const [k, v] of Object.entries(keyValues)) {
-          if (k.includes(alias.toLowerCase())) return v;
+          const cleanK = k.toLowerCase().replace(/[*:]/g, '').trim();
+          if (cleanK === cleanAlias && v !== undefined && v !== null && String(v).trim() !== '') {
+            return v;
+          }
+        }
+      }
+      // Pass 2: Substring includes search
+      for (const alias of aliases) {
+        const cleanAlias = alias.toLowerCase().replace(/[*:]/g, '').trim();
+        for (const [k, v] of Object.entries(keyValues)) {
+          const cleanK = k.toLowerCase().replace(/[*:]/g, '').trim();
+          if (cleanK.includes(cleanAlias) && v !== undefined && v !== null && String(v).trim() !== '') {
+            return v;
+          }
         }
       }
       return undefined;

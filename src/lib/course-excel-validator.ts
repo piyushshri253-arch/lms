@@ -235,13 +235,28 @@ export function validateCourseExcel(
   }
 
   const findDetail = (...aliases: string[]) => {
+    // Pass 1: Exact matches (with or without asterisk/colons)
     for (const alias of aliases) {
       const lower = alias.toLowerCase();
       if (keyValues[lower] !== undefined && keyValues[lower] !== null && String(keyValues[lower]).trim() !== '') {
         return keyValues[lower];
       }
+      const cleanAlias = lower.replace(/[*:]/g, '').trim();
       for (const [k, v] of Object.entries(keyValues)) {
-        if (k.includes(lower)) return v;
+        const cleanK = k.toLowerCase().replace(/[*:]/g, '').trim();
+        if (cleanK === cleanAlias && v !== undefined && v !== null && String(v).trim() !== '') {
+          return v;
+        }
+      }
+    }
+    // Pass 2: Substring includes search
+    for (const alias of aliases) {
+      const cleanAlias = alias.toLowerCase().replace(/[*:]/g, '').trim();
+      for (const [k, v] of Object.entries(keyValues)) {
+        const cleanK = k.toLowerCase().replace(/[*:]/g, '').trim();
+        if (cleanK.includes(cleanAlias) && v !== undefined && v !== null && String(v).trim() !== '') {
+          return v;
+        }
       }
     }
     return undefined;
