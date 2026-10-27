@@ -1508,15 +1508,17 @@ function InstructorCoursesStudioInner() {
                 const isDraftTab = activeTab === 'DRAFT';
                 const isReviewTab = activeTab === 'IN_REVIEW';
 
-                // Version state flags
-                const hasPendingVersionReview = Boolean(course.hasDraftVersion && course.versionStatus === 'PENDING_REVIEW');
-                const hasApprovedVersion = Boolean(course.hasDraftVersion && course.versionStatus === 'APPROVED');
-                const hasVersionDraft = Boolean(course.hasDraftVersion && (course.versionStatus === 'DRAFT_VERSION' || !course.versionStatus || course.versionStatus === 'VERSION_REJECTED'));
-                const hasRejectedVersion = Boolean(course.hasDraftVersion && course.versionStatus === 'VERSION_REJECTED');
+                const hasSeparateChild = courses.some((other) => other.parentCourseId === course.id);
+
+                // Version state flags (only for parent course if no separate child card exists)
+                const hasPendingVersionReview = Boolean(!hasSeparateChild && course.hasDraftVersion && course.versionStatus === 'PENDING_REVIEW');
+                const hasApprovedVersion = Boolean(!hasSeparateChild && course.hasDraftVersion && course.versionStatus === 'APPROVED');
+                const hasVersionDraft = Boolean(!hasSeparateChild && course.hasDraftVersion && (course.versionStatus === 'DRAFT_VERSION' || !course.versionStatus || course.versionStatus === 'VERSION_REJECTED'));
+                const hasRejectedVersion = Boolean(!hasSeparateChild && course.hasDraftVersion && course.versionStatus === 'VERSION_REJECTED');
 
                 const isApproved = course.status === 'APPROVED';
-                const isUnderReview = !isApproved && (course.status === 'IN_REVIEW' || course.status === 'PENDING' || course.status === 'PENDING_APPROVAL' || hasPendingVersionReview);
-                const isRejected = !isApproved && !isUnderReview && (course.status === 'REJECTED' || course.status === 'CHANGES_REQUESTED' || hasRejectedVersion);
+                const isUnderReview = !isApproved && course.status !== 'PUBLISHED' && (course.status === 'IN_REVIEW' || course.status === 'PENDING' || course.status === 'PENDING_APPROVAL' || hasPendingVersionReview);
+                const isRejected = !isApproved && !isUnderReview && course.status !== 'PUBLISHED' && (course.status === 'REJECTED' || course.status === 'CHANGES_REQUESTED' || hasRejectedVersion);
                 const isDraft = !isApproved && !isUnderReview && course.status !== 'PUBLISHED' && (
                   course.status === 'DRAFT' ||
                   (Boolean(course.parentCourseId) && course.status !== 'PUBLISHED') ||
@@ -1579,9 +1581,7 @@ function InstructorCoursesStudioInner() {
                                 <span>Changes Requested</span>
                               </>
                             ) : isPublished ? (
-                              hasVersionDraft
-                                ? `Live • Draft v${course.draftVersionNumber || 2}.0 in progress`
-                                : `Live (${course.versionLabel || `v${course.versionNumber || 1}.0`})`
+                              `Live (${course.versionLabel || `v${course.versionNumber || 1}.0`})`
                             ) : isArchived ? (
                               'Inactive'
                             ) : course.parentCourseId || (isDraftTab && hasVersionDraft) ? (
@@ -1620,7 +1620,7 @@ function InstructorCoursesStudioInner() {
                         {course.title}
                       </h3>
 
-                      {isDraftTab && hasVersionDraft ? (
+                      {isDraftTab && hasVersionDraft && !hasSeparateChild ? (
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] space-y-1">
                           <div className="flex items-center justify-between gap-1 text-amber-800 dark:text-amber-300 font-bold">
                             <span className="flex items-center gap-1.5">
@@ -1633,21 +1633,6 @@ function InstructorCoursesStudioInner() {
                           </div>
                           <p className="text-[10px] text-amber-700 dark:text-amber-400">
                             Editable revision for Version {course.draftVersionNumber || 2}.0. Your live published course remains active and safe on the landing page!
-                          </p>
-                        </div>
-                      ) : (!isDraftTab && course.status === 'PUBLISHED' && hasVersionDraft) ? (
-                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] space-y-1">
-                          <div className="flex items-center justify-between gap-1 text-amber-800 dark:text-amber-300 font-bold">
-                            <span className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse" />
-                              <span>Draft Version v{course.draftVersionNumber || 2}.0 In Progress</span>
-                            </span>
-                            <span className="text-[10px] bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">
-                              Auto-Saved Draft
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-amber-700 dark:text-amber-400">
-                            Unsaved/staged updates for Version {course.draftVersionNumber || 2}.0 exist in your Drafts tab. The live version remains active for students.
                           </p>
                         </div>
                       ) : null}
@@ -1729,48 +1714,21 @@ function InstructorCoursesStudioInner() {
                                 <span>Edit</span>
                               </Link>
 
-                              {/* C. Update / Resume Version Draft */}
-                              {hasPendingVersionReview ? (
-                                <span className="text-xs font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 border border-amber-300">
-                                  <Icon name="hourglass_top" size={13} className="text-amber-600 animate-spin" />
-                                  <span>v{course.draftVersionNumber || 2}.0 Under Review</span>
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={isBusy}
-                                  onClick={() => handleUpdateVersion(course)}
-                                  className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50 ${
-                                    hasVersionDraft
-                                      ? 'text-amber-800 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300'
-                                      : 'text-violet-700 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 border border-violet-200'
-                                  }`}
-                                  title={hasVersionDraft ? 'Resume editing the auto-saved draft for the next version' : 'Create or resume editable draft for the next version'}
-                                >
-                                  {isBusy ? (
-                                    <Icon name="sync" size={13} className="animate-spin" />
-                                  ) : (
-                                    <Icon name={hasVersionDraft ? 'edit_note' : 'edit_document'} size={13} />
-                                  )}
-                                  <span>{hasVersionDraft ? `Resume Draft (v${course.draftVersionNumber || 2}.0)` : 'Update Version'}</span>
-                                </button>
-                              )}
-
-                              {hasVersionDraft && !hasPendingVersionReview && !hasApprovedVersion && (
-                                <button
-                                  type="button"
-                                  disabled={isBusy}
-                                  onClick={() => {
-                                    setCourseToDelete(course);
-                                    setIsDeleteDraftModalOpen(true);
-                                  }}
-                                  className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-2xs"
-                                  title="Discard in-progress version draft (live course remains untouched)"
-                                >
-                                  <Icon name="delete" size={13} />
-                                  <span>Discard Draft</span>
-                                </button>
-                              )}
+                              {/* C. Update Version */}
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleUpdateVersion(course)}
+                                className="text-xs font-bold text-violet-700 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                                title="Create or resume editable draft for the next version"
+                              >
+                                {isBusy ? (
+                                  <Icon name="sync" size={13} className="animate-spin" />
+                                ) : (
+                                  <Icon name="edit_document" size={13} />
+                                )}
+                                <span>Update Version</span>
+                              </button>
 
                               {/* D. Active / Inactive Toggle */}
                               <button
