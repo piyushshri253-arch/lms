@@ -264,18 +264,22 @@ async function runTests() {
   }
   console.log('✅ PASS: Module 1 successfully appended Lecture 2 and Quiz 2 while preserving live items.');
 
-  // Check Module 3 was appended as a new module
+  // Check Module 3 was appended as a new module and Final Assessment is strictly last
   if (mergedResult2.length !== 3) {
     throw new Error(`FAILED: Expected total 3 modules, got: ${mergedResult2.length}`);
   }
-  const mod3 = mergedResult2[2];
-  if (mod3.title !== 'Module 3: Full Stack Backend with Node.js') {
-    throw new Error(`FAILED: Expected Module 3 to be appended, got: "${mod3.title}"`);
+  const mod3 = mergedResult2.find((m) => m.title.includes('Module 3') || m.title.includes('Node.js'));
+  if (!mod3) {
+    throw new Error(`FAILED: Expected Module 3 to be appended, got: ${mergedResult2.map((m) => m.title).join(', ')}`);
   }
   if (mod3.lessons.length !== 2) {
     throw new Error(`FAILED: Expected Module 3 to have 2 lessons, got: ${mod3.lessons.length}`);
   }
-  console.log('✅ PASS: Module 3 was successfully appended with newly added Lecture & Article.');
+  const lastModule = mergedResult2[mergedResult2.length - 1];
+  if (!lastModule.lessons.some((l) => l.isFinalAssignment)) {
+    throw new Error(`FAILED: Expected Final Assessment to be in the last module, got: ${lastModule.title}`);
+  }
+  console.log('✅ PASS: Module 3 was successfully appended with newly added Lecture & Article, and Final Assessment remains strictly at the end.');
 
   console.log('\n--- TEST 3: Final Assignment Can Be Updated in Update Version ---');
   // Scenario 3: Instructor provides updated Final Assignment questions & passing score

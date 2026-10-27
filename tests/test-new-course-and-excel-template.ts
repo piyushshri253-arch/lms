@@ -53,7 +53,8 @@ const curRows: any[][] = [
   ['', 'Tool Calling & Execution Best Practices', 'LECTURE', '12:00', 'No', '', 'https://cdn.example.com/videos/agents2.mp4'],
   ['Course Completion & Certification', 'Final Assessment', 'FINAL ASSESSMENT', '30:00', 'No', 'Mandatory certification exam', '']
 ];
-wb.Sheets['Curriculum'] = XLSX.utils.aoa_to_sheet(curRows);
+wb.Sheets['Curriculum Syllabus'] = XLSX.utils.aoa_to_sheet(curRows);
+wb.Sheets['Curriculum'] = wb.Sheets['Curriculum Syllabus'];
 
 const qRows: any[][] = [
   ['Module (e.g. Module 1)', 'Quiz Title (Write once per quiz)', 'Q#', 'Question Text *', 'Option A *', 'Option B *', 'Option C *', 'Option D *', 'Correct Option (A/B/C/D) *', 'Explanation (Why this option is correct)', 'Passing Score (%) (Set on Q1 only)', 'Marks/Points'],

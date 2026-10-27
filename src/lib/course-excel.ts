@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx-js-style';
-import { BuilderSection, BuilderLesson } from '@/components/course-builder/CourseCurriculumStep';
+import { BuilderSection, BuilderLesson, LessonResourceItem } from '@/components/course-builder/CourseCurriculumStep';
 
 export interface ParsedCourseData {
   title?: string;
@@ -79,6 +79,123 @@ export function cleanQuizTitle(raw?: string | null): string {
 }
 
 /**
+ * Ensures that if a course has a Final Assessment lesson, it is strictly placed at the very end
+ * of the course curriculum (as the last lesson of the last section).
+ * This prevents any newly added modules or lessons from appearing after the Final Assessment.
+ */
+export function ensureFinalAssessmentAtEnd(sections: BuilderSection[]): BuilderSection[] {
+  if (!Array.isArray(sections) || sections.length === 0) return sections || [];
+
+  const isFinalExamLesson = (l: BuilderLesson | any): boolean => {
+    if (!l) return false;
+    const rawTitle = String(l?.title || '').trim().toLowerCase();
+    if (l?.type === 'QUIZ' && !/final\s*(assessment|assignment|exam)/i.test(rawTitle) && !l?.isFinalAssignment) {
+      return false;
+    }
+    return Boolean(l?.isFinalAssignment) || /final\s*(assessment|assignment|exam)/i.test(rawTitle);
+  };
+
+  // Locate the final assessment lesson across all sections
+  let foundFinalLesson: BuilderLesson | null = null;
+  let sourceSecIdx = -1;
+  let sourceLesIdx = -1;
+
+  for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+    const sec = sections[sIdx];
+    const lessons = Array.isArray(sec.lessons) ? sec.lessons : [];
+    for (let lIdx = 0; lIdx < lessons.length; lIdx++) {
+      const les = lessons[lIdx];
+      if (isFinalExamLesson(les)) {
+        foundFinalLesson = { ...les, isFinalAssignment: true, type: 'QUIZ' };
+        if (!foundFinalLesson.title || /quiz/i.test(foundFinalLesson.title)) {
+          foundFinalLesson.title = 'Final Assessment';
+        }
+        sourceSecIdx = sIdx;
+        sourceLesIdx = lIdx;
+        break;
+      }
+    }
+    if (foundFinalLesson) break;
+  }
+
+  // If no final assessment exists in this course, return as is
+  if (!foundFinalLesson) {
+    return sections;
+  }
+
+  // Deep clone sections so we don't mutate input directly
+  const newSections: BuilderSection[] = sections.map((s) => ({
+    ...s,
+    lessons: (s.lessons || []).map((l) => ({ ...l }))
+  }));
+
+  const isDedicatedSec = sections[sourceSecIdx].lessons.length === 1;
+
+  if (isDedicatedSec) {
+    if (sourceSecIdx === newSections.length - 1) {
+      // Already the last section
+      return newSections.map((sec, sIdx) => ({
+        ...sec,
+        order: sIdx + 1,
+        lessons: (sec.lessons || []).map((les, lIdx) => ({
+          ...les,
+          order: lIdx + 1
+        }))
+      }));
+    }
+    // Move this dedicated section to the very end of newSections
+    const [dedicatedSec] = newSections.splice(sourceSecIdx, 1);
+    newSections.push(dedicatedSec);
+
+    return newSections.map((sec, sIdx) => ({
+      ...sec,
+      order: sIdx + 1,
+      lessons: (sec.lessons || []).map((les, lIdx) => ({
+        ...les,
+        order: lIdx + 1
+      }))
+    }));
+  }
+
+  // Non-dedicated section: remove final lesson from its current section
+  if (sourceSecIdx >= 0 && sourceSecIdx < newSections.length) {
+    newSections[sourceSecIdx].lessons.splice(sourceLesIdx, 1);
+  }
+
+  // If that source section is now completely empty, prune it
+  if (newSections[sourceSecIdx] && newSections[sourceSecIdx].lessons.length === 0) {
+    newSections.splice(sourceSecIdx, 1);
+  }
+
+  // If no sections remain, create a default section
+  if (newSections.length === 0) {
+    newSections.push({
+      id: `sec-${Date.now()}-1`,
+      clientKey: `sec-${Date.now()}-1`,
+      title: 'Course Assessment',
+      description: '',
+      order: 1,
+      lessons: []
+    });
+  }
+
+  // Place foundFinalLesson as the VERY LAST lesson of the LAST section
+  const lastSec = newSections[newSections.length - 1];
+  foundFinalLesson.order = (lastSec.lessons || []).length + 1;
+  lastSec.lessons.push(foundFinalLesson);
+
+  // Re-number orders cleanly across all sections and lessons
+  return newSections.map((sec, sIdx) => ({
+    ...sec,
+    order: sIdx + 1,
+    lessons: (sec.lessons || []).map((les, lIdx) => ({
+      ...les,
+      order: lIdx + 1
+    }))
+  }));
+}
+
+/**
  * Generates and downloads the official Course Upload Template (.xlsx)
  * Fully styled with bold topics, header backgrounds, status badges, and crystal clear instructions.
  */
@@ -95,6 +212,11 @@ export function downloadCourseExcelTemplate() {
     headerBlue: {
       font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
       fill: { fgColor: { rgb: '1E40AF' } }, // Blue 800
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
+    headerTeal: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
+      fill: { fgColor: { rgb: '0F766E' } }, // Teal 700 background
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     headerPurple: {
@@ -197,22 +319,22 @@ export function downloadCourseExcelTemplate() {
       'Comprehensive course overview explaining curriculum scope, target skills, and instructor value'
     ],
     [
-      'What Students Will Learn *',
+      'What You\'ll Learn (Key Learning Outcomes) *',
       '',
       'REQUIRED',
-      'Separate each learning outcome with a semicolon (;). Example: Outcome 1; Outcome 2; Outcome 3'
+      'Separate each learning outcome with a semicolon (;). Example: Build modern apps with Next.js; Design PostgreSQL schemas'
     ],
     [
-      'Prerequisites & Setup *',
+      'Who This Course Is For (Target Audience) *',
       '',
       'REQUIRED',
-      'Prerequisites or required software separated by semicolons (;)'
+      'Target learner profiles separated by semicolons (;). Example: Full-Stack Developers; DevOps Engineers; Technical Leads'
     ],
     [
-      'Target Audience *',
+      'Before You Begin (Prerequisites & Requirements) *',
       '',
       'REQUIRED',
-      'Target learner profiles separated by semicolons (;)'
+      'Prerequisites or required background separated by semicolons (;). Example: Basic JavaScript; Familiarity with Git'
     ],
     ['💰 SECTION 3: PRICING & ENROLLMENT SETTINGS', '', '', ''],
     [
@@ -268,7 +390,7 @@ export function downloadCourseExcelTemplate() {
   });
 
   wsDetails['!cols'] = [
-    { wch: 32 }, // Field Name
+    { wch: 42 }, // Field Name
     { wch: 65 }, // Your Value
     { wch: 18 }, // Status
     { wch: 80 }  // Instructions
@@ -324,7 +446,61 @@ export function downloadCourseExcelTemplate() {
     { wch: 24 }, // Free Preview
     { wch: 65 }  // Article Content
   ];
-  XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum');
+  XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
+
+  // 3. Articles Sheet Data (Dedicated Articles & Reading Material)
+  const articlesAOA: any[][] = [
+    [
+      'Module (e.g. Module 1)',
+      'Article Title *',
+      'Reading Duration (mm:ss)',
+      'Free Preview (Yes / No)',
+      'Article Content / Notes (Markdown or Text) *',
+      'Resource / Reference Links (Optional)'
+    ],
+    [
+      'Module 1: Foundations',
+      'Developer Environment Setup Guide',
+      '08:00',
+      'Yes',
+      '# Developer Setup Guide\n\nWelcome to this comprehensive course! In this written guide, you will configure your local workspace, install Node.js (v20+), Git, and VS Code extensions.\n\n### Prerequisites\n- Terminal access (bash / zsh / PowerShell)\n- Modern web browser\n\n### Step 1: Install Dependencies\nRun `npm install -g pnpm` to set up our recommended fast package manager.',
+      'https://nodejs.org; https://code.visualstudio.com'
+    ],
+    [
+      'Module 1: Foundations',
+      'Full-Stack Architecture Cheatsheet',
+      '05:00',
+      'No',
+      '# Architecture Cheatsheet\n\nThis article outlines the core architectural layers:\n- **Client Layer**: Server-rendered React components with Next.js App Router\n- **API / Edge Layer**: Lightweight edge routes and middleware authentication\n- **Data Layer**: PostgreSQL with connection pooling and typed ORM queries',
+      'https://nextjs.org/docs'
+    ]
+  ];
+
+  const wsArticles = XLSX.utils.aoa_to_sheet(articlesAOA);
+  articlesAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsArticles[cellRef]) wsArticles[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsArticles[cellRef].s = styles.headerTeal;
+      } else {
+        if (cIdx === 0 || cIdx === 1) wsArticles[cellRef].s = styles.boldTopic;
+        else if (cIdx === 2 || cIdx === 3) wsArticles[cellRef].s = styles.boldCenter;
+        else wsArticles[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
+  wsArticles['!cols'] = [
+    { wch: 30 }, // Module
+    { wch: 45 }, // Article Title
+    { wch: 24 }, // Reading Duration
+    { wch: 22 }, // Free Preview
+    { wch: 80 }, // Article Content
+    { wch: 40 }  // Resource Links
+  ];
+  XLSX.utils.book_append_sheet(wb, wsArticles, 'Articles');
 
   // 3. Quizzes & MCQs Sheet Data (Mid-Module Knowledge Checks)
   const quizzesAOA: any[][] = [
@@ -471,11 +647,15 @@ export function buildGuideInstructionsSheet(styles: any) {
     ],
     [
       '🎥 STEP 2: Curriculum Content Types (LECTURE, ARTICLE, QUIZ, FINAL ASSESSMENT)',
-      'In the "Curriculum" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Enter rich text or markdown content in Column F).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSESSMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in the dedicated "Final Assessment" tab). You can also specify FINAL ASSIGNMENT.'
+      'In the "Curriculum Syllabus" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Can be edited in Column F or in the dedicated "Articles" tab).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSESSMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in the dedicated "Final Assessment" tab). Always appears at the end of the course.'
     ],
     [
-      '🏆 STEP 3: Dedicated "Final Assessment" Tab & Certificate Gate',
-      'Every course MUST have a Final Assessment at the end of the curriculum before it can be submitted for approval!\n• Dedicated Tab: Open the dedicated "Final Assessment" tab at the bottom of this workbook to enter your certification exam questions, options, and passing score.\n• Passing Score: Default is 80%. When a student scores at or above the passing score, they immediately unlock the official verifiable Certificate of Completion.\n• Even Questions Rule: The Final Assessment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts are strictly rejected.'
+      '📖 STEP 3: Dedicated "Articles" Tab (Written Guides & Cheatsheets)',
+      'In the dedicated "Articles" tab, configure written lessons and documentation:\n• Enter Module Name, Article Title, Reading Duration, Free Preview flag, and Article Content (Markdown or plain text).\n• You can also add external resource/documentation links separated by semicolons (;).\n• All articles sync seamlessly with the Curriculum Syllabus and Course Studio.'
+    ],
+    [
+      '🏆 STEP 4: Dedicated "Final Assessment" Tab & Certificate Gate',
+      'Every course MUST have a Final Assessment at the end of the curriculum before it can be submitted for approval!\n• Dedicated Tab: Open the dedicated "Final Assessment" tab at the bottom of this workbook to enter your certification exam questions, options, and passing score.\n• Passing Score: Default is 80%. When a student scores at or above the passing score, they immediately unlock the official verifiable Certificate of Completion.\n• Even Questions Rule: The Final Assessment must contain an EVEN number of questions (e.g. 2, 4, 6, 8, 10 questions). Odd counts are strictly rejected.\n• Always Placed at End: The Final Assessment is strictly and automatically kept as the final item in the curriculum.'
     ],
     [
       '💯 STEP 4: "Quizzes & MCQs" Tab (Mid-Module Quizzes)',
@@ -533,6 +713,11 @@ export function buildGuideInstructionsSheet(styles: any) {
 export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   const wb = XLSX.utils.book_new();
 
+  // Ensure Final Assessment is strictly at the very end of the curriculum before exporting
+  if (course && Array.isArray(course.sections)) {
+    course.sections = ensureFinalAssessmentAtEnd(course.sections);
+  }
+
   const styles = {
     headerDark: {
       font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
@@ -542,6 +727,11 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     headerBlue: {
       font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
       fill: { fgColor: { rgb: '1E40AF' } },
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
+    },
+    headerTeal: {
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, // White font
+      fill: { fgColor: { rgb: '0F766E' } }, // Teal 700 background
       alignment: { vertical: 'center', horizontal: 'center', wrapText: true }
     },
     headerPurple: {
@@ -650,22 +840,22 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       'Detailed overview of the course'
     ],
     [
-      'What Students Will Learn',
+      'What You\'ll Learn (Key Learning Outcomes) *',
       toMultiString(course.whatYouWillLearn),
-      'OPTIONAL',
-      'Separate points with a semicolon (;)'
+      'REQUIRED',
+      'Separate each learning outcome with a semicolon (;)'
     ],
     [
-      'Prerequisites & Setup',
-      toMultiString(course.requirements),
-      'OPTIONAL',
-      'Separate prerequisites with a semicolon (;)'
-    ],
-    [
-      'Target Audience',
+      'Who This Course Is For (Target Audience) *',
       toMultiString(course.targetAudience),
-      'OPTIONAL',
-      'Separate audience groups with a semicolon (;)'
+      'REQUIRED',
+      'Separate target learner groups with a semicolon (;)'
+    ],
+    [
+      'Before You Begin (Prerequisites & Requirements) *',
+      toMultiString(course.requirements),
+      'REQUIRED',
+      'Separate prerequisites with a semicolon (;)'
     ],
     ['💰 SECTION 3: PRICING & ENROLLMENT ACCESS', '', '', ''],
     [
@@ -786,7 +976,69 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
   wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 70 }];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
 
-  // 3. Quizzes & MCQs Sheet (Mid-Module Knowledge Checks)
+  // 3. Articles Sheet Data (Dedicated Articles & Reading Material)
+  const articlesAOA: any[][] = [
+    [
+      'Module (e.g. Module 1)',
+      'Article Title *',
+      'Reading Duration (mm:ss)',
+      'Free Preview (Yes / No)',
+      'Article Content / Notes (Markdown or Text) *',
+      'Resource / Reference Links (Optional)'
+    ]
+  ];
+
+  sections.forEach((sec: any) => {
+    (sec.lessons || []).forEach((les: any) => {
+      if (les.type === 'TEXT' || les.type === 'ARTICLE' || les.type === 'DOCUMENT') {
+        let resString = '';
+        const resList = les.resourcesList || les.resources;
+        if (Array.isArray(resList)) {
+          resString = resList
+            .map((r: any) => (typeof r === 'string' ? r : r.url || r.name || r.title))
+            .filter(Boolean)
+            .join('; ');
+        } else if (typeof resList === 'string') {
+          resString = resList;
+        }
+
+        articlesAOA.push([
+          sec.title || 'Module',
+          les.title || 'Article',
+          les.duration || '05:00',
+          les.isFree ? 'Yes' : 'No',
+          les.content || '',
+          resString
+        ]);
+      }
+    });
+  });
+
+  if (articlesAOA.length === 1) {
+    articlesAOA.push(['', '', '', '', '', '']);
+    articlesAOA.push(['', '', '', '', '', '']);
+  }
+
+  const wsArticles = XLSX.utils.aoa_to_sheet(articlesAOA);
+  articlesAOA.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0;
+    for (let cIdx = 0; cIdx < row.length; cIdx++) {
+      const cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
+      if (!wsArticles[cellRef]) wsArticles[cellRef] = { t: 's', v: '' };
+      if (isHeader) {
+        wsArticles[cellRef].s = styles.headerTeal;
+      } else {
+        if (cIdx === 0 || cIdx === 1) wsArticles[cellRef].s = styles.boldTopic;
+        else if (cIdx === 2 || cIdx === 3) wsArticles[cellRef].s = styles.boldCenter;
+        else wsArticles[cellRef].s = styles.cellNormal;
+      }
+    }
+  });
+
+  wsArticles['!cols'] = [{ wch: 30 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 80 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsArticles, 'Articles');
+
+  // 4. Quizzes & MCQs Sheet (Mid-Module Knowledge Checks)
   const quizzesAOA: any[][] = [
     [
       'Module (e.g. Module 1)',
@@ -1037,13 +1289,34 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
     const fullDesc = findValue('full course description', 'course description', 'description');
     if (fullDesc) result.description = String(fullDesc).trim();
 
-    const learnVal = findValue('what students will learn', 'what you will learn', 'outcomes');
+    const learnVal = findValue(
+      'what you\'ll learn (key learning outcomes)',
+      'what you\'ll learn',
+      'what you will learn',
+      'what students will learn',
+      'learning outcomes',
+      'outcomes'
+    );
     if (learnVal) result.whatYouWillLearn = parseMultiItems(learnVal);
 
-    const reqVal = findValue('prerequisites & setup', 'prerequisites', 'requirements');
+    const reqVal = findValue(
+      'before you begin (prerequisites & requirements)',
+      'before you begin',
+      'prerequisites & setup',
+      'prerequisites',
+      'requirements',
+      'prior knowledge'
+    );
     if (reqVal) result.requirements = parseMultiItems(reqVal);
 
-    const audVal = findValue('target audience', 'audience');
+    const audVal = findValue(
+      'who this course is for (target audience)',
+      'who this course is for',
+      'who is this course for',
+      'target audience',
+      'audience',
+      'who can benefit'
+    );
     if (audVal) result.targetAudience = parseMultiItems(audVal);
 
     const priceVal = findValue('course price (inr)', 'course price', 'price');
@@ -1798,6 +2071,133 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
     }
   }
 
+  // Find and process dedicated Articles sheet if present
+  const articlesSheetName = sheetNames.find(
+    (name) => /article|reading|written|notes/i.test(name) && !/curriculum|detail|info|basic|quiz|guide|assessment/i.test(name)
+  );
+
+  if (articlesSheetName && wb.Sheets[articlesSheetName]) {
+    const artSheet = wb.Sheets[articlesSheetName];
+    const artRows: any[] = XLSX.utils.sheet_to_json(artSheet);
+
+    artRows.forEach((row) => {
+      const findArtField = (exactKeys: string[], fallbackKeyword?: string) => {
+        for (const [rKey, rVal] of Object.entries(row)) {
+          const cleanKey = rKey.trim().toLowerCase();
+          if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
+            if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+              return String(rVal).trim();
+            }
+          }
+        }
+        if (fallbackKeyword) {
+          for (const [rKey, rVal] of Object.entries(row)) {
+            const cleanKey = rKey.trim().toLowerCase();
+            if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
+              if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                return String(rVal).trim();
+              }
+            }
+          }
+        }
+        return '';
+      };
+
+      const moduleRaw = findArtField(['module (e.g. module 1)', 'module', 'module title', 'section'], 'module');
+      const articleTitleRaw = findArtField(['article title *', 'article title', 'title', 'topic'], 'title');
+      const durationRaw = findArtField(['reading duration (mm:ss)', 'duration (mm:ss)', 'duration', 'time'], 'duration');
+      const isFreeRaw = findArtField(['free preview (yes / no)', 'free preview', 'preview', 'is free'], 'preview');
+      const contentRaw = findArtField(['article content / notes (markdown or text) *', 'article content', 'content', 'notes', 'markdown'], 'content');
+      const resourcesRaw = findArtField(['resource / reference links (optional)', 'resources', 'links', 'reference links'], 'resource');
+
+      if (!articleTitleRaw) return;
+
+      const cleanedTitle = cleanLectureTitle(articleTitleRaw) || articleTitleRaw;
+      const isFree = /yes|true|1|free/i.test(isFreeRaw);
+      const duration = durationRaw || '05:00';
+      const durationSeconds = parseDurationToSeconds(duration);
+
+      let resources: LessonResourceItem[] = [];
+      if (resourcesRaw) {
+        resources = resourcesRaw
+          .split(/[;\n\r]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((url, idx) => ({ id: `res-${idx + 1}`, name: `Resource ${idx + 1}`, url, type: 'LINK' as const }));
+      }
+
+      // Check if this article exists in sections
+      let matchedLesson: BuilderLesson | undefined;
+
+      if (result.sections) {
+        for (const sec of result.sections) {
+          const les = (sec.lessons || []).find(
+            (l) => cleanLectureTitle(l.title).toLowerCase() === cleanedTitle.toLowerCase() && (l.type === 'TEXT' || (l.type as any) === 'ARTICLE')
+          );
+          if (les) {
+            matchedLesson = les;
+            break;
+          }
+        }
+      }
+
+      if (matchedLesson) {
+        matchedLesson.type = 'TEXT';
+        if (contentRaw) matchedLesson.content = contentRaw;
+        if (duration) matchedLesson.duration = duration;
+        matchedLesson.durationSeconds = durationSeconds;
+        if (isFreeRaw) matchedLesson.isFree = isFree;
+        if (resources.length > 0) matchedLesson.resourcesList = resources;
+      } else {
+        // If not listed in Curriculum Syllabus sheet, add it to target module
+        if (!result.sections) result.sections = [];
+        let sec: BuilderSection | undefined;
+        if (moduleRaw) {
+          const modKey = cleanModuleTitle(moduleRaw).toLowerCase();
+          sec = result.sections.find((s) => cleanModuleTitle(s.title).toLowerCase() === modKey);
+        }
+        if (!sec && result.sections.length > 0) {
+          sec = result.sections[0];
+        } else if (!sec) {
+          sec = {
+            id: `sec-${Date.now()}-1`,
+            clientKey: `sec-${Date.now()}-1`,
+            title: moduleRaw ? cleanModuleTitle(moduleRaw) : 'Module 1: Foundations',
+            description: '',
+            order: 1,
+            lessons: []
+          };
+          result.sections.push(sec);
+        }
+
+        const newId = `les-${Date.now()}-${(sec.lessons || []).length + 1}-${Math.random().toString(36).substring(2, 6)}`;
+        const newArt: BuilderLesson = {
+          id: newId,
+          clientKey: newId,
+          tempId: newId,
+          title: cleanedTitle,
+          description: '',
+          type: 'TEXT',
+          duration,
+          durationSeconds,
+          content: contentRaw || '',
+          isFree,
+          isPublished: true,
+          isNewlyAdded: true,
+          order: (sec.lessons || []).length + 1,
+          resourcesList: resources,
+          subLessons: []
+        };
+        sec.lessons.push(newArt);
+      }
+    });
+  }
+
+  // Ensure Final Assessment is always strictly the very last lesson of the course
+  if (result.sections && result.sections.length > 0) {
+    result.sections = ensureFinalAssessmentAtEnd(result.sections);
+  }
+
   return result;
 }
 
@@ -2065,8 +2465,8 @@ export function mergeExcelSectionsForUpdateVersion(
     result.push(...newSectionsToInsert);
   }
 
-  // Re-number section and lesson orders cleanly
-  return result.map((sec, sIdx) => ({
+  // Re-number section and lesson orders cleanly and ensure Final Assessment stays at the end
+  const cleanOrdered = result.map((sec, sIdx) => ({
     ...sec,
     order: sIdx + 1,
     lessons: (sec.lessons || []).map((les, lIdx) => ({
@@ -2074,5 +2474,7 @@ export function mergeExcelSectionsForUpdateVersion(
       order: lIdx + 1
     }))
   }));
+
+  return ensureFinalAssessmentAtEnd(cleanOrdered);
 }
 

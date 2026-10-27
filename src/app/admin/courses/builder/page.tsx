@@ -1869,6 +1869,16 @@ function CourseBuilderContent() {
         setCourseState((prev) => {
           const updatedState = {
             ...prev,
+            whatYouWillLearn:
+              parsed.whatYouWillLearn && parsed.whatYouWillLearn.length > 0
+                ? parsed.whatYouWillLearn
+                : prev.whatYouWillLearn,
+            requirements:
+              parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : prev.requirements,
+            targetAudience:
+              parsed.targetAudience && parsed.targetAudience.length > 0
+                ? parsed.targetAudience
+                : prev.targetAudience,
             sections: mergeExcelSectionsForUpdateVersion(prev.sections || [], parsed.sections || [])
           };
           courseStateRef.current = updatedState;

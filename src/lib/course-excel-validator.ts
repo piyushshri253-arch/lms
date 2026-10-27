@@ -4,7 +4,8 @@ import {
   ParsedCourseData,
   cleanModuleTitle,
   cleanLectureTitle,
-  cleanQuizTitle
+  cleanQuizTitle,
+  ensureFinalAssessmentAtEnd
 } from '@/lib/course-excel';
 
 export interface ExcelValidationError {
@@ -328,7 +329,14 @@ export function validateCourseExcel(
     });
   }
 
-  const rawOutcomes = findDetail('what students will learn', 'what you will learn', 'outcomes');
+  const rawOutcomes = findDetail(
+    'what you\'ll learn (key learning outcomes)',
+    'what you\'ll learn',
+    'what you will learn',
+    'what students will learn',
+    'learning outcomes',
+    'outcomes'
+  );
   const outcomes = rawOutcomes ? String(rawOutcomes).split(/[;\n\r|]+/).map((s) => s.trim()).filter(Boolean) : [];
   if (outcomes.length === 0) {
     errors.push({
@@ -339,6 +347,32 @@ export function validateCourseExcel(
       severity: 'BLOCKING'
     });
   }
+
+  const rawRequirements = findDetail(
+    'before you begin (prerequisites & requirements)',
+    'before you begin',
+    'prerequisites & setup',
+    'prerequisites',
+    'requirements',
+    'prior knowledge'
+  );
+  const requirements = rawRequirements
+    ? String(rawRequirements).split(/[;\n\r|]+/).map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const rawAudience = findDetail(
+    'who this course is for (target audience)',
+    'who this course is for',
+    'who is this course for',
+    'target audience',
+    'audience',
+    'who can benefit'
+  );
+  const targetAudience = rawAudience
+    ? String(rawAudience).split(/[;\n\r|]+/).map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const rawShortDesc = findDetail('short description', 'short', 'subtitle');
 
   const rawPrice = findDetail('course price (inr)', 'course price', 'price');
   let parsedPrice: number | undefined;
@@ -1517,11 +1551,13 @@ export function validateCourseExcel(
   const blockingErrors = errors.filter((e) => e.severity === 'BLOCKING');
   const isValid = blockingErrors.length === 0;
 
+  const cleanSections = ensureFinalAssessmentAtEnd(sections);
+
   const parsedData: ParsedCourseData = {
     title: courseTitle,
     slug: courseTitle.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
     description: courseDescription,
-    shortDescription: courseDescription.slice(0, 160),
+    shortDescription: rawShortDesc ? String(rawShortDesc).trim() : courseDescription.slice(0, 160),
     category,
     level,
     language,
@@ -1530,7 +1566,9 @@ export function validateCourseExcel(
     currency: 'INR',
     accessType: 'LIFETIME',
     whatYouWillLearn: outcomes,
-    sections
+    requirements,
+    targetAudience,
+    sections: cleanSections
   };
 
   return {

@@ -480,39 +480,37 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             <p className="text-[11px] text-on-surface-variant mt-0.5">Key learning outcomes &amp; skills</p>
           </div>
 
-          {!isModeB && (
-            <div className="space-y-1.5">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newLearnPoint}
-                  onChange={(e) => setNewLearnPoint(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === 'Enter' &&
-                    (e.preventDefault(), addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint))
-                  }
-                  placeholder="Add key takeaway..."
-                  className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint)}
-                  className="px-3 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl cursor-pointer"
-                >
-                  Add
-                </button>
-              </div>
-              {newLearnPoint.trim().length > 3 && (
-                <div className="flex justify-end">
-                  <GrammarHintAssistant
-                    text={newLearnPoint}
-                    onApplyCorrection={(corrected) => setNewLearnPoint(corrected)}
-                    fieldName="Learning Outcome"
-                  />
-                </div>
-              )}
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newLearnPoint}
+                onChange={(e) => setNewLearnPoint(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' &&
+                  (e.preventDefault(), addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint))
+                }
+                placeholder="Add key takeaway..."
+                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => addPoint('whatYouWillLearn', newLearnPoint, setNewLearnPoint)}
+                className="px-3 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Add
+              </button>
             </div>
-          )}
+            {newLearnPoint.trim().length > 3 && (
+              <div className="flex justify-end">
+                <GrammarHintAssistant
+                  text={newLearnPoint}
+                  onApplyCorrection={(corrected) => setNewLearnPoint(corrected)}
+                  fieldName="Learning Outcome"
+                />
+              </div>
+            )}
+          </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {learnPoints.map((point, idx) => (
@@ -521,22 +519,20 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
               >
                 <span className="text-on-surface font-medium leading-tight">{point}</span>
-                {!isModeB && (
-                  <button
-                    type="button"
-                    onClick={() => removePoint('whatYouWillLearn', idx)}
-                    className="text-outline hover:text-rose-600 cursor-pointer"
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removePoint('whatYouWillLearn', idx)}
+                  className="text-outline hover:text-rose-600 cursor-pointer"
+                  title="Remove takeaway"
+                >
+                  <Icon name="close" size={14} />
+                </button>
               </div>
             ))}
           </div>
         </div>
 
-
-         {/* 2. Target Audience */}
+        {/* 2. Target Audience */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 shadow-xs space-y-4">
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
@@ -546,27 +542,25 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             <p className="text-[11px] text-on-surface-variant mt-0.5">Who can benefit from this course</p>
           </div>
 
-          {!isModeB && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newAudience}
-                onChange={(e) => setNewAudience(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' &&
-                  (e.preventDefault(), addPoint('targetAudience', newAudience, setNewAudience))}
-                placeholder="e.g. Backend Engineers"
-                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-              />
-              <button
-                type="button"
-                onClick={() => addPoint('targetAudience', newAudience, setNewAudience)}
-                className="px-3 py-2 bg-tertiary text-on-tertiary text-xs font-bold rounded-xl cursor-pointer"
-              >
-                Add
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newAudience}
+              onChange={(e) => setNewAudience(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === 'Enter' &&
+                (e.preventDefault(), addPoint('targetAudience', newAudience, setNewAudience))}
+              placeholder="e.g. Backend Engineers"
+              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={() => addPoint('targetAudience', newAudience, setNewAudience)}
+              className="px-3 py-2 bg-tertiary text-on-tertiary text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Add
+            </button>
+          </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {audiencePoints.map((aud, idx) => (
@@ -575,15 +569,14 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
               >
                 <span className="text-on-surface font-medium leading-tight">{aud}</span>
-                {!isModeB && (
-                  <button
-                    type="button"
-                    onClick={() => removePoint('targetAudience', idx)}
-                    className="text-outline hover:text-rose-600 cursor-pointer"
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removePoint('targetAudience', idx)}
+                  className="text-outline hover:text-rose-600 cursor-pointer"
+                  title="Remove target profile"
+                >
+                  <Icon name="close" size={14} />
+                </button>
               </div>
             ))}
           </div>
@@ -599,28 +592,26 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
             <p className="text-[11px] text-on-surface-variant mt-0.5">Knowledge or experience you may need</p>
           </div>
 
-          {!isModeB && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newRequirement}
-                onChange={(e) => setNewRequirement(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' &&
-                  (e.preventDefault(), addPoint('requirements', newRequirement, setNewRequirement))
-                }
-                placeholder="e.g. Basic Docker knowledge"
-                className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
-              />
-              <button
-                type="button"
-                onClick={() => addPoint('requirements', newRequirement, setNewRequirement)}
-                className="px-3 py-2 bg-primary text-on-secondary text-xs font-bold rounded-xl cursor-pointer"
-              >
-                Add
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newRequirement}
+              onChange={(e) => setNewRequirement(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === 'Enter' &&
+                (e.preventDefault(), addPoint('requirements', newRequirement, setNewRequirement))
+              }
+              placeholder="e.g. Basic Docker knowledge"
+              className="flex-1 bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={() => addPoint('requirements', newRequirement, setNewRequirement)}
+              className="px-3 py-2 bg-secondary text-on-secondary text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Add
+            </button>
+          </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {requirementPoints.map((req, idx) => (
@@ -629,15 +620,14 @@ export const CourseBasicInfoStep: React.FC<CourseBasicInfoProps> = ({
                 className="p-2.5 bg-surface-container-low rounded-xl text-xs flex justify-between items-start gap-2"
               >
                 <span className="text-on-surface font-medium leading-tight">{req}</span>
-                {!isModeB && (
-                  <button
-                    type="button"
-                    onClick={() => removePoint('requirements', idx)}
-                    className="text-outline hover:text-rose-600 cursor-pointer"
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removePoint('requirements', idx)}
+                  className="text-outline hover:text-rose-600 cursor-pointer"
+                  title="Remove prerequisite"
+                >
+                  <Icon name="close" size={14} />
+                </button>
               </div>
             ))}
           </div>

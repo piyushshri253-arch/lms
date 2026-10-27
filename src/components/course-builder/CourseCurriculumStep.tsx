@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { VideoUploadModal } from '@/components/media/VideoUploadModal';
 import { AiCourseGeneratorModal } from '@/components/ai/AiCourseGeneratorModal';
 import { useApp } from '@/context/AppContext';
-import { cleanModuleTitle, cleanLectureTitle, cleanQuizTitle } from '@/lib/course-excel';
+import { cleanModuleTitle, cleanLectureTitle, cleanQuizTitle, ensureFinalAssessmentAtEnd } from '@/lib/course-excel';
 import { RichArticleEditor } from './RichArticleEditor';
 import { GrammarHintAssistant } from '@/components/ui/GrammarHintAssistant';
 
@@ -429,7 +429,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         })
       };
     });
-    onChange([...sections, ...newSections]);
+    onChange(ensureFinalAssessmentAtEnd([...sections, ...newSections]));
   };
 
   // Add / Edit Section Handler
@@ -468,7 +468,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         order: sections.length + 1,
         lessons: []
       };
-      onChange([...sections, newSec]);
+      onChange(ensureFinalAssessmentAtEnd([...sections, newSec]));
       showToast({ title: 'Module Added', description: `Created Module ${newSec.order}: ${newSec.title}`, type: 'success' });
     }
 
@@ -609,7 +609,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
     );
 
-    onChange(updated);
+    onChange(ensureFinalAssessmentAtEnd(updated));
     if (openModal) {
       setEditingLesson({ sectionId, lesson: newLesson });
     } else if (type === 'QUIZ') {
@@ -713,7 +713,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       s.id === targetSectionId || s.clientKey === targetSectionId || s.tempId === targetSectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
     );
 
-    onChange(updated);
+    onChange(ensureFinalAssessmentAtEnd(updated));
     const targetDrawerKey = newLesson.clientKey || newLesson.id;
     setOpenContentDrawerId(targetDrawerKey);
     setActiveContentTab((prev) => ({ ...prev, [targetDrawerKey]: 'QUIZ', [newLesson.id]: 'QUIZ' }));
@@ -995,7 +995,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
     const copy = [...sections];
     const [moved] = copy.splice(index, 1);
     copy.splice(newIdx, 0, moved);
-    onChange(copy.map((s, i) => ({ ...s, order: i + 1 })));
+    onChange(ensureFinalAssessmentAtEnd(copy.map((s, i) => ({ ...s, order: i + 1 }))));
   };
 
   const moveLesson = (sectionId: string, index: number, direction: 'up' | 'down') => {
@@ -1014,7 +1014,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
         ? { ...s, lessons: lessonsCopy.map((l, i) => ({ ...l, order: i + 1 })) }
         : s
     );
-    onChange(updated);
+    onChange(ensureFinalAssessmentAtEnd(updated));
   };
 
   return (
