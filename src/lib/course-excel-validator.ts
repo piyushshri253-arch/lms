@@ -202,7 +202,7 @@ export function validateCourseExcel(
       location: 'Curriculum',
       field: 'Headers',
       error: 'Mandatory column header "Content Type" is missing or altered',
-      action: 'Include the "Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *" column header in row 1',
+      action: 'Include the "Content Type (LECTURE) *" column header in row 1',
       severity: 'BLOCKING'
     });
   }
@@ -470,8 +470,13 @@ export function validateCourseExcel(
       'module'
     );
     const lessonTypeRaw = findField([
+      'content type (lecture) *',
+      'content type (lecture)',
+      'content type (video)',
       'content type (lecture / article / quiz / final assignment) *',
       'content type (lecture / article / quiz / final assignment)',
+      'content type (lecture / article / quiz / final assessment) *',
+      'content type (lecture / article / quiz / final assessment)',
       'content type (lecture / article / quiz) *',
       'content type (lecture / article / quiz)',
       'content type',
@@ -1368,6 +1373,108 @@ export function validateCourseExcel(
     });
   }
 }
+
+  // 7.5 Dedicated Articles Sheet Validation & Extraction
+  const articlesSheetName = sheetNames.find(
+    (name) => /article|reading|written|notes/i.test(name) && !/curriculum|detail|info|basic|quiz|guide|assessment/i.test(name)
+  );
+
+  if (articlesSheetName && wb.Sheets[articlesSheetName]) {
+    const artSheet = wb.Sheets[articlesSheetName];
+    const artRows: any[] = XLSX.utils.sheet_to_json(artSheet);
+
+    artRows.forEach((row, rowIdx) => {
+      const findArtField = (exactKeys: string[], fallbackKeyword?: string) => {
+        for (const [rKey, rVal] of Object.entries(row)) {
+          const cleanKey = rKey.trim().toLowerCase();
+          if (exactKeys.some((k) => cleanKey === k.toLowerCase())) {
+            if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+              return String(rVal).trim();
+            }
+          }
+        }
+        if (fallbackKeyword) {
+          for (const [rKey, rVal] of Object.entries(row)) {
+            const cleanKey = rKey.trim().toLowerCase();
+            if (cleanKey.includes(fallbackKeyword.toLowerCase())) {
+              if (rVal !== undefined && rVal !== null && String(rVal).trim() !== '') {
+                return String(rVal).trim();
+              }
+            }
+          }
+        }
+        return '';
+      };
+
+      const moduleRaw = findArtField(['module (e.g. module 1)', 'module', 'module title', 'section'], 'module');
+      const articleTitleRaw = findArtField(['article title *', 'article title', 'title', 'topic'], 'title');
+      const durationRaw = findArtField(['reading duration (mm:ss)', 'duration (mm:ss)', 'duration', 'time'], 'duration');
+      const isFreeRaw = findArtField(['free preview (yes / no)', 'free preview', 'preview', 'is free'], 'preview');
+      const contentRaw = findArtField(['article content / notes (markdown or text) *', 'article content', 'content', 'notes', 'markdown'], 'content');
+
+      // Skip completely empty rows
+      if (!articleTitleRaw && !contentRaw) return;
+
+      const artLoc = `Articles, Row ${rowIdx + 2}${articleTitleRaw ? ` (${articleTitleRaw})` : ''}`;
+
+      if (!articleTitleRaw) {
+        errors.push({
+          location: artLoc,
+          field: 'Article Title',
+          error: 'Missing',
+          action: 'Enter the article title in the Articles sheet',
+          severity: 'BLOCKING'
+        });
+      }
+
+      if (!contentRaw || contentRaw.trim().length < 5) {
+        errors.push({
+          location: artLoc,
+          field: 'Article Content',
+          error: 'Missing',
+          action: 'Provide written content or markdown notes for the article',
+          severity: 'BLOCKING'
+        });
+      }
+
+      let sec: BuilderSection | undefined;
+      if (moduleRaw) {
+        const modKey = cleanModuleTitle(moduleRaw).toLowerCase();
+        sec = sections.find((s) => cleanModuleTitle(s.title).toLowerCase() === modKey);
+      }
+      if (!sec && sections.length > 0) {
+        sec = sections[0];
+      } else if (!sec) {
+        sec = {
+          id: `sec-art-${sections.length + 1}`,
+          title: moduleRaw ? cleanModuleTitle(moduleRaw) : 'Module 1: Foundations',
+          description: '',
+          order: sections.length + 1,
+          lessons: []
+        };
+        sections.push(sec);
+      }
+
+      const existingArt = sec.lessons.find((l) => l.type === 'TEXT' && cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(articleTitleRaw).toLowerCase());
+      if (existingArt) {
+        if (contentRaw) existingArt.content = contentRaw;
+      } else {
+        sec.lessons.push({
+          id: `les-art-${sec.lessons.length + 1}`,
+          title: cleanLectureTitle(articleTitleRaw) || articleTitleRaw || 'Article',
+          description: '',
+          type: 'TEXT',
+          duration: durationRaw || '05:00',
+          durationSeconds: 300,
+          content: contentRaw || '',
+          isFree: /yes|true|1|free/i.test(isFreeRaw),
+          isPublished: true,
+          order: sec.lessons.length + 1,
+          subLessons: []
+        });
+      }
+    });
+  }
 
   // Consolidate orphan / duplicate quizMap entries:
   // If an entry from Curriculum has 0 questions, but another entry has questions, merge them!

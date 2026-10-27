@@ -402,21 +402,20 @@ export function downloadCourseExcelTemplate() {
     [
       'Module Title (Write once per module)',
       'Topic / Lesson Title *',
-      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *',
+      'Content Type (LECTURE) *',
       'Duration (mm:ss)',
-      'Free Preview (Yes / No)',
-      'Written Article Content / Notes (Markdown for Written Articles)'
+      'Free Preview (Yes / No)'
     ],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['', '', '', '', '', '']
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', '']
   ];
 
   const wsCurriculum = XLSX.utils.aoa_to_sheet(curriculumAOA);
@@ -433,7 +432,6 @@ export function downloadCourseExcelTemplate() {
         else if (cIdx === 2) wsCurriculum[cellRef].s = styles.boldCenter;
         else if (cIdx === 3) wsCurriculum[cellRef].s = styles.centerNormal;
         else if (cIdx === 4) wsCurriculum[cellRef].s = styles.centerNormal;
-        else if (cIdx === 5) wsCurriculum[cellRef].s = styles.cellNormal;
       }
     }
   });
@@ -441,10 +439,9 @@ export function downloadCourseExcelTemplate() {
   wsCurriculum['!cols'] = [
     { wch: 42 }, // Module Title
     { wch: 48 }, // Topic / Lesson Title
-    { wch: 38 }, // Content Type
+    { wch: 28 }, // Content Type (LECTURE) *
     { wch: 20 }, // Duration
-    { wch: 24 }, // Free Preview
-    { wch: 65 }  // Article Content
+    { wch: 24 }  // Free Preview
   ];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
 
@@ -631,8 +628,8 @@ export function buildGuideInstructionsSheet(styles: any) {
       '1. Navigate to the "Course Details" tab.\n2. Enter your course Title, Category, Language, Skill Level, and Pricing.\n3. All core topic fields are highlighted in BOLD font, and essential fields are marked with "REQUIRED" status.\n4. For "What Students Will Learn", "Prerequisites", and "Target Audience", separate each bullet point with a semicolon (;).'
     ],
     [
-      '🎥 STEP 2: Curriculum Content Types (LECTURE, ARTICLE, QUIZ, FINAL ASSESSMENT)',
-      'In the "Curriculum Syllabus" tab, specify the "Content Type" for each lesson topic:\n• LECTURE: Use for video lectures. (Enter the title here; you can attach video files in the Course Studio).\n• ARTICLE: Use for written reading material or cheatsheets. (Can be edited in Column F or in the dedicated "Articles" tab).\n• QUIZ: Use for mid-module interactive MCQ assessments. (Questions are configured in the "Quizzes & MCQs" tab).\n• FINAL ASSESSMENT: Use for the mandatory end-of-course certification exam. (Questions are configured in the dedicated "Final Assessment" tab). Always appears at the end of the course.'
+      '🎥 STEP 2: Curriculum Syllabus (Video Lectures)',
+      'In the "Curriculum Syllabus" tab, specify all your course video lectures:\n• LECTURE: Enter Module Title, Topic / Lesson Title, Duration, and Free Preview flag.\n• Each module can have unlimited video lectures.\n• Dedicated tabs at the bottom handle Articles, Quizzes, and Final Assessment separately!'
     ],
     [
       '📖 STEP 3: Dedicated "Articles" Tab (Written Guides & Cheatsheets)',
@@ -903,43 +900,40 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
     [
       'Module Title (Write once per module)',
       'Topic / Lesson Title *',
-      'Content Type (LECTURE / ARTICLE / QUIZ / FINAL ASSESSMENT) *',
+      'Content Type (LECTURE) *',
       'Duration (mm:ss)',
-      'Free Preview (Yes / No)',
-      'Written Article Content / Notes (Markdown for Written Articles)'
+      'Free Preview (Yes / No)'
     ]
   ];
 
   const sections = Array.isArray(course.sections) ? course.sections : [];
   sections.forEach((sec: any) => {
     const lessons = Array.isArray(sec.lessons) ? sec.lessons : [];
-    if (lessons.length === 0) {
-      curriculumAOA.push([sec.title || 'Untitled Module', '', '', '', '', '']);
-    } else {
-      lessons.forEach((les: any, lIdx: number) => {
-        let typeStr = 'LECTURE';
-        if (les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || '')) || /final\s*(assessment|assignment|exam)/i.test(les.title || '')) {
-          typeStr = 'FINAL ASSESSMENT';
-        } else if (les.type === 'TEXT' || les.type === 'ARTICLE') {
-          typeStr = 'ARTICLE';
-        } else if (les.type === 'QUIZ') {
-          typeStr = 'QUIZ';
-        }
+    // Only lectures in Curriculum Syllabus tab, as Articles, Quizzes & Final Assessment have their dedicated tabs
+    const lectures = lessons.filter((les: any) => {
+      const isFinal = Boolean(les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || '')) || /final\s*(assessment|assignment|exam)/i.test(les.title || ''));
+      const isArticle = les.type === 'TEXT' || les.type === 'ARTICLE' || les.type === 'DOCUMENT';
+      const isQuiz = les.type === 'QUIZ';
+      return !isFinal && !isArticle && !isQuiz;
+    });
 
+    if (lectures.length === 0) {
+      curriculumAOA.push([sec.title || 'Untitled Module', '', '', '', '']);
+    } else {
+      lectures.forEach((les: any, lIdx: number) => {
         curriculumAOA.push([
           lIdx === 0 ? (sec.title || 'Module') : '',
           les.title || '',
-          typeStr,
+          'LECTURE',
           les.duration || '10:00',
-          les.isFree ? 'Yes' : 'No',
-          les.content || ''
+          les.isFree ? 'Yes' : 'No'
         ]);
       });
     }
   });
 
   if (curriculumAOA.length === 1) {
-    curriculumAOA.push(['Module 1: Foundations', 'Orientation & Tech Stack', 'LECTURE', '10:00', 'Yes', '']);
+    curriculumAOA.push(['Module 1: Foundations', 'Orientation & Tech Stack', 'LECTURE', '10:00', 'Yes']);
   }
 
   const wsCurriculum = XLSX.utils.aoa_to_sheet(curriculumAOA);
@@ -953,12 +947,11 @@ export function exportCourseToExcelFile(course: any, targetFileName?: string) {
       } else {
         if (cIdx === 0 || cIdx === 1) wsCurriculum[cellRef].s = styles.boldTopic;
         else if (cIdx === 2 || cIdx === 3 || cIdx === 4) wsCurriculum[cellRef].s = styles.boldCenter;
-        else if (cIdx === 5) wsCurriculum[cellRef].s = styles.cellNormal;
       }
     }
   });
 
-  wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 70 }];
+  wsCurriculum['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 28 }, { wch: 18 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, wsCurriculum, 'Curriculum Syllabus');
 
   // 3. Articles Sheet Data (Dedicated Articles & Reading Material)
@@ -1417,6 +1410,9 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           'module'
         );
         const lessonTypeRaw = findField([
+          'content type (lecture) *',
+          'content type (lecture)',
+          'content type (video)',
           'content type (lecture / article / quiz / final assessment) *',
           'content type (lecture / article / quiz / final assessment)',
           'content type (lecture / article / quiz / final assignment) *',
