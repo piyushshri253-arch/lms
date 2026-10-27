@@ -1186,13 +1186,22 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
           totalQuizzes += 1;
           const isFinal = les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '');
           const label = isFinal ? 'Final Assessment' : `Quiz ${totalQuizzes}`;
-          map[les.id] = { type: 'QUIZ', num: totalQuizzes, label, moduleNum };
-        } else if (les.type === 'TEXT') {
+          const entry = { type: 'QUIZ' as const, num: totalQuizzes, label, moduleNum };
+          map[les.id] = entry;
+          if (les.clientKey) map[les.clientKey] = entry;
+          if (les.tempId) map[les.tempId] = entry;
+        } else if (les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT') {
           totalArticles += 1;
-          map[les.id] = { type: 'ARTICLE', num: totalArticles, label: `Article ${totalArticles}`, moduleNum };
+          const entry = { type: 'ARTICLE' as const, num: totalArticles, label: `Article ${totalArticles}`, moduleNum };
+          map[les.id] = entry;
+          if (les.clientKey) map[les.clientKey] = entry;
+          if (les.tempId) map[les.tempId] = entry;
         } else {
           totalLectures += 1;
-          map[les.id] = { type: 'LECTURE', num: totalLectures, label: `Lecture ${totalLectures}`, moduleNum };
+          const entry = { type: 'LECTURE' as const, num: totalLectures, label: `Lecture ${totalLectures}`, moduleNum };
+          map[les.id] = entry;
+          if (les.clientKey) map[les.clientKey] = entry;
+          if (les.tempId) map[les.tempId] = entry;
         }
       });
     });

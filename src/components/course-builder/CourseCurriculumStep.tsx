@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { VideoUploadModal } from '@/components/media/VideoUploadModal';
 import { AiCourseGeneratorModal } from '@/components/ai/AiCourseGeneratorModal';
 import { useApp } from '@/context/AppContext';
-import { cleanModuleTitle, cleanLectureTitle, cleanQuizTitle, ensureFinalAssessmentAtEnd } from '@/lib/course-excel';
+import { cleanModuleTitle, cleanLectureTitle, cleanQuizTitle, cleanArticleTitle, ensureFinalAssessmentAtEnd } from '@/lib/course-excel';
 import { RichArticleEditor } from './RichArticleEditor';
 import { GrammarHintAssistant } from '@/components/ui/GrammarHintAssistant';
 
@@ -228,7 +228,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
           map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
-        } else if (les.type === 'TEXT') {
+        } else if (les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT') {
           totalArticles += 1;
           const entry = { type: 'ARTICLE' as const, num: totalArticles, label: `Article ${totalArticles}`, moduleNum };
           map[les.id] = entry;
@@ -605,9 +605,39 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
       order: targetSec.lessons.length + 1
     };
 
-    const updated = sections.map((s) =>
-      s.id === sectionId || s.clientKey === sectionId || s.tempId === sectionId ? { ...s, lessons: [...s.lessons, newLesson] } : s
-    );
+    const updated = sections.map((s) => {
+      if (s.id !== sectionId && s.clientKey !== sectionId && s.tempId !== sectionId) {
+        return s;
+      }
+      const lessonsCopy = [...(s.lessons || [])];
+      if (type === 'TEXT') {
+        // Articles MUST appear ABOVE quizzes in curriculum!
+        const firstQuizIdx = lessonsCopy.findIndex((l) => l.type === 'QUIZ' || l.isFinalAssignment);
+        if (firstQuizIdx !== -1) {
+          lessonsCopy.splice(firstQuizIdx, 0, newLesson);
+        } else {
+          lessonsCopy.push(newLesson);
+        }
+      } else if (type === 'QUIZ') {
+        const finalIdx = lessonsCopy.findIndex((l) => l.isFinalAssignment || (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || '')));
+        if (finalIdx !== -1 && !newLesson.isFinalAssignment) {
+          lessonsCopy.splice(finalIdx, 0, newLesson);
+        } else {
+          lessonsCopy.push(newLesson);
+        }
+      } else {
+        const firstNonLectureIdx = lessonsCopy.findIndex((l) => l.type === 'TEXT' || (l.type as any) === 'ARTICLE' || l.type === 'QUIZ' || l.isFinalAssignment);
+        if (firstNonLectureIdx !== -1) {
+          lessonsCopy.splice(firstNonLectureIdx, 0, newLesson);
+        } else {
+          lessonsCopy.push(newLesson);
+        }
+      }
+      return {
+        ...s,
+        lessons: lessonsCopy.map((l, idx) => ({ ...l, order: idx + 1 }))
+      };
+    });
 
     onChange(ensureFinalAssessmentAtEnd(updated));
     if (openModal) {
@@ -1191,7 +1221,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                   {section.lessons.map((les, lIdx) => {
                       const itemKey = les.clientKey || les.tempId || les.id;
                       const isQuizItem = les.type === 'QUIZ';
-                      const isArticleItem = les.type === 'TEXT';
+                      const isArticleItem = les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT';
                       const isLectureItem = !isQuizItem && !isArticleItem;
                       const itemMeta =
                         itemNumbering.map[itemKey] ||
@@ -2069,7 +2099,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                       handleUpdateLessonInline(secKey, itemKey, { title: e.target.value })
                                     }
                                     onBlur={() =>
-                                      handleUpdateLessonInline(secKey, itemKey, { title: cleanLectureTitle(les.title) })
+                                      handleUpdateLessonInline(secKey, itemKey, { title: cleanArticleTitle(les.title) || cleanLectureTitle(les.title) })
                                     }
                                     placeholder="Article Title (e.g. Introduction & Key Concepts)"
                                     className={`w-full border rounded px-2 py-1 text-xs font-semibold transition-colors ${

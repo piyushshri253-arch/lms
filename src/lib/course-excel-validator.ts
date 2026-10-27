@@ -5,6 +5,8 @@ import {
   cleanModuleTitle,
   cleanLectureTitle,
   cleanQuizTitle,
+  cleanArticleTitle,
+  sortSectionLessons,
   ensureFinalAssessmentAtEnd
 } from '@/lib/course-excel';
 
@@ -1510,8 +1512,11 @@ export function validateCourseExcel(
         // 4. If still not found, create a new module for this module name
         if (!sec) {
           const newNum = sections.length + 1;
+          const newSecId = `sec-art-${Date.now()}-${newNum}-${Math.random().toString(36).substring(2, 6)}`;
           sec = {
-            id: `sec-art-${newNum}`,
+            id: newSecId,
+            clientKey: newSecId,
+            tempId: newSecId,
             title: cleanMod,
             description: '',
             order: newNum,
@@ -1529,8 +1534,11 @@ export function validateCourseExcel(
           sec = sections[0];
           activeArticleSection = sec;
         } else {
+          const defSecId = `sec-art-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`;
           sec = {
-            id: `sec-art-1`,
+            id: defSecId,
+            clientKey: defSecId,
+            tempId: defSecId,
             title: 'Module 1: Foundations',
             description: '',
             order: 1,
@@ -1541,32 +1549,26 @@ export function validateCourseExcel(
         }
       }
 
-      // Check if this article exists in target module or anywhere in sections
+      // Check if this article exists in target module ONLY
+      const cleanArtTitle = cleanArticleTitle(articleTitleRaw) || cleanLectureTitle(articleTitleRaw) || articleTitleRaw;
       let matchedLesson = sec.lessons.find((l) =>
         (l.type === 'TEXT' || (l.type as any) === 'ARTICLE') &&
-        (cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(articleTitleRaw).toLowerCase() ||
-         l.title.toLowerCase().trim() === cleanLectureTitle(articleTitleRaw).toLowerCase())
+        (l.title.toLowerCase().trim() === cleanArtTitle.toLowerCase().trim() ||
+         cleanArticleTitle(l.title).toLowerCase() === cleanArticleTitle(cleanArtTitle).toLowerCase() ||
+         cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(cleanArtTitle).toLowerCase())
       );
-      if (!matchedLesson) {
-        for (const s of sections) {
-          const l = s.lessons.find((les) =>
-            (les.type === 'TEXT' || (les.type as any) === 'ARTICLE') &&
-            (cleanLectureTitle(les.title).toLowerCase() === cleanLectureTitle(articleTitleRaw).toLowerCase() ||
-             les.title.toLowerCase().trim() === cleanLectureTitle(articleTitleRaw).toLowerCase())
-          );
-          if (l) {
-            matchedLesson = l;
-            break;
-          }
-        }
-      }
 
       if (matchedLesson) {
+        matchedLesson.type = 'TEXT';
         if (contentRaw) matchedLesson.content = contentRaw;
       } else {
-        sec.lessons.push({
-          id: `les-art-${sec.lessons.length + 1}`,
-          title: cleanLectureTitle(articleTitleRaw) || articleTitleRaw || 'Article',
+        const modIdx = (sections || []).indexOf(sec) + 1;
+        const artId = `les-art-${Date.now()}-${modIdx}-${(sec.lessons || []).length + 1}-${Math.random().toString(36).substring(2, 7)}`;
+        const newArt: BuilderLesson = {
+          id: artId,
+          clientKey: artId,
+          tempId: artId,
+          title: cleanArtTitle || 'Article',
           description: '',
           type: 'TEXT',
           duration: durationRaw || '05:00',
@@ -1576,6 +1578,16 @@ export function validateCourseExcel(
           isPublished: true,
           order: sec.lessons.length + 1,
           subLessons: []
+        };
+        // Articles MUST appear ABOVE quizzes in curriculum!
+        const firstQuizIdx = sec.lessons.findIndex((l) => l.type === 'QUIZ' || (l as any).isFinalAssignment);
+        if (firstQuizIdx !== -1) {
+          sec.lessons.splice(firstQuizIdx, 0, newArt);
+        } else {
+          sec.lessons.push(newArt);
+        }
+        sec.lessons.forEach((l, idx) => {
+          l.order = idx + 1;
         });
       }
     });
@@ -1763,7 +1775,12 @@ export function validateCourseExcel(
   const blockingErrors = errors.filter((e) => e.severity === 'BLOCKING');
   const isValid = blockingErrors.length === 0;
 
-  const cleanSections = ensureFinalAssessmentAtEnd(sections);
+  const cleanSections = ensureFinalAssessmentAtEnd(
+    sections.map((sec) => ({
+      ...sec,
+      lessons: sortSectionLessons(sec.lessons || [])
+    }))
+  );
 
   const parsedData: ParsedCourseData = {
     title: courseTitle,

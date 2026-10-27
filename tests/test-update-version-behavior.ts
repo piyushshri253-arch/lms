@@ -254,15 +254,21 @@ async function runTests() {
   if (mod1.lessons.length !== 5) {
     throw new Error(`FAILED: Expected Module 1 to have 5 lessons (3 live + 2 new), got: ${mod1.lessons.length}`);
   }
-  const addedLes1 = mod1.lessons[3];
-  const addedLes2 = mod1.lessons[4];
-  if (addedLes1.title !== 'Lecture 2: Advanced CSS Grid & Flexbox Techniques') {
-    throw new Error(`FAILED: Newly added lecture 2 title mismatch: "${addedLes1.title}"`);
+  const addedLes1 = mod1.lessons.find((l) => l.title === 'Lecture 2: Advanced CSS Grid & Flexbox Techniques');
+  const addedLes2 = mod1.lessons.find((l) => l.title === 'Quiz 2: CSS Mastery Quiz');
+  if (!addedLes1) {
+    throw new Error(`FAILED: Newly added lecture 2 not found in Module 1`);
   }
-  if (addedLes2.title !== 'Quiz 2: CSS Mastery Quiz' || addedLes2.type !== 'QUIZ') {
-    throw new Error(`FAILED: Newly added quiz title mismatch: "${addedLes2.title}"`);
+  if (!addedLes2 || addedLes2.type !== 'QUIZ') {
+    throw new Error(`FAILED: Newly added quiz 2 not found in Module 1: "${addedLes2?.title}"`);
   }
-  console.log('✅ PASS: Module 1 successfully appended Lecture 2 and Quiz 2 while preserving live items.');
+  // Verify that lectures and articles appear before quizzes
+  const lectureIdx = mod1.lessons.indexOf(addedLes1);
+  const quizIdx = mod1.lessons.indexOf(addedLes2);
+  if (lectureIdx > quizIdx) {
+    throw new Error(`FAILED: Lecture must appear before Quiz in Module 1`);
+  }
+  console.log('✅ PASS: Module 1 successfully merged Lecture 2 and Quiz 2 with correct ordering (Lectures -> Articles -> Quizzes).');
 
   // Check Module 3 was appended as a new module and Final Assessment is strictly last
   if (mergedResult2.length !== 3) {
