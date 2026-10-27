@@ -1397,6 +1397,7 @@ export function validateCourseExcel(
   if (articlesSheetName && wb.Sheets[articlesSheetName]) {
     const artSheet = wb.Sheets[articlesSheetName];
     const artRows: any[] = XLSX.utils.sheet_to_json(artSheet);
+    let activeArticleSection: BuilderSection | undefined;
 
     artRows.forEach((row, rowIdx) => {
       const findArtField = (exactKeys: string[], fallbackKeyword?: string) => {
@@ -1452,27 +1453,116 @@ export function validateCourseExcel(
         });
       }
 
+      // Resolve Target Module for this article
       let sec: BuilderSection | undefined;
-      if (moduleRaw) {
-        const modKey = cleanModuleTitle(moduleRaw).toLowerCase();
-        sec = sections.find((s) => cleanModuleTitle(s.title).toLowerCase() === modKey);
-      }
-      if (!sec && sections.length > 0) {
-        sec = sections[0];
-      } else if (!sec) {
-        sec = {
-          id: `sec-art-${sections.length + 1}`,
-          title: moduleRaw ? cleanModuleTitle(moduleRaw) : 'Module 1: Foundations',
-          description: '',
-          order: sections.length + 1,
-          lessons: []
-        };
-        sections.push(sec);
+      const cleanMod = (moduleRaw || '').trim();
+
+      if (cleanMod) {
+        // 1. Check if user provided a numeric module index like "Module 2", "Section 2", or "2"
+        const numMatch = cleanMod.match(/(?:module|section)\s*(\d+)/i) || cleanMod.match(/^(\d+)$/);
+        if (numMatch) {
+          const modNum = parseInt(numMatch[1], 10);
+          if (modNum >= 1 && modNum <= sections.length) {
+            sec = sections[modNum - 1];
+          }
+          if (!sec) {
+            sec = sections.find((s) => s.order === modNum);
+          }
+          if (!sec) {
+            sec = sections.find((s) =>
+              new RegExp(`(?:module|section)\\s*${modNum}\\b`, 'i').test(s.title) ||
+              new RegExp(`^${modNum}[\\.\\-\\s]`, 'i').test(s.title.trim())
+            );
+          }
+        }
+
+        // 2. Exact or clean title matching
+        if (!sec) {
+          const normRaw = cleanMod.toLowerCase();
+          const cleanNormRaw = cleanModuleTitle(cleanMod).toLowerCase();
+          sec = sections.find((s) => {
+            const sTitle = s.title.toLowerCase();
+            const sClean = cleanModuleTitle(s.title).toLowerCase();
+            return (
+              sTitle === normRaw ||
+              sClean === cleanNormRaw ||
+              sClean === normRaw ||
+              sTitle === cleanNormRaw
+            );
+          });
+        }
+
+        // 3. Substring matching (e.g. "Deep Dive" matches "Module 2: Deep Dive")
+        if (!sec) {
+          const normRaw = cleanMod.toLowerCase();
+          const cleanNormRaw = cleanModuleTitle(cleanMod).toLowerCase();
+          sec = sections.find((s) => {
+            const sTitle = s.title.toLowerCase();
+            const sClean = cleanModuleTitle(s.title).toLowerCase();
+            return (
+              (cleanNormRaw.length > 2 && sClean.includes(cleanNormRaw)) ||
+              (normRaw.length > 2 && sTitle.includes(normRaw)) ||
+              (sClean.length > 2 && cleanNormRaw.includes(sClean))
+            );
+          });
+        }
+
+        // 4. If still not found, create a new module for this module name
+        if (!sec) {
+          const newNum = sections.length + 1;
+          sec = {
+            id: `sec-art-${newNum}`,
+            title: cleanMod,
+            description: '',
+            order: newNum,
+            lessons: []
+          };
+          sections.push(sec);
+        }
+
+        activeArticleSection = sec;
+      } else {
+        // Module column was left blank on this row: inherit activeArticleSection!
+        if (activeArticleSection && sections.some((s) => s.id === activeArticleSection!.id)) {
+          sec = activeArticleSection;
+        } else if (sections.length > 0) {
+          sec = sections[0];
+          activeArticleSection = sec;
+        } else {
+          sec = {
+            id: `sec-art-1`,
+            title: 'Module 1: Foundations',
+            description: '',
+            order: 1,
+            lessons: []
+          };
+          sections.push(sec);
+          activeArticleSection = sec;
+        }
       }
 
-      const existingArt = sec.lessons.find((l) => l.type === 'TEXT' && cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(articleTitleRaw).toLowerCase());
-      if (existingArt) {
-        if (contentRaw) existingArt.content = contentRaw;
+      // Check if this article exists in target module or anywhere in sections
+      let matchedLesson = sec.lessons.find((l) =>
+        (l.type === 'TEXT' || (l.type as any) === 'ARTICLE') &&
+        (cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(articleTitleRaw).toLowerCase() ||
+         l.title.toLowerCase().trim() === cleanLectureTitle(articleTitleRaw).toLowerCase())
+      );
+      if (!matchedLesson) {
+        for (const s of sections) {
+          const l = s.lessons.find((les) =>
+            (les.type === 'TEXT' || (les.type as any) === 'ARTICLE') &&
+            (cleanLectureTitle(les.title).toLowerCase() === cleanLectureTitle(articleTitleRaw).toLowerCase() ||
+             les.title.toLowerCase().trim() === cleanLectureTitle(articleTitleRaw).toLowerCase())
+          );
+          if (l) {
+            matchedLesson = l;
+            break;
+          }
+        }
+      }
+
+      if (matchedLesson) {
+        if (contentRaw) matchedLesson.content = contentRaw;
       } else {
         sec.lessons.push({
           id: `les-art-${sec.lessons.length + 1}`,
