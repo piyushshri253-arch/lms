@@ -221,11 +221,16 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
 
       (sec.lessons || []).forEach((les) => {
         if (les.type === 'QUIZ') {
-          totalQuizzes += 1;
-          const isFinal = les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || '');
-          const label = isFinal ? 'Final Assessment' : `Quiz ${totalQuizzes}`;
-          const entry = { type: 'QUIZ' as const, num: totalQuizzes, label, moduleNum };
-          map[les.id] = entry;
+          const isFinal = Boolean(les.isFinalAssignment || /final\s*(assessment|assignment|exam)/i.test(les.title || ''));
+          let label = 'Final Assessment';
+          let num = 0;
+          if (!isFinal) {
+            totalQuizzes += 1;
+            num = totalQuizzes;
+            label = `Quiz ${totalQuizzes}`;
+          }
+          const entry = { type: 'QUIZ' as const, num, label, moduleNum };
+          if (les.id) map[les.id] = entry;
           if (les.clientKey) map[les.clientKey] = entry;
           if (les.tempId) map[les.tempId] = entry;
         } else if (les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT') {

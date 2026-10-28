@@ -110,6 +110,7 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
   const articles: BuilderLesson[] = [];
   const quizzes: BuilderLesson[] = [];
   let finalAssessment: BuilderLesson | null = null;
+  const seenQuizKeys = new Set<string>();
 
   for (const les of lessons) {
     if (!les) continue;
@@ -118,9 +119,15 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
       (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || ''));
 
     if (isFinal) {
-      finalAssessment = les;
+      if (!finalAssessment || ((les.quizData as any)?.questions?.length || 0) > ((finalAssessment.quizData as any)?.questions?.length || 0)) {
+        finalAssessment = les;
+      }
     } else if (les.type === 'QUIZ') {
-      quizzes.push(les);
+      const qKey = cleanQuizTitle(les.title).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!seenQuizKeys.has(qKey)) {
+        seenQuizKeys.add(qKey);
+        quizzes.push(les);
+      }
     } else if (les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT') {
       articles.push(les);
     } else {
@@ -153,59 +160,76 @@ export function ensureFinalAssessmentAtEnd(sections: BuilderSection[]): BuilderS
     return Boolean(l?.isFinalAssignment) || /final\s*(assessment|assignment|exam)/i.test(rawTitle);
   };
 
-  // Locate the final assessment lesson across all sections
-  let foundFinalLesson: BuilderLesson | null = null;
-  let sourceSecIdx = -1;
-  let sourceLesIdx = -1;
+  const isDedicatedFinalSec = (s: BuilderSection): boolean => {
+    const lessons = Array.isArray(s.lessons) ? s.lessons : [];
+    if (lessons.length === 1 && isFinalExamLesson(lessons[0])) return true;
+    if (/final\s*(assessment|exam|certification)/i.test(s.title || '') && lessons.every((l) => isFinalExamLesson(l))) return true;
+    return false;
+  };
 
-  for (let sIdx = 0; sIdx < sections.length; sIdx++) {
-    const sec = sections[sIdx];
-    const lessons = Array.isArray(sec.lessons) ? sec.lessons : [];
-    for (let lIdx = 0; lIdx < lessons.length; lIdx++) {
-      const les = lessons[lIdx];
+  // Find all final assessment candidates across ALL sections and pick the most authoritative one
+  let bestFinalLesson: BuilderLesson | null = null;
+  let bestQuestionCount = -1;
+
+  for (const sec of sections) {
+    for (const les of (sec.lessons || [])) {
       if (isFinalExamLesson(les)) {
-        foundFinalLesson = { ...les, isFinalAssignment: true, type: 'QUIZ' };
-        if (!foundFinalLesson.title || /quiz/i.test(foundFinalLesson.title)) {
-          foundFinalLesson.title = 'Final Assessment';
+        let qCount = 0;
+        if (les.quizData) {
+          try {
+            const qd = typeof les.quizData === 'string' ? JSON.parse(les.quizData) : les.quizData;
+            qCount = Array.isArray(qd?.questions) ? qd.questions.length : 0;
+          } catch {}
         }
-        sourceSecIdx = sIdx;
-        sourceLesIdx = lIdx;
-        break;
+        if (!bestFinalLesson || qCount > bestQuestionCount) {
+          bestFinalLesson = { ...les, isFinalAssignment: true, type: 'QUIZ' };
+          bestQuestionCount = qCount;
+        }
       }
     }
-    if (foundFinalLesson) break;
   }
 
   // If no final assessment exists in this course, return as is
-  if (!foundFinalLesson) {
+  if (!bestFinalLesson) {
     return sections;
   }
 
-  // Deep clone sections so we don't mutate input directly
-  const newSections: BuilderSection[] = sections.map((s) => ({
-    ...s,
-    lessons: (s.lessons || []).map((l) => ({ ...l }))
-  }));
+  if (!bestFinalLesson.title || /quiz/i.test(bestFinalLesson.title)) {
+    bestFinalLesson.title = 'Final Assessment';
+  }
 
-  const isDedicatedSec = sections[sourceSecIdx].lessons.length === 1;
+  // Check if there was a dedicated section for the final assessment
+  const dedicatedSecIdx = sections.findIndex((s) => isDedicatedFinalSec(s));
 
-  if (isDedicatedSec) {
-    if (sourceSecIdx === newSections.length - 1) {
-      // Already the last section
-      return newSections.map((sec, sIdx) => ({
-        ...sec,
-        order: sIdx + 1,
-        lessons: (sec.lessons || []).map((les, lIdx) => ({
-          ...les,
-          order: lIdx + 1
-        }))
-      }));
+  if (dedicatedSecIdx !== -1) {
+    // Dedicated section exists!
+    // Clone sections, stripping any stray final exam lessons from non-dedicated sections
+    const nonDedicatedSections: BuilderSection[] = [];
+    let dedicatedSec: BuilderSection | null = null;
+
+    sections.forEach((s, idx) => {
+      if (idx === dedicatedSecIdx) {
+        dedicatedSec = {
+          ...s,
+          lessons: [{ ...bestFinalLesson!, order: 1 }]
+        };
+      } else {
+        const cleanLessons = (s.lessons || []).filter((l) => !isFinalExamLesson(l)).map((l) => ({ ...l }));
+        if (cleanLessons.length > 0) {
+          nonDedicatedSections.push({
+            ...s,
+            lessons: cleanLessons
+          });
+        }
+      }
+    });
+
+    const finalSections = [...nonDedicatedSections];
+    if (dedicatedSec) {
+      finalSections.push(dedicatedSec);
     }
-    // Move this dedicated section to the very end of newSections
-    const [dedicatedSec] = newSections.splice(sourceSecIdx, 1);
-    newSections.push(dedicatedSec);
 
-    return newSections.map((sec, sIdx) => ({
+    return finalSections.map((sec, sIdx) => ({
       ...sec,
       order: sIdx + 1,
       lessons: (sec.lessons || []).map((les, lIdx) => ({
@@ -215,17 +239,14 @@ export function ensureFinalAssessmentAtEnd(sections: BuilderSection[]): BuilderS
     }));
   }
 
-  // Non-dedicated section: remove final lesson from its current section
-  if (sourceSecIdx >= 0 && sourceSecIdx < newSections.length) {
-    newSections[sourceSecIdx].lessons.splice(sourceLesIdx, 1);
-  }
+  // Non-dedicated: Strip ALL final assessment lessons from all sections
+  const newSections: BuilderSection[] = sections
+    .map((s) => ({
+      ...s,
+      lessons: (s.lessons || []).filter((l) => !isFinalExamLesson(l)).map((l) => ({ ...l }))
+    }))
+    .filter((s) => s.lessons.length > 0 || /final\s*(assessment|exam|certification)/i.test(s.title || ''));
 
-  // If that source section is now completely empty, prune it
-  if (newSections[sourceSecIdx] && newSections[sourceSecIdx].lessons.length === 0) {
-    newSections.splice(sourceSecIdx, 1);
-  }
-
-  // If no sections remain, create a default section
   if (newSections.length === 0) {
     newSections.push({
       id: `sec-${Date.now()}-1`,
@@ -237,10 +258,10 @@ export function ensureFinalAssessmentAtEnd(sections: BuilderSection[]): BuilderS
     });
   }
 
-  // Place foundFinalLesson as the VERY LAST lesson of the LAST section
+  // Place bestFinalLesson as the VERY LAST lesson of the LAST section
   const lastSec = newSections[newSections.length - 1];
-  foundFinalLesson.order = (lastSec.lessons || []).length + 1;
-  lastSec.lessons.push(foundFinalLesson);
+  bestFinalLesson.order = (lastSec.lessons || []).length + 1;
+  lastSec.lessons.push(bestFinalLesson);
 
   // Re-number orders cleanly across all sections and lessons
   return newSections.map((sec, sIdx) => ({
@@ -2384,7 +2405,7 @@ export function mergeExcelSectionsForUpdateVersion(
     if (!l) return false;
     const rawTitle = String(l?.title || '').trim().toLowerCase();
     // A regular module quiz like "Quiz", "Module 1 Quiz", "Topic Quiz", "Protocal" is NEVER a final exam
-    if (l?.type === 'QUIZ' && !/final\s*(assessment|assignment|exam)/i.test(rawTitle)) {
+    if (l?.type === 'QUIZ' && !/final\s*(assessment|assignment|exam)/i.test(rawTitle) && !l?.isFinalAssignment) {
       return false;
     }
     return Boolean(l?.isFinalAssignment) ||
@@ -2398,26 +2419,19 @@ export function mergeExcelSectionsForUpdateVersion(
 
   const normalizeLesKey = (t?: string | null, type?: string): string => {
     if (!t) return '';
-    const raw = String(t).trim().toLowerCase();
+    const raw = String(t).trim();
     if (type === 'QUIZ' || /quiz/i.test(raw)) {
-      return 'quiz_' + raw.replace(/[^a-z0-9]/g, '');
+      const cleaned = cleanQuizTitle(raw);
+      return 'quiz_' + (cleaned || raw).toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    if (type === 'TEXT' || /article|reading|document/i.test(type || '') || /article/i.test(raw)) {
+      const cleaned = cleanArticleTitle(raw);
+      return 'art_' + (cleaned || raw).toLowerCase().replace(/[^a-z0-9]/g, '');
     }
     return cleanLectureTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   };
 
-  // Find if live course already has a Final Assessment
-  let globalOrigFinalSecIdx = -1;
-  let globalOrigFinalLesIdx = -1;
-  existingSections.forEach((s, sIdx) => {
-    (s.lessons || []).forEach((l, lIdx) => {
-      if (isFinalExamLesson(l)) {
-        globalOrigFinalSecIdx = sIdx;
-        globalOrigFinalLesIdx = lIdx;
-      }
-    });
-  });
-
-  // Find authoritative Final Assessment in parsedSections if present
+  // Find authoritative Final Assessment across parsedSections or existingSections
   let globalParsedFinalLesson: BuilderLesson | undefined;
   for (const ps of parsedSections) {
     const fl = ps.lessons?.find((l) => isFinalExamLesson(l));
@@ -2429,10 +2443,36 @@ export function mergeExcelSectionsForUpdateVersion(
     }
   }
 
+  let globalExistingFinalLesson: BuilderLesson | undefined;
+  for (const es of existingSections) {
+    const fl = es.lessons?.find((l) => isFinalExamLesson(l));
+    if (fl) {
+      globalExistingFinalLesson = fl;
+      break;
+    }
+  }
+
+  const authoritativeFinalLesson = globalParsedFinalLesson || globalExistingFinalLesson;
+
   const result: BuilderSection[] = [];
   const matchedParsedIndices = new Set<number>();
 
+  const isDedicatedFinalSec = (s: BuilderSection): boolean => {
+    const lessons = Array.isArray(s.lessons) ? s.lessons : [];
+    if (lessons.length === 1 && isFinalExamLesson(lessons[0])) return true;
+    if (/final\s*(assessment|exam|certification)/i.test(s.title || '') && lessons.every((l) => isFinalExamLesson(l))) return true;
+    return false;
+  };
+
   existingSections.forEach((origSec, sIdx) => {
+    if (isDedicatedFinalSec(origSec)) {
+      result.push({
+        ...origSec,
+        lessons: [{ ...(authoritativeFinalLesson || origSec.lessons[0]), isFinalAssignment: true, type: 'QUIZ', order: 1 }]
+      });
+      return;
+    }
+
     const origKey = normalizeSecKey(origSec.title);
 
     // 1. Match parsed section by normalized alphanumeric title first
@@ -2455,42 +2495,57 @@ export function mergeExcelSectionsForUpdateVersion(
       matchedParsedIndices.add(matchedParsedIdx);
       const parsedSec = parsedSections[matchedParsedIdx];
 
-      // Clone original lessons to preserve IDs, resources, videoUrls, content
-      const mergedLessons: BuilderLesson[] = origSec.lessons.map((l) => ({ ...l }));
-
-      // Find final assessment / assignment if present in original or parsed
-      const origFinalIdx = mergedLessons.findIndex((l) => isFinalExamLesson(l));
-      const parsedFinal = parsedSec.lessons?.find((l) => isFinalExamLesson(l)) || (origFinalIdx !== -1 ? globalParsedFinalLesson : undefined);
-
-      // Final assessment questions and criteria can be updated from Excel
-      if (origFinalIdx !== -1 && parsedFinal) {
-        mergedLessons[origFinalIdx] = {
-          ...mergedLessons[origFinalIdx],
-          quizData: parsedFinal.quizData || mergedLessons[origFinalIdx].quizData,
-          description: parsedFinal.description || mergedLessons[origFinalIdx].description
-        };
-      }
+      // Clone original lessons to preserve IDs, resources, videoUrls, content.
+      // STRIP any existing final assessment (handled globally at true end of course)
+      // and deduplicate any duplicate quizzes inside original lessons!
+      const seenQuizKeys = new Set<string>();
+      const mergedLessons: BuilderLesson[] = [];
+      (origSec.lessons || []).forEach((l) => {
+        if (isFinalExamLesson(l)) return;
+        if (l.type === 'QUIZ') {
+          const qKey = cleanQuizTitle(l.title).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (seenQuizKeys.has(qKey)) {
+            return; // Skip duplicate quiz in existing section!
+          }
+          seenQuizKeys.add(qKey);
+        }
+        mergedLessons.push({ ...l });
+      });
 
       // Check for newly added or updated lessons in this parsed section
       (parsedSec.lessons || []).forEach((parsedLes) => {
-        // Skip if this is the final assessment already handled
-        if (isFinalExamLesson(parsedLes)) {
-          if (globalOrigFinalSecIdx !== -1) return;
-        }
+        // Skip final assessment here - placed at the true end of course
+        if (isFinalExamLesson(parsedLes)) return;
 
         const pLesKey = normalizeLesKey(parsedLes.title, parsedLes.type);
 
         // Check if already in mergedLessons
-        const existingIdx = mergedLessons.findIndex(
+        let existingIdx = mergedLessons.findIndex(
           (ml) => normalizeLesKey(ml.title, ml.type) === pLesKey
         );
 
+        // If not matched by title, and this is a QUIZ, and the module only has 1 quiz in both existing and parsed:
+        if (existingIdx === -1 && parsedLes.type === 'QUIZ') {
+          const origQuizzes = mergedLessons.filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+          const parsedQuizzes = (parsedSec.lessons || []).filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+          if (origQuizzes.length === 1 && parsedQuizzes.length === 1) {
+            existingIdx = mergedLessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+          }
+        }
+
         if (existingIdx !== -1) {
-          // If this is an existing quiz, update its quiz questions & passing score!
-          if (parsedLes.type === 'QUIZ' && parsedLes.quizData) {
+          // If this is an existing quiz, update its quiz questions & passing score and clean title!
+          if (parsedLes.type === 'QUIZ') {
             mergedLessons[existingIdx] = {
               ...mergedLessons[existingIdx],
-              quizData: parsedLes.quizData,
+              title: cleanQuizTitle(parsedLes.title) || mergedLessons[existingIdx].title,
+              quizData: parsedLes.quizData || mergedLessons[existingIdx].quizData,
+              description: parsedLes.description || mergedLessons[existingIdx].description
+            };
+          } else if (parsedLes.type === 'TEXT') {
+            mergedLessons[existingIdx] = {
+              ...mergedLessons[existingIdx],
+              content: parsedLes.content || mergedLessons[existingIdx].content,
               description: parsedLes.description || mergedLessons[existingIdx].description
             };
           }
@@ -2510,22 +2565,17 @@ export function mergeExcelSectionsForUpdateVersion(
 
         // Placement: Articles strictly ABOVE Quizzes!
         if (newLessonItem.type === 'TEXT' || (newLessonItem.type as any) === 'ARTICLE') {
-          const firstQuizIdx = mergedLessons.findIndex((l) => l.type === 'QUIZ' || isFinalExamLesson(l));
+          const firstQuizIdx = mergedLessons.findIndex((l) => l.type === 'QUIZ');
           if (firstQuizIdx !== -1) {
             mergedLessons.splice(firstQuizIdx, 0, newLessonItem);
           } else {
             mergedLessons.push(newLessonItem);
           }
         } else if (newLessonItem.type === 'QUIZ') {
-          const currentFinalIdx = mergedLessons.findIndex((l) => isFinalExamLesson(l));
-          if (currentFinalIdx !== -1 && !isFinalExamLesson(newLessonItem)) {
-            mergedLessons.splice(currentFinalIdx, 0, newLessonItem);
-          } else {
-            mergedLessons.push(newLessonItem);
-          }
+          mergedLessons.push(newLessonItem);
         } else {
           const firstNonLectureIdx = mergedLessons.findIndex(
-            (l) => l.type === 'TEXT' || (l.type as any) === 'ARTICLE' || l.type === 'QUIZ' || isFinalExamLesson(l)
+            (l) => l.type === 'TEXT' || (l.type as any) === 'ARTICLE' || l.type === 'QUIZ'
           );
           if (firstNonLectureIdx !== -1) {
             mergedLessons.splice(firstNonLectureIdx, 0, newLessonItem);
@@ -2535,13 +2585,40 @@ export function mergeExcelSectionsForUpdateVersion(
         }
       });
 
+      // Deduplicate any duplicate quizzes after merging
+      const finalSeenQuizzes = new Set<string>();
+      const deduplicatedLessons: BuilderLesson[] = [];
+      mergedLessons.forEach((l) => {
+        if (l.type === 'QUIZ') {
+          const qKey = cleanQuizTitle(l.title).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (finalSeenQuizzes.has(qKey)) return;
+          finalSeenQuizzes.add(qKey);
+        }
+        deduplicatedLessons.push(l);
+      });
+
       result.push({
         ...origSec,
-        lessons: mergedLessons
+        lessons: deduplicatedLessons
       });
     } else {
-      // Retain existing section as is
-      result.push(origSec);
+      // Retain existing section, stripping any old final assessment
+      const deduplicatedLessons: BuilderLesson[] = [];
+      const seenQuizKeys = new Set<string>();
+      (origSec.lessons || []).forEach((l) => {
+        if (isFinalExamLesson(l)) return;
+        if (l.type === 'QUIZ') {
+          const qKey = cleanQuizTitle(l.title).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (seenQuizKeys.has(qKey)) return;
+          seenQuizKeys.add(qKey);
+        }
+        deduplicatedLessons.push({ ...l });
+      });
+
+      result.push({
+        ...origSec,
+        lessons: deduplicatedLessons
+      });
     }
   });
 
@@ -2556,20 +2633,27 @@ export function mergeExcelSectionsForUpdateVersion(
     const existingInResult = result.find((r) => normalizeSecKey(r.title) === pSecKey);
     if (existingInResult) {
       (parsedSec.lessons || []).forEach((parsedLes) => {
-        if (isFinalExamLesson(parsedLes) && globalOrigFinalSecIdx !== -1) {
-          return;
-        }
+        if (isFinalExamLesson(parsedLes)) return;
 
         const pLesKey = normalizeLesKey(parsedLes.title, parsedLes.type);
-        const existingIdx = existingInResult.lessons.findIndex(
+        let existingIdx = existingInResult.lessons.findIndex(
           (l) => normalizeLesKey(l.title, l.type) === pLesKey
         );
 
+        if (existingIdx === -1 && parsedLes.type === 'QUIZ') {
+          const origQuizzes = existingInResult.lessons.filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+          const parsedQuizzes = (parsedSec.lessons || []).filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+          if (origQuizzes.length === 1 && parsedQuizzes.length === 1) {
+            existingIdx = existingInResult.lessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+          }
+        }
+
         if (existingIdx !== -1) {
-          if (parsedLes.type === 'QUIZ' && parsedLes.quizData) {
+          if (parsedLes.type === 'QUIZ') {
             existingInResult.lessons[existingIdx] = {
               ...existingInResult.lessons[existingIdx],
-              quizData: parsedLes.quizData,
+              title: cleanQuizTitle(parsedLes.title) || existingInResult.lessons[existingIdx].title,
+              quizData: parsedLes.quizData || existingInResult.lessons[existingIdx].quizData,
               description: parsedLes.description || existingInResult.lessons[existingIdx].description
             };
           }
@@ -2584,28 +2668,14 @@ export function mergeExcelSectionsForUpdateVersion(
             order: existingInResult.lessons.length + 1
           };
           if (newLessonItem.type === 'TEXT' || (newLessonItem.type as any) === 'ARTICLE') {
-            const firstQuizIdx = existingInResult.lessons.findIndex((l) => l.type === 'QUIZ' || isFinalExamLesson(l));
+            const firstQuizIdx = existingInResult.lessons.findIndex((l) => l.type === 'QUIZ');
             if (firstQuizIdx !== -1) {
               existingInResult.lessons.splice(firstQuizIdx, 0, newLessonItem);
             } else {
               existingInResult.lessons.push(newLessonItem);
             }
-          } else if (newLessonItem.type === 'QUIZ') {
-            const currentFinalIdx = existingInResult.lessons.findIndex((l) => isFinalExamLesson(l));
-            if (currentFinalIdx !== -1 && !isFinalExamLesson(newLessonItem)) {
-              existingInResult.lessons.splice(currentFinalIdx, 0, newLessonItem);
-            } else {
-              existingInResult.lessons.push(newLessonItem);
-            }
           } else {
-            const firstNonLectureIdx = existingInResult.lessons.findIndex(
-              (l) => l.type === 'TEXT' || (l.type as any) === 'ARTICLE' || l.type === 'QUIZ' || isFinalExamLesson(l)
-            );
-            if (firstNonLectureIdx !== -1) {
-              existingInResult.lessons.splice(firstNonLectureIdx, 0, newLessonItem);
-            } else {
-              existingInResult.lessons.push(newLessonItem);
-            }
+            existingInResult.lessons.push(newLessonItem);
           }
         }
       });
@@ -2617,10 +2687,8 @@ export function mergeExcelSectionsForUpdateVersion(
     const newLessons: BuilderLesson[] = [];
 
     (parsedSec.lessons || []).forEach((l, lIdx) => {
-      // Do not duplicate final assessment if course already has one
-      if (isFinalExamLesson(l) && globalOrigFinalSecIdx !== -1) {
-        return;
-      }
+      // Do not duplicate final assessment in section body; placed at very end
+      if (isFinalExamLesson(l)) return;
       const newLessonId = `les-${Date.now()}-${lIdx + 1}-${Math.random().toString(36).slice(2, 7)}`;
       newLessons.push({
         ...l,
@@ -2628,7 +2696,7 @@ export function mergeExcelSectionsForUpdateVersion(
         clientKey: newLessonId,
         tempId: newLessonId,
         isNewlyAdded: true,
-        isFinalAssignment: isFinalExamLesson(l),
+        isFinalAssignment: false,
         order: newLessons.length + 1
       });
     });
@@ -2644,16 +2712,44 @@ export function mergeExcelSectionsForUpdateVersion(
     });
   });
 
-  // Insert new modules before the standalone Final Assessment section (if present at end of course)
-  const finalSecIdxInResult = result.findIndex((s) =>
-    (s.lessons || []).some((l) => isFinalExamLesson(l)) &&
-    ((s.lessons || []).length === 1 || /final\s*(assessment|exam|certification)/i.test(s.title || ''))
-  );
+  // Insert new modules before the dedicated Final Assessment section (if present at end of course)
+  const finalSecIdxInResult = result.findIndex((s) => isDedicatedFinalSec(s));
 
-  if (finalSecIdxInResult !== -1 && finalSecIdxInResult === result.length - 1) {
+  if (finalSecIdxInResult !== -1) {
     result.splice(finalSecIdxInResult, 0, ...newSectionsToInsert);
   } else {
     result.push(...newSectionsToInsert);
+  }
+
+  // Deduplicate quizzes across each section
+  result.forEach((sec) => {
+    const seenTitles = new Set<string>();
+    const uniqueLessons: BuilderLesson[] = [];
+    (sec.lessons || []).forEach((les) => {
+      if (les.type === 'QUIZ' && !isFinalExamLesson(les)) {
+        const qKey = cleanQuizTitle(les.title).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (seenTitles.has(qKey)) return;
+        seenTitles.add(qKey);
+      }
+      uniqueLessons.push(les);
+    });
+    sec.lessons = uniqueLessons;
+  });
+
+  // Append authoritative Final Assessment to the VERY LAST module ONLY if not already in a dedicated final section
+  const hasDedicatedFinalSec = result.some((s) => isDedicatedFinalSec(s));
+  if (authoritativeFinalLesson && result.length > 0 && !hasDedicatedFinalSec) {
+    const lastSec = result[result.length - 1];
+    const finalLessonClean: BuilderLesson = {
+      ...authoritativeFinalLesson,
+      id: authoritativeFinalLesson.id || `les-final-${Date.now()}`,
+      clientKey: authoritativeFinalLesson.clientKey || authoritativeFinalLesson.id,
+      title: 'Final Assessment',
+      type: 'QUIZ',
+      isFinalAssignment: true,
+      order: lastSec.lessons.length + 1
+    };
+    lastSec.lessons.push(finalLessonClean);
   }
 
   // Re-number section and lesson orders cleanly and ensure Final Assessment stays at the end

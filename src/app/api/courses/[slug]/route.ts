@@ -838,7 +838,8 @@ export async function PUT(
                 ? lesData.quizData
                 : null;
 
-            const existingLesson = (section.lessons || []).find((l) => l.id === lesData.id);
+            const allCourseLessons = course.sections.flatMap((s) => s.lessons);
+            const existingLesson = allCourseLessons.find((l) => l.id === lesData.id);
 
             let existingResourcesObj: any = null;
             if (existingLesson?.resources) {
@@ -917,6 +918,7 @@ export async function PUT(
               const updatedLesson = await prisma.lesson.update({
                 where: { id: existingLesson.id },
                 data: {
+                  sectionId: section.id,
                   title: isOrigLes ? existingLesson.title : (lesData.title !== undefined ? lesData.title : existingLesson.title),
                   description: isOrigLes ? existingLesson.description : (lesData.description !== undefined ? lesData.description : undefined),
                   type: isOrigLes ? existingLesson.type : lesType,
@@ -958,9 +960,14 @@ export async function PUT(
             }
           }
 
-          const lessonsToDelete = (section.lessons || []).filter(
-            (l) => !incomingLessonIds.includes(l.id) && (!isChildVersionDraft || !originalLesIdsSet.has(l.id))
-          );
+          const isFinalExamLessonItem = (l: any) => Boolean(l.isFinalAssignment || (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || '')));
+          const lessonsToDelete = (section.lessons || []).filter((l) => {
+            if (incomingLessonIds.includes(l.id)) return false;
+            if (isChildVersionDraft && originalLesIdsSet.has(l.id)) {
+              return isFinalExamLessonItem(l);
+            }
+            return true;
+          });
           for (const lToDel of lessonsToDelete) {
             await prisma.lesson.delete({ where: { id: lToDel.id } }).catch(() => {});
           }
