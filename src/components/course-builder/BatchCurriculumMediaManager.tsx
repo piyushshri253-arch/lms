@@ -1588,7 +1588,7 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                   : 'bg-surface hover:bg-surface-container text-on-surface border border-outline-variant'
               }`}
             >
-              <Icon name="sparkles" size={14} className={mediaFilter === 'newly_added' ? 'text-amber-300' : 'text-emerald-500'} />
+              <Icon name="auto_awesome" size={14} className={mediaFilter === 'newly_added' ? 'text-amber-300' : 'text-emerald-500'} />
               <span>Newly Added Only</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
@@ -1728,18 +1728,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                         <h3 className="font-extrabold text-sm text-on-surface">
                           Module {displayModNum}: {cleanModuleTitle(section.title) || `Module ${displayModNum}`}
                         </h3>
-                        {isModeB && (
-                          isSecNewlyAdded ? (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs">
-                              <Icon name="sparkles" size={11} />
-                              <span>New Module</span>
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1 select-none shadow-2xs">
-                              <Icon name="lock" size={11} />
-                              <span>Live Module</span>
-                            </span>
-                          )
+                        {isModeB && !isSecNewlyAdded && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1 select-none shadow-2xs">
+                            <Icon name="lock" size={11} />
+                            <span>Live Module</span>
+                          </span>
                         )}
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant font-bold">
                           {secLessons.length} Items
@@ -1823,18 +1816,11 @@ export const BatchCurriculumMediaManager: React.FC<BatchCurriculumMediaManagerPr
                                   >
                                     {itemMeta.label}
                                   </span>
-                                  {isModeB && (
-                                    isLessonNew ? (
-                                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0">
-                                        <Icon name="sparkles" size={11} />
-                                        <span>NEW</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1 select-none shadow-2xs shrink-0">
-                                        <Icon name="lock" size={11} />
-                                        <span>LIVE</span>
-                                      </span>
-                                    )
+                                  {isModeB && !isLessonNew && (
+                                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1 select-none shadow-2xs shrink-0">
+                                      <Icon name="lock" size={11} />
+                                      <span>LIVE</span>
+                                    </span>
                                   )}
                                   <input
                                     type="text"

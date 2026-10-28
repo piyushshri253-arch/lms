@@ -7,6 +7,11 @@ interface IconProps extends React.HTMLAttributes<HTMLSpanElement> {
   className?: string;
 }
 
+const ICON_NAME_MAP: Record<string, string> = {
+  sparkles: 'auto_awesome',
+  loader: 'progress_activity'
+};
+
 export const Icon: React.FC<IconProps> = ({
   name,
   fill = false,
@@ -15,6 +20,8 @@ export const Icon: React.FC<IconProps> = ({
   style,
   ...props
 }) => {
+  const glyphName = ICON_NAME_MAP[name] || name;
+
   return (
     <span
       className={`material-symbols-outlined ${fill ? 'fill' : ''} ${className}`}
@@ -25,7 +32,7 @@ export const Icon: React.FC<IconProps> = ({
       }}
       {...props}
     >
-      {name}
+      {glyphName}
     </span>
   );
 };

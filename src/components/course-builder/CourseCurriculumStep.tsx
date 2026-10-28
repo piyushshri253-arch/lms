@@ -1192,25 +1192,14 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                           <span>Live Module</span>
                         </span>
                       ) : (
-                        <>
-                          {isModeB && (
-                            <span
-                              className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs"
-                              title="Newly added module in this draft version"
-                            >
-                              <Icon name="sparkles" size={12} />
-                              <span>New Module</span>
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSection(secKey)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
-                            title="Delete Module"
-                          >
-                            <Icon name="delete" size={16} />
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSection(secKey)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer transition-colors"
+                          title="Delete Module"
+                        >
+                          <Icon name="delete" size={16} />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1306,15 +1295,7 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     </span>
                                   )}
 
-                                  {isModeB && isNewlyAddedQuiz && (
-                                    <span
-                                      className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0"
-                                      title="Newly added quiz in this draft version"
-                                    >
-                                      <Icon name="sparkles" size={11} />
-                                      <span>NEW</span>
-                                    </span>
-                                  )}
+
 
                                   {/* Inline Title Input */}
                                   <div className="flex-1 min-w-[160px]">
@@ -1908,16 +1889,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                     Lecture {itemMeta.num}.
                                   </span>
 
-                                  {isModeB && isNewlyAddedLecture && (
-                                    <span
-                                      className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0"
-                                      title="Newly added lecture in this draft version"
-                                    >
-                                      <Icon name="sparkles" size={11} />
-                                      <span>NEW</span>
-                                    </span>
-                                  )}
-
                                   {/* Inline Title Input */}
                                   <div className="flex-1 min-w-[160px] flex items-center gap-1.5">
                                     <input
@@ -2077,16 +2048,6 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
                                 <span className="font-extrabold text-xs text-slate-900 shrink-0 font-sans min-w-[14px]">
                                   Article {itemMeta.num}.
                                 </span>
-
-                                {isModeB && isNewlyAddedArticle && (
-                                  <span
-                                    className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs shrink-0"
-                                    title="Newly added article in this draft version"
-                                  >
-                                    <Icon name="sparkles" size={11} />
-                                    <span>NEW</span>
-                                  </span>
-                                )}
 
                                 {/* Inline Title Input */}
                                 <div className="flex-1 min-w-[160px]">
