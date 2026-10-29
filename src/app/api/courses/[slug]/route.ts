@@ -921,12 +921,12 @@ export async function PUT(
                   sectionId: section.id,
                   title: isOrigLes ? existingLesson.title : (lesData.title !== undefined ? lesData.title : existingLesson.title),
                   description: isOrigLes ? existingLesson.description : (lesData.description !== undefined ? lesData.description : undefined),
-                  type: isOrigLes ? existingLesson.type : lesType,
-                  content: isOrigLes ? existingLesson.content : (lesData.content !== undefined ? lesData.content : undefined),
+                  type: lesType,
+                  content: lesData.content !== undefined ? lesData.content : existingLesson.content,
                   videoUrl: isOrigLes ? existingLesson.videoUrl : (cleanVideoUrl !== undefined ? cleanVideoUrl : (lesData.clearVideo ? null : existingLesson.videoUrl)),
                   pdfUrl: isOrigLes ? existingLesson.pdfUrl : (cleanPdfUrl !== undefined ? cleanPdfUrl : undefined),
                   fileUrl: isOrigLes ? existingLesson.fileUrl : (cleanFileUrl !== undefined ? cleanFileUrl : undefined),
-                  quizData: isOrigLes ? existingLesson.quizData : quizDataStr,
+                  quizData: lesType === 'TEXT' ? null : (quizDataStr !== null ? quizDataStr : (isOrigLes ? existingLesson.quizData : null)),
                   resources: isOrigLes ? existingLesson.resources : subLessonsStr,
                   duration: isOrigLes ? existingLesson.duration : (lesData.duration || existingLesson.duration || '10:00'),
                   durationSeconds: isOrigLes ? existingLesson.durationSeconds : (lesData.durationSeconds || existingLesson.durationSeconds || 600),
@@ -947,7 +947,7 @@ export async function PUT(
                   videoUrl: cleanVideoUrl || null,
                   pdfUrl: cleanPdfUrl || null,
                   fileUrl: cleanFileUrl || null,
-                  quizData: quizDataStr,
+                  quizData: lesType === 'TEXT' ? null : quizDataStr,
                   resources: subLessonsStr || '[]',
                   duration: lesData.duration || '10:00',
                   durationSeconds: lesData.durationSeconds || 600,
@@ -960,15 +960,12 @@ export async function PUT(
             }
           }
 
-          const isFinalExamLessonItem = (l: any) => Boolean(l.isFinalAssignment || (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(l.title || '')));
-          const lessonsToDelete = (section.lessons || []).filter((l) => {
-            if (incomingLessonIds.includes(l.id)) return false;
-            if (isChildVersionDraft && originalLesIdsSet.has(l.id)) {
-              return isFinalExamLessonItem(l);
-            }
-            return true;
-          });
+          // Delete any lingering or superseded lessons in this section that were omitted from incoming lessons
+          const lessonsToDelete = (section.lessons || []).filter((l) => !incomingLessonIds.includes(l.id));
           for (const lToDel of lessonsToDelete) {
+            await prisma.quizQuestion.deleteMany({ where: { quiz: { lessonId: lToDel.id } } }).catch(() => {});
+            await prisma.quiz.deleteMany({ where: { lessonId: lToDel.id } }).catch(() => {});
+            await prisma.lessonProgress.deleteMany({ where: { lessonId: lToDel.id } }).catch(() => {});
             await prisma.lesson.delete({ where: { id: lToDel.id } }).catch(() => {});
           }
         }

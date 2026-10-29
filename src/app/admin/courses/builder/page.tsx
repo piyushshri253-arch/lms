@@ -18,7 +18,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
-import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData, mergeExcelSectionsForUpdateVersion, ensureFinalAssessmentAtEnd } from '@/lib/course-excel';
+import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData, mergeExcelSectionsForUpdateVersion, ensureFinalAssessmentAtEnd, sortSectionLessons } from '@/lib/course-excel';
 import { ExcelValidationReportModal } from '@/components/course-builder/ExcelValidationReportModal';
 import { ExcelValidationResult, validateCourseExcel } from '@/lib/course-excel-validator';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
@@ -1201,18 +1201,53 @@ function CourseBuilderContent() {
 
             const serverLessonIds = new Set((s.lessons || []).map((l: any) => l.id));
             const syncedLocalLesIds = new Set<string>();
+            const matchedLocalIndices = new Set<number>();
+
+            const cleanT = (t?: string | null) =>
+              (t || '')
+                .toLowerCase()
+                .replace(/^(?:lecture|article|quiz|assessment|module|sec|section)[\s:\-\._\d]*/i, '')
+                .replace(/[^a-z0-9]/g, '')
+                .trim();
 
             const mappedLessons = (s.lessons || []).map((l: any, lIdx: number) => {
-              // Local section and lesson lookup to preserve any local videoUrl or resources that were just attached
-              const localLes = localSec?.lessons?.find((les) =>
-                les.id === l.id ||
-                (les.clientKey && les.clientKey === l.id) ||
-                (les.tempId && les.tempId === l.id)
-              ) || localSec?.lessons?.[lIdx];
+              // 1. Try exact ID, clientKey, or tempId match
+              let localIdx = (localSec?.lessons || []).findIndex((les, idx) =>
+                !matchedLocalIndices.has(idx) && (
+                  les.id === l.id ||
+                  (les.clientKey && (les.clientKey === l.id || les.clientKey === l.clientKey)) ||
+                  (les.tempId && (les.tempId === l.id || les.tempId === l.tempId))
+                )
+              );
 
-              if (localLes?.id) syncedLocalLesIds.add(localLes.id);
-              if (localLes?.clientKey) syncedLocalLesIds.add(localLes.clientKey);
-              if (localLes?.tempId) syncedLocalLesIds.add(localLes.tempId);
+              // 2. If no ID match, match by SAME TYPE and matching clean title
+              if (localIdx === -1 && l.title) {
+                const sTitleKey = cleanT(l.title);
+                if (sTitleKey.length >= 3) {
+                  localIdx = (localSec?.lessons || []).findIndex((les, idx) =>
+                    !matchedLocalIndices.has(idx) &&
+                    les.type === l.type &&
+                    cleanT(les.title) === sTitleKey
+                  );
+                }
+              }
+
+              // 3. Fallback: match by SAME TYPE among unmatched lessons in order
+              // STRICT GUARD: Never match a QUIZ server lesson with a TEXT local lesson, or vice-versa!
+              if (localIdx === -1) {
+                localIdx = (localSec?.lessons || []).findIndex((les, idx) =>
+                  !matchedLocalIndices.has(idx) && les.type === l.type
+                );
+              }
+
+              const localLes = localIdx !== -1 ? localSec?.lessons?.[localIdx] : undefined;
+              if (localIdx !== -1) {
+                matchedLocalIndices.add(localIdx);
+                if (localLes?.id) syncedLocalLesIds.add(localLes.id);
+                if (localLes?.clientKey) syncedLocalLesIds.add(localLes.clientKey);
+                if (localLes?.tempId) syncedLocalLesIds.add(localLes.tempId);
+              }
+
               const isVideoExplicitlyCleared = Boolean((localLes as any)?.clearVideo || (localLes as any)?.removeVideo || localLes?.videoUrl === '');
               const resolvedVideo = isVideoExplicitlyCleared ? '' : (localLes?.videoUrl || l.videoUrl || '');
               const resolvedPdf = localLes?.pdfUrl || l.pdfUrl || '';
@@ -1244,27 +1279,41 @@ function CourseBuilderContent() {
               const finalFile = resolvedFile || finalResources[0]?.url || '';
               const finalResName = resourceFileName || localLes?.resourceFileName || finalResources[0]?.name || '';
 
+              // Lesson Type: The server's lesson type is authoritative unless local has matching type
+              const resolvedType = l.type || localLes?.type || 'VIDEO';
+
               // Preserve any in-flight edits the user has made locally (typing in input, editing modal)
-              const resolvedTitle = (localLes?.title !== undefined)
+              const resolvedTitle = (localLes?.title !== undefined && localLes?.type === resolvedType)
                 ? localLes.title
                 : (l.title || '');
-              const resolvedContent = localLes?.content !== undefined
+              const resolvedContent = (resolvedType === 'TEXT' && localLes?.content !== undefined)
                 ? localLes.content
                 : (l.content || '');
-              const resolvedDescription = localLes?.description !== undefined
+              const resolvedDescription = (localLes?.description !== undefined && localLes?.type === resolvedType)
                 ? localLes.description
                 : (l.description || '');
-              const resolvedType = localLes?.type || l.type || 'VIDEO';
 
-              let resolvedQuizData = localLes?.quizData;
-              if (!resolvedQuizData && l.quizData) {
-                resolvedQuizData = typeof l.quizData === 'string'
-                  ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })()
-                  : l.quizData;
+              // Quiz Data: STRICTLY null for TEXT, VIDEO, PDF! Never allow quiz data to corrupt an Article!
+              let resolvedQuizData: any = null;
+              if (resolvedType === 'QUIZ') {
+                resolvedQuizData = localLes?.quizData || null;
+                if (!resolvedQuizData && l.quizData) {
+                  resolvedQuizData = typeof l.quizData === 'string'
+                    ? (() => { try { return JSON.parse(l.quizData); } catch { return null; } })()
+                    : l.quizData;
+                }
               }
 
               const lessonClientKey = localLes?.clientKey || localLes?.tempId || (localLes?.id?.startsWith('les-') ? localLes.id : undefined) || l.clientKey || l.id;
               const lessonTempId = localLes?.id?.startsWith('les-') ? localLes.id : ((localLes as any)?.tempId || lessonClientKey);
+
+              const isFinalAssignment = Boolean(
+                resolvedType === 'QUIZ' && (
+                  localLes?.isFinalAssignment ||
+                  l.isFinalAssignment ||
+                  /final\s*(assessment|assignment|exam)/i.test(resolvedTitle)
+                )
+              );
 
               return {
                 id: l.id,
@@ -1280,12 +1329,12 @@ function CourseBuilderContent() {
                 resourcesList,
                 pdfUrl: finalPdf,
                 fileUrl: finalFile,
-                quizData: resolvedQuizData || null,
+                quizData: resolvedQuizData,
                 subLessons,
                 duration: localLes?.duration || l.duration || '10:00',
                 durationSeconds: localLes?.durationSeconds || l.durationSeconds || 600,
                 isFree: localLes?.isFree !== undefined ? Boolean(localLes.isFree) : Boolean(l.isFree),
-                isFinalAssignment: Boolean(localLes?.isFinalAssignment || l.isFinalAssignment || (resolvedType === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(resolvedTitle))),
+                isFinalAssignment,
                 isPublished: l.isPublished !== false,
                 order: l.order || lIdx + 1
               };
@@ -1293,7 +1342,7 @@ function CourseBuilderContent() {
 
             // CRITICAL: Retain any newly added local lessons in this section that were not yet included in server response
             const pendingLocalLessons = (localSec?.lessons || []).filter((les, idx) => {
-              if (idx < (s.lessons || []).length) return false;
+              if (matchedLocalIndices.has(idx)) return false;
               if (syncedLocalLesIds.has(les.id)) return false;
               if (les.clientKey && syncedLocalLesIds.has(les.clientKey)) return false;
               if (les.tempId && syncedLocalLesIds.has(les.tempId)) return false;
@@ -1310,7 +1359,7 @@ function CourseBuilderContent() {
               title: localSec?.title !== undefined ? localSec.title : (s.title || `Module ${sIdx + 1}`),
               description: localSec?.description !== undefined ? localSec.description : (s.description || ''),
               order: s.order || sIdx + 1,
-              lessons: [...mappedLessons, ...pendingLocalLessons]
+              lessons: sortSectionLessons([...mappedLessons, ...pendingLocalLessons])
             };
           });
 

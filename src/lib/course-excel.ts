@@ -118,7 +118,7 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
 
   const lectures: BuilderLesson[] = [];
   const articles: BuilderLesson[] = [];
-  let sectionQuiz: BuilderLesson | null = null;
+  const quizzes: BuilderLesson[] = [];
   let finalAssessment: BuilderLesson | null = null;
 
   const getQCount = (l: BuilderLesson | any): number => {
@@ -148,12 +148,22 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
         };
       }
     } else if (les.type === 'QUIZ') {
-      if (!sectionQuiz) {
-        sectionQuiz = { ...les, title: cleanQuizTitle(les.title) || 'Quiz' };
-      } else {
-        // Enforce STRICTLY AT MOST 1 mid-module quiz!
-        // Merge questions into the single quiz so nothing is lost!
-        let existingQData: any = sectionQuiz.quizData;
+      const cleanTitle = cleanQuizTitle(les.title) || 'Quiz';
+      const cleanKey = cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Check if this quiz is a duplicate of an existing quiz in the section
+      const duplicateIdx = quizzes.findIndex((q) => {
+        const qKey = (cleanQuizTitle(q.title) || 'Quiz').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (qKey === cleanKey) return true;
+        // Generic quiz duplicate match (e.g. "Quiz" and "Module 1 Quiz" when only 1 quiz existed)
+        if ((qKey === 'quiz' || cleanKey === 'quiz') && !/[0-9]/.test(qKey) && !/[0-9]/.test(cleanKey)) return true;
+        return false;
+      });
+
+      if (duplicateIdx !== -1) {
+        // Merge duplicate quiz into the existing one
+        const existingQuiz = quizzes[duplicateIdx];
+        let existingQData: any = existingQuiz.quizData;
         if (typeof existingQData === 'string') {
           try { existingQData = JSON.parse(existingQData); } catch { existingQData = { questions: [], passingScore: 70, attemptLimit: 0 }; }
         }
@@ -162,17 +172,13 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
           try { incomingQData = JSON.parse(incomingQData); } catch { incomingQData = { questions: [], passingScore: 70, attemptLimit: 0 }; }
         }
 
-        const existingQs: any[] = Array.isArray(existingQData?.questions)
-          ? existingQData.questions
-          : [];
-        const incomingQs: any[] = Array.isArray(incomingQData?.questions)
-          ? incomingQData.questions
-          : [];
+        const existingQs: any[] = Array.isArray(existingQData?.questions) ? existingQData.questions : [];
+        const incomingQs: any[] = Array.isArray(incomingQData?.questions) ? incomingQData.questions : [];
 
         if (incomingQs.length > 0) {
           if (existingQs.length === 0) {
-            sectionQuiz.quizData = les.quizData;
-            if (les.title) sectionQuiz.title = cleanQuizTitle(les.title);
+            existingQuiz.quizData = les.quizData;
+            if (les.title) existingQuiz.title = les.title;
           } else {
             const existingTexts = new Set(
               existingQs.map((q) => String(q.question || q.title || '').trim().toLowerCase())
@@ -185,16 +191,19 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
                 combined.push(q);
               }
             });
-            sectionQuiz.quizData = {
+            existingQuiz.quizData = {
               questions: combined,
               passingScore: typeof existingQData === 'object' && existingQData?.passingScore ? Number(existingQData.passingScore) : 70,
               attemptLimit: typeof existingQData === 'object' && existingQData?.attemptLimit ? Number(existingQData.attemptLimit) : 0
             };
           }
         }
-        if (les.title && (!sectionQuiz.title || sectionQuiz.title === 'Quiz')) {
-          sectionQuiz.title = cleanQuizTitle(les.title) || sectionQuiz.title;
+        if (les.title && (!existingQuiz.title || existingQuiz.title === 'Quiz')) {
+          existingQuiz.title = les.title;
         }
+      } else {
+        // Legitimate distinct quiz (e.g. Quiz 1 vs Quiz 2)
+        quizzes.push({ ...les, title: les.title || cleanTitle });
       }
     } else if (les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT') {
       articles.push(les);
@@ -203,10 +212,7 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
     }
   }
 
-  const sorted: BuilderLesson[] = [...lectures, ...articles];
-  if (sectionQuiz) {
-    sorted.push(sectionQuiz);
-  }
+  const sorted: BuilderLesson[] = [...lectures, ...articles, ...quizzes];
   if (finalAssessment) {
     sorted.push(finalAssessment);
   }
@@ -2551,7 +2557,14 @@ export function mergeExcelSectionsForUpdateVersion(
 
         let existingIdx = -1;
         if (parsedLes.type === 'QUIZ') {
-          existingIdx = mergedLessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExam(l));
+          const cleanP = (cleanQuizTitle(parsedLes.title) || 'Quiz').toLowerCase().replace(/[^a-z0-9]/g, '');
+          existingIdx = mergedLessons.findIndex((l) => {
+            if (l.type !== 'QUIZ' || isFinalExam(l)) return false;
+            const lKey = (cleanQuizTitle(l.title) || 'Quiz').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (lKey === cleanP) return true;
+            if ((lKey === 'quiz' || cleanP === 'quiz') && !/[0-9]/.test(lKey) && !/[0-9]/.test(cleanP)) return true;
+            return false;
+          });
         } else if (parsedLes.type === 'TEXT' || (parsedLes.type as any) === 'ARTICLE') {
           const cleanP = (cleanArticleTitle(parsedLes.title) || cleanLectureTitle(parsedLes.title)).toLowerCase().trim();
           existingIdx = mergedLessons.findIndex((l) => {
@@ -2575,7 +2588,7 @@ export function mergeExcelSectionsForUpdateVersion(
             const inQc = getQCount(parsedLes);
             mergedLessons[existingIdx] = {
               ...target,
-              title: cleanQuizTitle(parsedLes.title) || target.title,
+              title: parsedLes.title || target.title,
               quizData: inQc > 0 ? parsedLes.quizData : target.quizData,
               description: parsedLes.description || target.description
             };
@@ -2592,14 +2605,14 @@ export function mergeExcelSectionsForUpdateVersion(
               description: parsedLes.description || target.description
             };
           } else {
-            // Lecture: Update title, description, duration if updated in Excel, preserving videoUrl and attached resources
+            // Lecture: Strictly preserve original live lecture title, videoUrl, and attached resources
             mergedLessons[existingIdx] = {
               ...target,
-              title: cleanLectureTitle(parsedLes.title) || target.title,
-              description: parsedLes.description || target.description,
-              duration: parsedLes.duration || target.duration,
-              durationSeconds: parsedLes.durationSeconds || target.durationSeconds,
-              isFree: parsedLes.isFree !== undefined ? parsedLes.isFree : target.isFree
+              title: target.title || cleanLectureTitle(parsedLes.title),
+              description: target.description || parsedLes.description,
+              duration: target.duration || parsedLes.duration,
+              durationSeconds: target.durationSeconds || parsedLes.durationSeconds,
+              isFree: target.isFree !== undefined ? target.isFree : parsedLes.isFree
             };
           }
         } else {
@@ -2638,8 +2651,8 @@ export function mergeExcelSectionsForUpdateVersion(
 
       result.push({
         ...origSec,
-        title: cleanModuleTitle(parsedSec.title) || origSec.title,
-        description: parsedSec.description || origSec.description,
+        title: origSec.title || cleanModuleTitle(parsedSec.title),
+        description: origSec.description || parsedSec.description,
         order: result.length + 1,
         lessons: sortSectionLessons(mergedLessons)
       });
