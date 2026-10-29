@@ -142,12 +142,14 @@ export const UdemyNavbar: React.FC = () => {
           >
             Home
           </Link>
-          <Link
-            href="/about"
+          <a
+            href="https://morenateach.com/about-us/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
           >
             About
-          </Link>
+          </a>
           <Link
             href="/courses"
             className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
@@ -632,14 +634,16 @@ export const UdemyNavbar: React.FC = () => {
               <Icon name="home" size={18} />
               <span>Home</span>
             </Link>
-            <Link
-              href="/about"
+            <a
+              href="https://morenateach.com/about-us/"
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] rounded transition-colors"
             >
               <Icon name="info" size={18} />
               <span>About</span>
-            </Link>
+            </a>
             <Link
               href="/courses"
               onClick={() => setIsMobileMenuOpen(false)}
