@@ -178,7 +178,7 @@ export function validateCourseExcel(
   }
 
   const curHeaderRow = (curRows[0] || []).map((h) => String(h || '').trim().toLowerCase());
-  const hasModuleHeader = curHeaderRow.some((h) => /module/i.test(h));
+  const hasModuleHeader = curHeaderRow.some((h) => /module|section/i.test(h));
   const hasTopicHeader = curHeaderRow.some((h) => /topic|lesson|lecture/i.test(h));
   const hasTypeHeader = curHeaderRow.some((h) => /type|format/i.test(h));
 

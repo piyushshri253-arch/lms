@@ -28,6 +28,10 @@ export function cleanModuleTitle(raw?: string | null): string {
   if (!raw) return '';
   const original = String(raw).trim();
   let str = original;
+  // If user provided a lone number like "1", "2", "01" -> "Module 1", "Module 2"
+  if (/^\d+$/.test(str)) {
+    return `Module ${parseInt(str, 10)}`;
+  }
   // Strip leading "Module 1:", "Section 1 -", "Module 01.", "Module 1", "Section 1"
   str = str.replace(/^(module|section)\s*\d+[\s:\-\.]*/i, '').trim();
   // Strip leading numbers like "1: ", "1 - ", "1. "
@@ -269,11 +273,9 @@ export function resolveTargetSection(
     }
   }
 
-  // Fallback to activeSection if valid, or first section
-  if (activeSection && sections.some((s) => s.id === activeSection.id)) {
-    return activeSection;
-  }
-  return sections[0] || null;
+  // If an explicit module identifier was provided but did not match ANY existing section,
+  // return null so caller knows this is a NEW or UNMATCHED module!
+  return null;
 }
 
 /**
