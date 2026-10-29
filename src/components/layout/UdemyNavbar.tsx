@@ -17,7 +17,6 @@ export const UdemyNavbar: React.FC = () => {
   const router = useRouter();
   const { currentUser, logout, wishlistCourseIds, cartItems, searchQuery, setSearchQuery } = useApp();
 
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartHovered, setIsCartHovered] = useState(false);
@@ -25,7 +24,6 @@ export const UdemyNavbar: React.FC = () => {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [showPromoBanner, setShowPromoBanner] = useState(true);
 
-  const categoriesRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch categories for dropdown
@@ -58,12 +56,9 @@ export const UdemyNavbar: React.FC = () => {
     loadCategories();
   }, []);
 
-  // Close menus on outside click
+  // Close user menu on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (categoriesRef.current && !categoriesRef.current.contains(e.target as Node)) {
-        setIsCategoriesOpen(false);
-      }
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setIsUserMenuOpen(false);
       }
@@ -139,57 +134,32 @@ export const UdemyNavbar: React.FC = () => {
           </div>
         </Link>
 
-        {/* Categories Dropdown (Desktop) */}
-        <div className="relative hidden lg:block" ref={categoriesRef}>
-          <button
-            onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-            className={`px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors flex items-center gap-1.5 ${
-              isCategoriesOpen ? 'text-[#5022c3] bg-[#f7f9fa] font-semibold' : 'font-normal'
-            }`}
+        {/* Navigation Links: Home, About, Courses (Desktop) */}
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-2 shrink-0">
+          <Link
+            href="/"
+            className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
           >
-            <span>Categories</span>
-            <Icon
-              name={isCategoriesOpen ? 'expand_less' : 'expand_more'}
-              size={18}
-              className="text-[#6a6f73]"
-            />
-          </button>
-
-          {/* Categories Popover Menu */}
-          {isCategoriesOpen && (
-            <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded shadow-xl border border-[#d1d7dc] py-2 z-50">
-              <div className="px-4 py-2 border-b border-gray-100 text-xs font-bold text-[#6a6f73] uppercase tracking-wider">
-                Explore Teaching Disciplines
-              </div>
-              <Link
-                href="/courses"
-                onClick={() => setIsCategoriesOpen(false)}
-                className="flex items-center justify-between px-4 py-2.5 text-sm text-[#2d2f31] font-semibold hover:bg-[#f7f9fa] hover:text-[#5022c3] transition-colors"
-              >
-                <span>All Courses</span>
-                <Icon name="chevron_right" size={16} />
-              </Link>
-              {categories.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/courses?category=${encodeURIComponent(cat.name)}`}
-                  onClick={() => setIsCategoriesOpen(false)}
-                  className="flex items-center justify-between px-4 py-2 text-sm text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] transition-colors"
-                >
-                  <span className="truncate">{cat.name}</span>
-                  {cat.count !== undefined && cat.count > 0 && (
-                    <span className="text-xs text-[#6a6f73] ml-2 font-mono">({cat.count})</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+            Home
+          </Link>
+          <Link
+            href="/about"
+            className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
+          >
+            About
+          </Link>
+          <Link
+            href="/courses"
+            className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
+          >
+            Courses
+          </Link>
+        </nav>
 
         {/* Wide Search Bar (Exact Udemy Pill Design) */}
         <form
           onSubmit={handleSearchSubmit}
-          className="flex-1 max-w-2xl relative hidden md:block"
+          className="flex-1 max-w-xl xl:max-w-2xl relative hidden md:block min-w-[180px]"
         >
           <div className="relative flex items-center">
             <div className="absolute left-4 text-[#6a6f73] pointer-events-none flex items-center justify-center">
@@ -219,57 +189,6 @@ export const UdemyNavbar: React.FC = () => {
 
         {/* Right Navigation Links & Action Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* TEACH Business Link */}
-          <Link
-            href="/courses"
-            className="hidden xl:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-normal"
-          >
-            TEACH Business
-          </Link>
-
-          {/* Instructor Login / Studio Link:
-              - If logged in as INSTRUCTOR -> Instructor Studio
-              - If logged in as STUDENT -> ONLY show "Instructor Login" button if same email is ONBOARDED as an Instructor!
-              - If not logged in (public visitor) -> Teach on Morena Teach (/signup) */}
-          {currentUser?.role === 'INSTRUCTOR' ? (
-            <Link
-              href="/instructor"
-              className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
-            >
-              Instructor Studio
-            </Link>
-          ) : currentUser?.role === 'STUDENT' ? (
-            currentUser?.hasOnboardedInstructorAccount ? (
-              <Link
-                href={
-                  currentUser.instructorLoginUrl ||
-                  `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
-                }
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white bg-[#5022c3] hover:bg-[#3f1b99] rounded-full transition-colors shadow-xs"
-              >
-                <Icon name="cast_for_education" size={16} />
-                <span>Instructor Login</span>
-              </Link>
-            ) : null
-          ) : (
-            <Link
-              href="/signup"
-              className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
-            >
-              Teach on Morena Teach
-            </Link>
-          )}
-
-          {/* My learning Link for Logged In Students */}
-          {currentUser && currentUser.role === 'STUDENT' && (
-            <Link
-              href="/student/learning"
-              className="hidden md:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
-            >
-              My learning
-            </Link>
-          )}
-
           {/* Mobile Search Trigger Button */}
           <button
             type="button"
@@ -281,7 +200,260 @@ export const UdemyNavbar: React.FC = () => {
             <Icon name="search" size={20} />
           </button>
 
-          {/* Cart Icon & Interactive Mini-Cart Popover */}
+          {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
+          {(!currentUser || currentUser.role !== 'STUDENT') ? (
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-1">
+              {currentUser && currentUser.role === 'INSTRUCTOR' && (
+                <Link
+                  href="/instructor"
+                  className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-none sm:rounded-[4px] transition-colors shadow-xs"
+                  title="Open Instructor Studio"
+                >
+                  <Icon name="cast_for_education" size={16} />
+                  <span>Instructor Studio</span>
+                </Link>
+              )}
+              {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+                <Link
+                  href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
+                  className="hidden xl:inline-flex items-center gap-1.5 h-10 px-3 text-xs font-bold text-[#5022c3] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-none sm:rounded-[4px] transition-colors"
+                  title="Open Admin Console"
+                >
+                  <Icon name="admin_panel_settings" size={16} />
+                  <span>Admin Console</span>
+                </Link>
+              )}
+              <Link
+                href="/login"
+                className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-[#2d2f31] border border-[#2d2f31] bg-white hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-white bg-[#2d2f31] border border-[#2d2f31] hover:bg-[#1c1d1f] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
+              >
+                Sign up
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/student/learning"
+                className="hidden md:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
+              >
+                My learning
+              </Link>
+              {currentUser.hasOnboardedInstructorAccount && (
+                <Link
+                  href={
+                    currentUser.instructorLoginUrl ||
+                    `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
+                  }
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white bg-[#5022c3] hover:bg-[#3f1b99] rounded-full transition-colors shadow-xs"
+                >
+                  <Icon name="cast_for_education" size={16} />
+                  <span>Instructor Login</span>
+                </Link>
+              )}
+              <div className="relative ml-1" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="w-10 h-10 rounded-full bg-[#1c1d1f] text-white font-bold text-sm flex items-center justify-center hover:opacity-95 transition-opacity tracking-wider cursor-pointer"
+                  title={currentUser.name}
+                >
+                  {currentUser.avatar ? (
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    currentUser.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase() || 'ST'
+                  )}
+                </button>
+
+                {/* User Dropdown Menu (Exact 1:1 replica of Udemy reference image media_1789384091152.png) */}
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded shadow-2xl border border-[#d1d7dc] z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[calc(100vh-130px)] overflow-y-auto overscroll-contain dropdown-scrollbar">
+                    {/* Header: Circle Avatar with Initials, Name, Email + Quick Logout */}
+                    <div className="flex items-center justify-between px-4 py-3 hover:bg-[#f7f9fa] transition-colors border-b border-[#d1d7dc] sticky top-0 bg-white z-10">
+                      <Link
+                        href="/user/edit-account"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 min-w-0 flex-1"
+                      >
+                        <div className="w-11 h-11 rounded-full bg-[#1c1d1f] text-white font-bold text-sm flex items-center justify-center shrink-0 tracking-wider">
+                          {currentUser.avatar ? (
+                            <img
+                              src={currentUser.avatar}
+                              alt={currentUser.name}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          ) : (
+                            currentUser.name
+                              .split(' ')
+                              .map((n) => n[0])
+                              .slice(0, 2)
+                              .join('')
+                              .toUpperCase() || 'ST'
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-[#1c1d1f] truncate leading-tight">
+                            {currentUser.name}
+                          </p>
+                          <p className="text-[12px] text-[#6a6f73] truncate leading-tight mt-0.5">
+                            {currentUser.email}
+                          </p>
+                        </div>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="p-1.5 text-[#6a6f73] hover:text-red-600 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Sign out"
+                      >
+                        <Icon name="logout" size={18} />
+                      </button>
+                    </div>
+
+                    {/* Section 1: Learning */}
+                    <div className="py-1.5 border-b border-[#d1d7dc]">
+                      <Link
+                        href="/student/learning"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        <span>My learning</span>
+                        <Icon name="school" size={16} className="text-[#6a6f73]" />
+                      </Link>
+                      <Link
+                        href="/student/cart"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        <span>My cart</span>
+                        {cartItems.length > 0 && (
+                          <span className="bg-[#a435f0] text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">
+                            {cartItems.length}
+                          </span>
+                        )}
+                      </Link>
+                      <Link
+                        href="/student/wishlist"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        <span>Wishlist</span>
+                        {wishlistCourseIds.length > 0 && (
+                          <span className="bg-[#6a6f73] text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">
+                            {wishlistCourseIds.length}
+                          </span>
+                        )}
+                      </Link>
+                    </div>
+
+                    {/* Section 2: Account Settings (Exact matches from screenshot) */}
+                    <div className="py-1.5 border-b border-[#d1d7dc]">
+                      <Link
+                        href="/user/edit-notification-preferences"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Notifications
+                      </Link>
+                      <Link
+                        href="/user/edit-account"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Account settings
+                      </Link>
+                      <Link
+                        href="/user/edit-payment-methods"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Payment methods
+                      </Link>
+                      <Link
+                        href="/student/orders"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Purchase history
+                      </Link>
+                    </div>
+
+                    {/* Section 3: Profile */}
+                    <div className="py-1.5 border-b border-[#d1d7dc]">
+                      <Link
+                        href="/user/public"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Public profile
+                      </Link>
+                      <Link
+                        href="/user/edit-profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Edit profile
+                      </Link>
+                    </div>
+
+                    {/* Section 4: Help, Language & Logout */}
+                    <div className="py-1.5 border-b border-[#d1d7dc]">
+                      <Link
+                        href="/courses"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                      >
+                        Help and support
+                      </Link>
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-[14px] font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        Log out
+                      </button>
+                    </div>
+
+                    {/* Section 5: Business Banner */}
+                    <div className="p-4 bg-[#f7f9fa]">
+                      <Link
+                        href="/courses"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="group block"
+                      >
+                        <div className="flex items-center justify-between text-[14px] font-bold text-[#1c1d1f] group-hover:text-[#5022c3] transition-colors">
+                          <span>Morena Teach Academy</span>
+                          <Icon name="open_in_new" size={16} className="text-[#6a6f73] group-hover:text-[#5022c3]" />
+                        </div>
+                        <p className="text-[12px] text-[#6a6f73] mt-0.5 leading-tight">
+                          Empowering educators worldwide
+                        </p>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Cart Icon & Interactive Mini-Cart Popover (Now at the far right!) */}
           <div
             className="relative"
             onMouseEnter={() => setIsCartHovered(true)}
@@ -289,7 +461,7 @@ export const UdemyNavbar: React.FC = () => {
           >
             <Link
               href="/student/cart"
-              className="relative p-2 sm:p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors block"
+              className="relative p-2 sm:p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors block border border-transparent hover:border-[#d1d7dc]"
               title="Shopping Cart"
             >
               <Icon name="shopping_cart" size={20} />
@@ -370,281 +542,6 @@ export const UdemyNavbar: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
-          {(!currentUser || currentUser.role !== 'STUDENT') ? (
-            <div className="flex items-center gap-1.5 sm:gap-2 ml-1">
-              {currentUser && currentUser.role === 'INSTRUCTOR' && (
-                <Link
-                  href="/instructor"
-                  className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-none sm:rounded-[4px] transition-colors shadow-xs"
-                  title="Open Instructor Studio"
-                >
-                  <Icon name="cast_for_education" size={16} />
-                  <span>Instructor Studio</span>
-                </Link>
-              )}
-              {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
-                <Link
-                  href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
-                  className="hidden xl:inline-flex items-center gap-1.5 h-10 px-3 text-xs font-bold text-[#5022c3] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-none sm:rounded-[4px] transition-colors"
-                  title="Open Admin Console"
-                >
-                  <Icon name="admin_panel_settings" size={16} />
-                  <span>Admin Console</span>
-                </Link>
-              )}
-              <Link
-                href="/login"
-                className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-[#2d2f31] border border-[#2d2f31] bg-white hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-white bg-[#2d2f31] border border-[#2d2f31] hover:bg-[#1c1d1f] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
-              >
-                Sign up
-              </Link>
-              <button
-                type="button"
-                className="h-10 w-10 border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors hidden sm:flex items-center justify-center"
-                title="Select language"
-              >
-                <Icon name="language" size={18} />
-              </button>
-            </div>
-          ) : (
-            <div className="relative ml-1" ref={userMenuRef}>
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="w-10 h-10 rounded-full bg-[#1c1d1f] text-white font-bold text-sm flex items-center justify-center hover:opacity-95 transition-opacity tracking-wider cursor-pointer"
-                title={currentUser.name}
-              >
-                {currentUser.avatar ? (
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  currentUser.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .slice(0, 2)
-                    .join('')
-                    .toUpperCase() || 'ST'
-                )}
-              </button>
-
-              {/* User Dropdown Menu (Exact 1:1 replica of Udemy reference image media_1789384091152.png) */}
-              {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded shadow-2xl border border-[#d1d7dc] z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[calc(100vh-130px)] overflow-y-auto overscroll-contain dropdown-scrollbar">
-                  {/* Header: Circle Avatar with Initials, Name, Email + Quick Logout */}
-                  <div className="flex items-center justify-between px-4 py-3 hover:bg-[#f7f9fa] transition-colors border-b border-[#d1d7dc] sticky top-0 bg-white z-10">
-                    <Link
-                      href="/user/edit-account"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center gap-3 min-w-0 flex-1"
-                    >
-                      <div className="w-11 h-11 rounded-full bg-[#1c1d1f] text-white font-bold text-sm flex items-center justify-center shrink-0 tracking-wider">
-                        {currentUser.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .slice(0, 2)
-                          .join('')
-                          .toUpperCase() || 'ST'}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-bold text-[#1c1d1f] truncate leading-tight">
-                          {currentUser.name}
-                        </p>
-                        <p className="text-[11px] text-[#6a6f73] truncate leading-tight mt-0.5">
-                          {currentUser.email}
-                        </p>
-                      </div>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        logout();
-                      }}
-                      title="Log out"
-                      className="p-1.5 ml-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors cursor-pointer shrink-0"
-                    >
-                      <Icon name="logout" size={18} />
-                    </button>
-                  </div>
-
-                  {/* Section 1: My learning, My cart, Wishlist, Teach on T.E.A.C.H */}
-                  <div className="py-1.5 border-b border-[#d1d7dc]">
-                    <Link
-                      href="/student/learning"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      My learning
-                    </Link>
-                    <Link
-                      href="/student/cart"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center justify-between px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      <span>My cart</span>
-                      {cartItems.length > 0 && (
-                        <span className="bg-[#a435f0] text-white text-[11px] font-bold px-2 py-0.2 rounded-full">
-                          {cartItems.length}
-                        </span>
-                      )}
-                    </Link>
-                    {currentUser.hasOnboardedInstructorAccount && (
-                      <Link
-                        href={
-                          currentUser.instructorLoginUrl ||
-                          `/instructor/login?email=${encodeURIComponent(currentUser.email)}`
-                        }
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center justify-between px-4 py-2.5 text-sm font-bold text-[#5022c3] bg-purple-50/70 hover:bg-purple-100/80 transition-colors"
-                      >
-                        <span className="flex items-center gap-2">
-                          <Icon name="cast_for_education" size={16} />
-                          <span>Instructor Login</span>
-                        </span>
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
-                          Onboarded
-                        </span>
-                      </Link>
-                    )}
-                  </div>
-
-                  {/* Section 2: Notifications, Messages */}
-                  <div className="py-1.5 border-b border-[#d1d7dc]">
-                    <Link
-                      href="/student/learning?tab=notifications"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Notifications
-                    </Link>
-                    <Link
-                      href="/student/learning?tab=messages"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#5022c3] bg-[#f7f9fa] hover:bg-purple-50 transition-colors font-medium"
-                    >
-                      Messages
-                    </Link>
-                  </div>
-
-                  {/* Section 3: Account settings, Payment methods, Subscriptions, Credits, Purchase history */}
-                  <div className="py-1.5 border-b border-[#d1d7dc]">
-                    <Link
-                      href="/user/edit-account"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Account settings
-                    </Link>
-                    <Link
-                      href="/user/edit-payment-methods"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Payment methods
-                    </Link>
-                    <Link
-                      href="/user/manage-subscriptions"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Subscriptions
-                    </Link>
-                    <Link
-                      href="/student/learning?tab=credits"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Morena Teach credits
-                    </Link>
-                    <Link
-                      href="/student/orders"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Purchase history
-                    </Link>
-                  </div>
-
-                  {/* Section 4: Language */}
-                  <div className="py-1.5 border-b border-[#d1d7dc]">
-                    <div className="flex items-center justify-between px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors cursor-pointer">
-                      <span>Language</span>
-                      <span className="flex items-center gap-1.5 text-xs text-[#2d2f31] font-medium">
-                        English <Icon name="language" size={16} />
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Section 5: Public profile, Edit profile */}
-                  <div className="py-1.5 border-b border-[#d1d7dc]">
-                    <Link
-                      href="/user/public"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Public profile
-                    </Link>
-                    <Link
-                      href="/user/edit-profile"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Edit profile
-                    </Link>
-                  </div>
-
-                  {/* Section 6: Help and Support, Log out */}
-                  <div className="py-1.5 border-b border-[#d1d7dc]">
-                    <Link
-                      href="/help"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                    >
-                      Help and Support
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="w-full text-left flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <span>Log out</span>
-                      <Icon name="logout" size={17} className="text-red-600" />
-                    </button>
-                  </div>
-
-                  {/* Section 7: Morena Teach Business footer */}
-                  <div className="px-4 py-3 bg-[#f7f9fa]/60">
-                    <Link
-                      href="/business"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="group block"
-                    >
-                      <div className="flex items-center justify-between text-[14px] font-bold text-[#1c1d1f] group-hover:text-[#5022c3] transition-colors">
-                        <span>Morena Teach Business</span>
-                        <Icon name="open_in_new" size={16} className="text-[#6a6f73] group-hover:text-[#5022c3]" />
-                      </div>
-                      <p className="text-[12px] text-[#6a6f73] mt-0.5 leading-tight">
-                        Bring learning to your company
-                      </p>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -725,6 +622,49 @@ export const UdemyNavbar: React.FC = () => {
             </div>
           )}
 
+          {/* Primary Mobile Navigation Links: Home, About, Courses, Cart */}
+          <div className="space-y-1 pb-3 border-b border-gray-100">
+            <Link
+              href="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] rounded transition-colors"
+            >
+              <Icon name="home" size={18} />
+              <span>Home</span>
+            </Link>
+            <Link
+              href="/about"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] rounded transition-colors"
+            >
+              <Icon name="info" size={18} />
+              <span>About</span>
+            </Link>
+            <Link
+              href="/courses"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] rounded transition-colors"
+            >
+              <Icon name="school" size={18} />
+              <span>Courses</span>
+            </Link>
+            <Link
+              href="/student/cart"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] rounded transition-colors"
+            >
+              <span className="flex items-center gap-2.5">
+                <Icon name="shopping_cart" size={18} />
+                <span>Cart</span>
+              </span>
+              {cartItems.length > 0 && (
+                <span className="bg-[#a435f0] text-white text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
+                  {cartItems.length}
+                </span>
+              )}
+            </Link>
+          </div>
+
           {/* Mobile Search */}
           <form onSubmit={handleSearchSubmit} className="relative">
             <input
@@ -761,25 +701,6 @@ export const UdemyNavbar: React.FC = () => {
                 {cat.name}
               </Link>
             ))}
-          </div>
-
-          <div className="border-t border-gray-100 pt-3 space-y-2">
-            <Link
-              href="/courses"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block text-sm text-[#2d2f31] py-1"
-            >
-              TEACH Business
-            </Link>
-            {!currentUser && (
-              <Link
-                href="/signup"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block text-sm text-[#2d2f31] py-1"
-              >
-                Teach on Morena Teach
-              </Link>
-            )}
           </div>
         </div>
       )}
