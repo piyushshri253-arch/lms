@@ -258,6 +258,16 @@ export const UdemyNavbar: React.FC = () => {
             <Icon name="search" size={20} />
           </button>
 
+          {/* Teach with Morena Teach Link */}
+          {(!currentUser || (currentUser.role === 'STUDENT' && !currentUser.hasOnboardedInstructorAccount)) && (
+            <Link
+              href="/signup"
+              className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium whitespace-nowrap"
+            >
+              Teach with Morena Teach
+            </Link>
+          )}
+
           {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
           {(!currentUser || currentUser.role !== 'STUDENT') ? (
             <div className="flex items-center gap-1.5 sm:gap-2 ml-1">
@@ -417,6 +427,16 @@ export const UdemyNavbar: React.FC = () => {
                           </span>
                         )}
                       </Link>
+                      {!currentUser.hasOnboardedInstructorAccount && (
+                        <Link
+                          href="/signup"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                        >
+                          <span>Teach with Morena Teach</span>
+                          <Icon name="cast_for_education" size={16} className="text-[#6a6f73]" />
+                        </Link>
+                      )}
                     </div>
 
                     {/* Section 2: Account Settings (Exact matches from screenshot) */}
@@ -766,6 +786,19 @@ export const UdemyNavbar: React.FC = () => {
               </Link>
             ))}
           </div>
+
+          {/* Teach with Morena Teach in Mobile Drawer */}
+          {(!currentUser || (currentUser.role === 'STUDENT' && !currentUser.hasOnboardedInstructorAccount)) && (
+            <div className="border-t border-gray-100 pt-3">
+              <Link
+                href="/signup"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-sm font-medium text-[#2d2f31] hover:text-[#5022c3] py-1"
+              >
+                Teach with Morena Teach
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </header>
