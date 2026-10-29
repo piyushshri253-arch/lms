@@ -272,6 +272,10 @@ export function resolveTargetSection(
       new RegExp(`^0*${modNum}[\\s:\\-\\._]`, 'i').test(s.title.trim())
     );
     if (byTitleNum) return byTitleNum;
+
+    // Strict guard: An explicit module number was given (e.g. "Module 7"), but no existing section
+    // has that module number. Do NOT fall through to substring matching an unrelated module!
+    return null;
   }
 
   // Helper for pure alphanumeric normalization
@@ -2453,11 +2457,12 @@ export function mergeExcelSectionsForUpdateVersion(
   let authoritativeFinalLesson: BuilderLesson | null = null;
   let bestQCount = -1;
 
-  for (const s of [...parsedSections, ...existingSections]) {
+  // Prioritize newly uploaded Excel sections as authoritative for Final Assessment
+  for (const s of parsedSections) {
     for (const l of (s.lessons || [])) {
       if (isFinalExam(l)) {
         const qc = getQCount(l);
-        if (!authoritativeFinalLesson || qc > bestQCount) {
+        if (!authoritativeFinalLesson || qc >= bestQCount) {
           authoritativeFinalLesson = {
             ...l,
             title: 'Final Assessment',
@@ -2465,6 +2470,26 @@ export function mergeExcelSectionsForUpdateVersion(
             isFinalAssignment: true
           };
           bestQCount = qc;
+        }
+      }
+    }
+  }
+
+  // Fallback to existingSections only if Excel did not include a final assessment
+  if (!authoritativeFinalLesson) {
+    for (const s of existingSections) {
+      for (const l of (s.lessons || [])) {
+        if (isFinalExam(l)) {
+          const qc = getQCount(l);
+          if (!authoritativeFinalLesson || qc > bestQCount) {
+            authoritativeFinalLesson = {
+              ...l,
+              title: 'Final Assessment',
+              type: 'QUIZ',
+              isFinalAssignment: true
+            };
+            bestQCount = qc;
+          }
         }
       }
     }
@@ -2548,14 +2573,12 @@ export function mergeExcelSectionsForUpdateVersion(
           const target = mergedLessons[existingIdx];
           if (parsedLes.type === 'QUIZ') {
             const inQc = getQCount(parsedLes);
-            if (inQc > 0) {
-              mergedLessons[existingIdx] = {
-                ...target,
-                title: cleanQuizTitle(parsedLes.title) || target.title,
-                quizData: parsedLes.quizData,
-                description: parsedLes.description || target.description
-              };
-            }
+            mergedLessons[existingIdx] = {
+              ...target,
+              title: cleanQuizTitle(parsedLes.title) || target.title,
+              quizData: inQc > 0 ? parsedLes.quizData : target.quizData,
+              description: parsedLes.description || target.description
+            };
           } else if (parsedLes.type === 'TEXT' || (parsedLes.type as any) === 'ARTICLE') {
             mergedLessons[existingIdx] = {
               ...target,
