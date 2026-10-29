@@ -7,7 +7,8 @@ import {
   cleanQuizTitle,
   cleanArticleTitle,
   sortSectionLessons,
-  ensureFinalAssessmentAtEnd
+  ensureFinalAssessmentAtEnd,
+  resolveTargetSection
 } from '@/lib/course-excel';
 
 export interface ExcelValidationError {
@@ -831,21 +832,12 @@ export function validateCourseExcel(
         if (/final\s*(assessment|assignment|exam)/i.test(moduleIdentifier)) {
           activeModuleKey = 'final';
         } else {
-          const numMatch = moduleIdentifier.match(/\d+/);
-          if (numMatch) {
-            activeModuleKey = numMatch[0];
+          const targetSec = resolveTargetSection(moduleIdentifier, sections);
+          if (targetSec) {
+            activeModuleKey = String(targetSec.order);
           } else {
-            const matchedSec = sections.find(
-              (s) =>
-                cleanModuleTitle(s.title).toLowerCase() === cleanModuleTitle(moduleIdentifier).toLowerCase() ||
-                s.title.toLowerCase().includes(moduleIdentifier.toLowerCase()) ||
-                moduleIdentifier.toLowerCase().includes(cleanModuleTitle(s.title).toLowerCase())
-            );
-            if (matchedSec) {
-              activeModuleKey = String(matchedSec.order);
-            } else {
-              activeModuleKey = moduleIdentifier;
-            }
+            const numMatch = moduleIdentifier.match(/\d+/);
+            activeModuleKey = numMatch ? numMatch[0] : moduleIdentifier;
           }
         }
       } else if (quizTitleRaw) {
@@ -1456,106 +1448,32 @@ export function validateCourseExcel(
       }
 
       // Resolve Target Module for this article
-      let sec: BuilderSection | undefined;
+      let sec = resolveTargetSection(moduleRaw, sections, activeArticleSection) || undefined;
       const cleanMod = (moduleRaw || '').trim();
 
-      if (cleanMod) {
-        // 1. Check if user provided a numeric module index like "Module 2", "Section 2", or "2"
-        const numMatch = cleanMod.match(/(?:module|section)\s*(\d+)/i) || cleanMod.match(/^(\d+)$/);
-        if (numMatch) {
-          const modNum = parseInt(numMatch[1], 10);
-          if (modNum >= 1 && modNum <= sections.length) {
-            sec = sections[modNum - 1];
-          }
-          if (!sec) {
-            sec = sections.find((s) => s.order === modNum);
-          }
-          if (!sec) {
-            sec = sections.find((s) =>
-              new RegExp(`(?:module|section)\\s*${modNum}\\b`, 'i').test(s.title) ||
-              new RegExp(`^${modNum}[\\.\\-\\s]`, 'i').test(s.title.trim())
-            );
-          }
-        }
-
-        // 2. Exact or clean title matching
-        if (!sec) {
-          const normRaw = cleanMod.toLowerCase();
-          const cleanNormRaw = cleanModuleTitle(cleanMod).toLowerCase();
-          sec = sections.find((s) => {
-            const sTitle = s.title.toLowerCase();
-            const sClean = cleanModuleTitle(s.title).toLowerCase();
-            return (
-              sTitle === normRaw ||
-              sClean === cleanNormRaw ||
-              sClean === normRaw ||
-              sTitle === cleanNormRaw
-            );
-          });
-        }
-
-        // 3. Substring matching (e.g. "Deep Dive" matches "Module 2: Deep Dive")
-        if (!sec) {
-          const normRaw = cleanMod.toLowerCase();
-          const cleanNormRaw = cleanModuleTitle(cleanMod).toLowerCase();
-          sec = sections.find((s) => {
-            const sTitle = s.title.toLowerCase();
-            const sClean = cleanModuleTitle(s.title).toLowerCase();
-            return (
-              (cleanNormRaw.length > 2 && sClean.includes(cleanNormRaw)) ||
-              (normRaw.length > 2 && sTitle.includes(normRaw)) ||
-              (sClean.length > 2 && cleanNormRaw.includes(sClean))
-            );
-          });
-        }
-
-        // 4. If still not found, create a new module for this module name
-        if (!sec) {
-          const newNum = sections.length + 1;
-          const newSecId = `sec-art-${Date.now()}-${newNum}-${Math.random().toString(36).substring(2, 6)}`;
-          sec = {
-            id: newSecId,
-            clientKey: newSecId,
-            tempId: newSecId,
-            title: cleanMod,
-            description: '',
-            order: newNum,
-            lessons: []
-          };
-          sections.push(sec);
-        }
-
-        activeArticleSection = sec;
-      } else {
-        // Module column was left blank on this row: inherit activeArticleSection!
-        if (activeArticleSection && sections.some((s) => s.id === activeArticleSection!.id)) {
-          sec = activeArticleSection;
-        } else if (sections.length > 0) {
-          sec = sections[0];
-          activeArticleSection = sec;
-        } else {
-          const defSecId = `sec-art-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`;
-          sec = {
-            id: defSecId,
-            clientKey: defSecId,
-            tempId: defSecId,
-            title: 'Module 1: Foundations',
-            description: '',
-            order: 1,
-            lessons: []
-          };
-          sections.push(sec);
-          activeArticleSection = sec;
-        }
+      if (!sec) {
+        const newNum = sections.length + 1;
+        const newSecId = `sec-art-${Date.now()}-${newNum}-${Math.random().toString(36).substring(2, 6)}`;
+        sec = {
+          id: newSecId,
+          clientKey: newSecId,
+          tempId: newSecId,
+          title: cleanModuleTitle(cleanMod) || `Module ${newNum}`,
+          description: '',
+          order: newNum,
+          lessons: []
+        };
+        sections.push(sec);
       }
+      activeArticleSection = sec;
 
       // Check if this article exists in target module ONLY
       const cleanArtTitle = cleanArticleTitle(articleTitleRaw) || cleanLectureTitle(articleTitleRaw) || articleTitleRaw;
       let matchedLesson = sec.lessons.find((l) =>
-        (l.type === 'TEXT' || (l.type as any) === 'ARTICLE') &&
+        !l.isFinalAssignment && l.type !== 'QUIZ' &&
         (l.title.toLowerCase().trim() === cleanArtTitle.toLowerCase().trim() ||
-         cleanArticleTitle(l.title).toLowerCase() === cleanArticleTitle(cleanArtTitle).toLowerCase() ||
-         cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(cleanArtTitle).toLowerCase())
+         cleanArticleTitle(l.title).toLowerCase().trim() === cleanArticleTitle(cleanArtTitle).toLowerCase().trim() ||
+         cleanLectureTitle(l.title).toLowerCase().trim() === cleanLectureTitle(cleanArtTitle).toLowerCase().trim())
       );
 
       if (matchedLesson) {

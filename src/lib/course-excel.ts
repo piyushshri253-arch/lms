@@ -57,8 +57,8 @@ export function cleanLectureTitle(raw?: string | null): string {
 }
 
 /**
- * Strips redundant quiz prefixes like "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
- * so that only the pure title enters the text input field.
+ * Strips redundant quiz prefixes like "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:",
+ * "Module 1 Quiz", "Section 1 Assessment", etc. so that only the pure title enters the text input field.
  */
 export function cleanQuizTitle(raw?: string | null): string {
   if (!raw) return '';
@@ -68,31 +68,37 @@ export function cleanQuizTitle(raw?: string | null): string {
   if (/final\s*(assessment|assignment|exam)/i.test(str)) {
     return 'Final Assessment';
   }
+  // Strip leading module/section prefixes like "Module 1:", "Module-1 -", "Section 1.", "Sec 1:", "M1 -"
+  str = str.replace(/^(?:module|section|sec|m)[\s:\-\._]*\d+[\s:\-\._]*/i, '').trim();
   // Strip leading "Quiz 1:", "Quiz 1 -", "Quiz 1.", "Assessment 1:", etc.
-  str = str.replace(/^(quiz|assessment)\s*\d+[\s:\-\.]*/i, '').trim();
-  // Strip leading numbers like "1: ", "1 - ", "1. "
+  str = str.replace(/^(?:quiz|assessment|mcq)[\s:\-\._]*\d*[\s:\-\._]*/i, '').trim();
+  // Strip leading numbers like "1: ", "1 - ", "1. ", "01. "
   str = str.replace(/^(\d+(\.\d+)*)[\s:\-\.]+\s*/, '').trim();
-  // If only a lone number or "Quiz" was left, clear it
+  // Strip trailing "Quiz", "Assessment", "MCQ" if preceded by module/section or alone
+  str = str.replace(/\s*(?:quiz|assessment|mcqs?)$/i, '').trim();
+  // If only a lone number was left, clear it
   str = str.replace(/^\d+(\.\d+)*$/, '').trim();
-  str = str.replace(/^(quiz|assessment)$/i, '').trim();
-  return str || original;
+  // If empty after stripping, default to "Quiz"
+  return str || 'Quiz';
 }
 
 /**
- * Strips redundant article prefixes like "Article 1:", "Article 1 -", "Article 01.", "Reading 1:"
- * so that only the pure title enters the text input field.
+ * Strips redundant article prefixes like "Article 1:", "Article 1 -", "Article 01.", "Reading 1:",
+ * "Module 1 - Article 1", etc. so that only the pure title enters the text input field.
  */
 export function cleanArticleTitle(raw?: string | null): string {
   if (!raw) return '';
   const original = String(raw).trim();
   let str = original;
+  // Strip leading module/section prefixes like "Module 1:", "Module-1 -", "Sec 1:"
+  str = str.replace(/^(?:module|section|sec|m)[\s:\-\._]*\d+[\s:\-\._]*/i, '').trim();
   // Strip leading "Article 1:", "Reading 1 -", "Article 01.", "Article 1", "Reading 1"
-  str = str.replace(/^(article|reading|document)\s*\d+[\s:\-\.]*/i, '').trim();
+  str = str.replace(/^(article|reading|document|notes?)\s*\d*[\s:\-\.]*/i, '').trim();
   // Strip leading numbering like "1.1: ", "1.1 - ", "1.1.1 ", "1.1 ", "01. ", "1 - ", "1: ", "1. "
   str = str.replace(/^(\d+(\.\d+)*)[\s:\-\.]+\s*/, '').trim();
   // If only a lone number or decimal like "1" or "1.1" was left, clear it
   str = str.replace(/^\d+(\.\d+)*$/, '').trim();
-  str = str.replace(/^(article|reading|document)$/i, '').trim();
+  str = str.replace(/^(article|reading|document|notes?)$/i, '').trim();
   return str || original;
 }
 
@@ -100,17 +106,16 @@ export function cleanArticleTitle(raw?: string | null): string {
  * Normalizes the internal ordering of lessons inside any module/section:
  * 1. Lectures (video, pdf, external resources)
  * 2. Written Articles (reading material, notes) - STRICTLY ABOVE QUIZZES!
- * 3. Quizzes & MCQs (mid-module knowledge checks)
+ * 3. Quizzes & MCQs (mid-module knowledge checks) - STRICTLY AT MOST ONE PER MODULE!
  * 4. Final Assessment (strictly the final lesson of the module/course)
  */
 export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
-  if (!Array.isArray(lessons) || lessons.length <= 1) return lessons || [];
+  if (!Array.isArray(lessons) || lessons.length === 0) return lessons || [];
 
   const lectures: BuilderLesson[] = [];
   const articles: BuilderLesson[] = [];
-  const quizzes: BuilderLesson[] = [];
+  let sectionQuiz: BuilderLesson | null = null;
   let finalAssessment: BuilderLesson | null = null;
-  const seenQuizKeys = new Set<string>();
 
   for (const les of lessons) {
     if (!les) continue;
@@ -123,10 +128,40 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
         finalAssessment = les;
       }
     } else if (les.type === 'QUIZ') {
-      const qKey = cleanQuizTitle(les.title).toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (!seenQuizKeys.has(qKey)) {
-        seenQuizKeys.add(qKey);
-        quizzes.push(les);
+      if (!sectionQuiz) {
+        sectionQuiz = { ...les, title: cleanQuizTitle(les.title) || 'Quiz' };
+      } else {
+        // Enforce STRICTLY AT MOST 1 mid-module quiz!
+        // Merge questions into the single quiz so nothing is lost!
+        const existingQs: any[] = Array.isArray((sectionQuiz.quizData as any)?.questions)
+          ? (sectionQuiz.quizData as any).questions
+          : [];
+        const incomingQs: any[] = Array.isArray((les.quizData as any)?.questions)
+          ? (les.quizData as any).questions
+          : [];
+
+        if (incomingQs.length > 0) {
+          if (existingQs.length === 0) {
+            sectionQuiz.quizData = les.quizData;
+            if (les.title) sectionQuiz.title = cleanQuizTitle(les.title);
+          } else {
+            const existingTexts = new Set(
+              existingQs.map((q) => String(q.question || q.title || '').trim().toLowerCase())
+            );
+            const combined = [...existingQs];
+            incomingQs.forEach((q) => {
+              const text = String(q.question || q.title || '').trim().toLowerCase();
+              if (text && !existingTexts.has(text)) {
+                existingTexts.add(text);
+                combined.push(q);
+              }
+            });
+            (sectionQuiz.quizData as any).questions = combined;
+          }
+        }
+        if (les.title && (!sectionQuiz.title || sectionQuiz.title === 'Quiz')) {
+          sectionQuiz.title = cleanQuizTitle(les.title) || sectionQuiz.title;
+        }
       }
     } else if (les.type === 'TEXT' || (les.type as any) === 'ARTICLE' || (les.type as any) === 'DOCUMENT') {
       articles.push(les);
@@ -135,12 +170,110 @@ export function sortSectionLessons(lessons: BuilderLesson[]): BuilderLesson[] {
     }
   }
 
-  const sorted = [...lectures, ...articles, ...quizzes];
+  const sorted: BuilderLesson[] = [...lectures, ...articles];
+  if (sectionQuiz) {
+    sorted.push(sectionQuiz);
+  }
   if (finalAssessment) {
     sorted.push(finalAssessment);
   }
 
   return sorted.map((l, idx) => ({ ...l, order: idx + 1 }));
+}
+
+/**
+ * Accurately resolves the target section/module for an incoming lesson, quiz, or article
+ * using robust numeric matching, clean title matching, and substring heuristics.
+ * Prevents creating duplicate phantom sections or misplacing items into the wrong module.
+ */
+export function resolveTargetSection(
+  rawIdentifier: string | undefined | null,
+  sections: BuilderSection[],
+  activeSection?: BuilderSection | null
+): BuilderSection | null {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return activeSection || null;
+  }
+
+  const raw = String(rawIdentifier || '').trim();
+
+  // If identifier is completely empty, inherit activeSection or default to first section
+  if (!raw) {
+    if (activeSection && sections.some((s) => s.id === activeSection.id)) {
+      return activeSection;
+    }
+    return sections[0] || null;
+  }
+
+  // Final Assessment identifier check
+  if (/final\s*(assessment|assignment|exam)/i.test(raw)) {
+    return sections[sections.length - 1];
+  }
+
+  // 1. Numeric Module Extraction:
+  // Matches "Module 2", "Module-2", "Module_2", "Sec 2", "Section 2", "M2", "M-2", "Module 02"
+  const modPatternMatch = raw.match(/(?:module|section|sec|m)[\s:\-\._]*0*(\d+)\b/i);
+  // Matches "2: Child Development", "2. Child Development", "2 - Child Development", "02: ..."
+  const leadingNumMatch = raw.match(/^0*(\d+)[\s:\-\._]/);
+  // Matches lone numbers like "2", "02"
+  const loneNumMatch = raw.match(/^0*(\d+)$/);
+
+  const matchedNumStr =
+    (modPatternMatch && modPatternMatch[1]) ||
+    (leadingNumMatch && leadingNumMatch[1]) ||
+    (loneNumMatch && loneNumMatch[1]);
+
+  if (matchedNumStr) {
+    const modNum = parseInt(matchedNumStr, 10);
+    // a. 1-based index into sections array
+    if (modNum >= 1 && modNum <= sections.length) {
+      return sections[modNum - 1];
+    }
+    // b. Match by section.order === modNum
+    const byOrder = sections.find((s) => s.order === modNum);
+    if (byOrder) return byOrder;
+
+    // c. Match by module number pattern inside existing section title
+    const byTitleNum = sections.find((s) =>
+      new RegExp(`(?:module|section|sec|m)[\\s:\\-\\._]*0*${modNum}\\b`, 'i').test(s.title) ||
+      new RegExp(`^0*${modNum}[\\s:\\-\\._]`, 'i').test(s.title.trim())
+    );
+    if (byTitleNum) return byTitleNum;
+  }
+
+  // Helper for pure alphanumeric normalization
+  const cleanNorm = (t: string) => cleanModuleTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const rawClean = cleanNorm(raw);
+
+  // 2. Exact or clean title matching
+  if (rawClean) {
+    const exactMatch = sections.find((s) => cleanNorm(s.title) === rawClean);
+    if (exactMatch) return exactMatch;
+  }
+
+  // 3. Substring matching (e.g. "Child Development" matches "Module 2: Child Development & Pedagogy")
+  if (rawClean && rawClean.length >= 3) {
+    const subMatch = sections.find((s) => {
+      const sClean = cleanNorm(s.title);
+      return sClean.includes(rawClean) || (sClean.length >= 3 && rawClean.includes(sClean));
+    });
+    if (subMatch) return subMatch;
+  }
+
+  // 4. Any remaining number in the string (fallback)
+  const anyNumMatch = raw.match(/\d+/);
+  if (anyNumMatch) {
+    const fallbackNum = parseInt(anyNumMatch[0], 10);
+    if (fallbackNum >= 1 && fallbackNum <= sections.length) {
+      return sections[fallbackNum - 1];
+    }
+  }
+
+  // Fallback to activeSection if valid, or first section
+  if (activeSection && sections.some((s) => s.id === activeSection.id)) {
+    return activeSection;
+  }
+  return sections[0] || null;
 }
 
 /**
@@ -1718,54 +1851,24 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
         if (!questionText && !optA && !optB) return; // Skip empty row
 
         // 1. Resolve Target Module / Section:
-        if (moduleIdentifier) {
-          let foundSection: BuilderSection | undefined;
-          const numMatch = moduleIdentifier.match(/\d+/);
-          if (numMatch) {
-            const modIndex = parseInt(numMatch[0], 10) - 1;
-            if (modIndex >= 0 && modIndex < sections.length) {
-              foundSection = sections[modIndex];
-            }
-          }
-          if (!foundSection) {
-            foundSection = sections.find((s) =>
-              s.title.toLowerCase().includes(moduleIdentifier.toLowerCase())
-            );
-          }
-          if (!foundSection) {
-            const newModNum = sections.length + 1;
-            const cleanedSecTitle = cleanModuleTitle(moduleIdentifier);
-            foundSection = {
-              id: `sec-${Date.now()}-${newModNum}-${Math.random().toString(36).substring(2, 6)}`,
-              title: cleanedSecTitle,
-              description: '',
-              order: newModNum,
-              lessons: []
-            };
-            sections.push(foundSection);
-          }
+        let foundSection = resolveTargetSection(moduleIdentifier, sections, activeSection);
+        if (!foundSection) {
+          const newModNum = sections.length + 1;
+          const cleanedSecTitle = cleanModuleTitle(moduleIdentifier) || `Module ${newModNum}`;
+          foundSection = {
+            id: `sec-${Date.now()}-${newModNum}-${Math.random().toString(36).substring(2, 6)}`,
+            title: cleanedSecTitle,
+            description: '',
+            order: newModNum,
+            lessons: []
+          };
+          sections.push(foundSection);
+        }
 
-          // If target module switched, reset active quiz lesson
-          if (!activeSection || activeSection.id !== foundSection.id) {
-            activeSection = foundSection;
-            activeQuizLesson = null;
-          }
-        } else {
-          // Module is BLANK on this row: inherit activeSection!
-          if (!activeSection) {
-            if (sections.length > 0) {
-              activeSection = sections[0];
-            } else {
-              activeSection = {
-                id: `sec-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`,
-                title: 'Foundations & Orientation',
-                description: '',
-                order: 1,
-                lessons: []
-              };
-              sections.push(activeSection);
-            }
-          }
+        // If target module switched, reset active quiz lesson
+        if (!activeSection || activeSection.id !== foundSection.id) {
+          activeSection = foundSection;
+          activeQuizLesson = null;
         }
 
         const secOrder = activeSection.order || 1;
@@ -1824,32 +1927,12 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           }
 
           activeQuizLesson = foundQuiz;
-        } else if (quizTitleRaw) {
-          // Explicit Quiz Title given on this row:
-          let foundQuiz = activeSection.lessons.find((l) => {
-            if (l.type !== 'QUIZ' || l.isFinalAssignment) return false;
-            if (cleanedQuizTitle && l.title.toLowerCase().trim() === cleanedQuizTitle.toLowerCase().trim()) return true;
-            if (l.title.toLowerCase().trim() === quizTitleRaw.toLowerCase().trim()) return true;
-            return false;
-          });
-
-          if (!foundQuiz) {
-            // If activeSection has only 1 QUIZ lesson (excluding final assessment), bind to it!
-            const quizzesInSec = activeSection.lessons.filter((l) => l.type === 'QUIZ' && !l.isFinalAssignment);
-            if (quizzesInSec.length === 1) {
-              foundQuiz = quizzesInSec[0];
-            }
-          }
-
-          if (!foundQuiz) {
-            // Check if there is an empty QUIZ lesson created by curriculum with no questions yet
-            foundQuiz = activeSection.lessons.find(
-              (l) => l.type === 'QUIZ' && !l.isFinalAssignment && (!l.quizData || (l.quizData as any).questions?.length === 0)
-            );
-            if (foundQuiz) {
-              foundQuiz.title = cleanedQuizTitle || 'Quiz';
-            }
-          }
+        } else {
+          // Regular mid-module quiz for activeSection:
+          // In Morena Teach curriculum, each module has strictly AT MOST 1 non-final quiz.
+          let foundQuiz = activeQuizLesson && activeSection.lessons.some((l) => l.id === activeQuizLesson!.id && !l.isFinalAssignment)
+            ? activeQuizLesson
+            : activeSection.lessons.find((l) => l.type === 'QUIZ' && !l.isFinalAssignment);
 
           if (!foundQuiz) {
             foundQuiz = {
@@ -1871,35 +1954,17 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
               subLessons: []
             };
             activeSection.lessons.push(foundQuiz);
+          } else {
+            // Update quiz title and passing score on existing quiz
+            if (cleanedQuizTitle && (!foundQuiz.title || foundQuiz.title === 'Quiz')) {
+              foundQuiz.title = cleanedQuizTitle;
+            }
+            if (passScoreRaw && foundQuiz.quizData) {
+              (foundQuiz.quizData as any).passingScore = parseInt(passScoreRaw, 10) || 70;
+            }
           }
 
           activeQuizLesson = foundQuiz;
-        } else {
-          // Quiz Title is BLANK on this row: inherit activeQuizLesson!
-          if (!activeQuizLesson || !activeSection.lessons.some((l) => l.id === activeQuizLesson!.id)) {
-            activeQuizLesson = activeSection.lessons.find((l) => l.type === 'QUIZ' && !l.isFinalAssignment) || null;
-            if (!activeQuizLesson) {
-              activeQuizLesson = {
-                id: `les-${Date.now()}-${secOrder}-${activeSection.lessons.length + 1}-${Math.random().toString(36).substring(2, 6)}`,
-                title: 'Quiz',
-                description: `Assessment for Module ${secOrder}`,
-                type: 'QUIZ',
-                duration: '10:00',
-                durationSeconds: 600,
-                isFree: false,
-                isPublished: true,
-                isFinalAssignment: false,
-                order: activeSection.lessons.length + 1,
-                quizData: {
-                  questions: [],
-                  passingScore: passScoreRaw ? parseInt(passScoreRaw, 10) || 70 : 70,
-                  attemptLimit: 0
-                },
-                subLessons: []
-              };
-              activeSection.lessons.push(activeQuizLesson);
-            }
-          }
         }
 
         const quizLesson = activeQuizLesson;
@@ -2220,108 +2285,38 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
 
       // Resolve Target Module for this article
       if (!result.sections) result.sections = [];
-      let sec: BuilderSection | undefined;
-      const cleanMod = (moduleRaw || '').trim();
+      let sec = resolveTargetSection(moduleRaw, result.sections, activeArticleSection);
 
-      if (cleanMod) {
-        // 1. Check if user provided a numeric module index like "Module 2", "Section 2", or "2"
-        const numMatch = cleanMod.match(/(?:module|section)\s*(\d+)/i) || cleanMod.match(/^(\d+)$/);
-        if (numMatch) {
-          const modNum = parseInt(numMatch[1], 10);
-          if (modNum >= 1 && modNum <= (result.sections || []).length) {
-            sec = result.sections![modNum - 1];
-          }
-          if (!sec && result.sections) {
-            sec = result.sections.find((s) => s.order === modNum);
-          }
-          if (!sec && result.sections) {
-            sec = result.sections.find((s) =>
-              new RegExp(`(?:module|section)\\s*${modNum}\\b`, 'i').test(s.title) ||
-              new RegExp(`^${modNum}[\\.\\-\\s]`, 'i').test(s.title.trim())
-            );
-          }
-        }
-
-        // 2. Exact or clean title matching
-        if (!sec && result.sections) {
-          const normRaw = cleanMod.toLowerCase();
-          const cleanNormRaw = cleanModuleTitle(cleanMod).toLowerCase();
-          sec = result.sections.find((s) => {
-            const sTitle = s.title.toLowerCase();
-            const sClean = cleanModuleTitle(s.title).toLowerCase();
-            return (
-              sTitle === normRaw ||
-              sClean === cleanNormRaw ||
-              sClean === normRaw ||
-              sTitle === cleanNormRaw
-            );
-          });
-        }
-
-        // 3. Substring matching (e.g. "Deep Dive" matches "Module 2: Deep Dive")
-        if (!sec && result.sections) {
-          const normRaw = cleanMod.toLowerCase();
-          const cleanNormRaw = cleanModuleTitle(cleanMod).toLowerCase();
-          sec = result.sections.find((s) => {
-            const sTitle = s.title.toLowerCase();
-            const sClean = cleanModuleTitle(s.title).toLowerCase();
-            return (
-              (cleanNormRaw.length > 2 && sClean.includes(cleanNormRaw)) ||
-              (normRaw.length > 2 && sTitle.includes(normRaw)) ||
-              (sClean.length > 2 && cleanNormRaw.includes(sClean))
-            );
-          });
-        }
-
-        // 4. If still not found, create a new module for this module name
-        if (!sec) {
-          const newNum = result.sections.length + 1;
-          const newSecId = `sec-art-${Date.now()}-${newNum}-${Math.random().toString(36).substring(2, 6)}`;
-          sec = {
-            id: newSecId,
-            clientKey: newSecId,
-            tempId: newSecId,
-            title: cleanMod,
-            description: '',
-            order: newNum,
-            lessons: []
-          };
-          result.sections.push(sec);
-        }
-
-        activeArticleSection = sec;
-      } else {
-        // Module column was left blank on this row: inherit activeArticleSection!
-        if (activeArticleSection && (result.sections || []).some((s) => s.id === activeArticleSection!.id)) {
-          sec = activeArticleSection;
-        } else if (result.sections && result.sections.length > 0) {
-          sec = result.sections[0];
-          activeArticleSection = sec;
-        } else {
-          const defSecId = `sec-art-${Date.now()}-1-${Math.random().toString(36).substring(2, 6)}`;
-          sec = {
-            id: defSecId,
-            clientKey: defSecId,
-            tempId: defSecId,
-            title: 'Module 1: Foundations',
-            description: '',
-            order: 1,
-            lessons: []
-          };
-          result.sections.push(sec);
-          activeArticleSection = sec;
-        }
+      if (!sec) {
+        const newNum = result.sections.length + 1;
+        const newSecId = `sec-art-${Date.now()}-${newNum}-${Math.random().toString(36).substring(2, 6)}`;
+        sec = {
+          id: newSecId,
+          clientKey: newSecId,
+          tempId: newSecId,
+          title: cleanModuleTitle(moduleRaw) || `Module ${newNum}`,
+          description: '',
+          order: newNum,
+          lessons: []
+        };
+        result.sections.push(sec);
       }
+
+      activeArticleSection = sec;
 
       // Check if this article exists in target module ONLY
       let matchedLesson: BuilderLesson | undefined;
       if (sec && sec.lessons) {
-        matchedLesson = sec.lessons.find((l) =>
-          (l.type === 'TEXT' || (l.type as any) === 'ARTICLE') &&
-          (l.title.toLowerCase().trim() === cleanedTitle.toLowerCase().trim() ||
-           cleanArticleTitle(l.title).toLowerCase() === cleanArticleTitle(cleanedTitle).toLowerCase() ||
-           cleanLectureTitle(l.title).toLowerCase() === cleanLectureTitle(cleanedTitle).toLowerCase())
-        );
+        matchedLesson = sec.lessons.find((l) => {
+          if (l.isFinalAssignment || l.type === 'QUIZ') return false;
+          const lTitle = l.title.toLowerCase().trim();
+          const pTitle = cleanedTitle.toLowerCase().trim();
+          return (
+            lTitle === pTitle ||
+            cleanArticleTitle(l.title).toLowerCase().trim() === cleanArticleTitle(cleanedTitle).toLowerCase().trim() ||
+            cleanLectureTitle(l.title).toLowerCase().trim() === cleanLectureTitle(cleanedTitle).toLowerCase().trim()
+          );
+        });
       }
 
       if (matchedLesson) {
@@ -2351,16 +2346,14 @@ export function parseCourseExcelWorkbook(wb: XLSX.WorkBook): ParsedCourseData {
           resourcesList: resources,
           subLessons: []
         };
-        // Articles MUST appear ABOVE quizzes in curriculum!
-        const firstQuizIdx = (sec.lessons || []).findIndex((l) => l.type === 'QUIZ' || l.isFinalAssignment);
+
+        // Articles strictly ABOVE quizzes!
+        const firstQuizIdx = (sec.lessons || []).findIndex((l) => l.type === 'QUIZ');
         if (firstQuizIdx !== -1) {
           sec.lessons.splice(firstQuizIdx, 0, newArt);
         } else {
           sec.lessons.push(newArt);
         }
-        sec.lessons.forEach((l, idx) => {
-          l.order = idx + 1;
-        });
       }
     });
   }
@@ -2420,15 +2413,17 @@ export function mergeExcelSectionsForUpdateVersion(
   const normalizeLesKey = (t?: string | null, type?: string): string => {
     if (!t) return '';
     const raw = String(t).trim();
-    if (type === 'QUIZ' || /quiz/i.test(raw)) {
-      const cleaned = cleanQuizTitle(raw);
-      return 'quiz_' + (cleaned || raw).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (type === 'QUIZ' || /quiz|mcq|assessment/i.test(type || '') || /quiz|mcq/i.test(raw)) {
+      if (isFinalExamLesson({ title: raw, type })) {
+        return 'final_assessment';
+      }
+      return 'quiz_module_quiz';
     }
     if (type === 'TEXT' || /article|reading|document/i.test(type || '') || /article/i.test(raw)) {
-      const cleaned = cleanArticleTitle(raw);
+      const cleaned = cleanArticleTitle(raw) || cleanLectureTitle(raw);
       return 'art_' + (cleaned || raw).toLowerCase().replace(/[^a-z0-9]/g, '');
     }
-    return cleanLectureTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    return 'lec_' + cleanLectureTitle(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   };
 
   // Find authoritative Final Assessment across parsedSections or existingSections
@@ -2480,7 +2475,16 @@ export function mergeExcelSectionsForUpdateVersion(
       (ps, pIdx) => !matchedParsedIndices.has(pIdx) && normalizeSecKey(ps.title) === origKey
     );
 
-    // 2. Fallback to module index if available and parsed section title doesn't match another existing section
+    // 2. Fallback to resolveTargetSection matching
+    if (matchedParsedIdx === -1) {
+      matchedParsedIdx = parsedSections.findIndex((ps, pIdx) => {
+        if (matchedParsedIndices.has(pIdx)) return false;
+        const resolved = resolveTargetSection(ps.title, existingSections);
+        return resolved && resolved.id === origSec.id;
+      });
+    }
+
+    // 3. Fallback to module index if available and parsed section title doesn't match another existing section
     if (matchedParsedIdx === -1 && sIdx < parsedSections.length && !matchedParsedIndices.has(sIdx)) {
       const candidateKey = normalizeSecKey(parsedSections[sIdx].title);
       const matchesOtherExisting = existingSections.some(
@@ -2496,18 +2500,29 @@ export function mergeExcelSectionsForUpdateVersion(
       const parsedSec = parsedSections[matchedParsedIdx];
 
       // Clone original lessons to preserve IDs, resources, videoUrls, content.
-      // STRIP any existing final assessment (handled globally at true end of course)
-      // and deduplicate any duplicate quizzes inside original lessons!
-      const seenQuizKeys = new Set<string>();
+      // Deduplicate any existing duplicate quizzes inside original lessons!
       const mergedLessons: BuilderLesson[] = [];
+      let existingSectionQuiz: BuilderLesson | null = null;
+
       (origSec.lessons || []).forEach((l) => {
         if (isFinalExamLesson(l)) return;
         if (l.type === 'QUIZ') {
-          const qKey = cleanQuizTitle(l.title).toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (seenQuizKeys.has(qKey)) {
-            return; // Skip duplicate quiz in existing section!
+          if (!existingSectionQuiz) {
+            existingSectionQuiz = { ...l, title: cleanQuizTitle(l.title) || 'Quiz' };
+            mergedLessons.push(existingSectionQuiz);
+          } else {
+            // Merge quiz questions if multiple quizzes existed in original
+            const existingQs = Array.isArray((existingSectionQuiz.quizData as any)?.questions)
+              ? (existingSectionQuiz.quizData as any).questions
+              : [];
+            const incomingQs = Array.isArray((l.quizData as any)?.questions)
+              ? (l.quizData as any).questions
+              : [];
+            if (incomingQs.length > 0 && existingQs.length === 0) {
+              existingSectionQuiz.quizData = l.quizData;
+            }
           }
-          seenQuizKeys.add(qKey);
+          return;
         }
         mergedLessons.push({ ...l });
       });
@@ -2524,28 +2539,42 @@ export function mergeExcelSectionsForUpdateVersion(
           (ml) => normalizeLesKey(ml.title, ml.type) === pLesKey
         );
 
-        // If not matched by title, and this is a QUIZ, and the module only has 1 quiz in both existing and parsed:
-        if (existingIdx === -1 && parsedLes.type === 'QUIZ') {
-          const origQuizzes = mergedLessons.filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
-          const parsedQuizzes = (parsedSec.lessons || []).filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
-          if (origQuizzes.length === 1 && parsedQuizzes.length === 1) {
-            existingIdx = mergedLessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
-          }
+        // If this is a QUIZ, bind directly to existingSectionQuiz or any non-final quiz in mergedLessons!
+        if (parsedLes.type === 'QUIZ') {
+          existingIdx = mergedLessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+        }
+
+        // If this is TEXT / ARTICLE, also check by cleaned title
+        if (existingIdx === -1 && (parsedLes.type === 'TEXT' || (parsedLes.type as any) === 'ARTICLE')) {
+          const cleanPTitle = (cleanArticleTitle(parsedLes.title) || cleanLectureTitle(parsedLes.title)).toLowerCase().trim();
+          existingIdx = mergedLessons.findIndex((l) => {
+            if (l.type === 'QUIZ' || isFinalExamLesson(l)) return false;
+            const lTitle = (cleanArticleTitle(l.title) || cleanLectureTitle(l.title)).toLowerCase().trim();
+            return lTitle === cleanPTitle;
+          });
         }
 
         if (existingIdx !== -1) {
           // If this is an existing quiz, update its quiz questions & passing score and clean title!
           if (parsedLes.type === 'QUIZ') {
+            const incomingQData = parsedLes.quizData as any;
+            const incomingQuestions = Array.isArray(incomingQData?.questions) ? incomingQData.questions : [];
             mergedLessons[existingIdx] = {
               ...mergedLessons[existingIdx],
-              title: cleanQuizTitle(parsedLes.title) || mergedLessons[existingIdx].title,
-              quizData: parsedLes.quizData || mergedLessons[existingIdx].quizData,
+              title: cleanQuizTitle(parsedLes.title) || mergedLessons[existingIdx].title || 'Quiz',
+              quizData: incomingQuestions.length > 0 ? incomingQData : mergedLessons[existingIdx].quizData,
               description: parsedLes.description || mergedLessons[existingIdx].description
             };
-          } else if (parsedLes.type === 'TEXT') {
+          } else if (parsedLes.type === 'TEXT' || (parsedLes.type as any) === 'ARTICLE') {
             mergedLessons[existingIdx] = {
               ...mergedLessons[existingIdx],
-              content: parsedLes.content || mergedLessons[existingIdx].content,
+              type: 'TEXT',
+              content: parsedLes.content || mergedLessons[existingIdx].content || '',
+              duration: parsedLes.duration || mergedLessons[existingIdx].duration || '05:00',
+              durationSeconds: parsedLes.durationSeconds || mergedLessons[existingIdx].durationSeconds || 300,
+              resourcesList: (parsedLes.resourcesList && parsedLes.resourcesList.length > 0)
+                ? parsedLes.resourcesList
+                : mergedLessons[existingIdx].resourcesList,
               description: parsedLes.description || mergedLessons[existingIdx].description
             };
           }
@@ -2585,39 +2614,15 @@ export function mergeExcelSectionsForUpdateVersion(
         }
       });
 
-      // Deduplicate any duplicate quizzes after merging
-      const finalSeenQuizzes = new Set<string>();
-      const deduplicatedLessons: BuilderLesson[] = [];
-      mergedLessons.forEach((l) => {
-        if (l.type === 'QUIZ') {
-          const qKey = cleanQuizTitle(l.title).toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (finalSeenQuizzes.has(qKey)) return;
-          finalSeenQuizzes.add(qKey);
-        }
-        deduplicatedLessons.push(l);
-      });
-
       result.push({
         ...origSec,
-        lessons: deduplicatedLessons
+        lessons: sortSectionLessons(mergedLessons)
       });
     } else {
       // Retain existing section, stripping any old final assessment
-      const deduplicatedLessons: BuilderLesson[] = [];
-      const seenQuizKeys = new Set<string>();
-      (origSec.lessons || []).forEach((l) => {
-        if (isFinalExamLesson(l)) return;
-        if (l.type === 'QUIZ') {
-          const qKey = cleanQuizTitle(l.title).toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (seenQuizKeys.has(qKey)) return;
-          seenQuizKeys.add(qKey);
-        }
-        deduplicatedLessons.push({ ...l });
-      });
-
       result.push({
         ...origSec,
-        lessons: deduplicatedLessons
+        lessons: sortSectionLessons(origSec.lessons || [])
       });
     }
   });
@@ -2629,56 +2634,79 @@ export function mergeExcelSectionsForUpdateVersion(
 
     const pSecKey = normalizeSecKey(parsedSec.title);
 
-    // If an existing section in result already has this module title, merge lessons into it!
-    const existingInResult = result.find((r) => normalizeSecKey(r.title) === pSecKey);
-    if (existingInResult) {
+    // If an existing section in result already matches this module title, merge lessons into it!
+    const targetExisting =
+      resolveTargetSection(parsedSec.title, result) ||
+      result.find((r) => normalizeSecKey(r.title) === pSecKey);
+
+    if (targetExisting) {
       (parsedSec.lessons || []).forEach((parsedLes) => {
         if (isFinalExamLesson(parsedLes)) return;
 
         const pLesKey = normalizeLesKey(parsedLes.title, parsedLes.type);
-        let existingIdx = existingInResult.lessons.findIndex(
+        let existingIdx = targetExisting.lessons.findIndex(
           (l) => normalizeLesKey(l.title, l.type) === pLesKey
         );
 
-        if (existingIdx === -1 && parsedLes.type === 'QUIZ') {
-          const origQuizzes = existingInResult.lessons.filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
-          const parsedQuizzes = (parsedSec.lessons || []).filter((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
-          if (origQuizzes.length === 1 && parsedQuizzes.length === 1) {
-            existingIdx = existingInResult.lessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
-          }
+        if (parsedLes.type === 'QUIZ') {
+          existingIdx = targetExisting.lessons.findIndex((l) => l.type === 'QUIZ' && !isFinalExamLesson(l));
+        }
+
+        if (existingIdx === -1 && (parsedLes.type === 'TEXT' || (parsedLes.type as any) === 'ARTICLE')) {
+          const cleanPTitle = (cleanArticleTitle(parsedLes.title) || cleanLectureTitle(parsedLes.title)).toLowerCase().trim();
+          existingIdx = targetExisting.lessons.findIndex((l) => {
+            if (l.type === 'QUIZ' || isFinalExamLesson(l)) return false;
+            const lTitle = (cleanArticleTitle(l.title) || cleanLectureTitle(l.title)).toLowerCase().trim();
+            return lTitle === cleanPTitle;
+          });
         }
 
         if (existingIdx !== -1) {
           if (parsedLes.type === 'QUIZ') {
-            existingInResult.lessons[existingIdx] = {
-              ...existingInResult.lessons[existingIdx],
-              title: cleanQuizTitle(parsedLes.title) || existingInResult.lessons[existingIdx].title,
-              quizData: parsedLes.quizData || existingInResult.lessons[existingIdx].quizData,
-              description: parsedLes.description || existingInResult.lessons[existingIdx].description
+            const incomingQData = parsedLes.quizData as any;
+            const incomingQuestions = Array.isArray(incomingQData?.questions) ? incomingQData.questions : [];
+            targetExisting.lessons[existingIdx] = {
+              ...targetExisting.lessons[existingIdx],
+              title: cleanQuizTitle(parsedLes.title) || targetExisting.lessons[existingIdx].title || 'Quiz',
+              quizData: incomingQuestions.length > 0 ? incomingQData : targetExisting.lessons[existingIdx].quizData,
+              description: parsedLes.description || targetExisting.lessons[existingIdx].description
+            };
+          } else if (parsedLes.type === 'TEXT' || (parsedLes.type as any) === 'ARTICLE') {
+            targetExisting.lessons[existingIdx] = {
+              ...targetExisting.lessons[existingIdx],
+              type: 'TEXT',
+              content: parsedLes.content || targetExisting.lessons[existingIdx].content || '',
+              duration: parsedLes.duration || targetExisting.lessons[existingIdx].duration || '05:00',
+              durationSeconds: parsedLes.durationSeconds || targetExisting.lessons[existingIdx].durationSeconds || 300,
+              resourcesList: (parsedLes.resourcesList && parsedLes.resourcesList.length > 0)
+                ? parsedLes.resourcesList
+                : targetExisting.lessons[existingIdx].resourcesList,
+              description: parsedLes.description || targetExisting.lessons[existingIdx].description
             };
           }
         } else {
-          const newLessonId = `les-${Date.now()}-${existingInResult.lessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+          const newLessonId = `les-${Date.now()}-${targetExisting.lessons.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
           const newLessonItem: BuilderLesson = {
             ...parsedLes,
             id: newLessonId,
             clientKey: newLessonId,
             tempId: newLessonId,
             isNewlyAdded: true,
-            order: existingInResult.lessons.length + 1
+            order: targetExisting.lessons.length + 1
           };
           if (newLessonItem.type === 'TEXT' || (newLessonItem.type as any) === 'ARTICLE') {
-            const firstQuizIdx = existingInResult.lessons.findIndex((l) => l.type === 'QUIZ');
+            const firstQuizIdx = targetExisting.lessons.findIndex((l) => l.type === 'QUIZ');
             if (firstQuizIdx !== -1) {
-              existingInResult.lessons.splice(firstQuizIdx, 0, newLessonItem);
+              targetExisting.lessons.splice(firstQuizIdx, 0, newLessonItem);
             } else {
-              existingInResult.lessons.push(newLessonItem);
+              targetExisting.lessons.push(newLessonItem);
             }
           } else {
-            existingInResult.lessons.push(newLessonItem);
+            targetExisting.lessons.push(newLessonItem);
           }
         }
       });
+      targetExisting.lessons = sortSectionLessons(targetExisting.lessons);
       return;
     }
 
@@ -2723,17 +2751,7 @@ export function mergeExcelSectionsForUpdateVersion(
 
   // Deduplicate quizzes across each section
   result.forEach((sec) => {
-    const seenTitles = new Set<string>();
-    const uniqueLessons: BuilderLesson[] = [];
-    (sec.lessons || []).forEach((les) => {
-      if (les.type === 'QUIZ' && !isFinalExamLesson(les)) {
-        const qKey = cleanQuizTitle(les.title).toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (seenTitles.has(qKey)) return;
-        seenTitles.add(qKey);
-      }
-      uniqueLessons.push(les);
-    });
-    sec.lessons = uniqueLessons;
+    sec.lessons = sortSectionLessons(sec.lessons || []);
   });
 
   // Append authoritative Final Assessment to the VERY LAST module ONLY if not already in a dedicated final section
