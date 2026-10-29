@@ -17,6 +17,7 @@ export const UdemyNavbar: React.FC = () => {
   const router = useRouter();
   const { currentUser, logout, wishlistCourseIds, cartItems, searchQuery, setSearchQuery } = useApp();
 
+  const [isCoursesOpen, setIsCoursesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartHovered, setIsCartHovered] = useState(false);
@@ -24,6 +25,7 @@ export const UdemyNavbar: React.FC = () => {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [showPromoBanner, setShowPromoBanner] = useState(true);
 
+  const coursesMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch categories for dropdown
@@ -56,9 +58,12 @@ export const UdemyNavbar: React.FC = () => {
     loadCategories();
   }, []);
 
-  // Close user menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      if (coursesMenuRef.current && !coursesMenuRef.current.contains(e.target as Node)) {
+        setIsCoursesOpen(false);
+      }
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setIsUserMenuOpen(false);
       }
@@ -134,7 +139,7 @@ export const UdemyNavbar: React.FC = () => {
           </div>
         </Link>
 
-        {/* Navigation Links: Home, About, Courses (Desktop) */}
+        {/* Navigation Links: Home, About, Courses Dropdown (Desktop) */}
         <nav className="hidden lg:flex items-center gap-1 xl:gap-2 shrink-0">
           <Link
             href="/"
@@ -150,12 +155,63 @@ export const UdemyNavbar: React.FC = () => {
           >
             About
           </a>
-          <Link
-            href="/courses"
-            className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
+
+          {/* Courses Dropdown */}
+          <div
+            className="relative"
+            ref={coursesMenuRef}
+            onMouseEnter={() => setIsCoursesOpen(true)}
+            onMouseLeave={() => setIsCoursesOpen(false)}
           >
-            Courses
-          </Link>
+            <button
+              type="button"
+              onClick={() => setIsCoursesOpen(!isCoursesOpen)}
+              className={`px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                isCoursesOpen ? 'text-[#5022c3] bg-[#f7f9fa]' : ''
+              }`}
+            >
+              <span>Courses</span>
+              <Icon
+                name={isCoursesOpen ? 'expand_less' : 'expand_more'}
+                size={18}
+                className={`transition-colors duration-200 ${
+                  isCoursesOpen ? 'text-[#5022c3]' : 'text-[#6a6f73]'
+                }`}
+              />
+            </button>
+
+            {/* Courses / Categories Popover Menu */}
+            {isCoursesOpen && (
+              <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded shadow-xl border border-[#d1d7dc] py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-4 py-2 border-b border-gray-100 text-xs font-bold text-[#6a6f73] uppercase tracking-wider">
+                  Explore Teaching Disciplines
+                </div>
+                <Link
+                  href="/courses"
+                  onClick={() => setIsCoursesOpen(false)}
+                  className="flex items-center justify-between px-4 py-2.5 text-sm text-[#2d2f31] font-semibold hover:bg-[#f7f9fa] hover:text-[#5022c3] transition-colors"
+                >
+                  <span>All Courses</span>
+                  <Icon name="chevron_right" size={16} />
+                </Link>
+                <div className="max-h-[360px] overflow-y-auto dropdown-scrollbar">
+                  {categories.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={`/courses?category=${encodeURIComponent(cat.name)}`}
+                      onClick={() => setIsCoursesOpen(false)}
+                      className="flex items-center justify-between px-4 py-2 text-sm text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] transition-colors"
+                    >
+                      <span className="truncate">{cat.name}</span>
+                      {cat.count !== undefined && cat.count > 0 && (
+                        <span className="text-xs text-[#6a6f73] ml-2 font-mono">({cat.count})</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Wide Search Bar (Exact Udemy Pill Design) */}
@@ -686,23 +742,27 @@ export const UdemyNavbar: React.FC = () => {
           {/* Categories List */}
           <div className="space-y-1">
             <div className="text-xs font-bold text-[#6a6f73] uppercase tracking-wider py-1">
-              Top Disciplines
+              Explore Teaching Disciplines
             </div>
             <Link
               href="/courses"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="block py-2 text-sm font-bold text-[#5022c3]"
+              className="flex items-center justify-between py-2 text-sm font-bold text-[#5022c3]"
             >
-              Explore All Courses
+              <span>Explore All Courses</span>
+              <Icon name="chevron_right" size={16} />
             </Link>
-            {categories.slice(0, 6).map((cat) => (
+            {categories.map((cat) => (
               <Link
                 key={cat.id}
                 href={`/courses?category=${encodeURIComponent(cat.name)}`}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="block py-1.5 text-sm text-[#2d2f31] hover:text-[#5022c3]"
+                className="flex items-center justify-between py-1.5 text-sm text-[#2d2f31] hover:text-[#5022c3]"
               >
-                {cat.name}
+                <span className="truncate">{cat.name}</span>
+                {cat.count !== undefined && cat.count > 0 && (
+                  <span className="text-xs text-[#6a6f73] ml-2 font-mono">({cat.count})</span>
+                )}
               </Link>
             ))}
           </div>
