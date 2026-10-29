@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { VideoUploadModal } from '@/components/media/VideoUploadModal';
@@ -145,6 +145,24 @@ export const CourseCurriculumStep: React.FC<CourseCurriculumStepProps> = ({
   originalLessonIds
 }) => {
   const { showToast } = useApp();
+
+  // Defensive auto-cleanup: If duplicate Final Assessments are detected across sections (e.g. from legacy state),
+  // automatically collapse them to strictly one authoritative Final Assessment placed at the very end of the curriculum.
+  useEffect(() => {
+    if (!sections || sections.length === 0) return;
+    let finalCount = 0;
+    for (const sec of sections) {
+      for (const les of sec.lessons || []) {
+        if (les.isFinalAssignment || (les.type === 'QUIZ' && /final\s*(assessment|assignment|exam)/i.test(les.title || ''))) {
+          finalCount++;
+        }
+      }
+    }
+    if (finalCount > 1) {
+      const cleaned = ensureFinalAssessmentAtEnd(sections);
+      onChange(cleaned);
+    }
+  }, [sections, onChange]);
 
   // Section modal state
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);

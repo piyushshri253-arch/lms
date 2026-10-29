@@ -18,7 +18,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { CurriculumAccordion } from '@/components/courses/CurriculumAccordion';
-import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData, mergeExcelSectionsForUpdateVersion } from '@/lib/course-excel';
+import { downloadCourseExcelTemplate, parseCourseExcelFile, exportCourseToExcelFile, ParsedCourseData, mergeExcelSectionsForUpdateVersion, ensureFinalAssessmentAtEnd } from '@/lib/course-excel';
 import { ExcelValidationReportModal } from '@/components/course-builder/ExcelValidationReportModal';
 import { ExcelValidationResult, validateCourseExcel } from '@/lib/course-excel-validator';
 import { BatchCurriculumMediaManager } from '@/components/course-builder/BatchCurriculumMediaManager';
@@ -879,6 +879,9 @@ function CourseBuilderContent() {
             })
           }))
         };
+        if (loadedState.sections) {
+          loadedState.sections = ensureFinalAssessmentAtEnd(loadedState.sections as any);
+        }
         setCourseState(loadedState);
         setOriginalCourseState(JSON.parse(JSON.stringify(loadedState)));
         if (data.versionState) {
@@ -1324,7 +1327,7 @@ function CourseBuilderContent() {
             ...currentState,
             id: savedCourseId || currentState.id,
             slug: savedSlug || currentState.slug,
-            sections: [...syncedSections, ...pendingLocalSections]
+            sections: ensureFinalAssessmentAtEnd([...syncedSections, ...pendingLocalSections])
           };
 
           courseStateRef.current = updatedState;
@@ -1901,7 +1904,7 @@ function CourseBuilderContent() {
             hasExistingMedia && prev.sections && prev.sections.length > 0
               ? mergeExcelSectionsForUpdateVersion(prev.sections, parsed.sections || [])
               : parsed.sections && parsed.sections.length > 0
-              ? parsed.sections
+              ? ensureFinalAssessmentAtEnd(parsed.sections)
               : prev.sections;
 
           const updatedState = {
