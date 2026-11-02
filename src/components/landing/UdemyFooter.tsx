@@ -56,7 +56,7 @@ export const UdemyFooter: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/courses" className="hover:text-white hover:underline">
+                <Link href="/contact?type=school" className="hover:text-white hover:underline">
                   Morena Teach for Schools & Academies
                 </Link>
               </li>
@@ -80,12 +80,12 @@ export const UdemyFooter: React.FC = () => {
             </h4>
             <ul className="space-y-2.5 text-sm text-gray-300">
               <li>
-                <Link href="/courses" className="hover:text-white hover:underline">
+                <a href="https://morenateach.com/about-us/" target="_blank" rel="noopener noreferrer" className="hover:text-white hover:underline">
                   About Our Mission
-                </Link>
+                </a>
               </li>
               <li>
-                <Link href="/courses" className="hover:text-white hover:underline">
+                <Link href="/contact" className="hover:text-white hover:underline">
                   Help and Support
                 </Link>
               </li>
@@ -95,7 +95,7 @@ export const UdemyFooter: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/courses" className="hover:text-white hover:underline">
+                <Link href="/contact" className="hover:text-white hover:underline">
                   Contact Us
                 </Link>
               </li>

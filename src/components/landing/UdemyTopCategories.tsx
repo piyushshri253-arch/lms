@@ -131,48 +131,74 @@ export const UdemyTopCategories: React.FC<UdemyTopCategoriesProps> = ({ categori
               onClick={() => scroll('left')}
               disabled={!canScrollLeft}
               aria-label="Previous categories"
-              className="w-9 h-9 rounded-full border border-[#d1d7dc] bg-white hover:bg-[#f7f9fa] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-[#1c1d1f] transition-all shadow-xs cursor-pointer active:scale-95"
+              className="w-10 h-10 rounded-full bg-[#1c1d1f] hover:bg-[#5022c3] text-white disabled:opacity-20 disabled:hover:bg-[#1c1d1f] disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-md cursor-pointer active:scale-95"
             >
-              <Icon name="chevron_left" size={20} />
+              <Icon name="arrow_back" size={20} />
             </button>
             <button
               type="button"
               onClick={() => scroll('right')}
               disabled={!canScrollRight}
               aria-label="Next categories"
-              className="w-9 h-9 rounded-full border border-[#d1d7dc] bg-white hover:bg-[#f7f9fa] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-[#1c1d1f] transition-all shadow-xs cursor-pointer active:scale-95"
+              className="w-10 h-10 rounded-full bg-[#1c1d1f] hover:bg-[#5022c3] text-white disabled:opacity-20 disabled:hover:bg-[#1c1d1f] disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-md cursor-pointer active:scale-95"
             >
-              <Icon name="chevron_right" size={20} />
+              <Icon name="arrow_forward" size={20} />
             </button>
           </div>
         </div>
 
-        {/* Horizontal Scrollable Category Cards Carousel */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={checkScroll}
-          className="flex items-start gap-4 sm:gap-6 overflow-x-auto scroll-smooth pb-4 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {categories.map((item) => (
-            <Link
-              key={item.id}
-              href={`/courses?category=${encodeURIComponent(item.name)}`}
-              className="group cursor-pointer flex flex-col w-[180px] sm:w-[220px] md:w-[240px] shrink-0"
+        {/* Horizontal Scrollable Category Cards Carousel with Highlighted Side Navigation */}
+        <div className="relative group/carousel">
+          {/* Prominent Floating Left Navigation Arrow */}
+          {canScrollLeft && (
+            <button
+              type="button"
+              onClick={() => scroll('left')}
+              aria-label="Scroll categories left"
+              className="absolute -left-3 sm:-left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white hover:bg-[#5022c3] text-[#1c1d1f] hover:text-white border-2 border-gray-300 shadow-xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 hover:scale-105"
             >
-              {/* Square Image Box with subtle hover zoom */}
-              <div className="aspect-square w-full overflow-hidden bg-[#f7f9fa] border border-[#d1d7dc] rounded-lg mb-2.5 shadow-xs">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  loading="lazy"
-                />
-              </div>
-              <span className="font-bold text-sm sm:text-base text-[#2d2f31] leading-snug group-hover:text-[#5022c3] transition-colors truncate">
-                {item.name}
-              </span>
-            </Link>
-          ))}
+              <Icon name="chevron_left" size={26} />
+            </button>
+          )}
+
+          {/* Prominent Floating Right Navigation Arrow */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => scroll('right')}
+              aria-label="Scroll categories right"
+              className="absolute -right-3 sm:-right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white hover:bg-[#5022c3] text-[#1c1d1f] hover:text-white border-2 border-gray-300 shadow-xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 hover:scale-105"
+            >
+              <Icon name="chevron_right" size={26} />
+            </button>
+          )}
+
+          <div
+            ref={scrollContainerRef}
+            onScroll={checkScroll}
+            className="flex items-start gap-4 sm:gap-6 overflow-x-auto scroll-smooth pb-4 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {categories.map((item) => (
+              <Link
+                key={item.id}
+                href={`/courses?category=${encodeURIComponent(item.name)}`}
+                className="group cursor-pointer flex flex-col w-[180px] sm:w-[220px] md:w-[240px] shrink-0"
+              >
+                {/* Square Image Box with subtle hover zoom */}
+                <div className="aspect-square w-full overflow-hidden bg-[#f7f9fa] border border-[#d1d7dc] rounded-xl mb-2.5 shadow-xs">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                </div>
+                <span className="font-bold text-sm sm:text-base text-[#2d2f31] leading-snug group-hover:text-[#5022c3] transition-colors truncate">
+                  {item.name}
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </section>

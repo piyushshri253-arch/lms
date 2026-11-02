@@ -212,6 +212,13 @@ export const UdemyNavbar: React.FC = () => {
               </div>
             )}
           </div>
+
+          <Link
+            href="/contact"
+            className="px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors whitespace-nowrap"
+          >
+            Contact
+          </Link>
         </nav>
 
         {/* Wide Search Bar (Exact Udemy Pill Design) */}
@@ -727,6 +734,14 @@ export const UdemyNavbar: React.FC = () => {
             >
               <Icon name="school" size={18} />
               <span>Courses</span>
+            </Link>
+            <Link
+              href="/contact"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-[#2d2f31] hover:bg-[#f7f9fa] hover:text-[#5022c3] rounded transition-colors"
+            >
+              <Icon name="mail" size={18} />
+              <span>Contact</span>
             </Link>
             <Link
               href="/student/cart"

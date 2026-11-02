@@ -172,7 +172,15 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
       });
     }
 
-    return list;
+    // Keep "All Courses" and "Free Courses" followed by strictly the top 4 most prominent categories
+    const baseTabs = list.slice(0, freeCount > 0 ? 2 : 1);
+    const categoryTabs = list.slice(freeCount > 0 ? 2 : 1);
+
+    // Sort category tabs by course count descending and take only top 4
+    categoryTabs.sort((a, b) => b.count - a.count);
+    const topCategories = categoryTabs.slice(0, 4);
+
+    return [...baseTabs, ...topCategories];
   }, [allCourses, initialCategories]);
 
   // Filter courses based on active category
