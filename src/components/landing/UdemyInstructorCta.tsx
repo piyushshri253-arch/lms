@@ -5,9 +5,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 
 export const UdemyInstructorCta: React.FC = () => {
-  const [instructorImgSrc, setInstructorImgSrc] = useState(
-    'https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=800&auto=format&fit=crop'
-  );
+  const [instructorImgSrc, setInstructorImgSrc] = useState('/images/instructor-classroom.jpg');
   const [schoolImgSrc, setSchoolImgSrc] = useState(
     'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=800&auto=format&fit=crop'
   );
@@ -21,10 +19,14 @@ export const UdemyInstructorCta: React.FC = () => {
           <div className="w-full md:w-[440px] shrink-0 aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-gray-100 bg-[#f7f9fa] relative group">
             <img
               src={instructorImgSrc}
-              alt="Master Educator Teaching on Morena Teach"
-              className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+              alt="Master Educator Teaching in Classroom"
+              className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
-              onError={() => setInstructorImgSrc('/images/hero-violet-teacher.jpg')}
+              onError={() =>
+                setInstructorImgSrc(
+                  'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=1000&auto=format&fit=crop'
+                )
+              }
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
           </div>

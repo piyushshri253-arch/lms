@@ -106,7 +106,7 @@ export const UdemyNavbar: React.FC = () => {
       )}
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-[1340px] mx-auto px-3 sm:px-6 h-[72px] sm:h-[84px] lg:h-[92px] flex items-center justify-between gap-2 sm:gap-3 lg:gap-4">
+      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 h-[72px] sm:h-[84px] lg:h-[92px] flex items-center justify-between gap-2 sm:gap-3 lg:gap-4">
         {/* Mobile Hamburger Toggle */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -224,7 +224,7 @@ export const UdemyNavbar: React.FC = () => {
         {/* Wide Search Bar (Exact Udemy Pill Design) */}
         <form
           onSubmit={handleSearchSubmit}
-          className="flex-1 max-w-xl xl:max-w-2xl relative hidden md:block min-w-[180px]"
+          className="flex-1 max-w-sm lg:max-w-md xl:max-w-xl relative hidden md:block min-w-[140px]"
         >
           <div className="relative flex items-center">
             <div className="absolute left-4 text-[#6a6f73] pointer-events-none flex items-center justify-center">
@@ -269,11 +269,101 @@ export const UdemyNavbar: React.FC = () => {
           {(!currentUser || (currentUser.role === 'STUDENT' && !currentUser.hasOnboardedInstructorAccount)) && (
             <Link
               href="/signup"
-              className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium whitespace-nowrap"
+              className="hidden xl:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium whitespace-nowrap"
             >
               Teach with Morena Teach
             </Link>
           )}
+
+          {/* Shopping Cart Icon & Mini-Cart Popover (Standard Udemy position: before Log in / User Menu) */}
+          <div
+            className="relative"
+            onMouseEnter={() => setIsCartHovered(true)}
+            onMouseLeave={() => setIsCartHovered(false)}
+          >
+            <Link
+              href="/student/cart"
+              className="relative p-2 sm:p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors block border border-transparent hover:border-[#d1d7dc]"
+              title="Shopping Cart"
+            >
+              <Icon name="shopping_cart" size={20} />
+              {cartItems.length > 0 && (
+                <span className="absolute top-1 right-1 bg-[#a435f0] text-white text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
+                  {cartItems.length}
+                </span>
+              )}
+            </Link>
+
+            {/* Udemy-style Mini-Cart Dropdown */}
+            {isCartHovered && (
+              <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded shadow-2xl border border-[#d1d7dc] p-4 z-50 animate-in fade-in zoom-in-95 duration-100">
+                {cartItems.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-[#6a6f73] font-semibold mb-3">
+                      Your cart is empty.
+                    </p>
+                    <Link
+                      href="/courses"
+                      onClick={() => setIsCartHovered(false)}
+                      className="text-xs font-bold text-[#5022c3] hover:underline"
+                    >
+                      Keep shopping
+                    </Link>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-100 mb-3 pr-1">
+                      {cartItems.slice(0, 4).map((item) => (
+                        <div key={item.id} className="py-2.5 flex items-start gap-3">
+                          <div className="w-14 h-10 bg-gray-100 rounded overflow-hidden shrink-0 border border-gray-200">
+                            {item.thumbnail ? (
+                              <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <Icon name="school" size={16} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1c1d1f] truncate leading-snug">
+                              {item.title}
+                            </p>
+                            <p className="text-[11px] text-[#6a6f73] truncate mt-0.5">
+                              {item.instructorName}
+                            </p>
+                            <p className="text-xs font-bold text-[#1c1d1f] mt-1">
+                              {item.price === 0 ? 'Free' : `₹${Number(item.price).toLocaleString('en-IN')}`}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {cartItems.length > 4 && (
+                        <p className="text-[11px] text-center text-[#6a6f73] py-1.5">
+                          + {cartItems.length - 4} more course(s)
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-[#d1d7dc]">
+                      <div className="flex items-center justify-between mb-3 text-sm font-bold text-[#1c1d1f]">
+                        <span>Total:</span>
+                        <span>
+                          ₹{cartItems.reduce((acc, item) => acc + Number(item.price || 0), 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <Link
+                        href="/student/cart"
+                        onClick={() => setIsCartHovered(false)}
+                        className="w-full h-10 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs rounded transition-colors flex items-center justify-center shadow-xs"
+                      >
+                        Go to cart
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
           {(!currentUser || currentUser.role !== 'STUDENT') ? (
@@ -537,96 +627,6 @@ export const UdemyNavbar: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Cart Icon & Interactive Mini-Cart Popover (Now at the far right!) */}
-          <div
-            className="relative"
-            onMouseEnter={() => setIsCartHovered(true)}
-            onMouseLeave={() => setIsCartHovered(false)}
-          >
-            <Link
-              href="/student/cart"
-              className="relative p-2 sm:p-2.5 text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded-full transition-colors block border border-transparent hover:border-[#d1d7dc]"
-              title="Shopping Cart"
-            >
-              <Icon name="shopping_cart" size={20} />
-              {cartItems.length > 0 && (
-                <span className="absolute top-1 right-1 bg-[#a435f0] text-white text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
-                  {cartItems.length}
-                </span>
-              )}
-            </Link>
-
-            {/* Udemy-style Mini-Cart Dropdown */}
-            {isCartHovered && (
-              <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded shadow-2xl border border-[#d1d7dc] p-4 z-50 animate-in fade-in zoom-in-95 duration-100">
-                {cartItems.length === 0 ? (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-[#6a6f73] font-semibold mb-3">
-                      Your cart is empty.
-                    </p>
-                    <Link
-                      href="/courses"
-                      onClick={() => setIsCartHovered(false)}
-                      className="text-xs font-bold text-[#5022c3] hover:underline"
-                    >
-                      Keep shopping
-                    </Link>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-100 mb-3 pr-1">
-                      {cartItems.slice(0, 4).map((item) => (
-                        <div key={item.id} className="py-2.5 flex items-start gap-3">
-                          <div className="w-14 h-10 bg-gray-100 rounded overflow-hidden shrink-0 border border-gray-200">
-                            {item.thumbnail ? (
-                              <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                <Icon name="school" size={16} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-[#1c1d1f] truncate leading-snug">
-                              {item.title}
-                            </p>
-                            <p className="text-[11px] text-[#6a6f73] truncate mt-0.5">
-                              {item.instructorName}
-                            </p>
-                            <p className="text-xs font-bold text-[#1c1d1f] mt-1">
-                              {item.price === 0 ? 'Free' : `₹${Number(item.price).toLocaleString('en-IN')}`}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      {cartItems.length > 4 && (
-                        <p className="text-[11px] text-center text-[#6a6f73] py-1.5">
-                          + {cartItems.length - 4} more course(s)
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="pt-3 border-t border-[#d1d7dc]">
-                      <div className="flex items-center justify-between mb-3 text-sm font-bold text-[#1c1d1f]">
-                        <span>Total:</span>
-                        <span>
-                          ₹{cartItems.reduce((acc, item) => acc + Number(item.price || 0), 0).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <Link
-                        href="/student/cart"
-                        onClick={() => setIsCartHovered(false)}
-                        className="w-full h-10 bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-xs rounded transition-colors flex items-center justify-center shadow-xs"
-                      >
-                        Go to cart
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

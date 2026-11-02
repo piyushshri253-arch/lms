@@ -33,46 +33,46 @@ const FEATURED_AREAS: FeaturedAreaDefinition[] = [
     ]
   },
   {
-    title: 'Pedagogy & Teaching Methods',
-    subtitle: 'Instructional design & active classroom leadership',
+    title: 'Teacher Development & Mentorship',
+    subtitle: 'Classroom leadership, pedagogy & mentoring',
     icon: 'school',
     iconBg: 'bg-purple-50',
     iconColor: 'text-[#5624d0]',
     borderColor: 'hover:border-purple-400',
-    categoryQuery: 'Pedagogy & Teaching Methods',
+    categoryQuery: 'Teacher Development',
     defaultTopics: [
-      { title: 'Modern Pedagogical Frameworks', subtitle: 'Core Teaching Skills', isTrending: true },
-      { title: 'Active Learning & Student Engagement', subtitle: 'Classroom Interaction' },
-      { title: 'Differentiated Assessment & Rubrics', subtitle: 'Student Evaluation' },
-      { title: 'Inclusive Curriculum & Lesson Planning', subtitle: 'Universal Design' }
+      { title: 'Mastering Contemporary Pedagogy', subtitle: 'Core Teaching Skills', isTrending: true },
+      { title: 'Formative Assessment & Rubrics Design', subtitle: 'Student Evaluation', isTrending: true },
+      { title: 'Educator Mentorship & Peer Coaching', subtitle: 'Faculty Growth' },
+      { title: 'Active Student Engagement Protocols', subtitle: 'Classroom Interaction' }
     ]
   },
   {
     title: 'School Leadership & Management',
-    subtitle: 'Academic administration, quality benchmarks & CPD',
+    subtitle: 'Academic administration & quality benchmarks',
     icon: 'verified',
     iconBg: 'bg-amber-50',
     iconColor: 'text-amber-700',
     borderColor: 'hover:border-amber-400',
-    categoryQuery: 'Teacher Development',
+    categoryQuery: 'Leadership & School Development',
     defaultTopics: [
       { title: 'School Operations & Quality Benchmarks', subtitle: 'Academic Leadership', isTrending: true },
-      { title: 'Continuous Professional Development (CPD)', subtitle: 'Teacher Training' },
-      { title: 'Positive Classroom Discipline Strategies', subtitle: 'Culture Building' },
-      { title: 'Parent-Teacher Communication Mastery', subtitle: 'Community Engagement' }
+      { title: 'Continuous Professional Development (CPD)', subtitle: 'Teacher Training', isTrending: true },
+      { title: 'Positive Discipline & School Culture', subtitle: 'Culture Building' },
+      { title: 'Parent-Community Collaboration Mastery', subtitle: 'Engagement' }
     ]
   },
   {
-    title: 'Foundational Literacy & Phonics',
-    subtitle: 'Language development, sound blending & STEM play',
+    title: 'Primary Years & Curriculum',
+    subtitle: 'Foundational literacy, phonics & numeracy',
     icon: 'auto_stories',
     iconBg: 'bg-blue-50',
     iconColor: 'text-blue-700',
     borderColor: 'hover:border-blue-400',
-    categoryQuery: 'Primary Education',
+    categoryQuery: 'Primary Years & Curriculum',
     defaultTopics: [
       { title: 'Systematic Synthetic Phonics Mastery', subtitle: 'Reading Foundations', isTrending: true },
-      { title: 'Early Numeracy & Math Play Activities', subtitle: 'Hands-on Learning' },
+      { title: 'Early Numeracy & Math Play Frameworks', subtitle: 'Hands-on Learning', isTrending: true },
       { title: 'Storytelling & Expressive Language Skills', subtitle: 'Oral Development' },
       { title: 'Play-Based STEM Discovery in Primary', subtitle: 'Curiosity Building' }
     ]
@@ -124,6 +124,40 @@ export const UdemyFeaturedTopics: React.FC = () => {
               return catName.includes(q) || q.includes(catName) || title.includes(q.split(' ')[0]);
             });
 
+            // Guaranteed exactly 4 items per box for consistent grid alignment
+            const displayItems: {
+              title: string;
+              subtitle: string;
+              href: string;
+              badge: string;
+              badgeClass: string;
+            }[] = [];
+
+            // 1. Add available dynamic matching courses
+            for (const c of matchingCourses.slice(0, 4)) {
+              displayItems.push({
+                title: c.title,
+                subtitle: c.durationHours ? `${c.durationHours} hrs • Certified` : 'Self-paced',
+                href: `/course/${c.slug}`,
+                badge: c.price === 0 ? 'Free' : `₹${c.price}`,
+                badgeClass: c.price === 0 ? 'text-emerald-800 bg-emerald-100/80' : 'text-purple-800 bg-purple-100/80',
+              });
+            }
+
+            // 2. Pad remaining slots up to 4 using area.defaultTopics
+            let defIdx = 0;
+            while (displayItems.length < 4 && defIdx < area.defaultTopics.length) {
+              const dt = area.defaultTopics[defIdx];
+              displayItems.push({
+                title: dt.title,
+                subtitle: dt.subtitle,
+                href: `/courses?category=${encodeURIComponent(area.categoryQuery)}`,
+                badge: dt.isTrending ? 'Popular' : 'Featured',
+                badgeClass: dt.isTrending ? 'text-purple-800 bg-purple-100/80' : 'text-gray-700 bg-gray-100',
+              });
+              defIdx++;
+            }
+
             return (
               <div
                 key={colIdx}
@@ -144,65 +178,34 @@ export const UdemyFeaturedTopics: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Topics / Courses List */}
+                {/* Topics / Courses List: Exactly 4 uniform items */}
                 <div className="flex-1 space-y-3 mb-6">
-                  {matchingCourses.length > 0 ? (
-                    matchingCourses.slice(0, 4).map((course, cIdx) => (
-                      <Link
-                        key={course.id || cIdx}
-                        href={`/course/${course.slug}`}
-                        className="flex flex-col p-2.5 -mx-2.5 rounded-xl hover:bg-purple-50/60 transition-all duration-200 group/item cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs sm:text-sm font-bold text-[#2d2f31] group-hover/item:text-[#5624d0] transition-colors leading-snug line-clamp-2">
-                            {course.title}
-                          </span>
-                          <Icon
-                            name="chevron_right"
-                            size={16}
-                            className="text-gray-400 group-hover/item:text-[#5624d0] group-hover/item:translate-x-0.5 transition-all shrink-0"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[11px] text-[#6a6f73] font-medium">
-                            {course.durationHours ? `${course.durationHours} hrs` : 'Self-paced'}
-                          </span>
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded uppercase tracking-wide">
-                            {course.price === 0 ? 'Free' : `₹${course.price}`}
-                          </span>
-                        </div>
-                      </Link>
-                    ))
-                  ) : (
-                    area.defaultTopics.map((topic, topicIdx) => (
-                      <Link
-                        key={topicIdx}
-                        href={`/courses?category=${encodeURIComponent(area.categoryQuery)}`}
-                        className="flex flex-col p-2.5 -mx-2.5 rounded-xl hover:bg-gray-50 transition-all duration-200 group/item cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs sm:text-sm font-bold text-[#2d2f31] group-hover/item:text-[#5624d0] transition-colors leading-snug">
-                            {topic.title}
-                          </span>
-                          <Icon
-                            name="chevron_right"
-                            size={16}
-                            className="text-gray-400 group-hover/item:text-[#5624d0] group-hover/item:translate-x-0.5 transition-all shrink-0"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[11px] text-[#6a6f73] font-medium">
-                            {topic.subtitle}
-                          </span>
-                          {topic.isTrending && (
-                            <span className="text-[10px] font-bold text-purple-800 bg-purple-100/80 px-1.5 py-0.5 rounded uppercase tracking-wide">
-                              Popular
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-                    ))
-                  )}
+                  {displayItems.map((item, itemIdx) => (
+                    <Link
+                      key={itemIdx}
+                      href={item.href}
+                      className="flex flex-col p-2.5 -mx-2.5 rounded-xl hover:bg-purple-50/60 transition-all duration-200 group/item cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs sm:text-sm font-bold text-[#2d2f31] group-hover/item:text-[#5624d0] transition-colors leading-snug line-clamp-1">
+                          {item.title}
+                        </span>
+                        <Icon
+                          name="chevron_right"
+                          size={16}
+                          className="text-gray-400 group-hover/item:text-[#5624d0] group-hover/item:translate-x-0.5 transition-all shrink-0"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[11px] text-[#6a6f73] font-medium truncate">
+                          {item.subtitle}
+                        </span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${item.badgeClass}`}>
+                          {item.badge}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
 
                 {/* Card Footer Link */}
@@ -212,7 +215,7 @@ export const UdemyFeaturedTopics: React.FC = () => {
                     className="flex items-center justify-between text-xs font-bold text-[#5624d0] hover:text-[#401b9c] transition-colors group/link cursor-pointer"
                   >
                     <span>View all courses</span>
-                    <Icon name="arrow_forward" size={14} className="transition-transform group-link:translate-x-1" />
+                    <Icon name="arrow_forward" size={14} className="transition-transform group-hover/link:translate-x-1" />
                   </Link>
                 </div>
               </div>

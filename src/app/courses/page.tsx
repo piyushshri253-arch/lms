@@ -221,11 +221,12 @@ function CoursesCatalogContent() {
     router.replace(query ? `/courses?${query}` : '/courses', { scroll: false });
   };
 
-  // Handle category pill clicks
+  // Handle category pill clicks: reset price to 'all' so category courses are never blocked
   const handleSelectCategory = (catName: string) => {
     updateUrlWithFilters({
       ...filters,
-      category: catName
+      category: catName,
+      price: 'all'
     });
   };
 
@@ -233,7 +234,8 @@ function CoursesCatalogContent() {
   const handleSelectPrice = (priceVal: string) => {
     updateUrlWithFilters({
       ...filters,
-      price: priceVal
+      price: priceVal,
+      category: priceVal === 'free' ? 'all' : filters.category
     });
   };
 
@@ -320,6 +322,12 @@ function CoursesCatalogContent() {
       .sort((a, b) => {
         try {
           if (sortBy === 'popular') return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
+          if (sortBy === 'free-first') {
+            const isFreeA = Number(a.price || 0) === 0 ? 0 : 1;
+            const isFreeB = Number(b.price || 0) === 0 ? 0 : 1;
+            if (isFreeA !== isFreeB) return isFreeA - isFreeB;
+            return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
+          }
           if (sortBy === 'rating') return (Number(b.rating) || 0) - (Number(a.rating) || 0);
           if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
           if (sortBy === 'price-low') return (Number(a.price) || 0) - (Number(b.price) || 0);
@@ -394,18 +402,33 @@ function CoursesCatalogContent() {
             </button>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-xs font-bold text-[#6a6f73] hidden lg:inline">Sort by:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3.5 py-2.5 border border-[#2d2f31] text-xs sm:text-sm font-bold text-[#2d2f31] bg-white rounded-none sm:rounded-[4px] cursor-pointer outline-none focus:ring-1 focus:ring-[#2d2f31]"
+                className="px-3 py-2 sm:py-2.5 border border-[#2d2f31] text-xs sm:text-sm font-bold text-[#2d2f31] bg-white rounded-none sm:rounded-[4px] cursor-pointer outline-none focus:ring-1 focus:ring-[#2d2f31]"
               >
                 <option value="popular">Most Popular</option>
+                <option value="free-first">Free Courses First</option>
                 <option value="rating">Highest Rated</option>
                 <option value="newest">Newest</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
+              </select>
+            </div>
+
+            {/* Price Filter Dropdown (All, Free, Paid) */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-xs font-bold text-[#6a6f73] hidden sm:inline">Price:</span>
+              <select
+                value={filters.price}
+                onChange={(e) => updateUrlWithFilters({ ...filters, price: e.target.value })}
+                className="px-3 py-2 sm:py-2.5 border border-[#2d2f31] text-xs sm:text-sm font-bold text-[#2d2f31] bg-white rounded-none sm:rounded-[4px] cursor-pointer outline-none focus:ring-1 focus:ring-[#2d2f31]"
+              >
+                <option value="all">All Prices</option>
+                <option value="free">Free Courses only ({priceCounts.free})</option>
+                <option value="paid">Paid Courses ({priceCounts.paid})</option>
               </select>
             </div>
           </div>

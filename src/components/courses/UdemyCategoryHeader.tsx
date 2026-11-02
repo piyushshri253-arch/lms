@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 
@@ -21,14 +21,53 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
   onSelectCategory,
   selectedPrice,
   onSelectPrice,
-  freeCount
+  freeCount,
 }) => {
-  const isAll = (!categoryName || categoryName === 'all') && (!selectedPrice || selectedPrice === 'all');
-  const displayTitle = selectedPrice === 'free' 
-    ? 'Free Courses & Masterclasses' 
-    : isAll 
-    ? 'All Courses' 
-    : `${categoryName} Courses`;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll, { passive: true });
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, [availableCategories]);
+
+  const handleScroll = (dir: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const delta = 280;
+      scrollRef.current.scrollBy({
+        left: dir === 'left' ? -delta : delta,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const isAll =
+    (!categoryName || categoryName === 'all') &&
+    (!selectedPrice || selectedPrice === 'all');
+
+  const displayTitle =
+    selectedPrice === 'free'
+      ? 'Free Courses & Masterclasses'
+      : isAll
+      ? 'All Courses'
+      : `${categoryName} Courses`;
 
   return (
     <div className="bg-white border-b border-[#d1d7dc] py-6 mb-6">
@@ -60,59 +99,119 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
             : `Learn foundational frameworks, active classroom protocols, and verified pedagogical strategies in ${categoryName}.`}
         </p>
 
-        {/* 3. Popular Topics / Categories Pill Bar (Udemy Style) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <span className="text-xs font-bold text-[#6a6f73] uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
+        {/* 3. Popular Topics / Categories Carousel Bar with Left & Right Arrows */}
+        <div className="relative flex items-center group/carousel">
+          <span className="text-xs font-bold text-[#6a6f73] uppercase tracking-wider shrink-0 mr-2 hidden md:inline">
             Popular Topics:
           </span>
-          <button
-            onClick={() => {
-              if (onSelectPrice) onSelectPrice('all');
-              onSelectCategory('all');
-            }}
-            className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${
-              isAll
-                ? 'bg-[#2d2f31] text-white border-[#2d2f31]'
-                : 'bg-white text-[#2d2f31] border-[#2d2f31] hover:bg-[#f7f9fa]'
-            }`}
-          >
-            All Courses
-          </button>
-          {onSelectPrice && (
+
+          {/* Left Scroll Button */}
+          {canScrollLeft && (
             <button
-              onClick={() => onSelectPrice(selectedPrice === 'free' ? 'all' : 'free')}
-              className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border flex items-center gap-1.5 ${
-                selectedPrice === 'free'
-                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-              }`}
+              type="button"
+              onClick={() => handleScroll('left')}
+              aria-label="Scroll left"
+              className="absolute left-0 z-10 w-8 h-8 rounded-full bg-white/95 border border-[#d1d7dc] shadow-md flex items-center justify-center text-[#2d2f31] hover:bg-[#f7f9fa] hover:scale-105 transition-all cursor-pointer"
             >
-              <span className={`w-2 h-2 rounded-full ${selectedPrice === 'free' ? 'bg-white' : 'bg-emerald-500'}`} />
-              <span>Free Courses {freeCount !== undefined && freeCount > 0 ? `(${freeCount})` : ''}</span>
+              <Icon name="chevron_left" size={18} />
             </button>
           )}
-          {(availableCategories || []).map((cat, idx) => {
-            if (!cat) return null;
-            const catName = cat.name || '';
-            const catSlug = cat.slug || '';
-            const curLower = (categoryName || '').toLowerCase().trim();
-            const isSelected = curLower === catName.toLowerCase().trim() || curLower === catSlug.toLowerCase().trim();
-            return (
+
+          {/* Scrollable Pills Container */}
+          <div
+            ref={scrollRef}
+            className="flex items-center gap-2 overflow-x-auto py-1 px-1 scroll-smooth no-scrollbar scrollbar-none w-full"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {/* All Courses Pill */}
+            <button
+              onClick={() => {
+                if (onSelectPrice) onSelectPrice('all');
+                onSelectCategory('all');
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border shrink-0 cursor-pointer ${
+                isAll
+                  ? 'bg-[#2d2f31] text-white border-[#2d2f31] shadow-xs'
+                  : 'bg-white text-[#2d2f31] border-[#d1d7dc] hover:border-[#2d2f31] hover:bg-[#f7f9fa]'
+              }`}
+            >
+              All Courses
+            </button>
+
+            {/* Free Courses Pill */}
+            {onSelectPrice && (
               <button
-                key={cat.id || catSlug || idx}
-                onClick={() => onSelectCategory(catName || catSlug)}
-                className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${
-                  isSelected
-                    ? 'bg-[#2d2f31] text-white border-[#2d2f31]'
-                    : 'bg-white text-[#2d2f31] border-[#2d2f31] hover:bg-[#f7f9fa]'
+                onClick={() => {
+                  if (selectedPrice === 'free') {
+                    onSelectPrice('all');
+                  } else {
+                    onSelectPrice('free');
+                    onSelectCategory('all');
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  selectedPrice === 'free'
+                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                 }`}
               >
-                {catName || catSlug}
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    selectedPrice === 'free' ? 'bg-white' : 'bg-emerald-500'
+                  }`}
+                />
+                <span>
+                  Free Courses {freeCount !== undefined && freeCount > 0 ? `(${freeCount})` : ''}
+                </span>
               </button>
-            );
-          })}
+            )}
+
+            {/* Dynamic Category Pills */}
+            {(availableCategories || []).map((cat, idx) => {
+              if (!cat) return null;
+              const catName = cat.name || '';
+              const catSlug = cat.slug || '';
+              const curLower = (categoryName || '').toLowerCase().trim();
+              const isSelected =
+                selectedPrice !== 'free' &&
+                (curLower === catName.toLowerCase().trim() ||
+                  curLower === catSlug.toLowerCase().trim());
+
+              return (
+                <button
+                  key={cat.id || catSlug || idx}
+                  onClick={() => {
+                    // Always clear free price filter so that category courses show up immediately!
+                    if (onSelectPrice) onSelectPrice('all');
+                    onSelectCategory(catName || catSlug);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border shrink-0 cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#2d2f31] text-white border-[#2d2f31] shadow-xs'
+                      : 'bg-white text-[#2d2f31] border-[#d1d7dc] hover:border-[#2d2f31] hover:bg-[#f7f9fa]'
+                  }`}
+                >
+                  {catName || catSlug}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right Scroll Button */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => handleScroll('right')}
+              aria-label="Scroll right"
+              className="absolute right-0 z-10 w-8 h-8 rounded-full bg-white/95 border border-[#d1d7dc] shadow-md flex items-center justify-center text-[#2d2f31] hover:bg-[#f7f9fa] hover:scale-105 transition-all cursor-pointer"
+            >
+              <Icon name="chevron_right" size={18} />
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 };
+
+export default UdemyCategoryHeader;
