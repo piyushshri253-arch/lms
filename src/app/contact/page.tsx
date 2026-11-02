@@ -112,10 +112,10 @@ function ContactFormInner() {
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Email Us</h3>
                 <a
-                  href="mailto:support@morenateach.com"
+                  href="mailto:morena@morenateach.com"
                   className="text-base font-bold text-[#1c1d1f] hover:text-[#5022c3] transition-colors"
                 >
-                  support@morenateach.com
+                  morena@morenateach.com
                 </a>
                 <p className="text-xs text-[#6a6f73] mt-0.5">We typically reply within 24 business hours.</p>
               </div>
@@ -129,10 +129,10 @@ function ContactFormInner() {
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Phone & WhatsApp</h3>
                 <a
-                  href="tel:+919111444521"
+                  href="tel:+919625972523"
                   className="text-base font-bold text-[#1c1d1f] hover:text-[#5022c3] transition-colors"
                 >
-                  +91 91114 44521
+                  +91 9625972523
                 </a>
                 <p className="text-xs text-[#6a6f73] mt-0.5">Mon – Sat: 9:30 AM to 6:30 PM (IST)</p>
               </div>
@@ -146,10 +146,10 @@ function ContactFormInner() {
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Head Office</h3>
                 <p className="text-sm font-semibold text-[#1c1d1f]">
-                  Morena Teach Education Platform
+                  Morena Teach
                 </p>
                 <p className="text-xs text-[#6a6f73] mt-0.5 leading-relaxed">
-                  Bhopal / Indore, Madhya Pradesh, India
+                  A-28, Block A, Sector 57, Noida, Uttar Pradesh 201301
                 </p>
               </div>
             </div>

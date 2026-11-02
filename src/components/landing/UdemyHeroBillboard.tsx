@@ -45,7 +45,7 @@ const SLIDES: SlideData[] = [
     id: 3,
     title: 'Accelerate your career',
     description:
-      'Gain real-world practical skills, build verified portfolio projects, and earn recognized professional credentials.',
+      'Build practical teaching skills, grow your confidence, and explore new opportunities in your teaching career.',
     ctaText: 'Get Started Today',
     ctaLink: '/courses',
     bgImage: '/images/hero-teal-tech.jpg',

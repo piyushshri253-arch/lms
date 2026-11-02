@@ -372,7 +372,9 @@ function CoursesCatalogContent() {
         <h2 className="text-2xl font-bold text-[#2d2f31] tracking-tight mb-4">
           {filters.price === 'free'
             ? `Free Courses & Masterclasses (${filteredCourses.length})`
-            : `All ${categoryDisplayName} courses`}
+            : (!filters.category || filters.category === 'all')
+            ? 'All Courses'
+            : `${filters.category} Courses`}
         </h2>
 
         {/* Action & Filter Controls Bar */}

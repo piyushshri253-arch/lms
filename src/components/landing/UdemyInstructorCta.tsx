@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 
 export const UdemyInstructorCta: React.FC = () => {
-  const [instructorImgSrc, setInstructorImgSrc] = useState('/images/instructor-classroom.jpg');
+  const [instructorImgSrc, setInstructorImgSrc] = useState('/images/become-instructor-teacher.jpg?v=2');
   const [schoolImgSrc, setSchoolImgSrc] = useState(
     'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=800&auto=format&fit=crop'
   );
@@ -16,19 +16,16 @@ export const UdemyInstructorCta: React.FC = () => {
         {/* 1. Become an Instructor */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-10 lg:gap-16 max-w-5xl mx-auto">
           {/* Left Image with Modern Rounded Card & Shadow */}
-          <div className="w-full md:w-[440px] shrink-0 aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-gray-100 bg-[#f7f9fa] relative group">
+          <div className="w-full md:w-[440px] shrink-0 h-[340px] sm:h-[380px] md:h-[400px] rounded-2xl overflow-hidden shadow-xl border border-gray-100 bg-[#f7f9fa] relative group">
             <img
               src={instructorImgSrc}
-              alt="Master Educator Teaching in Classroom"
-              className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+              alt="Inspiring Educator Teaching on Morena Teach"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              style={{ objectPosition: 'center top' }}
               loading="lazy"
-              onError={() =>
-                setInstructorImgSrc(
-                  'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=1000&auto=format&fit=crop'
-                )
-              }
+              onError={() => setInstructorImgSrc('/images/hero-violet-teacher.jpg')}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none" />
           </div>
 
           {/* Right Content */}
@@ -76,12 +73,6 @@ export const UdemyInstructorCta: React.FC = () => {
               >
                 <span>Get in Touch</span>
                 <Icon name="arrow_forward" size={16} />
-              </Link>
-              <Link
-                href="/contact"
-                className="text-sm font-bold text-[#2d2f31] hover:text-[#5624d0] underline underline-offset-4 transition-colors"
-              >
-                Contact our Solutions Team
               </Link>
             </div>
           </div>

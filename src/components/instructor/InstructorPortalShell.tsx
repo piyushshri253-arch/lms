@@ -136,22 +136,10 @@ function InstructorPortalShellInner({
       isActive: pathname?.startsWith('/instructor/course-versions') || false
     },
     {
-      label: 'Content Security',
-      href: '/instructor/content-security',
-      icon: Shield,
-      isActive: pathname?.startsWith('/instructor/content-security') || false
-    },
-    {
       label: 'Course SEO',
       href: '/instructor/course-seo',
       icon: Globe,
       isActive: pathname?.startsWith('/instructor/course-seo') || false
-    },
-    {
-      label: 'Quizzes',
-      href: '/instructor/quizzes',
-      icon: FileQuestion,
-      isActive: pathname?.startsWith('/instructor/quizzes') || false
     },
     {
       label: 'Student Q&A',

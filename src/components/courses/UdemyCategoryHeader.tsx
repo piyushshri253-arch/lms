@@ -99,10 +99,10 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
             : `Learn foundational frameworks, active classroom protocols, and verified pedagogical strategies in ${categoryName}.`}
         </p>
 
-        {/* 3. Popular Topics / Categories Carousel Bar with Left & Right Arrows */}
+        {/* 3. Popular Courses / Categories Carousel Bar with Left & Right Arrows */}
         <div className="relative flex items-center group/carousel">
           <span className="text-xs font-bold text-[#6a6f73] uppercase tracking-wider shrink-0 mr-2 hidden md:inline">
-            Popular Topics:
+            Popular Courses:
           </span>
 
           {/* Left Scroll Button */}

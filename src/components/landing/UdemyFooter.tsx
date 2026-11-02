@@ -80,7 +80,7 @@ export const UdemyFooter: React.FC = () => {
             </h4>
             <ul className="space-y-2.5 text-sm text-gray-300">
               <li>
-                <a href="https://morenateach.com/about-us/" target="_blank" rel="noopener noreferrer" className="hover:text-white hover:underline">
+                <a href="https://morenateach.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white hover:underline">
                   About Our Mission
                 </a>
               </li>
