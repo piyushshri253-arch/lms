@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
@@ -8,7 +8,9 @@ import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { Icon } from '@/components/ui/Icon';
 import { useApp } from '@/context/AppContext';
 
-export default function StudentCartPage() {
+export const dynamic = 'force-dynamic';
+
+function StudentCartContent() {
   const router = useRouter();
   const {
     currentUser,
@@ -460,5 +462,13 @@ export default function StudentCartPage() {
 
       <UdemyFooter />
     </div>
+  );
+}
+
+export default function StudentCartPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <StudentCartContent />
+    </Suspense>
   );
 }

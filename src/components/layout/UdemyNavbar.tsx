@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -13,7 +13,7 @@ interface CategoryItem {
   count?: number;
 }
 
-export const UdemyNavbar: React.FC = () => {
+const UdemyNavbarInner: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -893,5 +893,13 @@ export const UdemyNavbar: React.FC = () => {
         </div>
       )}
     </header>
+  );
+};
+
+export const UdemyNavbar: React.FC = () => {
+  return (
+    <Suspense fallback={<header className="relative z-50 w-full bg-white border-b border-[#d1d7dc] h-18" />}>
+      <UdemyNavbarInner />
+    </Suspense>
   );
 };
