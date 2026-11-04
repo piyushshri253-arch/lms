@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
@@ -90,6 +90,14 @@ function matchCourseSearch(course: Course, query: string): boolean {
   return false;
 }
 
+const SORT_OPTIONS = [
+  { value: 'free-first', label: 'Free Courses First' },
+  { value: 'rating', label: 'Highest Rated' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'price-low', label: 'Price: Low to High' },
+  { value: 'price-high', label: 'Price: High to Low' },
+];
+
 function CoursesCatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -145,7 +153,23 @@ function CoursesCatalogContent() {
     features: []
   });
 
-  const [sortBy, setSortBy] = useState<string>('popular');
+  const [sortBy, setSortBy] = useState<string>('');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setIsSortDropdownOpen(false);
+      }
+    }
+    if (isSortDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSortDropdownOpen]);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -385,26 +409,6 @@ function CoursesCatalogContent() {
       })
       .sort((a, b) => {
         try {
-          if (sortBy === 'popular') {
-            // 1. Bestseller badge courses first
-            const bestDiff = (b.bestseller ? 1 : 0) - (a.bestseller ? 1 : 0);
-            if (bestDiff !== 0) return bestDiff;
-
-            // 2. Highest student enrollment count
-            const studentsDiff = (Number(b.studentsCount) || 0) - (Number(a.studentsCount) || 0);
-            if (studentsDiff !== 0) return studentsDiff;
-
-            // 3. Highest reviews count
-            const reviewsDiff = (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
-            if (reviewsDiff !== 0) return reviewsDiff;
-
-            // 4. Highest average star rating
-            const ratingDiff = (Number(b.rating) || 0) - (Number(a.rating) || 0);
-            if (ratingDiff !== 0) return ratingDiff;
-
-            // 5. Fallback: Newest
-            return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
-          }
           if (sortBy === 'free-first') {
             const isFreeA = Number(a.price || 0) === 0 ? 0 : 1;
             const isFreeB = Number(b.price || 0) === 0 ? 0 : 1;
@@ -494,21 +498,67 @@ function CoursesCatalogContent() {
               <span>Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}</span>
             </button>
 
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-xs font-bold text-[#6a6f73] hidden lg:inline">Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 sm:py-2.5 border border-[#2d2f31] text-xs sm:text-sm font-bold text-[#2d2f31] bg-white rounded-none sm:rounded-[4px] cursor-pointer outline-none focus:ring-1 focus:ring-[#2d2f31]"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="free-first">Free Courses First</option>
-                <option value="rating">Highest Rated</option>
-                <option value="newest">Newest</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-              </select>
+            {/* Sort Dropdown (Shows Selected Sort Option in Box, or Icon Only when Default) */}
+            <div className="relative" ref={sortDropdownRef}>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-xs font-bold text-[#6a6f73] hidden lg:inline">Sort by:</span>
+                <button
+                  type="button"
+                  onClick={() => setIsSortDropdownOpen((prev) => !prev)}
+                  className="h-9 sm:h-10 px-3 border border-[#2d2f31] bg-white rounded-none sm:rounded-[4px] cursor-pointer outline-none hover:bg-[#f7f9fa] flex items-center justify-between gap-2.5 text-[#2d2f31] transition-colors"
+                  aria-label="Sort options"
+                  title={sortBy ? `Sort: ${SORT_OPTIONS.find((o) => o.value === sortBy)?.label}` : 'Sort courses'}
+                >
+                  {sortBy && (
+                    <span className="text-xs sm:text-sm font-bold text-[#2d2f31]">
+                      {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
+                    </span>
+                  )}
+                  <Icon
+                    name="expand_more"
+                    size={20}
+                    className={`transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+              </div>
+
+              {/* Dropdown Menu */}
+              {isSortDropdownOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-52 bg-white border border-[#2d2f31] rounded-none sm:rounded-[4px] shadow-lg py-1 z-40">
+                  <div className="px-3 py-1.5 text-[11px] font-bold text-[#6a6f73] uppercase tracking-wider border-b border-[#e4e8eb] mb-1">
+                    Sort by
+                  </div>
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setSortBy(sortBy === opt.value ? '' : opt.value);
+                        setIsSortDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2 text-xs sm:text-sm flex items-center justify-between hover:bg-[#f7f9fa] transition-colors ${
+                        sortBy === opt.value ? 'font-bold text-purple-700 bg-purple-50' : 'text-[#2d2f31]'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {sortBy === opt.value && <Icon name="check" size={16} className="text-purple-700" />}
+                    </button>
+                  ))}
+                  {sortBy && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('');
+                        setIsSortDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 border-t border-[#e4e8eb] mt-1 font-semibold flex items-center gap-1.5"
+                    >
+                      <Icon name="close" size={14} />
+                      <span>Clear sort</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Price Filter Dropdown (All, Free, Paid) */}
