@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
@@ -191,27 +194,34 @@ export async function GET(req: NextRequest) {
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
     const paginated = filtered.slice((page - 1) * limit, page * limit);
 
-    return NextResponse.json({
-      success: true,
-      summary: {
-        totalGrossSales,
-        totalPlatformFees,
-        totalTaxDeductions,
-        totalNetEarnings,
-        pendingClearance,
-        availableBalance,
-        totalPaidOut,
-        pendingPayoutAmount
+    return NextResponse.json(
+      {
+        success: true,
+        summary: {
+          totalGrossSales,
+          totalPlatformFees,
+          totalTaxDeductions,
+          totalNetEarnings,
+          pendingClearance,
+          availableBalance,
+          totalPaidOut,
+          pendingPayoutAmount
+        },
+        courses,
+        transactions: paginated,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages
+        }
       },
-      courses,
-      transactions: paginated,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+        }
       }
-    });
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to load earnings.' }, { status: 500 });
   }

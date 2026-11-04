@@ -9,6 +9,8 @@ import {
   Loader2
 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default function InstructorEarningsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,9 +30,10 @@ export default function InstructorEarningsPage() {
       from: fromDate,
       to: toDate,
       page: String(page),
-      limit: '15'
+      limit: '15',
+      _t: String(Date.now())
     });
-    fetch(`/api/instructor/earnings?${params.toString()}`)
+    fetch(`/api/instructor/earnings?${params.toString()}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((res) => setData(res))
       .finally(() => setLoading(false));
