@@ -123,51 +123,8 @@ export const UdemyCategoryHeader: React.FC<UdemyCategoryHeaderProps> = ({
             className="flex items-center gap-2 overflow-x-auto py-1 px-1 scroll-smooth no-scrollbar scrollbar-none w-full"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {/* All Courses Pill */}
-            <button
-              onClick={() => {
-                if (onSelectPrice) onSelectPrice('all');
-                onSelectCategory('all');
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border shrink-0 cursor-pointer ${
-                isAll
-                  ? 'bg-[#2d2f31] text-white border-[#2d2f31] shadow-xs'
-                  : 'bg-white text-[#2d2f31] border-[#d1d7dc] hover:border-[#2d2f31] hover:bg-[#f7f9fa]'
-              }`}
-            >
-              All Courses
-            </button>
-
-            {/* Free Courses Pill */}
-            {onSelectPrice && (
-              <button
-                onClick={() => {
-                  if (selectedPrice === 'free') {
-                    onSelectPrice('all');
-                  } else {
-                    onSelectPrice('free');
-                    onSelectCategory('all');
-                  }
-                }}
-                className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  selectedPrice === 'free'
-                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    selectedPrice === 'free' ? 'bg-white' : 'bg-emerald-500'
-                  }`}
-                />
-                <span>
-                  Free Courses {freeCount !== undefined && freeCount > 0 ? `(${freeCount})` : ''}
-                </span>
-              </button>
-            )}
-
-            {/* Dynamic Category Pills */}
-            {(availableCategories || []).map((cat, idx) => {
+            {/* 3 to 4 Popular Category Pills (All Courses & Free Courses removed as requested) */}
+            {(availableCategories || []).slice(0, 4).map((cat, idx) => {
               if (!cat) return null;
               const catName = cat.name || '';
               const catSlug = cat.slug || '';

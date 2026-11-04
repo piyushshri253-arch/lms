@@ -31,10 +31,6 @@ function RegisterContent() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(15);
-  const [fallbackOtp, setFallbackOtp] = useState<string | null>(null);
-  const [showOtpHelper, setShowOtpHelper] = useState(false);
-
-  const isStrictMailProvider = /@(yahoo|ymail|rocketmail|aol|outlook|hotmail|live)\./i.test(email);
 
   const callbackUrl = searchParams.get('callbackUrl') || '/student/learning';
 
@@ -147,9 +143,6 @@ function RegisterContent() {
         throw new Error(data.error || 'Registration failed.');
       }
 
-      if (data.fallbackOtp) {
-        setFallbackOtp(String(data.fallbackOtp));
-      }
       setStep('otp');
       setResendCooldown(15);
       showToast({
@@ -237,10 +230,6 @@ function RegisterContent() {
         throw new Error(data.error || 'Failed to resend code.');
       }
 
-      if (data.fallbackOtp) {
-        setFallbackOtp(String(data.fallbackOtp));
-        setShowOtpHelper(true);
-      }
       setResendCooldown(15);
       setOtp('');
       showToast({
@@ -505,32 +494,6 @@ function RegisterContent() {
                   </div>
                 </div>
               </div>
-
-              {fallbackOtp && (isStrictMailProvider || showOtpHelper) && (
-                <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2">
-                  <div className="font-bold flex items-center justify-between">
-                    <span>📧 Yahoo / Strict Mail Delivery Helper</span>
-                    <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 text-[10px] font-extrabold uppercase">
-                      Instant OTP
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-amber-900 leading-relaxed">
-                    Yahoo Mail may route custom-domain verification emails into your <strong>Spam / Bulk</strong> folder or delay them by 2–5 minutes. Use your instant code below:
-                  </p>
-                  <div className="flex items-center justify-between p-2 rounded bg-white border border-amber-300">
-                    <span className="font-mono text-base font-black tracking-[0.25em] text-[#5022c3] pl-2">
-                      {fallbackOtp}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setOtp(fallbackOtp)}
-                      className="px-3 py-1 rounded bg-[#a435f0] hover:bg-[#8710d8] text-white font-bold text-[11px] cursor-pointer"
-                    >
-                      Auto-Fill OTP
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* OTP Form */}
               <form onSubmit={handleVerifyOtp} className="space-y-5">

@@ -128,6 +128,114 @@ export default function AuditorCourseReviewPage() {
     setTimeout(() => setToastMsg(null), 4500);
   };
 
+  // Interactive Request Changes Checklist State
+  interface AuditChecklistItem {
+    id: string;
+    targetName: string;
+    targetType: 'WHOLE_COURSE' | 'MODULE' | 'VIDEO' | 'ARTICLE' | 'QUIZ';
+    moduleTitle?: string;
+    flagged: boolean;
+    selectedIssues: string[];
+    customNote: string;
+  }
+
+  const [auditChecklist, setAuditChecklist] = useState<Record<string, AuditChecklistItem>>({});
+  const [checklistFilter, setChecklistFilter] = useState<'ALL' | 'FLAGGED_ONLY'>('ALL');
+  const [expandedChecklistModules, setExpandedChecklistModules] = useState<Record<string, boolean>>({});
+
+  const syncChecklistToNote = (updatedChecklist: Record<string, AuditChecklistItem>) => {
+    const flaggedItems = Object.values(updatedChecklist).filter((item) => item.flagged);
+    if (flaggedItems.length === 0) {
+      return;
+    }
+    const lines: string[] = ['⚠️ Requested Changes Breakdown:'];
+    flaggedItems.forEach((item) => {
+      const issueTags = item.selectedIssues.length > 0 ? item.selectedIssues.join(', ') : 'Quality Issue Flagged';
+      const custom = item.customNote.trim() ? ` — "${item.customNote.trim()}"` : '';
+      if (item.targetType === 'WHOLE_COURSE') {
+        lines.push(`• [Whole Course]: ${issueTags}${custom}`);
+      } else if (item.targetType === 'MODULE') {
+        lines.push(`• [Module: ${item.targetName}]: ${issueTags}${custom}`);
+      } else {
+        const prefix = item.moduleTitle ? `${item.moduleTitle} > ` : '';
+        lines.push(`• [${item.targetType}: ${prefix}${item.targetName}]: ${issueTags}${custom}`);
+      }
+    });
+    setDecisionNote(lines.join('\n'));
+  };
+
+  const toggleChecklistFlag = (id: string, initialItem?: Partial<AuditChecklistItem>) => {
+    setAuditChecklist((prev) => {
+      const existing = prev[id] || initialItem || {
+        id,
+        targetName: id,
+        targetType: 'MODULE',
+        flagged: false,
+        selectedIssues: [],
+        customNote: ''
+      };
+      const updated = {
+        ...prev,
+        [id]: {
+          ...existing,
+          flagged: !existing.flagged
+        } as AuditChecklistItem
+      };
+      syncChecklistToNote(updated);
+      return updated;
+    });
+  };
+
+  const toggleChecklistIssueTag = (id: string, tag: string, initialItem?: Partial<AuditChecklistItem>) => {
+    setAuditChecklist((prev) => {
+      const existing = prev[id] || initialItem || {
+        id,
+        targetName: id,
+        targetType: 'MODULE',
+        flagged: false,
+        selectedIssues: [],
+        customNote: ''
+      };
+      const hasTag = existing.selectedIssues.includes(tag);
+      const newIssues = hasTag
+        ? existing.selectedIssues.filter((t) => t !== tag)
+        : [...existing.selectedIssues, tag];
+      const updated = {
+        ...prev,
+        [id]: {
+          ...existing,
+          flagged: true,
+          selectedIssues: newIssues
+        } as AuditChecklistItem
+      };
+      syncChecklistToNote(updated);
+      return updated;
+    });
+  };
+
+  const updateChecklistCustomNote = (id: string, note: string, initialItem?: Partial<AuditChecklistItem>) => {
+    setAuditChecklist((prev) => {
+      const existing = prev[id] || initialItem || {
+        id,
+        targetName: id,
+        targetType: 'MODULE',
+        flagged: false,
+        selectedIssues: [],
+        customNote: ''
+      };
+      const updated = {
+        ...prev,
+        [id]: {
+          ...existing,
+          flagged: note.trim().length > 0 ? true : existing.flagged,
+          customNote: note
+        } as AuditChecklistItem
+      };
+      syncChecklistToNote(updated);
+      return updated;
+    });
+  };
+
   const loadCourseAudit = async () => {
     if (!courseId) return;
     try {
@@ -391,6 +499,8 @@ export default function AuditorCourseReviewPage() {
   const isStagedVersionReview =
     course.status === 'PUBLISHED' && Boolean(versionState?.stagedSnapshot);
 
+  const totalChecklistFlaggedCount = Object.values(auditChecklist).filter((it) => it.flagged).length;
+
   return (
     <AuditorPortalShell
       title={`Course Audit: ${course.title}`}
@@ -433,7 +543,7 @@ export default function AuditorCourseReviewPage() {
             className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <Icon name="warning" size={16} />
-            <span>Request Changes ⚠️</span>
+            <span>Request Changes ⚠️ {totalChecklistFlaggedCount > 0 ? `(${totalChecklistFlaggedCount})` : ''}</span>
           </button>
 
           <button
@@ -523,7 +633,7 @@ export default function AuditorCourseReviewPage() {
               className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
             >
               <Icon name="warning" size={16} />
-              <span>Request Changes ⚠️</span>
+              <span>Request Changes ⚠️ {totalChecklistFlaggedCount > 0 ? `(${totalChecklistFlaggedCount})` : ''}</span>
             </button>
 
             <button
@@ -648,65 +758,107 @@ export default function AuditorCourseReviewPage() {
               </div>
 
               <div className="space-y-4">
-                {(course.sections || []).map((sec: any, sIdx: number) => (
-                  <div
-                    key={sec.id}
-                    className="border border-slate-200 rounded-xl overflow-hidden"
-                  >
-                    <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-mono font-bold uppercase text-emerald-600 block">
-                          Module {sIdx + 1}
-                        </span>
-                        <span className="text-xs font-bold text-slate-900">{cleanSectionTitle(sec.title, sIdx + 1)}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-slate-500">
-                        {(sec.lessons || []).length} items
-                      </span>
-                    </div>
-
-                    <div className="divide-y divide-slate-100">
-                      {(sec.lessons || []).map((les: any, lIdx: number) => {
-                        const isSelected = selectedLesson?.id === les.id;
-                        return (
-                          <button
-                            key={les.id}
-                            onClick={() =>
-                              setSelectedLesson({
-                                ...les,
-                                moduleTitle: `Module ${sIdx + 1}: ${cleanSectionTitle(sec.title, sIdx + 1)}`,
-                                lessonNumber: lessonDisplayMap.get(les.id)?.itemNumber || lIdx + 1
+                {(course.sections || []).map((sec: any, sIdx: number) => {
+                  const secTitle = cleanSectionTitle(sec.title, sIdx + 1);
+                  const isModuleFlagged = !!auditChecklist[sec.id]?.flagged;
+                  return (
+                    <div
+                      key={sec.id}
+                      className={`border rounded-xl overflow-hidden transition-all ${
+                        isModuleFlagged ? 'border-amber-300' : 'border-slate-200'
+                      }`}
+                    >
+                      <div className="bg-slate-50 px-3.5 py-2.5 border-b border-slate-200 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isModuleFlagged}
+                            onChange={() =>
+                              toggleChecklistFlag(sec.id, {
+                                id: sec.id,
+                                targetName: `Module ${sIdx + 1}: ${secTitle}`,
+                                targetType: 'MODULE',
+                                selectedIssues: [],
+                                customNote: ''
                               })
                             }
-                            className={`w-full p-3 text-left flex items-center justify-between gap-2 cursor-pointer transition-all ${
-                              isSelected ? 'bg-emerald-50 border-l-4 border-emerald-600' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
-                                  {lessonDisplayMap.get(les.id)?.typeLabel || les.type || 'VIDEO'}
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-500 font-mono">
-                                <span>Duration: {les.duration || '10:00'}</span>
-                                <span>•</span>
-                                <span>{les.isFree ? 'Free Preview' : '🔒 Protected Paid'}</span>
-                              </div>
-                            </div>
-
-                            <span className="text-[11px] font-bold text-emerald-600 shrink-0">
-                              Inspect →
+                            title="Tick to flag entire module in Request Changes"
+                            className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-mono font-bold uppercase text-emerald-600 block">
+                              Module {sIdx + 1}
                             </span>
-                          </button>
-                        );
-                      })}
+                            <span className="text-xs font-bold text-slate-900 truncate block">
+                              {secTitle}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isModuleFlagged && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-extrabold">
+                              ⚠️ Flagged
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {(sec.lessons || []).length} items
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-slate-100">
+                        {(sec.lessons || []).map((les: any, lIdx: number) => {
+                          const isSelected = selectedLesson?.id === les.id;
+                          const isLessonFlagged = !!auditChecklist[les.id]?.flagged;
+                          return (
+                            <button
+                              key={les.id}
+                              onClick={() =>
+                                setSelectedLesson({
+                                  ...les,
+                                  moduleTitle: `Module ${sIdx + 1}: ${secTitle}`,
+                                  lessonNumber: lessonDisplayMap.get(les.id)?.itemNumber || lIdx + 1
+                                })
+                              }
+                              className={`w-full p-3 text-left flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'bg-emerald-50 border-l-4 border-emerald-600'
+                                  : isLessonFlagged
+                                  ? 'bg-amber-50/70 border-l-4 border-amber-500'
+                                  : 'hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                                    {lessonDisplayMap.get(les.id)?.typeLabel || les.type || 'VIDEO'}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-800 truncate">
+                                    {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
+                                  </span>
+                                  {isLessonFlagged && (
+                                    <span className="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 border border-amber-300 text-[9px] font-extrabold shrink-0">
+                                      ⚠️ Flagged
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-500 font-mono">
+                                  <span>Duration: {les.duration || '10:00'}</span>
+                                  <span>•</span>
+                                  <span>{les.isFree ? 'Free Preview' : '🔒 Protected Paid'}</span>
+                                </div>
+                              </div>
+
+                              <span className="text-[11px] font-bold text-emerald-600 shrink-0">
+                                Inspect →
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1020,6 +1172,180 @@ export default function AuditorCourseReviewPage() {
                               </a>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 6. Active Lesson Interactive Audit Checklist & Auto-Logger */}
+                  {(() => {
+                    const currentLesId = selectedLesson.id;
+                    const currentItem = auditChecklist[currentLesId];
+                    const isFlagged = !!currentItem?.flagged;
+                    const selectedIssues = currentItem?.selectedIssues || [];
+                    const customNote = currentItem?.customNote || '';
+                    const lesType: 'VIDEO' | 'ARTICLE' | 'QUIZ' =
+                      selectedLesson.type === 'QUIZ' || selectedLesson.quiz
+                        ? 'QUIZ'
+                        : selectedLesson.type === 'PDF' || selectedLesson.pdfUrl
+                        ? 'ARTICLE'
+                        : 'VIDEO';
+
+                    const presets =
+                      lesType === 'VIDEO'
+                        ? [
+                            'Audio Unclear / Distorted',
+                            'Low Video Resolution / Blurry',
+                            'Misleading Title / Mismatch',
+                            'Missing Study Notes / PDF',
+                            'Video Cuts Off / Incomplete',
+                            'Content Inaccurate'
+                          ]
+                        : lesType === 'QUIZ'
+                        ? [
+                            'Wrong Answer Key Marked Correct',
+                            'Ambiguous / Confusing Questions',
+                            'Too Few Questions (< 5)',
+                            'Timer / Passing Mark Improper',
+                            'Missing Explanations'
+                          ]
+                        : [
+                            'Broken Document / PDF Link',
+                            'Incomplete Study Notes',
+                            'Low Quality Scan / Unreadable',
+                            'Formatting & Grammar Errors',
+                            'Missing Required Worksheets'
+                          ];
+
+                    return (
+                      <div
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                          isFlagged
+                            ? 'bg-amber-50/80 border-amber-300 shadow-xs'
+                            : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 pb-3 mb-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              id={`chk_flag_${currentLesId}`}
+                              checked={isFlagged}
+                              onChange={() =>
+                                toggleChecklistFlag(currentLesId, {
+                                  id: currentLesId,
+                                  targetName: selectedLesson.title,
+                                  targetType: lesType,
+                                  moduleTitle: selectedLesson.moduleTitle,
+                                  selectedIssues: [],
+                                  customNote: ''
+                                })
+                              }
+                              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
+                            />
+                            <label
+                              htmlFor={`chk_flag_${currentLesId}`}
+                              className="text-xs font-extrabold text-slate-900 cursor-pointer select-none"
+                            >
+                              {isFlagged ? '⚠️ Lecture Flagged for Request Changes' : 'Tick to Flag Quality Issue on This Lecture'}
+                            </label>
+                            {isFlagged && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black uppercase">
+                                {selectedIssues.length} issues selected
+                              </span>
+                            )}
+                          </div>
+
+                          {totalChecklistFlaggedCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setDecisionModal('REQUEST_CHANGES')}
+                              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 transition-colors"
+                            >
+                              <Icon name="warning" size={14} />
+                              <span>Submit Changes Request ({totalChecklistFlaggedCount}) ⚠️</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2">
+                              Select Issue Tags (Auto-added to Request Changes log):
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {presets.map((tag) => {
+                                const isSelected = selectedIssues.includes(tag);
+                                return (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleChecklistIssueTag(currentLesId, tag, {
+                                        id: currentLesId,
+                                        targetName: selectedLesson.title,
+                                        targetType: lesType,
+                                        moduleTitle: selectedLesson.moduleTitle,
+                                        selectedIssues: [],
+                                        customNote: ''
+                                      })
+                                    }
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                      isSelected
+                                        ? 'bg-amber-600 text-white shadow-xs'
+                                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <span>{isSelected ? '✓' : '+'}</span>
+                                    <span>{tag}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              value={customNote}
+                              onChange={(e) =>
+                                updateChecklistCustomNote(currentLesId, e.target.value, {
+                                  id: currentLesId,
+                                  targetName: selectedLesson.title,
+                                  targetType: lesType,
+                                  moduleTitle: selectedLesson.moduleTitle,
+                                  selectedIssues: [],
+                                  customNote: ''
+                                })
+                              }
+                              placeholder="Optional specific note for this lecture (e.g. video audio is out of sync at 02:40)..."
+                              className="w-full text-xs px-3.5 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-amber-500 placeholder-slate-400"
+                            />
+                          </div>
+
+                          {isFlagged && (
+                            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-900">
+                              <span className="font-semibold">
+                                ✓ Automatically recorded in Request Changes message log.
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleChecklistFlag(currentLesId, {
+                                    id: currentLesId,
+                                    targetName: selectedLesson.title,
+                                    targetType: lesType,
+                                    moduleTitle: selectedLesson.moduleTitle,
+                                    selectedIssues: [],
+                                    customNote: ''
+                                  })
+                                }
+                                className="text-slate-500 hover:text-slate-800 underline text-[11px] cursor-pointer"
+                              >
+                                Untick / Clear
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -1560,135 +1886,545 @@ export default function AuditorCourseReviewPage() {
         )}
       </div>
 
-      {/* DECISION MODALS: APPROVE / REQUEST_CHANGES / REJECT (Requirements #14, #15, #16, #17) */}
+      {/* DECISION MODALS: APPROVE / REQUEST_CHANGES / REJECT */}
       {decisionModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">
-                {decisionModal === 'APPROVE'
-                  ? isStagedVersionReview
-                    ? `Approve & Promote ${versionLabel} to LIVE?`
-                    : 'Approve Course?'
-                  : decisionModal === 'REQUEST_CHANGES'
-                  ? 'Request Course Changes ⚠️'
-                  : 'Reject Course ❌'}
-              </h3>
-              <button onClick={() => setDecisionModal(null)} className="text-slate-400">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div
+            className={`bg-white rounded-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto ${
+              decisionModal === 'REQUEST_CHANGES'
+                ? 'max-w-3xl max-h-[92vh]'
+                : 'max-w-lg'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-slate-900">
+                  {decisionModal === 'APPROVE'
+                    ? isStagedVersionReview
+                      ? `Approve & Promote ${versionLabel} to LIVE?`
+                      : 'Approve Course?'
+                    : decisionModal === 'REQUEST_CHANGES'
+                    ? 'Request Course Changes ⚠️'
+                    : 'Reject Course ❌'}
+                </h3>
+                {decisionModal === 'REQUEST_CHANGES' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+                    Checklist Studio
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setDecisionModal(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
                 ✕
               </button>
             </div>
 
-            {decisionModal === 'APPROVE' && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-1.5">
-                {isStagedVersionReview ? (
-                  <>
-                    <div className="font-extrabold">
-                      Staged Major Update ({versionLabel}) → LIVE Promotion
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {decisionModal === 'APPROVE' && (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-1.5">
+                  {isStagedVersionReview ? (
+                    <>
+                      <div className="font-extrabold">
+                        Staged Major Update ({versionLabel}) → LIVE Promotion
+                      </div>
+                      <p>
+                        Approving <strong>{versionLabel}</strong> will apply the updated curriculum/media to the live course and preserve <strong>v1.0 as ARCHIVED</strong> for rollback.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-extrabold">Status: IN_REVIEW → APPROVED</div>
+                      <p>
+                        This course will become <strong>APPROVED</strong>. The instructor will be notified and can now publish it live in 1 click.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* REQUEST_CHANGES: Interactive Module / Lesson / Quiz Checklist */}
+              {decisionModal === 'REQUEST_CHANGES' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900">
+                    <p className="font-semibold">
+                      Tick any module, video, article, or quiz that needs changes. Click quick tags or enter notes — the critique log below automatically compiles into a structured report for the instructor.
+                    </p>
+                  </div>
+
+                  {/* 1. Whole Course Scope Checklist */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-slate-800 select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!auditChecklist['whole_course']?.flagged}
+                          onChange={() =>
+                            toggleChecklistFlag('whole_course', {
+                              id: 'whole_course',
+                              targetName: 'Course-Wide Overall Quality',
+                              targetType: 'WHOLE_COURSE',
+                              selectedIssues: [],
+                              customNote: ''
+                            })
+                          }
+                          className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600"
+                        />
+                        <span>Flag Course-Wide / Overall Issues</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-medium">Entire Course</span>
                     </div>
-                    <p>
-                      Approving <strong>{versionLabel}</strong> will apply the updated curriculum/media to the live course and preserve <strong>v1.0 as ARCHIVED</strong> for rollback.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-extrabold">Status: IN_REVIEW → APPROVED</div>
-                    <p>
-                      This course will become <strong>APPROVED</strong>. The instructor will be notified and can now publish it live in 1 click.
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {decisionModal === 'APPROVE'
-                  ? 'Optional Approval Note for Instructor'
-                  : decisionModal === 'REQUEST_CHANGES'
-                  ? 'Critique / Feedback for Instructor'
-                  : 'Rejection Reason'}
-              </label>
-              <textarea
-                rows={4}
-                value={decisionNote}
-                onChange={(e) => setDecisionNote(e.target.value)}
-                placeholder={
-                  decisionModal === 'APPROVE'
-                    ? 'Great curriculum structure and clear HD video streams!'
-                    : decisionModal === 'REQUEST_CHANGES'
-                    ? 'Please explain what needs to be changed before approval...'
-                    : 'Explain reason for rejection...'
-                }
-                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
-              />
+                    {auditChecklist['whole_course']?.flagged && (
+                      <div className="pl-6 space-y-2 pt-1 border-t border-slate-200/60 mt-1">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          Select Overall Issues:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            'General Audio / Video Quality Insufficient',
+                            'Missing Lesson Notes & Worksheets',
+                            'Course Overview, Outcomes & Pricing Inaccurate',
+                            'Curriculum Sequence / Structure Broken',
+                            'Platform Policy / Compliance Concerns'
+                          ].map((tag) => {
+                            const isSelected = auditChecklist['whole_course']?.selectedIssues.includes(tag);
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() =>
+                                  toggleChecklistIssueTag('whole_course', tag, {
+                                    id: 'whole_course',
+                                    targetName: 'Course-Wide Overall Quality',
+                                    targetType: 'WHOLE_COURSE',
+                                    selectedIssues: [],
+                                    customNote: ''
+                                  })
+                                }
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-amber-600 text-white shadow-xs'
+                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                }`}
+                              >
+                                {isSelected ? '✓ ' : '+ '}
+                                {tag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="text"
+                          value={auditChecklist['whole_course']?.customNote || ''}
+                          onChange={(e) =>
+                            updateChecklistCustomNote('whole_course', e.target.value, {
+                              id: 'whole_course',
+                              targetName: 'Course-Wide Overall Quality',
+                              targetType: 'WHOLE_COURSE',
+                              selectedIssues: [],
+                              customNote: ''
+                            })
+                          }
+                          placeholder="Optional specific note for entire course..."
+                          className="w-full text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    )}
+                  </div>
 
-              {decisionModal !== 'APPROVE' && (
-                <div className="space-y-1.5 mt-2">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Quick Critique Templates:</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      'Video lecture audio clarity & resolution need enhancement',
-                      'Add missing study material / PDF notes for major modules',
-                      'Curriculum sequence and lecture titles require correction',
-                      'Pricing & course overview details need adjustment'
-                    ].map((tpl) => (
-                      <button
-                        key={tpl}
-                        type="button"
-                        onClick={() =>
-                          setDecisionNote((prev) => (prev ? prev + '\n• ' + tpl : '• ' + tpl))
-                        }
-                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
-                      >
-                        + {tpl}
-                      </button>
-                    ))}
+                  {/* 2. Specific Modules, Video, Article & Quiz Checklist */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        Modules & Content Checklist ({(data?.course?.sections || []).length} Modules)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setChecklistFilter(checklistFilter === 'ALL' ? 'FLAGGED_ONLY' : 'ALL')
+                          }
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                            checklistFilter === 'FLAGGED_ONLY'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {checklistFilter === 'FLAGGED_ONLY' ? 'Showing Flagged Only' : 'Filter: All Items'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+                      {(data?.course?.sections || []).map((sec: any, sIdx: number) => {
+                        const secId = sec.id || `sec_${sIdx}`;
+                        const secTitle = cleanSectionTitle(sec.title) || `Module ${sIdx + 1}`;
+                        const isExpanded = expandedChecklistModules[secId] !== false; // expanded by default
+                        const isModuleFlagged = !!auditChecklist[secId]?.flagged;
+                        const lessons = sec.lessons || [];
+
+                        return (
+                          <div
+                            key={secId}
+                            className={`border rounded-xl transition-all ${
+                              isModuleFlagged
+                                ? 'border-amber-300 bg-amber-50/30'
+                                : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            {/* Module Header */}
+                            <div className="flex items-center justify-between p-3 bg-slate-50/70 border-b border-slate-100">
+                              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 select-none flex-1 min-w-0 pr-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isModuleFlagged}
+                                  onChange={() =>
+                                    toggleChecklistFlag(secId, {
+                                      id: secId,
+                                      targetName: secTitle,
+                                      targetType: 'MODULE',
+                                      selectedIssues: [],
+                                      customNote: ''
+                                    })
+                                  }
+                                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 shrink-0"
+                                />
+                                <span className="truncate">{secTitle}</span>
+                                <span className="text-[10px] text-slate-400 font-normal shrink-0">
+                                  ({lessons.length} items)
+                                </span>
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedChecklistModules((prev) => ({
+                                    ...prev,
+                                    [secId]: !isExpanded
+                                  }))
+                                }
+                                className="text-slate-400 hover:text-slate-600 text-xs px-1.5 py-0.5 rounded cursor-pointer shrink-0"
+                              >
+                                {isExpanded ? '▲ Hide' : '▼ Show Items'}
+                              </button>
+                            </div>
+
+                            {/* Module Quick Issues & Note if Flagged */}
+                            {isModuleFlagged && (
+                              <div className="p-3 bg-amber-50/60 border-b border-amber-200/60 space-y-2">
+                                <div className="text-[10px] font-bold text-amber-900 uppercase">
+                                  Module Issues:
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {[
+                                    'Incomplete Module Content',
+                                    'Missing Downloadable Materials',
+                                    'Lectures Disordered / Sequencing Error',
+                                    'Title & Scope Mismatch'
+                                  ].map((tag) => {
+                                    const isSelected = auditChecklist[secId]?.selectedIssues.includes(tag);
+                                    return (
+                                      <button
+                                        key={tag}
+                                        type="button"
+                                        onClick={() =>
+                                          toggleChecklistIssueTag(secId, tag, {
+                                            id: secId,
+                                            targetName: secTitle,
+                                            targetType: 'MODULE',
+                                            selectedIssues: [],
+                                            customNote: ''
+                                          })
+                                        }
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'bg-amber-600 text-white'
+                                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                        }`}
+                                      >
+                                        {isSelected ? '✓ ' : '+ '}
+                                        {tag}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={auditChecklist[secId]?.customNote || ''}
+                                  onChange={(e) =>
+                                    updateChecklistCustomNote(secId, e.target.value, {
+                                      id: secId,
+                                      targetName: secTitle,
+                                      targetType: 'MODULE',
+                                      selectedIssues: [],
+                                      customNote: ''
+                                    })
+                                  }
+                                  placeholder="Specific note for this module..."
+                                  className="w-full text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
+                                />
+                              </div>
+                            )}
+
+                            {/* Lessons List Inside Module */}
+                            {isExpanded && lessons.length > 0 && (
+                              <div className="divide-y divide-slate-100">
+                                {lessons.map((les: any, lIdx: number) => {
+                                  const lesId = les.id || `les_${sIdx}_${lIdx}`;
+                                  const rawType = (
+                                    les.type ||
+                                    (les.videoUrl ? 'VIDEO' : les.pdfUrl ? 'ARTICLE' : (les.quizzes && les.quizzes.length > 0) ? 'QUIZ' : 'VIDEO')
+                                  ).toUpperCase();
+                                  const lesType: 'VIDEO' | 'ARTICLE' | 'QUIZ' =
+                                    rawType === 'QUIZ' ? 'QUIZ' : rawType === 'ARTICLE' ? 'ARTICLE' : 'VIDEO';
+                                  const lesTitle = les.title || `Lesson ${lIdx + 1}`;
+                                  const isLessonFlagged = !!auditChecklist[lesId]?.flagged;
+
+                                  if (checklistFilter === 'FLAGGED_ONLY' && !isLessonFlagged) {
+                                    return null;
+                                  }
+
+                                  const issuePresets =
+                                    lesType === 'VIDEO'
+                                      ? [
+                                          'Audio Too Low / Heavy Echo',
+                                          'Blurry Video (<720p)',
+                                          'Video Freezes / Playback Error',
+                                          'Wrong Video Attached',
+                                          'Incomplete Video'
+                                        ]
+                                      : lesType === 'QUIZ'
+                                      ? [
+                                          'Wrong Answer Key Marked Correct',
+                                          'Too Few Questions (< 5 questions)',
+                                          'Ambiguous / Confusing Questions',
+                                          'Missing Answer Explanations'
+                                        ]
+                                      : [
+                                          'Missing PDF / Resource Download',
+                                          'Corrupt File / Broken Link',
+                                          'Formatting / Typography Broken',
+                                          'Grammar / Typo Errors'
+                                        ];
+
+                                  return (
+                                    <div
+                                      key={lesId}
+                                      className={`p-3 transition-colors ${
+                                        isLessonFlagged ? 'bg-amber-50/40' : 'hover:bg-slate-50/50'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800 select-none flex-1 min-w-0">
+                                          <input
+                                            type="checkbox"
+                                            checked={isLessonFlagged}
+                                            onChange={() =>
+                                              toggleChecklistFlag(lesId, {
+                                                id: lesId,
+                                                targetName: lesTitle,
+                                                targetType: lesType,
+                                                moduleTitle: secTitle,
+                                                selectedIssues: [],
+                                                customNote: ''
+                                              })
+                                            }
+                                            className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 shrink-0"
+                                          />
+                                          <span className="truncate">{lesTitle}</span>
+                                        </label>
+
+                                        <span
+                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                                            lesType === 'VIDEO'
+                                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                              : lesType === 'QUIZ'
+                                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                          }`}
+                                        >
+                                          {lesType}
+                                        </span>
+                                      </div>
+
+                                      {/* Expanded Controls for Flagged Lesson */}
+                                      {isLessonFlagged && (
+                                        <div className="pl-5 pt-2 space-y-1.5 mt-1 border-t border-amber-100">
+                                          <div className="flex flex-wrap gap-1">
+                                            {issuePresets.map((tag) => {
+                                              const isTagSelected =
+                                                auditChecklist[lesId]?.selectedIssues.includes(tag);
+                                              return (
+                                                <button
+                                                  key={tag}
+                                                  type="button"
+                                                  onClick={() =>
+                                                    toggleChecklistIssueTag(lesId, tag, {
+                                                      id: lesId,
+                                                      targetName: lesTitle,
+                                                      targetType: lesType,
+                                                      moduleTitle: secTitle,
+                                                      selectedIssues: [],
+                                                      customNote: ''
+                                                    })
+                                                  }
+                                                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                                    isTagSelected
+                                                      ? 'bg-amber-600 text-white'
+                                                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                                  }`}
+                                                >
+                                                  {isTagSelected ? '✓ ' : '+ '}
+                                                  {tag}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={auditChecklist[lesId]?.customNote || ''}
+                                            onChange={(e) =>
+                                              updateChecklistCustomNote(lesId, e.target.value, {
+                                                id: lesId,
+                                                targetName: lesTitle,
+                                                targetType: lesType,
+                                                moduleTitle: secTitle,
+                                                selectedIssues: [],
+                                                customNote: ''
+                                              })
+                                            }
+                                            placeholder={`Specific feedback for ${lesTitle} (e.g. timestamp or question #)...`}
+                                            className="w-full text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
+
+              {/* Textarea: Feedback / Notes (Auto-compiled from Checklist) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    {decisionModal === 'APPROVE'
+                      ? 'Optional Approval Note for Instructor'
+                      : decisionModal === 'REQUEST_CHANGES'
+                      ? 'Auto-Generated Changes Request Log (Click Submit to Send, or Edit if Needed):'
+                      : 'Rejection Reason'}
+                  </label>
+                  {decisionModal === 'REQUEST_CHANGES' && (
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      Auto-updates from checklist above
+                    </span>
+                  )}
+                </div>
+
+                <textarea
+                  rows={decisionModal === 'REQUEST_CHANGES' ? 5 : 4}
+                  value={decisionNote}
+                  onChange={(e) => setDecisionNote(e.target.value)}
+                  placeholder={
+                    decisionModal === 'APPROVE'
+                      ? 'Great curriculum structure and clear HD video streams!'
+                      : decisionModal === 'REQUEST_CHANGES'
+                      ? 'Select items above or write specific changes required before approval...'
+                      : 'Explain reason for rejection...'
+                  }
+                  className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+
+                {decisionModal !== 'APPROVE' && (
+                  <div className="space-y-1.5 mt-2">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">
+                      Quick Critique Templates:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'Video lecture audio clarity & resolution need enhancement',
+                        'Add missing study material / PDF notes for major modules',
+                        'Curriculum sequence and lecture titles require correction',
+                        'Pricing & course overview details need adjustment'
+                      ].map((tpl) => (
+                        <button
+                          key={tpl}
+                          type="button"
+                          onClick={() =>
+                            setDecisionNote((prev) => (prev ? prev + '\n• ' + tpl : '• ' + tpl))
+                          }
+                          className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                        >
+                          + {tpl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {decisionModal === 'REJECT' && (
+                <label className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={confirmRejectCompliance}
+                    onChange={(e) => setConfirmRejectCompliance(e.target.checked)}
+                    className="mt-0.5 accent-rose-600"
+                  />
+                  <span className="font-semibold">
+                    I confirm that the course does not meet platform quality or policy requirements.
+                  </span>
+                </label>
+              )}
             </div>
 
-            {decisionModal === 'REJECT' && (
-              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={confirmRejectCompliance}
-                  onChange={(e) => setConfirmRejectCompliance(e.target.checked)}
-                  className="mt-0.5 accent-rose-600"
-                />
-                <span className="font-semibold">
-                  I confirm that the course does not meet platform quality or policy requirements.
-                </span>
-              </label>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                onClick={() => setDecisionModal(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitDecision}
-                disabled={submittingDecision}
-                className={`px-5 py-2.5 rounded-xl text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                  decisionModal === 'APPROVE'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3.5 bg-slate-50/50 shrink-0">
+              <div>
+                {decisionModal === 'REQUEST_CHANGES' && (
+                  <span className="text-xs font-bold text-amber-700">
+                    {Object.values(auditChecklist).filter((it) => it.flagged).length} items flagged
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDecisionModal(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitDecision}
+                  disabled={submittingDecision}
+                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
+                    decisionModal === 'APPROVE'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : decisionModal === 'REQUEST_CHANGES'
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                >
+                  {submittingDecision
+                    ? 'Submitting Verdict...'
+                    : decisionModal === 'APPROVE'
+                    ? 'Confirm Approve Course ✅'
                     : decisionModal === 'REQUEST_CHANGES'
-                    ? 'bg-amber-600 hover:bg-amber-700'
-                    : 'bg-rose-600 hover:bg-rose-700'
-                }`}
-              >
-                {submittingDecision
-                  ? 'Submitting Verdict...'
-                  : decisionModal === 'APPROVE'
-                  ? 'Confirm Approve Course ✅'
-                  : decisionModal === 'REQUEST_CHANGES'
-                  ? 'Send Changes Request ⚠️'
-                  : 'Confirm Reject Course ❌'}
-              </button>
+                    ? `Submit Changes Request (${Object.values(auditChecklist).filter((it) => it.flagged).length} Flagged) ⚠️`
+                    : 'Confirm Reject Course ❌'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

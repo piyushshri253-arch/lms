@@ -1357,7 +1357,7 @@ export class EmailService {
       to: params.to,
       userId: params.userId,
       organizationId: params.organizationId,
-      subject: `Morena Teach — Email Verification Code (${params.otp})`,
+      subject: 'Morena Teach — Email Verification Code',
       template: 'OTP_VERIFY',
       data: {
         name: params.name,

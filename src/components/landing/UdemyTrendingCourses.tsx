@@ -85,7 +85,7 @@ export const UdemyTrendingCourses: React.FC<UdemyTrendingCoursesProps> = ({ cour
           <div className="mt-8">
             <Link
               href="/courses"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-sm font-bold rounded-[4px] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#5624d0] hover:bg-[#401b9c] text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] cursor-pointer"
             >
               <span>Explore all courses ({realCourses.length})</span>
               <Icon name="arrow_forward" size={16} />

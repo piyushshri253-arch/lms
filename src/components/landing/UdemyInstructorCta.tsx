@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 
 export const UdemyInstructorCta: React.FC = () => {
-  const [instructorImgSrc, setInstructorImgSrc] = useState('/images/become-instructor-teacher.jpg?v=2');
+  const [instructorImgSrc, setInstructorImgSrc] = useState('/images/become-instructor-lady.jpg');
   const [schoolImgSrc, setSchoolImgSrc] = useState(
     'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=800&auto=format&fit=crop'
   );
@@ -16,14 +16,18 @@ export const UdemyInstructorCta: React.FC = () => {
         {/* 1. Become an Instructor */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-10 lg:gap-16 max-w-5xl mx-auto">
           {/* Left Image with Modern Rounded Card & Shadow */}
-          <div className="w-full md:w-[440px] shrink-0 h-[340px] sm:h-[380px] md:h-[400px] rounded-2xl overflow-hidden shadow-xl border border-gray-100 bg-[#f7f9fa] relative group">
+          <div className="w-full md:w-[440px] shrink-0 h-[360px] sm:h-[400px] md:h-[420px] rounded-2xl overflow-hidden shadow-xl border border-gray-100 bg-[#fbf9f5] relative group">
             <img
               src={instructorImgSrc}
               alt="Inspiring Educator Teaching on Morena Teach"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              style={{ objectPosition: 'center top' }}
+              style={{ objectPosition: '50% 10%' }}
               loading="lazy"
-              onError={() => setInstructorImgSrc('/images/hero-violet-teacher.jpg')}
+              onError={() =>
+                setInstructorImgSrc(
+                  'https://images.unsplash.com/photo-1544717305-2782549b5136?q=85&w=1200&auto=format'
+                )
+              }
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none" />
           </div>
@@ -43,7 +47,7 @@ export const UdemyInstructorCta: React.FC = () => {
             <div className="flex items-center gap-4">
               <Link
                 href="/instructor"
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#2d2f31] hover:bg-[#1c1d1f] text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] cursor-pointer"
               >
                 <span>Start teaching today</span>
                 <Icon name="arrow_forward" size={16} />

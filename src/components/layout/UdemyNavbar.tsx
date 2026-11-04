@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 
@@ -15,18 +15,69 @@ interface CategoryItem {
 
 export const UdemyNavbar: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currentUser, logout, wishlistCourseIds, cartItems, searchQuery, setSearchQuery } = useApp();
+
+  const isCoursesPage = pathname === '/courses';
+  const urlSearch = searchParams?.get('search') || '';
 
   const [isCoursesOpen, setIsCoursesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartHovered, setIsCartHovered] = useState(false);
-  const [localSearch, setLocalSearch] = useState(searchQuery || '');
+  const [localSearch, setLocalSearch] = useState(isCoursesPage ? urlSearch : (searchQuery || ''));
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [showPromoBanner, setShowPromoBanner] = useState(true);
 
   const coursesMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const isTypingRef = useRef(false);
+
+  // Sync localSearch when URL or global searchQuery changes externally (only when not actively typing)
+  useEffect(() => {
+    if (isTypingRef.current) return;
+    if (isCoursesPage) {
+      setLocalSearch(urlSearch);
+    } else {
+      setLocalSearch(searchQuery || '');
+    }
+  }, [urlSearch, isCoursesPage, searchQuery]);
+
+  // Debounced live AJAX search filtering on /courses
+  useEffect(() => {
+    if (!isCoursesPage) return;
+
+    const timer = setTimeout(() => {
+      const trimmed = localSearch.trim();
+      if (trimmed !== urlSearch) {
+        const params = new URLSearchParams(searchParams?.toString() || '');
+        if (trimmed) {
+          params.set('search', trimmed);
+        } else {
+          params.delete('search');
+        }
+        setSearchQuery(trimmed);
+        const query = params.toString();
+        router.replace(query ? `/courses?${query}` : '/courses', { scroll: false });
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [localSearch, isCoursesPage, urlSearch, router, searchParams, setSearchQuery]);
+
+  // Instant Reset / Clear Search
+  const handleClearSearch = () => {
+    isTypingRef.current = false;
+    setLocalSearch('');
+    setSearchQuery('');
+    if (isCoursesPage) {
+      const params = new URLSearchParams(searchParams?.toString() || '');
+      params.delete('search');
+      const query = params.toString();
+      router.replace(query ? `/courses?${query}` : '/courses', { scroll: false });
+    }
+  };
 
   // Fetch categories for dropdown
   useEffect(() => {
@@ -74,12 +125,26 @@ export const UdemyNavbar: React.FC = () => {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (localSearch.trim()) {
-      setSearchQuery(localSearch.trim());
-      router.push(`/courses?search=${encodeURIComponent(localSearch.trim())}`);
+    isTypingRef.current = false;
+    const trimmed = localSearch.trim();
+    setSearchQuery(trimmed);
+    if (isCoursesPage) {
+      const params = new URLSearchParams(searchParams?.toString() || '');
+      if (trimmed) {
+        params.set('search', trimmed);
+      } else {
+        params.delete('search');
+      }
+      const query = params.toString();
+      router.replace(query ? `/courses?${query}` : '/courses', { scroll: false });
     } else {
-      router.push('/courses');
+      if (trimmed) {
+        router.push(`/courses?search=${encodeURIComponent(trimmed)}`);
+      } else {
+        router.push('/courses');
+      }
     }
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -226,18 +291,25 @@ export const UdemyNavbar: React.FC = () => {
             <input
               type="text"
               value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
+              onFocus={() => {
+                isTypingRef.current = true;
+              }}
+              onBlur={() => {
+                isTypingRef.current = false;
+              }}
+              onChange={(e) => {
+                isTypingRef.current = true;
+                setLocalSearch(e.target.value);
+              }}
               placeholder="Search for anything (Montessori, ECCD, Pedagogy, Phonics...)"
               className="w-full pl-11 pr-10 py-2.5 bg-[#f7f9fa] border border-[#2d2f31] rounded-full text-sm text-[#2d2f31] placeholder-[#6a6f73] focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#2d2f31] transition-all font-normal"
             />
             {localSearch && (
               <button
                 type="button"
-                onClick={() => {
-                  setLocalSearch('');
-                  setSearchQuery('');
-                }}
-                className="absolute right-3.5 text-[#6a6f73] hover:text-[#2d2f31]"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
+                className="absolute right-3.5 text-[#6a6f73] hover:text-[#2d2f31] p-1 cursor-pointer transition-colors"
               >
                 <Icon name="close" size={16} />
               </button>
@@ -750,13 +822,32 @@ export const UdemyNavbar: React.FC = () => {
             <input
               type="text"
               value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
+              onFocus={() => {
+                isTypingRef.current = true;
+              }}
+              onBlur={() => {
+                isTypingRef.current = false;
+              }}
+              onChange={(e) => {
+                isTypingRef.current = true;
+                setLocalSearch(e.target.value);
+              }}
               placeholder="Search for courses..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[#f7f9fa] border border-[#2d2f31] rounded-full text-sm text-[#2d2f31]"
+              className="w-full pl-10 pr-9 py-2.5 bg-[#f7f9fa] border border-[#2d2f31] rounded-full text-sm text-[#2d2f31]"
             />
             <div className="absolute left-3.5 top-3 text-[#6a6f73]">
               <Icon name="search" size={18} />
             </div>
+            {localSearch && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
+                className="absolute right-3 top-2.5 text-[#6a6f73] hover:text-[#2d2f31] p-1 cursor-pointer"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            )}
           </form>
 
           {/* Categories List */}

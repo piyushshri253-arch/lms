@@ -92,10 +92,6 @@ export const UdemyFeaturedTopics: React.FC = () => {
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-100/70 border border-purple-200/60 rounded-full text-xs font-bold text-[#5624d0] uppercase tracking-wider mb-3">
-              <Icon name="trending_up" size={15} />
-              <span>Curated Disciplines</span>
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold text-[#1c1d1f] tracking-tight leading-tight">
               Featured Learning Areas
             </h2>

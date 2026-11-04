@@ -305,7 +305,7 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
             </p>
             <button
               onClick={() => setActiveTab('all')}
-              className="px-4 py-2 bg-[#2d2f31] text-white text-xs font-bold rounded hover:bg-[#1c1d1f] transition-colors"
+              className="px-5 py-2.5 bg-[#5624d0] text-white text-xs font-bold rounded-xl hover:bg-[#401b9c] transition-colors cursor-pointer"
             >
               View All Courses
             </button>
@@ -322,7 +322,7 @@ export const UdemySkillsTransform: React.FC<UdemySkillsTransformProps> = ({
                 ? '/courses?price=free'
                 : `/courses?category=${encodeURIComponent(activeCategoryObj.name)}`
             }
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-[#2d2f31] text-[#2d2f31] hover:bg-[#f7f9fa] text-sm font-bold rounded-[4px] transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#5624d0] hover:bg-[#401b9c] text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] cursor-pointer"
           >
             <span>
               {activeTab === 'all'

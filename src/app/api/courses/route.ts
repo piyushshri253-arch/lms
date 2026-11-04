@@ -41,12 +41,21 @@ export async function GET(request: Request) {
       where.status = 'PUBLISHED';
     }
 
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { shortDescription: { contains: search, mode: 'insensitive' } }
+    if (search && search.trim()) {
+      const searchClean = search.trim();
+      const searchVariants = [
+        searchClean,
+        searchClean.replace(/\s+/g, '-'),
+        searchClean.replace(/[-_]+/g, ' '),
+        searchClean.replace(/[\s-_]+/g, '')
       ];
+      const uniqueVariants = Array.from(new Set(searchVariants.filter(Boolean)));
+
+      where.OR = uniqueVariants.flatMap((variant) => [
+        { title: { contains: variant, mode: 'insensitive' } },
+        { description: { contains: variant, mode: 'insensitive' } },
+        { shortDescription: { contains: variant, mode: 'insensitive' } }
+      ]);
     }
 
     const courses = await prisma.course.findMany({

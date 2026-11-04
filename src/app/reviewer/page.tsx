@@ -55,6 +55,7 @@ function ReviewerDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [pendingInstructorsCount, setPendingInstructorsCount] = useState(0);
 
   // Quick Decision Modal State (Approve / Request Changes / Reject)
   const [decisionModal, setDecisionModal] = useState<{
@@ -79,6 +80,17 @@ function ReviewerDashboardContent() {
       setActiveFilter(sidebarFilter);
     }
   }, [sidebarFilter]);
+
+  useEffect(() => {
+    fetch('/api/reviewer/instructors')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.summary?.pendingOnboarding !== undefined) {
+          setPendingInstructorsCount(d.summary.pendingOnboarding);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleTriggerDecision = async () => {
     if (!decisionModal) return;
@@ -170,22 +182,11 @@ function ReviewerDashboardContent() {
     fetchAuditQueue();
   }, [activeFilter, searchQuery]);
 
-  const filterPills = [
-    { id: 'ALL', label: 'All' },
-    { id: 'NEW', label: 'New Courses' },
-    { id: 'MAJOR_UPDATE', label: 'Major Updates (v2.0)' },
-    { id: 'RESUBMISSION', label: 'Resubmissions' },
-    { id: 'IN_REVIEW', label: 'In Review / Pending' },
-    { id: 'CHANGES_REQUESTED', label: 'Changes Requested' },
-    { id: 'APPROVED', label: 'Approved' },
-    { id: 'REJECTED', label: 'Rejected' }
-  ];
-
   const getTypeBadge = (type: string) => {
     if (type === 'MAJOR_UPDATE') {
       return (
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-          Major Update
+          Major Update (v2.0)
         </span>
       );
     }
@@ -198,38 +199,38 @@ function ReviewerDashboardContent() {
     }
     return (
       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
-        New
+        New Course (v1.0)
       </span>
     );
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'IN_REVIEW' || status === 'PENDING_APPROVAL') {
+    if (status === 'IN_REVIEW' || status === 'PENDING' || status === 'PENDING_APPROVAL') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          IN_REVIEW
+          Awaiting Audit
         </span>
       );
     }
     if (status === 'CHANGES_REQUESTED') {
       return (
         <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-orange-50 text-orange-800 border border-orange-200">
-          CHANGES_REQUESTED
+          ⚠️ Changes Requested
         </span>
       );
     }
     if (status === 'APPROVED' || status === 'PUBLISHED') {
       return (
         <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          {status}
+          ✅ Approved
         </span>
       );
     }
     if (status === 'REJECTED') {
       return (
         <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
-          REJECTED
+          ❌ Rejected
         </span>
       );
     }
@@ -240,21 +241,9 @@ function ReviewerDashboardContent() {
     );
   };
 
-  const [pendingInstructorsCount, setPendingInstructorsCount] = useState(0);
-
-  useEffect(() => {
-    fetch('/api/reviewer/instructors')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.summary?.pendingOnboarding !== undefined) {
-          setPendingInstructorsCount(d.summary.pendingOnboarding);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Toast Notification */}
       {toastMsg && (
         <div
           className={`p-4 rounded-2xl border text-xs font-semibold flex items-center justify-between shadow-md transition-all animate-in fade-in slide-in-from-top-2 ${
@@ -281,285 +270,422 @@ function ReviewerDashboardContent() {
         </div>
       )}
 
-      {/* Instructor Onboarding & Resume Review Banner */}
-      <div className="bg-gradient-to-r from-violet-900 via-indigo-900 to-emerald-900 text-white rounded-2xl p-5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-bold uppercase tracking-wider">
-            <span>🎓 Instructor Onboarding &amp; Interview Studio</span>
-            {pendingInstructorsCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
-                {pendingInstructorsCount} Pending Approval
-              </span>
-            )}
+      {/* 1. Welcoming Hero Bar with Live Priorities */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 sm:p-7 shadow-xl border border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-slate-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Auditor Quality &amp; Verification Studio</span>
           </div>
-          <h2 className="text-base sm:text-lg font-black">
-            Review New Instructor Signups, Download Resumes &amp; Decide on Interviews
-          </h2>
-          <p className="text-xs text-slate-200">
-            Inspect First/Last Name, Qualification, Additional Qualifications, Experience, and Resume — schedule an interview or click Onboard to send the Instructor their Login Email.
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Welcome to Course Auditor Workspace 👋
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+            Inspect courses submitted by instructors, verify video playback and quiz accuracy, and approve new instructor onboardings.
           </p>
         </div>
 
-        <Link
-          href="/reviewer/instructors"
-          className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs whitespace-nowrap shadow-sm transition-all inline-flex items-center gap-2 self-start sm:self-center"
-        >
-          <span>Open Instructor Onboarding Studio →</span>
-        </Link>
-      </div>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveFilter('IN_REVIEW');
+              const el = document.getElementById('audit-queue-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+          >
+            <Icon name="fact_check" size={16} />
+            <span>{stats.pendingReview} Courses Pending Audit</span>
+          </button>
 
-      {/* 6 Auditor Dashboard KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500">Pending Reviews</div>
-          <div className="text-2xl font-black text-amber-600 mt-1">{stats.pendingReview}</div>
-          <div className="text-[10px] font-mono text-slate-400 mt-1">Awaiting Audit</div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500">In Review</div>
-          <div className="text-2xl font-black text-indigo-600 mt-1">{stats.inReview}</div>
-          <div className="text-[10px] font-mono text-slate-400 mt-1">Active Queue</div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500">Approved Today</div>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{stats.approvedToday}</div>
-          <div className="text-[10px] font-mono text-emerald-600 mt-1">Total: {stats.approved}</div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500">Changes Requested</div>
-          <div className="text-2xl font-black text-rose-600 mt-1">{stats.changesRequested}</div>
-          <div className="text-[10px] font-mono text-slate-400 mt-1">Needs Revision</div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500">Recently Updated</div>
-          <div className="text-2xl font-black text-purple-600 mt-1">{stats.recentlyUpdated}</div>
-          <div className="text-[10px] font-mono text-slate-400 mt-1">Last 7 Days</div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500">Avg Review Time</div>
-          <div className="text-2xl font-black text-teal-600 mt-1">{stats.avgReviewTime}</div>
-          <div className="text-[10px] font-mono text-slate-400 mt-1">SLA Target &lt; 4h</div>
+          {pendingInstructorsCount > 0 && (
+            <Link
+              href="/reviewer/instructors"
+              className="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-2 transition-all"
+            >
+              <Icon name="person" size={16} />
+              <span>{pendingInstructorsCount} New Instructors</span>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Filter Bar & Search */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {filterPills.map((pill) => (
+      {/* 2. Two Primary Workspace Cards (Course Audit vs Instructor Applications) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Card 1: Course Audit Queue */}
+        <div className="bg-white border-2 border-slate-200 hover:border-emerald-500 rounded-3xl p-6 shadow-xs transition-all flex flex-col justify-between space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
+                <Icon name="school" size={24} />
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                {stats.pendingReview} Awaiting Action
+              </span>
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Course Review &amp; Quality Inspection
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Inspect video streaming, lecture structure, quiz questions, and pricing compliance. Give approval or request changes using the 1-click checklist.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-[11px] text-slate-500 font-mono">
+              Total: <strong className="text-slate-800">{stats.total}</strong> • Approved: <strong className="text-emerald-600">{stats.approved}</strong> • Changes: <strong className="text-amber-600">{stats.changesRequested}</strong>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveFilter('IN_REVIEW');
+                const el = document.getElementById('audit-queue-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Inspect Courses →</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Instructor Applications & Resumes */}
+        <div className="bg-white border-2 border-slate-200 hover:border-violet-500 rounded-3xl p-6 shadow-xs transition-all flex flex-col justify-between space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-700 flex items-center justify-center border border-violet-100">
+                <Icon name="badge" size={24} />
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-violet-50 text-violet-800 border border-violet-200">
+                {pendingInstructorsCount} Pending Signups
+              </span>
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Instructor Onboarding &amp; Resume Review
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Review verified qualifications, degrees, experience summaries, and download resumes. Decide on interview invitations or click Onboard in 1 click.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-[11px] text-slate-500 font-mono">
+              Review qualifications &amp; schedule interviews
+            </div>
+            <Link
+              href="/reviewer/instructors"
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
+            >
+              <span>Open Instructor Studio →</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. "How Course Audit Works" (3 Simple Visual Steps - Easy to Understand) */}
+      <div className="bg-slate-50/80 border border-slate-200 rounded-3xl p-5 sm:p-6 space-y-3">
+        <div className="flex items-center gap-2">
+          <Icon name="lightbulb" size={18} className="text-amber-500" />
+          <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+            How Course Audit Works (3 Simple Steps):
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-1.5">
+            <div className="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black">
+              1
+            </div>
+            <div className="text-xs font-extrabold text-slate-900">Pick Course from Queue</div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Click the dark <strong>&quot;Inspect Course →&quot;</strong> button on any pending submission below to open its curriculum tree.
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-1.5">
+            <div className="w-7 h-7 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xs font-black">
+              2
+            </div>
+            <div className="text-xs font-extrabold text-slate-900">Inspect &amp; Tick Issues</div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Play videos, check PDF notes &amp; quiz keys. If anything has an issue, simply tick the issue tag. System automatically writes the critique log.
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-1.5">
+            <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black">
+              3
+            </div>
+            <div className="text-xs font-extrabold text-slate-900">Submit Verdict in 1 Click</div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Click <strong>Approve ✅</strong> to publish, or <strong>Submit Changes Request ⚠️</strong> to auto-send your checklist log without typing.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Course Audit Queue Section */}
+      <div id="audit-queue-section" className="space-y-4 pt-2">
+        {/* Filter Tabs & Search Bar */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            {/* Primary Segmented Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: 'ALL', label: 'All Courses', count: stats.total || courses.length },
+                { id: 'IN_REVIEW', label: '🟡 Awaiting Audit', count: stats.pendingReview },
+                { id: 'CHANGES_REQUESTED', label: '⚠️ Changes Requested', count: stats.changesRequested },
+                { id: 'APPROVED', label: '✅ Approved', count: stats.approved }
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setActiveFilter(pill.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeFilter === pill.id
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{pill.label}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      activeFilter === pill.id ? 'bg-white/20 text-white' : 'bg-white text-slate-600'
+                    }`}
+                  >
+                    {pill.count}
+                  </span>
+                </button>
+              ))}
+
+              {/* Secondary Sub-filters */}
+              <div className="border-l border-slate-200 pl-2 ml-1 flex items-center gap-1">
+                {[
+                  { id: 'NEW', label: 'New (v1.0)' },
+                  { id: 'MAJOR_UPDATE', label: 'Updates (v2.0)' },
+                  { id: 'RESUBMISSION', label: 'Resubmitted' }
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setActiveFilter(f.id)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                      activeFilter === f.id
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Search Bar */}
+            <div className="relative min-w-[280px]">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search course title, instructor or category..."
+                className="w-full rounded-xl border border-slate-200 pl-9 pr-8 py-2 text-xs font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Icon name="search" size={16} />
+              </span>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Main Queue Table / Cards */}
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">
+                Course Submissions Queue ({courses.length})
+              </h2>
+              <p className="text-xs text-slate-500">
+                Click <strong className="text-slate-800">&quot;Inspect Course →&quot;</strong> to start evaluating curriculum, videos, and quizzes.
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-16 text-center space-y-3">
+              <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="text-xs font-bold text-slate-700">Loading Auditor Review Queue...</div>
+            </div>
+          ) : courses.length === 0 ? (
+            <div className="p-16 text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <Icon name="fact_check" size={32} />
+              </div>
+              <div className="text-sm font-bold text-slate-800">No Courses Match This Filter</div>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                There are no course submissions under &quot;{activeFilter}&quot;. Try switching to &quot;All Courses&quot; or clearing your search query.
+              </p>
               <button
-                key={pill.id}
-                onClick={() => setActiveFilter(pill.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeFilter === pill.id
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                type="button"
+                onClick={() => {
+                  setActiveFilter('ALL');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                {pill.label}
+                Show All Courses
               </button>
-            ))}
-          </div>
-
-          <div className="relative min-w-[260px]">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by course or instructor..."
-              className="w-full rounded-xl border border-slate-200 pl-9 pr-3.5 py-2 text-xs font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500"
-            />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-              <Icon name="search" size={16} />
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Queue Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-extrabold text-slate-900">
-              Main Course Audit & Version Review Queue ({courses.length})
-            </h2>
-            <p className="text-xs text-slate-500">
-              Click &quot;Review&quot; to inspect Curriculum, Protected Videos, PDFs, Quizzes, Version Diff (v1.0 vs v2.0), and Section-Wise Issues.
-            </p>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="p-12 text-center text-slate-500 text-xs font-semibold">
-            Loading Auditor Review Queue...
-          </div>
-        ) : courses.length === 0 ? (
-          <div className="p-12 text-center space-y-2">
-            <Icon name="fact_check" size={36} className="text-emerald-600 mx-auto" />
-            <div className="text-sm font-bold text-slate-800">No Courses Match This Filter</div>
-            <p className="text-xs text-slate-500">
-              Switch the filter to &quot;All&quot; to inspect all courses in your organization.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-mono font-bold uppercase text-slate-500">
-                  <th className="py-3.5 px-5">Course</th>
-                  <th className="py-3.5 px-4">Instructor</th>
-                  <th className="py-3.5 px-4">Version</th>
-                  <th className="py-3.5 px-4">Type</th>
-                  <th className="py-3.5 px-4">Submitted</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {courses.map((course) => (
-                  <tr key={course.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-14 h-9 rounded-lg bg-slate-900 overflow-hidden shrink-0 border border-slate-200">
-                          {course.thumbnail ? (
-                            <img
-                              src={course.thumbnail}
-                              alt={course.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0">
-                          <Link
-                            href={`/reviewer/courses/${course.id}`}
-                            className="font-bold text-slate-900 hover:text-emerald-600 block truncate max-w-[260px]"
-                          >
-                            {course.title}
-                          </Link>
-                          <div className="text-[10px] text-slate-500 mt-0.5">
-                            {course.category?.name || 'Masterclass'} • {course.totalSections} modules •{' '}
-                            {course.totalLessons} lectures
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-mono font-bold uppercase text-slate-500">
+                    <th className="py-3.5 px-6">Course &amp; Curriculum</th>
+                    <th className="py-3.5 px-4">Instructor</th>
+                    <th className="py-3.5 px-4">Type &amp; Version</th>
+                    <th className="py-3.5 px-4">Submitted</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-6 text-right">Audit Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {courses.map((course) => (
+                    <tr key={course.id} className="hover:bg-slate-50/60 transition-colors">
+                      {/* 1. Course Details */}
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-16 h-10 rounded-xl bg-slate-900 overflow-hidden shrink-0 border border-slate-200 shadow-2xs">
+                            {course.thumbnail ? (
+                              <img
+                                src={course.thumbnail}
+                                alt={course.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-bold">
+                                📚
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 max-w-[280px]">
+                            <Link
+                              href={`/reviewer/courses/${course.id}`}
+                              className="font-extrabold text-slate-900 hover:text-emerald-600 block truncate transition-colors"
+                              title={course.title}
+                            >
+                              {course.title}
+                            </Link>
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              {course.category?.name || 'General'} • {course.totalSections} Modules •{' '}
+                              {course.totalLessons} Lectures
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-4 px-4">
-                      <div className="font-bold text-slate-800">{course.instructor?.name}</div>
-                      <div className="text-[11px] text-slate-500">{course.instructor?.email}</div>
-                    </td>
+                      {/* 2. Instructor Details */}
+                      <td className="py-4 px-4">
+                        <div className="font-bold text-slate-800">{course.instructor?.name || 'Instructor'}</div>
+                        <div className="text-[11px] text-slate-500 truncate max-w-[180px]">
+                          {course.instructor?.email}
+                        </div>
+                      </td>
 
-                    <td className="py-4 px-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-mono font-bold text-slate-800 text-[11px]">
-                        {course.versionLabel || 'v1.0'}
-                      </span>
-                    </td>
+                      {/* 3. Version & Submission Type */}
+                      <td className="py-4 px-4">
+                        <div className="space-y-1">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 font-mono font-bold text-slate-800 text-[10px]">
+                            {course.versionLabel || 'v1.0'}
+                          </span>
+                          <div>{getTypeBadge(course.submissionType)}</div>
+                        </div>
+                      </td>
 
-                    <td className="py-4 px-4">{getTypeBadge(course.submissionType)}</td>
+                      {/* 4. Submission Date */}
+                      <td className="py-4 px-4 text-slate-600 font-mono text-[11px]">
+                        {new Date(
+                          course.auditMeta?.submittedAt || course.updatedAt
+                        ).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </td>
 
-                    <td className="py-4 px-4 text-slate-600 font-mono text-[11px]">
-                      {new Date(
-                        course.auditMeta?.submittedAt || course.updatedAt
-                      ).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short'
-                      })}
-                    </td>
+                      {/* 5. Status Badge */}
+                      <td className="py-4 px-4">
+                        {getStatusBadge(course.effectiveReviewStatus || course.status)}
+                      </td>
 
-                    <td className="py-4 px-4">
-                      {getStatusBadge(course.effectiveReviewStatus || course.status)}
-                    </td>
-
-                    <td className="py-4 px-5 text-right">
-                      <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
-                        {/* 1. Preview Course */}
-                        <Link
-                          href={`/reviewer/courses/${course.id}/preview`}
-                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 shadow-2xs transition-colors"
-                          title="Preview Course as Student"
-                        >
-                          <Icon name="visibility" size={13} />
-                          <span>Preview</span>
-                        </Link>
-
-                        {/* 2. Deep Inspector Studio */}
-                        <Link
-                          href={`/reviewer/courses/${course.id}`}
-                          className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 transition-colors"
-                          title="Inspect Curriculum & Media Streams"
-                        >
-                          <Icon name="fact_check" size={13} />
-                          <span>Inspect</span>
-                        </Link>
-
-                        {/* 3. Direct Quick Approve Button */}
-                        {course.effectiveReviewStatus !== 'APPROVED' &&
-                        course.status !== 'APPROVED' &&
-                        course.status !== 'PUBLISHED' ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDecisionModal({ course, action: 'APPROVE' });
-                              setDecisionNote('');
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-all"
-                            title="Approve this course in 1 click"
+                      {/* 6. Primary Action Buttons */}
+                      <td className="py-4 px-6 text-right">
+                        <div className="inline-flex items-center gap-2 justify-end flex-wrap">
+                          {/* Primary Inspect Course Button */}
+                          <Link
+                            href={`/reviewer/courses/${course.id}`}
+                            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-extrabold shadow-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
-                            <Icon name="check_circle" size={13} />
-                            <span>Approve</span>
-                          </button>
-                        ) : null}
+                            <Icon name="fact_check" size={14} />
+                            <span>Inspect Course →</span>
+                          </Link>
 
-                        {/* 4. Request Changes Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDecisionModal({ course, action: 'REQUEST_CHANGES' });
-                            setDecisionNote('');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-all"
-                          title="Request changes from instructor"
-                        >
-                          <Icon name="warning" size={13} />
-                          <span>Changes</span>
-                        </button>
+                          {/* Secondary Student Preview Button */}
+                          <Link
+                            href={`/reviewer/courses/${course.id}/preview`}
+                            className="px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold inline-flex items-center gap-1 shadow-2xs transition-colors"
+                            title="Preview as Student"
+                          >
+                            <Icon name="visibility" size={14} />
+                            <span>Preview</span>
+                          </Link>
 
-                        {/* 5. Reject Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDecisionModal({ course, action: 'REJECT' });
-                            setDecisionNote('');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-all"
-                          title="Reject this course submission"
-                        >
-                          <Icon name="cancel" size={13} />
-                          <span>Reject</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                          {/* Fast Approve / Request Changes buttons */}
+                          {course.effectiveReviewStatus !== 'APPROVED' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDecisionModal({ course, action: 'REQUEST_CHANGES' });
+                                setDecisionNote('');
+                              }}
+                              className="px-2.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-2xs inline-flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Request Changes"
+                            >
+                              <span>⚠️ Changes</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick Decision Modal (Approve / Request Changes / Reject) */}
       {decisionModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <span
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center text-white ${
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center text-white ${
                     decisionModal.action === 'APPROVE'
                       ? 'bg-emerald-600'
                       : decisionModal.action === 'REQUEST_CHANGES'
@@ -575,18 +701,18 @@ function ReviewerDashboardContent() {
                         ? 'warning'
                         : 'cancel'
                     }
-                    size={18}
+                    size={20}
                   />
                 </span>
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                  <h3 className="text-base font-extrabold text-slate-900">
                     {decisionModal.action === 'APPROVE'
                       ? 'Approve Course Submission'
                       : decisionModal.action === 'REQUEST_CHANGES'
                       ? 'Request Course Changes'
                       : 'Reject Course Submission'}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500 truncate max-w-xs">
                     Course: <strong>{decisionModal.course.title}</strong>
                   </p>
                 </div>
@@ -601,7 +727,7 @@ function ReviewerDashboardContent() {
             </div>
 
             <div
-              className={`p-3.5 rounded-xl border text-xs space-y-1 ${
+              className={`p-4 rounded-2xl border text-xs space-y-1 ${
                 decisionModal.action === 'APPROVE'
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                   : decisionModal.action === 'REQUEST_CHANGES'
@@ -630,7 +756,7 @@ function ReviewerDashboardContent() {
                 {decisionModal.action === 'APPROVE'
                   ? 'Optional Approval Note for Instructor'
                   : decisionModal.action === 'REQUEST_CHANGES'
-                  ? 'Critique / Feedback for Instructor'
+                  ? 'Feedback / Notes for Instructor'
                   : 'Rejection Reason'}
               </label>
               <textarea
@@ -644,11 +770,11 @@ function ReviewerDashboardContent() {
                     ? 'Please detail what needs adjustment before approval...'
                     : 'Explain reason for rejection...'
                 }
-                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white"
+                className="w-full rounded-2xl border border-slate-200 p-3.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white"
               />
 
               {decisionModal.action !== 'APPROVE' && (
-                <div className="space-y-1.5 mt-2">
+                <div className="space-y-1.5 mt-2.5">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     Quick Critique Templates:
                   </div>
@@ -665,7 +791,7 @@ function ReviewerDashboardContent() {
                         onClick={() =>
                           setDecisionNote((prev) => (prev ? prev + '\n• ' + tpl : '• ' + tpl))
                         }
-                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
                       >
                         + {tpl}
                       </button>
@@ -715,7 +841,7 @@ export default function ReviewerDashboardPage() {
   return (
     <AuditorPortalShell
       title="Course Auditor Dashboard & Review Queue"
-      subtitle="Verify new courses (v1.0), major published course updates (v2.0), protected video/PDF streams, quizzes, and pricing compliance."
+      subtitle="Inspect and verify course curriculum, protected video/PDF streams, quizzes, and instructor onboardings."
     >
       <Suspense fallback={<div className="p-8 text-xs text-slate-500">Loading Audit Queue...</div>}>
         <ReviewerDashboardContent />

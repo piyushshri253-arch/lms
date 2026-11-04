@@ -32,8 +32,8 @@ export const UdemyPersonalPlanSection: React.FC = () => {
               {/* 4 Feature Points in 2x2 Grid with Pure White Text */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-6 mb-9">
                 {/* Feature 1: Practical Educator Learning */}
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#7c3aed]/25 text-[#d8b4fe] flex items-center justify-center shrink-0 border border-[#a855f7]/30 mt-0.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#7c3aed]/25 text-[#d8b4fe] flex items-center justify-center shrink-0 border border-[#a855f7]/30">
                     <Icon name="school" size={17} />
                   </div>
                   <span
@@ -45,8 +45,8 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                 </div>
 
                 {/* Feature 2: Early Years & Teaching Skills */}
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#0284c7]/25 text-[#7dd3fc] flex items-center justify-center shrink-0 border border-[#38bdf8]/30 mt-0.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#0284c7]/25 text-[#7dd3fc] flex items-center justify-center shrink-0 border border-[#38bdf8]/30">
                     <Icon name="child_care" size={17} />
                   </div>
                   <span
@@ -58,8 +58,8 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                 </div>
 
                 {/* Feature 3: Learn At Your Own Pace */}
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#e11d48]/25 text-[#fda4af] flex items-center justify-center shrink-0 border border-[#fb7185]/30 mt-0.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#e11d48]/25 text-[#fda4af] flex items-center justify-center shrink-0 border border-[#fb7185]/30">
                     <Icon name="schedule" size={17} />
                   </div>
                   <span
@@ -71,8 +71,8 @@ export const UdemyPersonalPlanSection: React.FC = () => {
                 </div>
 
                 {/* Feature 4: Build Confidence */}
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#059669]/25 text-[#6ee7b7] flex items-center justify-center shrink-0 border border-[#34d399]/30 mt-0.5">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#059669]/25 text-[#6ee7b7] flex items-center justify-center shrink-0 border border-[#34d399]/30">
                     <Icon name="trending_up" size={17} />
                   </div>
                   <span
@@ -85,20 +85,12 @@ export const UdemyPersonalPlanSection: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <div className="flex items-center">
                 <Link
                   href="/courses"
-                  className="inline-flex items-center justify-center px-8 py-3.5 bg-white text-[#1c1d1f] hover:bg-[#f3f4f6] font-extrabold text-sm rounded-md transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                  className="inline-flex items-center justify-center px-8 py-3.5 bg-[#5624d0] hover:bg-[#401b9c] text-white font-extrabold text-sm rounded-xl transition-all shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   Explore Courses
-                </Link>
-
-                <Link
-                  href="/contact"
-                  className="text-sm font-bold text-white !text-white hover:text-purple-300 underline underline-offset-4 transition-colors cursor-pointer"
-                  style={{ color: '#ffffff' }}
-                >
-                  Speak with an Advisor
                 </Link>
               </div>
             </div>

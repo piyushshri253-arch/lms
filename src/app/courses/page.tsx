@@ -23,6 +23,73 @@ function getCategoryName(cat: any): string {
   return String(cat || 'General');
 }
 
+// Smart Alphanumeric & Punctuation-Insensitive Matcher (e.g. "full stack" / "fullstack" matches "Full-Stack")
+function matchCourseSearch(course: Course, query: string): boolean {
+  if (!query || !query.trim()) return true;
+
+  const rawQuery = query.trim().toLowerCase();
+  const strip = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const strippedQuery = strip(rawQuery);
+
+  const title = course.title || '';
+  const desc = course.description || '';
+  const shortDesc = (course as any).shortDescription || '';
+  const cat = getCategoryName(course.category);
+  const inst = course.instructor?.name || '';
+  const tags = Array.isArray((course as any).tags)
+    ? (course as any).tags.join(' ')
+    : String((course as any).tags || '');
+
+  // 1. Direct substring match
+  if (
+    title.toLowerCase().includes(rawQuery) ||
+    desc.toLowerCase().includes(rawQuery) ||
+    shortDesc.toLowerCase().includes(rawQuery) ||
+    cat.toLowerCase().includes(rawQuery) ||
+    inst.toLowerCase().includes(rawQuery) ||
+    tags.toLowerCase().includes(rawQuery)
+  ) {
+    return true;
+  }
+
+  // 2. Normalized stripped match (ignoring hyphens, spaces, underscores, periods)
+  // E.g. "full stack" matches "Full-Stack Web Development", "fullstack" matches "Full-Stack"
+  if (strippedQuery) {
+    const strippedTitle = strip(title);
+    const strippedDesc = strip(desc);
+    const strippedCat = strip(cat);
+    const strippedInst = strip(inst);
+    const strippedTags = strip(tags);
+
+    if (
+      strippedTitle.includes(strippedQuery) ||
+      strippedDesc.includes(strippedQuery) ||
+      strippedCat.includes(strippedQuery) ||
+      strippedInst.includes(strippedQuery) ||
+      strippedTags.includes(strippedQuery)
+    ) {
+      return true;
+    }
+  }
+
+  // 3. Multi-word token match (every word in query matches either with space, hyphen, or stripped)
+  const tokens = rawQuery.split(/[\s\-_]+/).filter(Boolean);
+  if (tokens.length > 1) {
+    const combinedContent = `${title} ${desc} ${shortDesc} ${cat} ${inst} ${tags}`;
+    const strippedCombined = strip(combinedContent);
+    const allTokensFound = tokens.every((token) => {
+      const strippedToken = strip(token);
+      return (
+        combinedContent.toLowerCase().includes(token) ||
+        (strippedToken && strippedCombined.includes(strippedToken))
+      );
+    });
+    if (allTokensFound) return true;
+  }
+
+  return false;
+}
+
 function CoursesCatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -116,10 +183,11 @@ function CoursesCatalogContent() {
     });
   }, [searchParams]);
 
-  // Sync search input if provided via URL
+  // Sync search input whenever URL query changes (including when cleared to empty)
   useEffect(() => {
-    if (urlSearch && urlSearch !== contextSearch) {
-      setSearchQuery(urlSearch);
+    const cleanUrlSearch = (urlSearch || '').trim();
+    if (cleanUrlSearch !== (contextSearch || '').trim()) {
+      setSearchQuery(cleanUrlSearch);
     }
   }, [urlSearch, contextSearch, setSearchQuery]);
 
@@ -262,14 +330,10 @@ function CoursesCatalogContent() {
         if (!course) return false;
 
         try {
-          // 1. Search Query
-          const activeSearch = (contextSearch || urlSearch || '').trim().toLowerCase();
+          // 1. Search Query (live AJAX sync with fuzzy alphanumeric & punctuation matching)
+          const activeSearch = (urlSearch || (searchParams.has('search') ? '' : contextSearch || '')).trim();
           if (activeSearch) {
-            const matchTitle = (course.title || '').toLowerCase().includes(activeSearch);
-            const matchDesc = (course.description || '').toLowerCase().includes(activeSearch);
-            const matchCat = getCategoryName(course.category).toLowerCase().includes(activeSearch);
-            const matchInst = (course.instructor?.name || '').toLowerCase().includes(activeSearch);
-            if (!matchTitle && !matchDesc && !matchCat && !matchInst) return false;
+            if (!matchCourseSearch(course, activeSearch)) return false;
           }
 
           // 2. Category Filter
@@ -321,15 +385,42 @@ function CoursesCatalogContent() {
       })
       .sort((a, b) => {
         try {
-          if (sortBy === 'popular') return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
+          if (sortBy === 'popular') {
+            // 1. Bestseller badge courses first
+            const bestDiff = (b.bestseller ? 1 : 0) - (a.bestseller ? 1 : 0);
+            if (bestDiff !== 0) return bestDiff;
+
+            // 2. Highest student enrollment count
+            const studentsDiff = (Number(b.studentsCount) || 0) - (Number(a.studentsCount) || 0);
+            if (studentsDiff !== 0) return studentsDiff;
+
+            // 3. Highest reviews count
+            const reviewsDiff = (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
+            if (reviewsDiff !== 0) return reviewsDiff;
+
+            // 4. Highest average star rating
+            const ratingDiff = (Number(b.rating) || 0) - (Number(a.rating) || 0);
+            if (ratingDiff !== 0) return ratingDiff;
+
+            // 5. Fallback: Newest
+            return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+          }
           if (sortBy === 'free-first') {
             const isFreeA = Number(a.price || 0) === 0 ? 0 : 1;
             const isFreeB = Number(b.price || 0) === 0 ? 0 : 1;
             if (isFreeA !== isFreeB) return isFreeA - isFreeB;
+            const bestDiff = (b.bestseller ? 1 : 0) - (a.bestseller ? 1 : 0);
+            if (bestDiff !== 0) return bestDiff;
             return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
           }
           if (sortBy === 'rating') return (Number(b.rating) || 0) - (Number(a.rating) || 0);
-          if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+          if (sortBy === 'newest') {
+            const newDiff = (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+            if (newDiff !== 0) return newDiff;
+            const dateA = new Date((a as any).createdAt || 0).getTime();
+            const dateB = new Date((b as any).createdAt || 0).getTime();
+            return dateB - dateA;
+          }
           if (sortBy === 'price-low') return (Number(a.price) || 0) - (Number(b.price) || 0);
           if (sortBy === 'price-high') return (Number(b.price) || 0) - (Number(a.price) || 0);
         } catch {}

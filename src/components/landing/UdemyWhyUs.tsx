@@ -66,12 +66,12 @@ export const UdemyWhyUs: React.FC = () => {
               </div>
 
               {/* Title with Uniform Min-Height for Perfect Horizontal Alignment */}
-              <h3 className="text-base sm:text-[17px] font-bold text-[#2d2f31] mb-2.5 leading-snug min-h-[48px] sm:min-h-[52px] flex items-center group-hover:text-[#5022c3] transition-colors">
+              <h3 className="text-base sm:text-[17px] font-bold text-[#2d2f31] mb-2.5 leading-snug min-h-[48px] sm:min-h-[52px] flex items-start group-hover:text-[#5022c3] transition-colors">
                 {item.title}
               </h3>
 
               {/* Description Body Perfectly Aligned Across All 4 Cards */}
-              <p className="text-xs sm:text-sm text-[#6a6f73] leading-relaxed font-normal flex-1">
+              <p className="text-xs sm:text-sm text-[#6a6f73] leading-relaxed font-normal min-h-[72px] sm:min-h-[80px] flex-1">
                 {item.description}
               </p>
             </div>

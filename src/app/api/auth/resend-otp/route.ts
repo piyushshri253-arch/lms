@@ -1,49 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateOtp, checkRateLimit, logSecurityEvent } from '@/lib/security';
-import { sendEmail } from '@/lib/email';
+import { EmailService } from '@/lib/email';
 
-export async function GET(req: NextRequest) {
-  try {
-    const email = req.nextUrl.searchParams.get('email') || '';
-    const normalizedEmail = email.toLowerCase().trim();
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      return NextResponse.json({ fallbackOtp: null });
-    }
-    const pendingSetting = await prisma.platformSetting.findUnique({
-      where: { key: `pending_signup_${normalizedEmail}` }
-    });
-    if (!pendingSetting) {
-      return NextResponse.json({ fallbackOtp: null });
-    }
-    const parsed = JSON.parse(pendingSetting.value);
-    if (parsed?.plainOtp) {
-      return NextResponse.json({ fallbackOtp: parsed.plainOtp });
-    }
-    // If legacy pending_signup entry doesn't have plainOtp yet, generate a fresh 6-digit OTP and send it
-    const { otp, hash: otpHash } = generateOtp(6);
-    parsed.otpHash = otpHash;
-    parsed.plainOtp = otp;
-    parsed.expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    parsed.attempts = 0;
-    await prisma.platformSetting.update({
-      where: { key: `pending_signup_${normalizedEmail}` },
-      data: { value: JSON.stringify(parsed) }
-    });
-    await sendEmail({
-      to: normalizedEmail,
-      subject: `Morena Teach — Email Verification Code (${otp})`,
-      template: 'OTP_VERIFY',
-      data: {
-        name: parsed?.userData?.name || normalizedEmail.split('@')[0],
-        otp,
-        expiresInMinutes: 10
-      }
-    }).catch(() => {});
-    return NextResponse.json({ fallbackOtp: otp });
-  } catch {
-    return NextResponse.json({ fallbackOtp: null });
-  }
+export async function GET() {
+  return NextResponse.json({ success: true });
 }
 
 export async function POST(req: NextRequest) {
@@ -111,17 +72,13 @@ export async function POST(req: NextRequest) {
       const recipientName = pendingPayload?.userData?.name || normalizedEmail.split('@')[0];
       const orgId = pendingPayload?.userData?.organizationId || null;
 
-      await sendEmail({
+      await EmailService.sendVerificationOTP({
         to: normalizedEmail,
-        subject: `Morena Teach — Email Verification Code (${otp})`,
-        template: 'OTP_VERIFY',
+        name: recipientName,
+        otp,
         userId: undefined,
         organizationId: orgId,
-        data: {
-          name: recipientName,
-          otp,
-          expiresInMinutes: 10
-        }
+        expiresInMinutes: 10
       });
 
       await logSecurityEvent({
@@ -134,8 +91,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        fallbackOtp: otp,
-        message: 'A new 6-digit verification code has been dispatched to your email.'
+        message: 'A new 6-digit verification code has been dispatched to your email address.'
       });
     }
 
@@ -185,17 +141,13 @@ export async function POST(req: NextRequest) {
     });
 
     // 8. Dispatch Email
-    await sendEmail({
+    await EmailService.sendVerificationOTP({
       to: normalizedEmail,
-      subject: 'Verify your account',
-      template: 'OTP_VERIFY',
+      name: user.name,
+      otp,
       userId: user.id,
       organizationId: user.organizationId,
-      data: {
-        name: user.name,
-        otp,
-        expiresInMinutes: 10
-      }
+      expiresInMinutes: 10
     });
 
     // 9. Log Security Event

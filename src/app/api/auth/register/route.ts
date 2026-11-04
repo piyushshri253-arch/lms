@@ -333,7 +333,6 @@ export async function POST(req: NextRequest) {
       success: true,
       email: normalizedEmail,
       role: normalizedRole,
-      fallbackOtp: otp,
       requiresEmailVerification: true,
       message: 'Verification code sent! Please enter the 6-digit OTP sent to your email address to create and activate your account.'
     });

@@ -6,8 +6,8 @@ import { Icon } from '@/components/ui/Icon';
 
 interface SlideData {
   id: number;
-  title: string;
-  description: string;
+  title: React.ReactNode;
+  description: React.ReactNode;
   ctaText: string;
   ctaLink: string;
   bgImage: string;
@@ -19,9 +19,16 @@ interface SlideData {
 const SLIDES: SlideData[] = [
   {
     id: 1,
-    title: 'Build in-demand skills',
-    description:
-      'Get unlimited access to top accredited courses taught by industry leaders and master educators on Morena Teach.',
+    title: <span className="whitespace-normal sm:whitespace-nowrap">Build in-demand skills</span>,
+    description: (
+      <>
+        Get unlimited access to top accredited courses taught by{' '}
+        <br className="hidden sm:inline" />
+        industry leaders and master educators on Morena{' '}
+        <br className="hidden sm:inline" />
+        Teach.
+      </>
+    ),
     ctaText: 'Explore Courses',
     ctaLink: '/courses',
     bgImage: '/images/hero-red-student.jpg',
@@ -31,10 +38,21 @@ const SLIDES: SlideData[] = [
   },
   {
     id: 2,
-    title: 'Learn from industry experts',
-    description:
-      'Empower your teaching career with modern pedagogy, hands-on child psychology, and international certifications.',
-    ctaText: 'Meet Instructors',
+    title: (
+      <>
+        Learn from industry <br />experts
+      </>
+    ),
+    description: (
+      <>
+        Empower your teaching career with modern{' '}
+        <br className="hidden sm:inline" />
+        pedagogy, hands-on child psychology, and{' '}
+        <br className="hidden sm:inline" />
+        certifications.
+      </>
+    ),
+    ctaText: 'Explore Masterclasses',
     ctaLink: '/courses',
     bgImage: '/images/hero-violet-teacher.jpg',
     bgColor: '#4c1d95',
@@ -43,9 +61,16 @@ const SLIDES: SlideData[] = [
   },
   {
     id: 3,
-    title: 'Accelerate your career',
-    description:
-      'Build practical teaching skills, grow your confidence, and explore new opportunities in your teaching career.',
+    title: <span className="whitespace-normal sm:whitespace-nowrap">Accelerate your career</span>,
+    description: (
+      <>
+        Build practical teaching skills, grow your confidence,{' '}
+        <br className="hidden sm:inline" />
+        and explore new opportunities in your teaching{' '}
+        <br className="hidden sm:inline" />
+        career.
+      </>
+    ),
     ctaText: 'Get Started Today',
     ctaLink: '/courses',
     bgImage: '/images/hero-teal-tech.jpg',
@@ -145,29 +170,33 @@ export const UdemyHeroBillboard: React.FC = () => {
                   backgroundRepeat: 'no-repeat'
                 }}
               >
-                {/* Subtle contrast gradient on photo-heavy slides */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/45 sm:from-black/30 via-transparent to-transparent" />
+                {/* Subtle contrast gradient on photo-heavy slides (pointer-events-none ensures button clicks are never blocked) */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/45 sm:from-black/30 via-transparent to-transparent pointer-events-none" />
 
-                {/* Floating Udemy-Style Pure White Information Card */}
-                <div className="h-full flex items-center px-4 sm:px-8 md:px-12 lg:px-14 py-6 sm:py-0">
-                  <div className="w-full max-w-[460px] bg-white/95 sm:bg-white p-5 sm:p-8 md:p-9 shadow-[0_2px_4px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.12)] rounded-xl border border-gray-100/60 transition-transform duration-500">
-                    {/* Headline */}
-                    <h1 className="text-xl sm:text-[28px] lg:text-[32px] font-extrabold text-[#1c1d1f] leading-[1.2] tracking-tight mb-2 sm:mb-3">
-                      {slide.title}
-                    </h1>
+                {/* Floating Udemy-Style Pure White Information Card with Identical Dimensions Across All Slides */}
+                <div className="h-full flex items-center px-4 sm:px-8 md:px-12 lg:px-14 py-6 sm:py-0 relative z-20 pointer-events-auto">
+                  <div className="w-full max-w-[460px] min-h-[290px] sm:min-h-[310px] md:min-h-[320px] flex flex-col justify-between bg-white p-6 sm:p-8 md:p-9 shadow-[0_4px_24px_rgba(0,0,0,0.12)] rounded-2xl border border-gray-100 transition-transform duration-500 relative z-20 pointer-events-auto">
+                    <div className="flex-1 flex flex-col text-left">
+                      {/* Headline with Uniform 2-Line Alignment & Height matching screenshot */}
+                      <h1 className="text-2xl sm:text-[28px] lg:text-[32px] font-bold text-[#1c1d1f] leading-[1.2] tracking-tight mb-3 sm:mb-3.5 min-h-[56px] sm:min-h-[68px] flex items-start">
+                        {slide.title}
+                      </h1>
 
-                    {/* Subtitle / Description */}
-                    <p className="text-xs sm:text-base text-[#2d2f31] leading-relaxed mb-4 sm:mb-6 font-normal">
-                      {slide.description}
-                    </p>
+                      {/* Subtitle / Description with Balanced 3-Line Cadence */}
+                      <p className="text-xs sm:text-[15px] text-[#2d2f31] leading-relaxed mb-6 font-normal min-h-[64px] sm:min-h-[72px]">
+                        {slide.description}
+                      </p>
+                    </div>
 
-                    {/* Signature Udemy Purple Action Button */}
-                    <Link
-                      href={slide.ctaLink}
-                      className="inline-block px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white bg-[#5624d0] hover:bg-[#401b9c] rounded-md transition-all shadow-sm active:scale-[0.98]"
-                    >
-                      {slide.ctaText}
-                    </Link>
+                    {/* Signature Udemy Purple Action Button - Always 100% Clickable & Navigates to /courses */}
+                    <div className="mt-auto pt-1 relative z-30 pointer-events-auto text-left">
+                      <Link
+                        href={slide.ctaLink}
+                        className="relative z-30 inline-block px-6 py-3 text-xs sm:text-sm font-bold text-white bg-[#5624d0] hover:bg-[#401b9c] rounded-lg transition-all shadow-sm active:scale-[0.98] cursor-pointer pointer-events-auto"
+                      >
+                        {slide.ctaText}
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
