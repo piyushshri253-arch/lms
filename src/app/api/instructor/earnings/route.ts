@@ -99,6 +99,33 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Reconcile any existing transactions for this user to ensure 60% platform fee, 40% instructor share, 2% TDS
+    const existingTxns = await prisma.instructorEarningTransaction.findMany({
+      where: { userId: session.id }
+    });
+    for (const t of existingTxns) {
+      const gross = Number(t.grossAmount || 0);
+      if (gross > 0) {
+        const expectedFee = Math.round(gross * 0.60);
+        const expectedShare = Math.round(gross * 0.40);
+        const expectedTds = Math.round(expectedShare * 0.02);
+        const expectedNet = expectedShare - expectedTds;
+        if (t.platformFee !== expectedFee || t.instructorShare !== expectedShare) {
+          await prisma.instructorEarningTransaction
+            .update({
+              where: { id: t.id },
+              data: {
+                platformFee: expectedFee,
+                instructorShare: expectedShare,
+                taxDeduction: expectedTds,
+                netAmount: expectedNet
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
     const allForUser = await prisma.instructorEarningTransaction.findMany({
       where: { userId: session.id },
       orderBy: { createdAt: 'desc' }
