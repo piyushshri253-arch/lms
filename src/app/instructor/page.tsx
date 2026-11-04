@@ -229,7 +229,10 @@ function InstructorCoursesStudioInner() {
   const fetchInstructorStudents = async () => {
     try {
       setIsLoadingStudents(true);
-      const res = await fetch('/api/instructor/students');
+      const res = await fetch(`/api/instructor/students?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' }
+      });
       const data = await res.json();
       if (res.ok && data.students) {
         setEnrolledStudents(data.students);

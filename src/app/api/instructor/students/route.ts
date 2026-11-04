@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -215,9 +218,10 @@ export async function GET(request: Request) {
       const matchedTxn = txnMap.get(userCourseKey);
 
       const fee = Number(
-        matchedOrder?.total ||
-        matchedOrder?.amount ||
         matchedTxn?.grossAmount ||
+        matchedOrder?.subtotal ||
+        matchedOrder?.amount ||
+        matchedOrder?.total ||
         enr.course.discountPrice ||
         enr.course.price ||
         0
@@ -284,18 +288,27 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      metrics: {
-        totalEnrollments,
-        totalUniqueStudents: uniqueStudents,
-        totalRevenue,
-        activeEnrollments,
-        completedEnrollments
+    return NextResponse.json(
+      {
+        success: true,
+        metrics: {
+          totalEnrollments,
+          totalUniqueStudents: uniqueStudents,
+          totalRevenue,
+          activeEnrollments,
+          completedEnrollments
+        },
+        students: studentsData,
+        coursesBreakdown
       },
-      students: studentsData,
-      coursesBreakdown
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0'
+        }
+      }
+    );
   } catch (error: any) {
     console.error('[Instructor Students API Error]:', error);
     return NextResponse.json(
