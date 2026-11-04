@@ -261,12 +261,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, variant = 'stand
         </div>
 
         <div className="mt-auto pt-3 border-t border-outline-variant/60 flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-1.5">
             <span className={`text-base font-extrabold ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
               {course.price === 0 ? 'Free' : `₹${course.price.toLocaleString('en-IN')}`}
             </span>
+            {course.price > 0 && (
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">+ GST</span>
+            )}
             {discountPrice && (
-              <span className="text-xs text-on-surface-variant line-through">
+              <span className="text-xs text-on-surface-variant line-through ml-1">
                 ₹{discountPrice.toLocaleString('en-IN')}
               </span>
             )}

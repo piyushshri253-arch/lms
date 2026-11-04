@@ -219,12 +219,15 @@ export const UdemyCourseCard: React.FC<UdemyCourseCardProps> = ({
           </div>
 
           {/* Price Row */}
-          <div className="mt-auto flex items-baseline gap-2 pt-1">
+          <div className="mt-auto flex items-baseline gap-1.5 pt-1">
             <span className={`text-base font-extrabold ${Number(course.price || 0) === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
               {Number(course.price || 0) === 0 ? 'Free' : `₹${Number(course.price || 0).toLocaleString('en-IN')}`}
             </span>
+            {Number(course.price || 0) > 0 && (
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">+ GST</span>
+            )}
             {discountPrice && Number(discountPrice) > Number(course.price || 0) && (
-              <span className="text-xs text-[#6a6f73] line-through">
+              <span className="text-xs text-[#6a6f73] line-through ml-1">
                 ₹{Number(discountPrice).toLocaleString('en-IN')}
               </span>
             )}

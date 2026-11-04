@@ -165,6 +165,9 @@ export const UdemyFeaturedCourseCard: React.FC<UdemyFeaturedCourseCardProps> = (
                 <span className="text-lg font-bold text-[#2d2f31]">
                   {Number(course.price || 0) === 0 ? 'Free' : `₹${Number(course.price || 0).toLocaleString('en-IN')}`}
                 </span>
+                {Number(course.price || 0) > 0 && (
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">+ GST</span>
+                )}
                 {discountPrice && Number(discountPrice) > Number(course.price || 0) && (
                   <span className="text-xs text-[#6a6f73] line-through">
                     ₹{Number(discountPrice).toLocaleString('en-IN')}

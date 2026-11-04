@@ -52,7 +52,7 @@ const SLIDES: SlideData[] = [
         certifications.
       </>
     ),
-    ctaText: 'Explore Masterclasses',
+    ctaText: 'Start Learning',
     ctaLink: '/courses',
     bgImage: '/images/hero-violet-teacher.jpg',
     bgColor: '#4c1d95',

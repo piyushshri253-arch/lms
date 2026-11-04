@@ -46,6 +46,59 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Synchronize instructor course sales with 60% platform fee, 40% instructor share, 2% TDS
+    const enrollments = await prisma.enrollment.findMany({
+      where: {
+        course: { instructorId: session.id }
+      },
+      include: {
+        course: true,
+        user: true
+      }
+    });
+
+    for (const enr of enrollments) {
+      const ref = `TXN-${enr.id.slice(-8).toUpperCase()}`;
+      const gross = Number(enr.course?.discountPrice ?? enr.course?.price ?? 999);
+      if (gross > 0) {
+        const platformFee = Math.round(gross * 0.60);
+        const instructorShare = Math.round(gross * 0.40);
+        const taxDeduction = Math.round(instructorShare * 0.02);
+        const netAmount = instructorShare - taxDeduction;
+
+        await prisma.instructorEarningTransaction
+          .upsert({
+            where: { transactionRef: ref },
+            create: {
+              transactionRef: ref,
+              userId: session.id,
+              courseId: enr.courseId,
+              courseTitle: enr.course?.title || 'Course Enrollment',
+              studentId: enr.userId,
+              studentName: enr.user?.name || 'Student',
+              studentEmail: enr.user?.email || '',
+              type: 'COURSE_SALE',
+              grossAmount: gross,
+              platformFee,
+              instructorShare,
+              taxDeduction,
+              netAmount,
+              paymentMethod: 'RAZORPAY',
+              status: 'PAID',
+              createdAt: enr.enrolledAt
+            },
+            update: {
+              grossAmount: gross,
+              platformFee,
+              instructorShare,
+              taxDeduction,
+              netAmount
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
     const allForUser = await prisma.instructorEarningTransaction.findMany({
       where: { userId: session.id },
       orderBy: { createdAt: 'desc' }
@@ -68,6 +121,10 @@ export async function GET(req: NextRequest) {
     const totalPlatformFees = allForUser
       .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
       .reduce((s, t) => s + Number(t.platformFee || 0), 0);
+
+    const totalTaxDeductions = allForUser
+      .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
+      .reduce((s, t) => s + Number(t.taxDeduction || 0), 0);
 
     const totalNetEarnings = allForUser
       .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
@@ -112,6 +169,7 @@ export async function GET(req: NextRequest) {
       summary: {
         totalGrossSales,
         totalPlatformFees,
+        totalTaxDeductions,
         totalNetEarnings,
         pendingClearance,
         availableBalance,

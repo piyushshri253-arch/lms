@@ -182,9 +182,14 @@ export const UdemyCourseRow: React.FC<UdemyCourseRowProps> = ({ course }) => {
       {/* 3. Right Price Column */}
       <div className="shrink-0 flex sm:flex-col items-baseline sm:items-end gap-1.5 pt-1 sm:pt-0">
         <div className="flex flex-col sm:items-end">
-          <span className={`text-base sm:text-lg font-extrabold ${Number(course.price || 0) === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
-            {Number(course.price || 0) === 0 ? 'Free' : `₹${Number(course.price || 0).toLocaleString('en-IN')}`}
-          </span>
+          <div className="flex items-baseline gap-1">
+            <span className={`text-base sm:text-lg font-extrabold ${Number(course.price || 0) === 0 ? 'text-emerald-700' : 'text-[#2d2f31]'}`}>
+              {Number(course.price || 0) === 0 ? 'Free' : `₹${Number(course.price || 0).toLocaleString('en-IN')}`}
+            </span>
+            {Number(course.price || 0) > 0 && (
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">+ GST</span>
+            )}
+          </div>
           {discountPrice && Number(discountPrice) > Number(course.price || 0) && (
             <span className="text-xs text-[#6a6f73] line-through">
               ₹{Number(discountPrice).toLocaleString('en-IN')}

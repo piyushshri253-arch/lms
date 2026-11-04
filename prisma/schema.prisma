@@ -108,7 +108,7 @@ model Organization {
   verifiedAt             DateTime?
   sellerRating           Float     @default(5.0)
   sellerReviewCount      Int       @default(0)
-  commissionRate         Float     @default(10.0) // Platform fee percentage
+  commissionRate         Float     @default(60.0) // Platform fee percentage (60%)
 
   // Plan Entitlement Limits
   maxStudents            Int       @default(100)

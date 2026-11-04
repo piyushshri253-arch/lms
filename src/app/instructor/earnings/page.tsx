@@ -52,14 +52,30 @@ export default function InstructorEarningsPage() {
     >
       <div className="space-y-6">
         {/* Financial Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
             <div className="text-xs font-semibold text-slate-500">Gross Course Sales</div>
             <div className="mt-2 text-2xl font-black text-slate-900">
               ₹{Number(summary.totalGrossSales || 0).toLocaleString('en-IN')}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              Platform Fee (15%): ₹{Number(summary.totalPlatformFees || 0).toLocaleString('en-IN')}
+              Platform Fee (60%): ₹{Number(summary.totalPlatformFees || 0).toLocaleString('en-IN')}
+            </div>
+          </div>
+
+          {/* TDS Deducted (2% Govt. Tax) */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <div className="text-xs font-semibold text-slate-500 flex items-center justify-between">
+              <span>TDS Deducted (2%)</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                Sec 194-O
+              </span>
+            </div>
+            <div className="mt-2 text-2xl font-black text-amber-600">
+              ₹{Number(summary.totalTaxDeductions || 0).toLocaleString('en-IN')}
+            </div>
+            <div className="mt-1 text-[11px] text-slate-500">
+              2% Govt. TDS on Instructor Share
             </div>
           </div>
 
@@ -69,7 +85,7 @@ export default function InstructorEarningsPage() {
               ₹{Number(summary.totalNetEarnings || 0).toLocaleString('en-IN')}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              Pending Clearance: ₹{Number(summary.pendingClearance || 0).toLocaleString('en-IN')}
+              Instructor Share: 40% (less 2% TDS)
             </div>
           </div>
 

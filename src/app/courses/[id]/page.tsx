@@ -440,12 +440,15 @@ function CourseDetailsContent() {
             </div>
 
             <div className="p-4 sm:p-6 flex flex-col gap-4">
-              <div className="flex items-end gap-3">
+              <div className="flex items-baseline gap-2">
                 <span className={`text-2xl sm:text-3xl font-extrabold leading-none font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
                   {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
                 </span>
+                {course.price > 0 && (
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">+ 18% GST</span>
+                )}
                 {course.discountPrice && course.discountPrice > course.price && (
-                  <span className="text-sm text-outline line-through mb-0.5 font-mono">
+                  <span className="text-sm text-outline line-through mb-0.5 font-mono ml-1">
                     ₹{Number(course.discountPrice).toLocaleString('en-IN')}
                   </span>
                 )}
@@ -869,12 +872,15 @@ function CourseDetailsContent() {
 
             {/* Pricing & Checkout CTAs */}
             <div className="p-6 sm:p-8 flex flex-col gap-5">
-              <div className="flex items-end gap-3">
+              <div className="flex items-baseline gap-2">
                 <span className={`text-3xl sm:text-4xl font-extrabold leading-none font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
                   {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
                 </span>
+                {course.price > 0 && (
+                  <span className="text-sm font-bold text-slate-500 uppercase tracking-tight">+ 18% GST</span>
+                )}
                 {course.discountPrice && course.discountPrice > course.price && (
-                  <span className="text-base text-outline line-through mb-1 font-mono">
+                  <span className="text-base text-outline line-through mb-1 font-mono ml-1">
                     ₹{Number(course.discountPrice).toLocaleString('en-IN')}
                   </span>
                 )}
@@ -1125,9 +1131,14 @@ function CourseDetailsContent() {
       {/* Mobile Sticky Bottom Enrollment Bar (< lg) */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#d1d7dc] px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.1)] flex items-center justify-between gap-3">
         <div className="flex flex-col">
-          <span className={`text-xl font-extrabold leading-tight font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
-            {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
-          </span>
+          <div className="flex items-baseline gap-1">
+            <span className={`text-xl font-extrabold leading-tight font-mono ${course.price === 0 ? 'text-emerald-700' : 'text-on-surface'}`}>
+              {course.price === 0 ? 'Free' : `₹${Number(course.price).toLocaleString('en-IN')}`}
+            </span>
+            {course.price > 0 && (
+              <span className="text-[10px] font-bold text-slate-500 uppercase">+ GST</span>
+            )}
+          </div>
           {course.discountPrice && course.discountPrice > course.price && (
             <span className="text-xs text-outline line-through font-mono">
               ₹{Number(course.discountPrice).toLocaleString('en-IN')}

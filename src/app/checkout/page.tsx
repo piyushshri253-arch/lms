@@ -46,10 +46,12 @@ function CheckoutContent() {
     total: number;
   } | null>(null);
 
-  // Calculate Totals
+  // Calculate Totals with 18% GST included
   const subtotal = cartItems.reduce((acc, item) => acc + Number(item.price || 0), 0);
   const discountAmount = Number(((subtotal * discountPercent) / 100).toFixed(2));
-  const finalTotal = Math.max(0, Number((subtotal - discountAmount).toFixed(2)));
+  const taxableAmount = Math.max(0, Number((subtotal - discountAmount).toFixed(2)));
+  const gstAmount = taxableAmount > 0 ? Number(((taxableAmount * 18) / 100).toFixed(2)) : 0;
+  const finalTotal = Math.max(0, Number((taxableAmount + gstAmount).toFixed(2)));
 
   // Ensure card name syncs with user
   useEffect(() => {
@@ -747,7 +749,7 @@ function CheckoutContent() {
                 ) : (
                   <>
                     <Icon name="lock" size={18} />
-                    <span>Pay ₹{finalTotal} (Trial Payment)</span>
+                    <span>Pay ₹{finalTotal} (incl. GST)</span>
                   </>
                 )}
               </button>
@@ -787,8 +789,11 @@ function CheckoutContent() {
                     <p className="text-[11px] text-[#6a6f73] mt-0.5">
                       By {item.instructorName || 'Morena Teach Faculty'}
                     </p>
-                    <div className="text-xs font-extrabold text-[#1c1d1f] mt-1">
-                      ₹{item.price}
+                    <div className="text-xs font-extrabold text-[#1c1d1f] mt-1 flex items-baseline gap-1">
+                      <span>₹{item.price}</span>
+                      {Number(item.price || 0) > 0 && (
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">+ 18% GST</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -827,25 +832,30 @@ function CheckoutContent() {
             {/* Price Calculations */}
             <div className="space-y-2.5 pt-4 border-t border-[#e4e8eb] text-sm mb-6">
               <div className="flex justify-between text-[#2d2f31]">
-                <span>Original Price:</span>
-                <span className="font-semibold">₹{subtotal}</span>
+                <span>Course Subtotal:</span>
+                <span className="font-semibold">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
 
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-700 font-medium">
                   <span>Coupon Discount ({discountPercent}%):</span>
-                  <span>-₹{discountAmount}</span>
+                  <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-[#6a6f73] text-xs">
-                <span>GST (18% inclusive):</span>
-                <span>Included</span>
-              </div>
+              {taxableAmount > 0 && (
+                <div className="flex justify-between text-[#2d2f31]">
+                  <span>GST (18%):</span>
+                  <span className="font-semibold">+₹{gstAmount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
 
               <div className="flex justify-between text-[#1c1d1f] text-lg font-black pt-3 border-t border-gray-200">
-                <span>Total Amount:</span>
-                <span>₹{finalTotal}</span>
+                <div>
+                  <div>Total Amount:</div>
+                  <div className="text-[11px] font-normal text-slate-500">Includes 18% GST</div>
+                </div>
+                <span>₹{finalTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
 

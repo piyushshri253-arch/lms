@@ -18,7 +18,7 @@ export async function creditSellerWallet(params: {
     select: { commissionRate: true, name: true }
   });
 
-  const commissionRate = org?.commissionRate !== undefined ? org.commissionRate : 10.0;
+  const commissionRate = org?.commissionRate !== undefined ? org.commissionRate : 60.0;
   const platformFee = Math.round((orderTotal * (commissionRate / 100)) * 100) / 100;
   const sellerAmount = Math.max(0, Math.round((orderTotal - platformFee) * 100) / 100);
 

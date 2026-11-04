@@ -81,10 +81,10 @@ export async function GET(req: NextRequest) {
         if (!existingRefs.has(ref)) {
           const gross = Number(enr.course?.discountPrice ?? enr.course?.price ?? 999);
           if (gross > 0) {
-            const platformFee = Math.round(gross * 0.15);
-            const instructorShare = gross - platformFee;
-            const taxDeduction = Math.round(instructorShare * 0.02);
-            const netAmount = instructorShare - taxDeduction;
+            const platformFee = Math.round(gross * 0.60); // 60% Platform cut
+            const instructorShare = Math.round(gross * 0.40); // 40% Instructor share
+            const taxDeduction = Math.round(instructorShare * 0.02); // 2% TDS on instructor share
+            const netAmount = instructorShare - taxDeduction; // Net amount credited to instructor
 
             await prisma.instructorEarningTransaction
               .upsert({
