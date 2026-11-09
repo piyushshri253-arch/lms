@@ -251,6 +251,13 @@ function InstructorLoginContent() {
 
   return (
     <div className="w-full max-w-4xl mx-auto font-sans px-2 sm:px-4 py-4">
+      {/* Mobile Brand Badge */}
+      <div className="flex md:hidden flex-col items-center justify-center mb-3">
+        <div className="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-md border border-slate-200/80 flex items-center justify-center">
+          <img src="/logo.png" alt="Morena Teach" className="w-full h-full object-contain" />
+        </div>
+      </div>
+
       {/* Mobile Mode Switcher (< md screens) */}
       <div className="flex md:hidden p-1.5 rounded-2xl bg-white border border-slate-200 shadow-sm mb-4 max-w-xs mx-auto">
         <button
@@ -616,8 +623,12 @@ function InstructorLoginContent() {
           >
             {/* Left Half of Overlay: Shown when Overlay slides Left (SignUp Mode) */}
             <div className="w-1/2 h-full flex flex-col items-center justify-center px-8 sm:px-12 text-center select-none">
-              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white mb-4 shadow-inner">
-                <Icon name="login" size={24} />
+              <div className="w-14 h-14 rounded-2xl bg-white p-2 mb-4 shadow-xl border border-white/40 flex items-center justify-center">
+                <img
+                  src="/logo.png"
+                  alt="Morena Teach Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
                 Welcome Back!
@@ -639,8 +650,12 @@ function InstructorLoginContent() {
 
             {/* Right Half of Overlay: Shown when Overlay is on Right (SignIn Mode) */}
             <div className="w-1/2 h-full flex flex-col items-center justify-center px-8 sm:px-12 text-center select-none">
-              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white mb-4 shadow-inner">
-                <Icon name="auto_awesome" size={24} />
+              <div className="w-14 h-14 rounded-2xl bg-white p-2 mb-4 shadow-xl border border-white/40 flex items-center justify-center">
+                <img
+                  src="/logo.png"
+                  alt="Morena Teach Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
                 Hello, Educator!
