@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
@@ -55,6 +55,14 @@ interface QualificationItem {
 
   // Sign Up Multi-Step State
   const [signupStep, setSignupStep] = useState<1 | 2 | 3 | 4>(1);
+  const signupPanelRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll signup panel to top on step change or view toggle
+  useEffect(() => {
+    if (signupPanelRef.current) {
+      signupPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [signupStep, isSignUp]);
   const [signupForm, setSignupForm] = useState({
     // Step 1: Personal Details
     firstName: '',
@@ -559,7 +567,7 @@ interface QualificationItem {
       </div>
 
       {/* Main Double-Panel Sliding Card (Matches the Instagram Reel UI Design) */}
-      <div className="relative w-full min-h-[620px] md:min-h-[700px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
+      <div className="relative w-full min-h-[640px] md:min-h-[720px] md:h-[720px] lg:h-[740px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
         
         {/* ================= PANEL 1: SIGN IN FORM (LEFT HALF) ================= */}
         <div
@@ -749,13 +757,14 @@ interface QualificationItem {
 
         {/* ================= PANEL 2: SIGN UP FORM (RIGHT HALF - 4-STEP WIZARD) ================= */}
         <div
-          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-center px-4 sm:px-8 py-6 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
+          ref={signupPanelRef}
+          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-start px-4 sm:px-8 py-6 sm:py-8 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
             isSignUp
               ? 'flex md:opacity-100 md:pointer-events-auto md:z-20'
               : 'hidden md:flex md:opacity-0 md:pointer-events-none md:z-1'
           }`}
         >
-          <div className="w-full max-w-md lg:max-w-lg mx-auto text-center">
+          <div className="w-full max-w-md lg:max-w-lg mx-auto text-center pb-6">
             {/* Header & Stepper */}
             <div className="mb-2">
               <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
