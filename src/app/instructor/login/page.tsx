@@ -518,7 +518,7 @@ interface QualificationItem {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto font-sans px-2 sm:px-4 py-4">
+    <div className="w-full max-w-5xl lg:max-w-6xl mx-auto font-sans px-2 sm:px-4 py-4">
       {/* Mobile Brand Badge */}
       <div className="flex md:hidden flex-col items-center justify-center mb-3">
         <div className="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-md border border-slate-200/80 flex items-center justify-center">
@@ -559,7 +559,7 @@ interface QualificationItem {
       </div>
 
       {/* Main Double-Panel Sliding Card (Matches the Instagram Reel UI Design) */}
-      <div className="relative w-full max-w-4xl lg:max-w-5xl mx-auto min-h-[600px] md:min-h-[660px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
+      <div className="relative w-full min-h-[620px] md:min-h-[700px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
         
         {/* ================= PANEL 1: SIGN IN FORM (LEFT HALF) ================= */}
         <div
@@ -749,13 +749,13 @@ interface QualificationItem {
 
         {/* ================= PANEL 2: SIGN UP FORM (RIGHT HALF - 4-STEP WIZARD) ================= */}
         <div
-          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-center px-5 sm:px-10 py-6 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
+          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-center px-4 sm:px-8 py-6 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
             isSignUp
               ? 'flex md:opacity-100 md:pointer-events-auto md:z-20'
               : 'hidden md:flex md:opacity-0 md:pointer-events-none md:z-1'
           }`}
         >
-          <div className="max-w-sm mx-auto w-full text-center">
+          <div className="w-full max-w-md lg:max-w-lg mx-auto text-center">
             {/* Header & Stepper */}
             <div className="mb-2">
               <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
@@ -848,7 +848,7 @@ interface QualificationItem {
                       value={signupForm.firstName}
                       onChange={(e) => setSignupForm({ ...signupForm, firstName: e.target.value })}
                       placeholder="e.g. Aarav"
-                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                      className="w-full h-9 px-3 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -861,7 +861,7 @@ interface QualificationItem {
                       value={signupForm.lastName}
                       onChange={(e) => setSignupForm({ ...signupForm, lastName: e.target.value })}
                       placeholder="e.g. Sharma"
-                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                      className="w-full h-9 px-3 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -876,7 +876,7 @@ interface QualificationItem {
                     value={signupForm.email}
                     onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
                     placeholder="instructor@example.com"
-                    className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    className="w-full h-9 px-3 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                   />
                 </div>
 
@@ -890,7 +890,7 @@ interface QualificationItem {
                     value={signupForm.phone}
                     onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
                     placeholder="+91 98765 43210"
-                    className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    className="w-full h-9 px-3 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                   />
                 </div>
 
@@ -909,47 +909,51 @@ interface QualificationItem {
               </div>
             )}
 
-            {/* STEP 2: QUALIFICATIONS, EXPERIENCE & RESUME (Matches exact dynamic add/remove qualifications structure) */}
+            {/* STEP 2: QUALIFICATIONS, EXPERIENCE & RESUME (Clean 2x2 Grid with Perfect Alignment) */}
             {signupStep === 2 && (
               <div className="space-y-3 text-left animate-in fade-in duration-200">
-                {/* Academic Qualifications & Passing Year Box */}
-                <div className="p-3 sm:p-3.5 rounded-2xl bg-violet-50/70 border border-violet-200 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-violet-950 flex items-center gap-1.5">
-                        <Icon name="school" size={16} className="text-violet-600" />
-                        <span>Academic Qualifications &amp; Passing Year</span>
-                      </h3>
-                      <p className="text-[11px] text-slate-600 mt-0.5">
-                        Graduation is mandatory. Post-Graduation is shown below (you can remove it if not applicable, or click <strong>+ Add Qualification</strong> to add more).
-                      </p>
+                {/* Academic Qualifications Box */}
+                <div className="p-3 sm:p-4 rounded-2xl bg-violet-50/70 border border-violet-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1.5 border-b border-violet-200/60">
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="school" size={17} className="text-violet-600 shrink-0" />
+                      <span className="text-xs font-black uppercase tracking-wider text-violet-950">
+                        Academic Qualifications &amp; Passing Year
+                      </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={addQualificationRow}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-xs cursor-pointer shrink-0 self-start sm:self-center active:scale-95 transition-all"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold shadow-xs cursor-pointer shrink-0 active:scale-95 transition-all self-start sm:self-auto"
                     >
                       <Icon name="add" size={14} />
-                      <span>Add Qualification</span>
+                      <span>+ Add Qualification</span>
                     </button>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <p className="text-[11px] text-slate-600 leading-snug">
+                    Graduation is mandatory. Click <strong>+ Add Qualification</strong> to add Post-Graduation or other degrees.
+                  </p>
+
+                  <div className="space-y-3">
                     {qualificationsList.map((qItem, idx) => (
                       <div
                         key={idx}
-                        className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2"
+                        className="p-3.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700">
-                            Qualification #{idx + 1}
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700 flex items-center gap-1.5">
+                            <span className="w-4 h-4 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[10px]">
+                              {idx + 1}
+                            </span>
+                            <span>Qualification #{idx + 1}</span>
                           </span>
                           {idx > 0 && (
                             <button
                               type="button"
                               onClick={() => removeQualificationRow(idx)}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer transition-colors"
                             >
                               <Icon name="delete" size={14} />
                               <span>Remove</span>
@@ -957,65 +961,40 @@ interface QualificationItem {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                          <div className="sm:col-span-3">
-                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                        {/* 2x2 Balanced Input Grid - Row 1: Level & Year, Row 2: Course & University */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {/* Row 1 - Col 1: Level */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                               Qualification Level <span className="text-red-500">*</span>
                             </label>
                             {idx === 0 ? (
-                              <div className="w-full px-2.5 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-900 select-none text-center">
-                                Graduation
+                              <div className="w-full h-9 px-3 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-900 flex items-center select-none">
+                                Graduation (Mandatory)
                               </div>
                             ) : (
                               <select
                                 value={qItem.degree === 'Graduation' ? 'Post-Graduation' : qItem.degree}
                                 onChange={(e) => updateQualificationRow(idx, 'degree', e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                                className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600 cursor-pointer"
                               >
                                 <option value="Post-Graduation">Post-Graduation</option>
-                                <option value="Ph.D.">Ph.D.</option>
-                                <option value="Professional Certification">Professional</option>
+                                <option value="Ph.D.">Ph.D. / Doctorate</option>
+                                <option value="Professional Certification">Professional Certification</option>
                                 <option value="Diploma">Diploma</option>
                               </select>
                             )}
                           </div>
 
-                          <div className="sm:col-span-3">
-                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
-                              Course Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={qItem.courseName}
-                              onChange={(e) => updateQualificationRow(idx, 'courseName', e.target.value)}
-                              placeholder={idx === 0 ? 'e.g. B.Tech CS, B.Sc' : 'e.g. M.Tech, MBA, M.Sc'}
-                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-4">
-                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
-                              University Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={qItem.university}
-                              onChange={(e) => updateQualificationRow(idx, 'university', e.target.value)}
-                              placeholder="e.g. Delhi University, RGPV"
-                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                          {/* Row 1 - Col 2: Passing Year */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                               Passing Year <span className="text-red-500">*</span>
                             </label>
                             <select
                               value={qItem.passingYear}
                               onChange={(e) => updateQualificationRow(idx, 'passingYear', e.target.value)}
-                              className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                              className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600 cursor-pointer"
                             >
                               {passingYears.map((yr) => (
                                 <option key={yr} value={yr}>
@@ -1024,13 +1003,43 @@ interface QualificationItem {
                               ))}
                             </select>
                           </div>
+
+                          {/* Row 2 - Col 1: Course Name */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                              Course Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={qItem.courseName}
+                              onChange={(e) => updateQualificationRow(idx, 'courseName', e.target.value)}
+                              placeholder={idx === 0 ? 'e.g. B.Tech CS, B.Sc, BCA' : 'e.g. M.Tech, MBA, M.Sc'}
+                              className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600"
+                            />
+                          </div>
+
+                          {/* Row 2 - Col 2: University Name */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                              University Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={qItem.university}
+                              onChange={(e) => updateQualificationRow(idx, 'university', e.target.value)}
+                              placeholder="e.g. Delhi University, RGPV"
+                              className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       LinkedIn Profile Link
                     </label>
                     <input
@@ -1038,26 +1047,28 @@ interface QualificationItem {
                       value={signupForm.linkedinUrl}
                       onChange={(e) => setSignupForm({ ...signupForm, linkedinUrl: e.target.value })}
                       placeholder="https://www.linkedin.com/in/your-profile"
-                      className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                      className="w-full h-9 px-3.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-600"
                     />
                   </div>
                 </div>
 
                 {/* Total Experience, Summary Experience & Resume Box */}
-                <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                    <Icon name="work" size={16} className="text-emerald-600" />
-                    <span>Total Experience, Summary Experience &amp; Resume Upload</span>
-                  </h3>
+                <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center gap-1.5 pb-1 border-b border-slate-200/80">
+                    <Icon name="work" size={17} className="text-emerald-600 shrink-0" />
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Total Experience, Summary &amp; Resume
+                    </span>
+                  </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Total Experience <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={signupForm.experienceYears}
                       onChange={(e) => setSignupForm({ ...signupForm, experienceYears: e.target.value })}
-                      className="w-full sm:w-1/2 px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                      className="w-full sm:w-1/2 h-9 px-3 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600 cursor-pointer"
                     >
                       <option value="0-1 Years">0–1 Years</option>
                       <option value="1-3 Years">1–3 Years</option>
@@ -1068,7 +1079,7 @@ interface QualificationItem {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center justify-between mb-1">
                       <label className="text-[11px] font-semibold text-slate-700">
                         Summary Experience <span className="text-red-500">*</span>
                       </label>
@@ -1081,18 +1092,18 @@ interface QualificationItem {
                       required
                       value={signupForm.experience}
                       onChange={(e) => handleExperienceChange(e.target.value)}
-                      placeholder="Detail your teaching background, subject expertise, and achievements..."
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-600 resize-none"
+                      placeholder="Detail your teaching background, subject expertise, and methodologies..."
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-600 resize-none"
                     />
                   </div>
 
                   {/* Resume Upload Box */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Resume / CV (PDF, DOC, DOCX under 8 MB) <span className="text-red-500">*</span>
                     </label>
                     {signupForm.resumeFileName ? (
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950">
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950">
                         <div className="flex items-center gap-1.5 truncate">
                           <Icon name="description" size={16} className="text-violet-600 shrink-0" />
                           <span className="font-semibold truncate">{signupForm.resumeFileName}</span>
@@ -1111,7 +1122,7 @@ interface QualificationItem {
                         </label>
                       </div>
                     ) : (
-                      <label className="flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-violet-300 hover:border-violet-500 bg-violet-50/50 hover:bg-violet-50 cursor-pointer transition-all text-xs font-semibold text-violet-700">
+                      <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-violet-300 hover:border-violet-500 bg-violet-50/50 hover:bg-violet-50 cursor-pointer transition-all text-xs font-semibold text-violet-700">
                         <Icon name="upload_file" size={18} />
                         <span>Upload Resume / CV (Under 8 MB) *</span>
                         <input
@@ -1132,7 +1143,7 @@ interface QualificationItem {
                       setSignupError('');
                       setSignupStep(1);
                     }}
-                    className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
+                    className="px-4 py-2.5 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
                   >
                     ← Back
                   </button>
@@ -1141,7 +1152,7 @@ interface QualificationItem {
                     onClick={() => {
                       if (validateStep2()) setSignupStep(3);
                     }}
-                    className="flex-1 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    className="flex-1 py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                   >
                     <span>Continue to Step 3: Address</span>
                     <Icon name="arrow_forward" size={16} />
