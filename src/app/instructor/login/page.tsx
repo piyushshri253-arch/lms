@@ -3,6 +3,8 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 
@@ -165,30 +167,20 @@ function InstructorLoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between font-sans selection:bg-violet-600 selection:text-white">
-      {/* Header */}
-      <header className="px-6 py-4 bg-white flex items-center justify-between border-b border-slate-200 shadow-2xs">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-violet-600/20">
-            M
-          </div>
-          <span className="font-extrabold text-lg tracking-tight text-slate-900 group-hover:text-violet-600 transition-colors">
-            Morena Teach <span className="text-violet-600 font-bold text-sm ml-1">Instructor Studio</span>
-          </span>
-        </Link>
+    <div className="w-full max-w-md mx-auto text-slate-900 font-sans">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/20 mb-3">
+          <Icon name="cast_for_education" size={28} />
+        </div>
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">
+          Instructor Studio Login
+        </h1>
+        <p className="mt-1 text-xs text-slate-500">
+          Sign in to manage your curriculum, track earnings, and teach your students.
+        </p>
+      </div>
 
-        <Link
-          href="/"
-          className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
-        >
-          <Icon name="arrow_back" size={16} />
-          <span>Back to Storefront</span>
-        </Link>
-      </header>
-
-      {/* Main Login Card */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md bg-white border border-slate-200 p-8 rounded-2xl shadow-xl">
+      <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-xl space-y-5">
           {requiresOtp ? (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <div className="text-center space-y-2">
@@ -371,35 +363,43 @@ function InstructorLoginContent() {
           )}
 
           {/* Portal Switcher Footer */}
-          <div className="mt-6 pt-6 border-t border-slate-200 text-center space-y-2.5">
+          <div className="pt-4 border-t border-slate-200 text-center space-y-2.5">
             <Link
               href="/signup?role=INSTRUCTOR"
               className="block w-full py-2.5 px-4 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-bold text-xs transition-all"
             >
               ✨ New Instructor? Create Instructor Account →
             </Link>
+            <div className="flex items-center justify-center gap-4 text-xs font-medium pt-1">
+              <Link href="/reviewer/login" className="text-indigo-600 hover:underline font-bold">
+                Auditor Login →
+              </Link>
+              <Link href="/admin/login" className="text-slate-600 hover:text-slate-900">
+                Admin Portal →
+              </Link>
+            </div>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-200 bg-white">
-        &copy; {new Date().getFullYear()} Morena Teach LMS. Authorized educator access only.
-      </footer>
     </div>
   );
 }
 
 export default function InstructorLoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center text-xs font-semibold">
-          Loading Instructor Portal...
-        </div>
-      }
-    >
-      <InstructorLoginContent />
-    </Suspense>
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <UdemyNavbar />
+      <main className="flex-1 flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans">
+        <Suspense
+          fallback={
+            <div className="min-h-[50vh] flex items-center justify-center text-slate-600 text-xs font-semibold">
+              Loading Instructor Studio...
+            </div>
+          }
+        >
+          <InstructorLoginContent />
+        </Suspense>
+      </main>
+      <UdemyFooter />
+    </div>
   );
 }
