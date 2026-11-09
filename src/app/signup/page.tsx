@@ -65,8 +65,10 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
   useEffect(() => {
     if (!inviteToken) {
-      setRole('INSTRUCTOR');
-      setInviteStatus('IDLE');
+      const redirectUrl =
+        '/instructor/login?mode=signup' +
+        (initialEmail ? `&email=${encodeURIComponent(initialEmail)}` : '');
+      router.replace(redirectUrl);
       return;
     }
 

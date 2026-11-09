@@ -30,17 +30,247 @@ function InstructorLoginContent() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
 
-  // Sign Up State
+  // Sign Up Multi-Step State
+  const [signupStep, setSignupStep] = useState<1 | 2 | 3 | 4>(1);
   const [signupForm, setSignupForm] = useState({
+    // Step 1: Personal Details
     firstName: '',
     lastName: '',
-    email: '',
+    email: initialEmail,
     phone: '',
-    password: ''
+    // Step 2: Qualifications & Experience
+    degree: 'Graduation',
+    courseName: '',
+    university: '',
+    passingYear: '2023',
+    experienceYears: '3-5 Years',
+    experience: '',
+    resumeDataUrl: '',
+    resumeFileName: '',
+    resumeMimeType: '',
+    resumeSize: 0,
+    // Step 3: Address Details
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
+    pincode: '',
+    // Step 4: Password & Security
+    password: '',
+    confirmPassword: '',
+    acceptedTerms: false
   });
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupError, setSignupError] = useState('');
+
+  const passingYears = Array.from({ length: 35 }, (_, i) => String(2026 - i));
+
+  // Password validation checks for Step 4
+  const pwChecks = {
+    length: signupForm.password.length >= 8,
+    uppercase: /[A-Z]/.test(signupForm.password),
+    lowercase: /[a-z]/.test(signupForm.password),
+    number: /[0-9]/.test(signupForm.password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(signupForm.password)
+  };
+  const passedChecksCount = Object.values(pwChecks).filter(Boolean).length;
+  const isPasswordValid = passedChecksCount === 5;
+  const passwordsMatch =
+    signupForm.password.length > 0 && signupForm.password === signupForm.confirmPassword;
+
+  // Step 1 Validation
+  const validateStep1 = () => {
+    setSignupError('');
+    if (!signupForm.firstName.trim()) {
+      setSignupError('Please enter your First Name.');
+      return false;
+    }
+    if (!signupForm.lastName.trim()) {
+      setSignupError('Please enter your Last Name.');
+      return false;
+    }
+    if (!signupForm.email.trim() || !signupForm.email.includes('@')) {
+      setSignupError('Please enter a valid Email Address.');
+      return false;
+    }
+    const digits = signupForm.phone.replace(/\D/g, '');
+    if (!signupForm.phone.trim() || digits.length < 10) {
+      setSignupError('Please enter a valid 10-digit mobile number.');
+      return false;
+    }
+    return true;
+  };
+
+  // Step 2 Validation
+  const validateStep2 = () => {
+    setSignupError('');
+    if (!signupForm.degree.trim()) {
+      setSignupError('Please select your qualification degree level.');
+      return false;
+    }
+    if (!signupForm.courseName.trim()) {
+      setSignupError('Please enter your course name (e.g. B.Tech CS, MCA, M.Sc).');
+      return false;
+    }
+    if (!signupForm.university.trim()) {
+      setSignupError('Please enter your University or Institute name.');
+      return false;
+    }
+    if (!signupForm.passingYear.trim()) {
+      setSignupError('Please select your graduation passing year.');
+      return false;
+    }
+    if (!signupForm.experience.trim()) {
+      setSignupError('Please enter a brief summary of your teaching / industry experience.');
+      return false;
+    }
+    if (!signupForm.resumeDataUrl) {
+      setSignupError('Please upload your Resume / CV (PDF, DOCX) for auditor verification.');
+      return false;
+    }
+    return true;
+  };
+
+  // Step 3 Validation
+  const validateStep3 = () => {
+    setSignupError('');
+    if (!signupForm.address.trim()) {
+      setSignupError('Please enter your complete street address.');
+      return false;
+    }
+    if (!signupForm.city.trim()) {
+      setSignupError('Please enter your city.');
+      return false;
+    }
+    if (!signupForm.state.trim()) {
+      setSignupError('Please enter your state.');
+      return false;
+    }
+    if (!signupForm.pincode.trim() || signupForm.pincode.replace(/\D/g, '').length < 6) {
+      setSignupError('Please enter a valid 6-digit postal pincode.');
+      return false;
+    }
+    return true;
+  };
+
+  // Resume Upload Handler
+  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      setSignupError('Resume file size must be under 8 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setSignupForm((prev) => ({
+        ...prev,
+        resumeDataUrl: dataUrl,
+        resumeFileName: file.name,
+        resumeMimeType: file.type || 'application/pdf',
+        resumeSize: file.size
+      }));
+      setSignupError('');
+    };
+    reader.onerror = () => {
+      setSignupError('Failed to read resume file. Please try another file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Final Registration Submission (Step 4)
+  const handleFinalSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError('');
+
+    if (!isPasswordValid) {
+      setSignupError('Please fulfill all 5 password security requirements.');
+      return;
+    }
+    if (!passwordsMatch) {
+      setSignupError('Password and Confirm Password do not match.');
+      return;
+    }
+    if (!signupForm.acceptedTerms) {
+      setSignupError('Please accept the Educator Terms of Service & Privacy Policy.');
+      return;
+    }
+
+    const cleanFirst = signupForm.firstName.trim();
+    const cleanLast = signupForm.lastName.trim();
+    const fullName = `${cleanFirst} ${cleanLast}`.trim();
+    const cleanEmail = signupForm.email.trim().toLowerCase();
+    const cleanPhone = signupForm.phone.trim();
+    const formattedQualification = `${signupForm.degree}: ${signupForm.courseName.trim()} - ${signupForm.university.trim()} (${signupForm.passingYear})`;
+    const combinedExperience = signupForm.experienceYears
+      ? `${signupForm.experienceYears} — ${signupForm.experience.trim()}`
+      : signupForm.experience.trim();
+
+    setSignupLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'INSTRUCTOR',
+          firstName: cleanFirst,
+          lastName: cleanLast,
+          name: fullName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          qualification: formattedQualification,
+          additionalQualifications: '',
+          qualificationsList: [
+            {
+              degree: signupForm.degree,
+              courseName: signupForm.courseName.trim(),
+              university: signupForm.university.trim(),
+              passingYear: signupForm.passingYear,
+              specialization: `${signupForm.courseName.trim()} (${signupForm.university.trim()})`
+            }
+          ],
+          experience: combinedExperience,
+          experienceYears: signupForm.experienceYears,
+          resumeDataUrl: signupForm.resumeDataUrl,
+          resumeFileName: signupForm.resumeFileName,
+          resumeMimeType: signupForm.resumeMimeType,
+          resumeSize: signupForm.resumeSize,
+          address: signupForm.address.trim(),
+          city: signupForm.city.trim(),
+          state: signupForm.state.trim(),
+          country: signupForm.country.trim() || 'India',
+          pincode: signupForm.pincode.trim(),
+          password: signupForm.password,
+          confirmPassword: signupForm.confirmPassword,
+          acceptedTerms: true
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Instructor registration failed.');
+      }
+
+      showToast({
+        title: 'Registration Successful! 📩',
+        description: `Verification OTP has been sent to ${cleanEmail}.`,
+        type: 'success'
+      });
+
+      setEmail(cleanEmail);
+      setRequiresOtp(true);
+      setIsSignUp(false); // smoothly slides overlay back to left, showing OTP verification on the left panel!
+    } catch (err: any) {
+      setSignupError(err.message || 'Registration failed.');
+      showToast({ title: 'Registration Failed', description: err.message, type: 'error' });
+    } finally {
+      setSignupLoading(false);
+    }
+  };
 
   const rawCallback = searchParams.get('callbackUrl');
   const callbackUrl =
@@ -110,70 +340,6 @@ function InstructorLoginContent() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSignupSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSignupError('');
-
-    const cleanFirst = signupForm.firstName.trim();
-    const cleanLast = signupForm.lastName.trim();
-    const cleanEmail = signupForm.email.trim().toLowerCase();
-    const cleanPhone = signupForm.phone.trim();
-
-    if (!cleanFirst || !cleanLast) {
-      setSignupError('Please provide your First Name and Last Name.');
-      return;
-    }
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setSignupError('Please provide a valid email address.');
-      return;
-    }
-    if (!cleanPhone) {
-      setSignupError('Please provide your mobile number.');
-      return;
-    }
-    if (signupForm.password.length < 8) {
-      setSignupError('Password must be at least 8 characters long.');
-      return;
-    }
-
-    setSignupLoading(true);
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role: 'INSTRUCTOR',
-          firstName: cleanFirst,
-          lastName: cleanLast,
-          name: `${cleanFirst} ${cleanLast}`,
-          email: cleanEmail,
-          phone: cleanPhone,
-          password: signupForm.password,
-          acceptedTerms: true
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Instructor registration failed.');
-      }
-
-      showToast({
-        title: 'Registration Successful! 📩',
-        description: `Verification OTP has been sent to ${cleanEmail}.`,
-        type: 'success'
-      });
-
-      setEmail(cleanEmail);
-      setRequiresOtp(true);
-      setIsSignUp(false);
-    } catch (err: any) {
-      setSignupError(err.message || 'Registration failed.');
-      showToast({ title: 'Registration Failed', description: err.message, type: 'error' });
-    } finally {
-      setSignupLoading(false);
     }
   };
 
@@ -291,7 +457,7 @@ function InstructorLoginContent() {
       </div>
 
       {/* Main Double-Panel Sliding Card (Matches the Instagram Reel UI Design) */}
-      <div className="relative w-full min-h-[560px] md:min-h-[580px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
+      <div className="relative w-full max-w-4xl lg:max-w-5xl mx-auto min-h-[600px] md:min-h-[660px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
         
         {/* ================= PANEL 1: SIGN IN FORM (LEFT HALF) ================= */}
         <div
@@ -479,135 +645,615 @@ function InstructorLoginContent() {
           )}
         </div>
 
-        {/* ================= PANEL 2: SIGN UP FORM (RIGHT HALF) ================= */}
+        {/* ================= PANEL 2: SIGN UP FORM (RIGHT HALF - 4-STEP WIZARD) ================= */}
         <div
-          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-center px-6 sm:px-12 py-8 z-10 transition-all duration-700 ease-in-out ${
+          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-center px-5 sm:px-10 py-6 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
             isSignUp
               ? 'flex md:opacity-100 md:pointer-events-auto md:z-20'
               : 'hidden md:flex md:opacity-0 md:pointer-events-none md:z-1'
           }`}
         >
-          <form onSubmit={handleSignupSubmit} className="space-y-3 max-w-sm mx-auto w-full text-center">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+          <div className="max-w-sm mx-auto w-full text-center">
+            {/* Header & Stepper */}
+            <div className="mb-2">
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
                 Create Account
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Join Morena Teach as an Instructor
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Dedicated 4-Step Registration for Instructors
               </p>
             </div>
 
-            {/* Social Icons (matches Instagram reel) */}
-            <div className="flex items-center justify-center gap-3 py-1">
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                title="Sign up with Facebook"
-              >
-                <span className="font-bold text-sm">f</span>
-              </button>
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                title="Sign up with Google"
-              >
-                <span className="font-bold text-sm">G</span>
-              </button>
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                title="Sign up with LinkedIn"
-              >
-                <span className="font-bold text-sm">in</span>
-              </button>
+            {/* Step Progress Indicators */}
+            <div className="flex items-center justify-between mb-3 px-1">
+              {[
+                { num: 1, label: 'Personal' },
+                { num: 2, label: 'CV & Qual.' },
+                { num: 3, label: 'Address' },
+                { num: 4, label: 'Security' }
+              ].map((s) => (
+                <div key={s.num} className="flex items-center gap-1">
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                      signupStep === s.num
+                        ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/30 ring-2 ring-violet-200'
+                        : signupStep > s.num
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    {signupStep > s.num ? '✓' : s.num}
+                  </div>
+                  <span
+                    className={`text-[10px] font-semibold hidden sm:inline ${
+                      signupStep === s.num ? 'text-violet-700' : 'text-slate-400'
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                  {s.num < 4 && <div className="hidden sm:block w-3 h-0.5 bg-slate-200" />}
+                </div>
+              ))}
             </div>
 
-            <span className="text-[11px] text-slate-400 block -mt-1">
-              or use your email for educator registration
-            </span>
-
+            {/* Error Message */}
             {signupError && (
-              <div className="p-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 text-xs text-left">
+              <div className="mb-2.5 p-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 text-xs text-left">
                 <p className="font-bold leading-relaxed">{signupError}</p>
               </div>
             )}
 
-            <div className="space-y-2.5 text-left">
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  required
-                  value={signupForm.firstName}
-                  onChange={(e) => setSignupForm({ ...signupForm, firstName: e.target.value })}
-                  placeholder="First Name"
-                  className="w-full px-3.5 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
-                />
-                <input
-                  type="text"
-                  required
-                  value={signupForm.lastName}
-                  onChange={(e) => setSignupForm({ ...signupForm, lastName: e.target.value })}
-                  placeholder="Last Name"
-                  className="w-full px-3.5 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
-                />
+            {/* STEP 1: PERSONAL DETAILS */}
+            {signupStep === 1 && (
+              <div className="space-y-2 text-left animate-in fade-in duration-200">
+                {/* Social Icons (matches Instagram reel) */}
+                <div className="flex items-center justify-center gap-3 py-0.5">
+                  <button
+                    type="button"
+                    className="w-9 h-9 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                    title="Sign up with Facebook"
+                  >
+                    <span className="font-bold text-xs">f</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="w-9 h-9 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                    title="Sign up with Google"
+                  >
+                    <span className="font-bold text-xs">G</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="w-9 h-9 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                    title="Sign up with LinkedIn"
+                  >
+                    <span className="font-bold text-xs">in</span>
+                  </button>
+                </div>
+
+                <span className="text-[11px] text-slate-400 text-center block -mt-1">
+                  or enter your instructor personal details
+                </span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={signupForm.firstName}
+                      onChange={(e) => setSignupForm({ ...signupForm, firstName: e.target.value })}
+                      placeholder="e.g. Aarav"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={signupForm.lastName}
+                      onChange={(e) => setSignupForm({ ...signupForm, lastName: e.target.value })}
+                      placeholder="e.g. Sharma"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={signupForm.email}
+                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                    placeholder="instructor@example.com"
+                    className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                    Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={signupForm.phone}
+                    onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (validateStep1()) setSignupStep(2);
+                    }}
+                    className="w-full py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <span>Continue to Step 2: Qualifications &amp; CV</span>
+                    <Icon name="arrow_forward" size={16} />
+                  </button>
+                </div>
               </div>
+            )}
 
-              <input
-                type="email"
-                required
-                value={signupForm.email}
-                onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                placeholder="Email Address"
-                className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
-              />
+            {/* STEP 2: QUALIFICATIONS, EXPERIENCE & RESUME */}
+            {signupStep === 2 && (
+              <div className="space-y-2 text-left animate-in fade-in duration-200">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Degree Level *
+                    </label>
+                    <select
+                      value={signupForm.degree}
+                      onChange={(e) => setSignupForm({ ...signupForm, degree: e.target.value })}
+                      className="w-full px-2.5 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 focus:outline-none transition-all cursor-pointer"
+                    >
+                      <option value="Graduation">Graduation</option>
+                      <option value="Post-Graduation">Post-Graduation</option>
+                      <option value="Doctorate / PhD">Doctorate / PhD</option>
+                      <option value="Diploma">Diploma</option>
+                      <option value="Professional Certificate">Professional</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Course Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={signupForm.courseName}
+                      onChange={(e) => setSignupForm({ ...signupForm, courseName: e.target.value })}
+                      placeholder="e.g. B.Tech CS, MCA"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
 
-              <input
-                type="tel"
-                required
-                value={signupForm.phone}
-                onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
-                placeholder="Mobile Number (+91)"
-                className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
-              />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      University / College *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={signupForm.university}
+                      onChange={(e) => setSignupForm({ ...signupForm, university: e.target.value })}
+                      placeholder="University Name"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Passing Year *
+                    </label>
+                    <select
+                      value={signupForm.passingYear}
+                      onChange={(e) => setSignupForm({ ...signupForm, passingYear: e.target.value })}
+                      className="w-full px-2.5 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 focus:outline-none transition-all cursor-pointer"
+                    >
+                      {passingYears.map((yr) => (
+                        <option key={yr} value={yr}>
+                          {yr}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-              <div className="relative">
-                <input
-                  type={showSignupPassword ? 'text' : 'password'}
-                  required
-                  value={signupForm.password}
-                  onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                  placeholder="Password (min 8 characters)"
-                  className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSignupPassword(!showSignupPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 cursor-pointer"
-                >
-                  <Icon name={showSignupPassword ? 'visibility_off' : 'visibility'} size={18} />
-                </button>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                    Teaching / Industry Experience *
+                  </label>
+                  <select
+                    value={signupForm.experienceYears}
+                    onChange={(e) => setSignupForm({ ...signupForm, experienceYears: e.target.value })}
+                    className="w-full px-2.5 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 focus:outline-none transition-all cursor-pointer"
+                  >
+                    <option value="0-1 Years">0–1 Years (Fresher Educator)</option>
+                    <option value="1-3 Years">1–3 Years (Early Career)</option>
+                    <option value="3-5 Years">3–5 Years (Mid-Level Educator)</option>
+                    <option value="5-10 Years">5–10 Years (Senior Faculty)</option>
+                    <option value="10+ Years">10+ Years (Master Educator / Lead)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                    Brief Bio / Subject Summary *
+                  </label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={signupForm.experience}
+                    onChange={(e) => setSignupForm({ ...signupForm, experience: e.target.value })}
+                    placeholder="Describe your subject expertise, core teaching areas..."
+                    className="w-full px-3 py-1.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all resize-none"
+                  />
+                </div>
+
+                {/* Resume Upload Box */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                    Resume / CV (PDF, DOCX) *
+                  </label>
+                  {signupForm.resumeFileName ? (
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Icon name="description" size={16} className="text-violet-600 shrink-0" />
+                        <span className="font-semibold truncate">{signupForm.resumeFileName}</span>
+                        <span className="text-[10px] text-violet-600 shrink-0">
+                          ({(signupForm.resumeSize / 1024).toFixed(0)} KB)
+                        </span>
+                      </div>
+                      <label className="text-[11px] text-violet-700 font-bold hover:underline cursor-pointer shrink-0 ml-2">
+                        Change
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleResumeUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-violet-300 hover:border-violet-500 bg-violet-50/50 hover:bg-violet-50 cursor-pointer transition-all text-xs font-semibold text-violet-700">
+                      <Icon name="upload_file" size={18} />
+                      <span>Upload Resume / CV (Under 8 MB) *</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleResumeUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignupError('');
+                      setSignupStep(1);
+                    }}
+                    className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (validateStep2()) setSignupStep(3);
+                    }}
+                    className="flex-1 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <span>Continue to Step 3: Address</span>
+                    <Icon name="arrow_forward" size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="pt-2">
+            {/* STEP 3: ADDRESS DETAILS */}
+            {signupStep === 3 && (
+              <div className="space-y-2 text-left animate-in fade-in duration-200">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                    Complete Street Address *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={signupForm.address}
+                    onChange={(e) => setSignupForm({ ...signupForm, address: e.target.value })}
+                    placeholder="House/Flat No., Building, Street Name"
+                    className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={signupForm.city}
+                      onChange={(e) => setSignupForm({ ...signupForm, city: e.target.value })}
+                      placeholder="e.g. New Delhi"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      State / Province *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={signupForm.state}
+                      onChange={(e) => setSignupForm({ ...signupForm, state: e.target.value })}
+                      placeholder="e.g. Delhi"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Country *
+                    </label>
+                    <input
+                      type="text"
+                      value={signupForm.country}
+                      readOnly
+                      className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Pincode / Postal Code *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={signupForm.pincode}
+                      onChange={(e) =>
+                        setSignupForm({
+                          ...signupForm,
+                          pincode: e.target.value.replace(/\D/g, '')
+                        })
+                      }
+                      placeholder="110001"
+                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignupError('');
+                      setSignupStep(2);
+                    }}
+                    className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (validateStep3()) setSignupStep(4);
+                    }}
+                    className="flex-1 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <span>Continue to Step 4: Security</span>
+                    <Icon name="arrow_forward" size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: STRONG PASSWORD & SUBMISSION */}
+            {signupStep === 4 && (
+              <form onSubmit={handleFinalSignupSubmit} className="space-y-2 text-left animate-in fade-in duration-200">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Password *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showSignupPassword ? 'text' : 'password'}
+                        required
+                        value={signupForm.password}
+                        onChange={(e) =>
+                          setSignupForm({ ...signupForm, password: e.target.value })
+                        }
+                        placeholder="••••••••"
+                        className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-8"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                        className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        <Icon
+                          name={showSignupPassword ? 'visibility_off' : 'visibility'}
+                          size={16}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
+                      Confirm *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showSignupConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={signupForm.confirmPassword}
+                        onChange={(e) =>
+                          setSignupForm({ ...signupForm, confirmPassword: e.target.value })
+                        }
+                        placeholder="••••••••"
+                        className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-8"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowSignupConfirmPassword(!showSignupConfirmPassword)
+                        }
+                        className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        <Icon
+                          name={showSignupConfirmPassword ? 'visibility_off' : 'visibility'}
+                          size={16}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5-Rule Password Checklist */}
+                <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                  <div
+                    className={`flex items-center gap-1 ${
+                      pwChecks.length ? 'text-emerald-600 font-bold' : ''
+                    }`}
+                  >
+                    <Icon
+                      name={pwChecks.length ? 'check_circle' : 'radio_button_unchecked'}
+                      size={12}
+                    />
+                    <span>8+ Chars</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 ${
+                      pwChecks.uppercase ? 'text-emerald-600 font-bold' : ''
+                    }`}
+                  >
+                    <Icon
+                      name={pwChecks.uppercase ? 'check_circle' : 'radio_button_unchecked'}
+                      size={12}
+                    />
+                    <span>1 Uppercase (A-Z)</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 ${
+                      pwChecks.lowercase ? 'text-emerald-600 font-bold' : ''
+                    }`}
+                  >
+                    <Icon
+                      name={pwChecks.lowercase ? 'check_circle' : 'radio_button_unchecked'}
+                      size={12}
+                    />
+                    <span>1 Lowercase (a-z)</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 ${
+                      pwChecks.number ? 'text-emerald-600 font-bold' : ''
+                    }`}
+                  >
+                    <Icon
+                      name={pwChecks.number ? 'check_circle' : 'radio_button_unchecked'}
+                      size={12}
+                    />
+                    <span>1 Number (0-9)</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 col-span-2 ${
+                      pwChecks.special ? 'text-emerald-600 font-bold' : ''
+                    }`}
+                  >
+                    <Icon
+                      name={pwChecks.special ? 'check_circle' : 'radio_button_unchecked'}
+                      size={12}
+                    />
+                    <span>1 Special Symbol (@$!%*?&#)</span>
+                  </div>
+                </div>
+
+                {/* Terms & Conditions Checkbox */}
+                <label className="flex items-start gap-2 cursor-pointer text-left select-none pt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={signupForm.acceptedTerms}
+                    onChange={(e) =>
+                      setSignupForm({ ...signupForm, acceptedTerms: e.target.checked })
+                    }
+                    className="mt-0.5 rounded text-violet-600 focus:ring-violet-500 cursor-pointer"
+                  />
+                  <span className="text-[10px] text-slate-600 leading-tight">
+                    I agree to Morena Teach{' '}
+                    <span className="font-semibold text-violet-600">Educator Terms &amp; Policies</span>.
+                  </span>
+                </label>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignupError('');
+                      setSignupStep(3);
+                    }}
+                    className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={signupLoading}
+                    className="flex-1 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-98 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {signupLoading ? (
+                      <span>Submitting...</span>
+                    ) : (
+                      <>
+                        <span>Submit &amp; Send OTP</span>
+                        <Icon name="send" size={14} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Quick Switch to Sign In */}
+            <div className="pt-2 text-center">
               <button
-                type="submit"
-                disabled={signupLoading}
-                className="px-10 py-3 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-98 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => {
+                  setIsSignUp(false);
+                  setAuthError(null);
+                  setSignupError('');
+                }}
+                className="text-[11px] text-slate-500 hover:text-violet-600 font-semibold cursor-pointer transition-colors"
               >
-                {signupLoading ? <span>Creating Account...</span> : <span>SIGN UP</span>}
+                Already have an instructor account? <span className="underline">Sign In</span>
               </button>
             </div>
-
-            <div className="pt-1">
-              <Link
-                href="/signup?role=INSTRUCTOR"
-                className="text-[11px] text-violet-600 hover:underline font-bold"
-              >
-                Complete Full 4-Step Application with Resume →
-              </Link>
-            </div>
-          </form>
+          </div>
         </div>
 
         {/* ================= OVERLAY SLIDING CONTAINER (DESKTOP ONLY) ================= */}

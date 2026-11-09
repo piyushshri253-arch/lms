@@ -373,7 +373,7 @@ const UdemyNavbarInner: React.FC = () => {
           {/* Teach with Morena Teach Link */}
           {(!currentUser || (currentUser.role === 'STUDENT' && !currentUser.hasOnboardedInstructorAccount)) && (
             <Link
-              href="/signup"
+              href="/instructor/login?mode=signup"
               className="hidden lg:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium whitespace-nowrap"
             >
               Teach with Morena Teach
@@ -724,7 +724,7 @@ const UdemyNavbarInner: React.FC = () => {
                       </Link>
                       {!currentUser.hasOnboardedInstructorAccount && (
                         <Link
-                          href="/signup"
+                          href="/instructor/login?mode=signup"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
                         >
@@ -1015,7 +1015,7 @@ const UdemyNavbarInner: React.FC = () => {
           {(!currentUser || (currentUser.role === 'STUDENT' && !currentUser.hasOnboardedInstructorAccount)) && (
             <div className="border-t border-gray-100 pt-3">
               <Link
-                href="/signup"
+                href="/instructor/login?mode=signup"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="block text-sm font-medium text-[#2d2f31] hover:text-[#5022c3] py-1"
               >
