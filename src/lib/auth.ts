@@ -271,7 +271,15 @@ export async function getLmsCurrentUser(): Promise<AuthSessionUser | null> {
     if (!token) return null;
 
     const session = await verifySessionToken(token);
-    if (!session || (session.platform && session.platform !== 'LMS' && session.role !== 'SUPER_ADMIN')) {
+    const sessionPlatform = (session?.platform as string) || '';
+    if (
+      !session ||
+      (sessionPlatform &&
+        sessionPlatform !== 'LMS' &&
+        sessionPlatform !== 'MORENA_LMS' &&
+        session.role !== 'SUPER_ADMIN' &&
+        session.role !== 'INSTRUCTOR')
+    ) {
       return null;
     }
 

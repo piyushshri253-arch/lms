@@ -14,7 +14,7 @@ const LEGACY_COOKIE = 'aadhyara_session_token';
 interface TokenPayload {
   id: string;
   email: string;
-  platform?: 'SALES' | 'LMS';
+  platform?: 'SALES' | 'LMS' | 'MORENA_LMS' | string;
   role: string;
   organizationId?: string | null;
   emailVerified?: boolean;
@@ -54,7 +54,13 @@ export async function middleware(request: NextRequest) {
 
   const isSalesValid = !!salesSession && salesSession.platform === 'SALES';
   const isLmsValid =
-    !!lmsSession && (lmsSession.platform === 'LMS' || lmsSession.role === 'SUPER_ADMIN' || !lmsSession.platform);
+    !!lmsSession &&
+    (lmsSession.platform === 'LMS' ||
+      lmsSession.platform === 'MORENA_LMS' ||
+      lmsSession.role === 'INSTRUCTOR' ||
+      lmsSession.role === 'STUDENT' ||
+      lmsSession.role === 'SUPER_ADMIN' ||
+      !lmsSession.platform);
   const isReviewerValid =
     !!reviewerSession && (reviewerSession.role === 'REVIEWER' || isAuthorizedAdminRole(reviewerSession.role));
 
@@ -101,7 +107,12 @@ export async function middleware(request: NextRequest) {
   // Dedicated Instructor Login Page (/instructor/login)
   if (pathname === '/instructor/login') {
     if (isLmsValid && lmsSession && (lmsSession.role === 'INSTRUCTOR' || isAuthorizedAdminRole(lmsSession.role))) {
-      return NextResponse.redirect(new URL('/instructor', request.url));
+      const callback = request.nextUrl.searchParams.get('callbackUrl');
+      const target =
+        callback && callback.startsWith('/') && !callback.startsWith('//') && callback !== '/instructor/login'
+          ? callback
+          : '/instructor';
+      return NextResponse.redirect(new URL(target, request.url));
     }
     return createSecureResponse(
       NextResponse.next({
@@ -474,7 +485,11 @@ export async function middleware(request: NextRequest) {
     }
 
     // Canonicalize legacy /dashboard and /student paths to designated student learning routes
-    if (pathname === '/dashboard/courses') {
+    if (pathname === '/dashboard/courses' || pathname === '/lms/my-courses') {
+      const lmsRole = lmsSession?.role;
+      if (lmsRole === 'INSTRUCTOR') {
+        return NextResponse.redirect(new URL('/instructor', request.url));
+      }
       return NextResponse.redirect(new URL('/student/learning', request.url));
     }
     if (pathname === '/dashboard/certificates') {
@@ -520,6 +535,10 @@ export async function middleware(request: NextRequest) {
       pathname === '/student' ||
       pathname === '/student/dashboard'
     ) {
+      const lmsRole = lmsSession?.role;
+      if (lmsRole === 'INSTRUCTOR') {
+        return NextResponse.redirect(new URL('/instructor/dashboard', request.url));
+      }
       return NextResponse.redirect(new URL('/student/learning', request.url));
     }
   }

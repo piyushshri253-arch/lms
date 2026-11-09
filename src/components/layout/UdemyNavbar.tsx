@@ -470,29 +470,9 @@ const UdemyNavbarInner: React.FC = () => {
             )}
           </div>
 
-          {/* Auth State: Storefront is strictly for Students. Non-students (Admin / Super Admin) see Log in / Sign up buttons */}
-          {(!currentUser || currentUser.role !== 'STUDENT') ? (
+          {/* Auth State: If not logged in, show Log in / Sign up. If logged in (Student, Instructor, Admin), show role links & avatar */}
+          {!currentUser ? (
             <div className="flex items-center gap-1.5 sm:gap-2 ml-1">
-              {currentUser && currentUser.role === 'INSTRUCTOR' && (
-                <Link
-                  href="/instructor"
-                  className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-none sm:rounded-[4px] transition-colors shadow-xs"
-                  title="Open Instructor Studio"
-                >
-                  <Icon name="cast_for_education" size={16} />
-                  <span>Instructor Studio</span>
-                </Link>
-              )}
-              {currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
-                <Link
-                  href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
-                  className="hidden xl:inline-flex items-center gap-1.5 h-10 px-3 text-xs font-bold text-[#5022c3] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-none sm:rounded-[4px] transition-colors"
-                  title="Open Admin Console"
-                >
-                  <Icon name="admin_panel_settings" size={16} />
-                  <span>Admin Console</span>
-                </Link>
-              )}
               <Link
                 href="/login"
                 className="h-9 sm:h-10 px-2.5 sm:px-4 text-xs sm:text-sm font-bold text-[#2d2f31] border border-[#2d2f31] bg-white hover:bg-[#f7f9fa] rounded-none sm:rounded-[4px] transition-colors flex items-center justify-center whitespace-nowrap"
@@ -508,13 +488,42 @@ const UdemyNavbarInner: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Link
-                href="/student/learning"
-                className="hidden md:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
-              >
-                My learning
-              </Link>
-              {currentUser.hasOnboardedInstructorAccount && (
+              {currentUser.role === 'INSTRUCTOR' ? (
+                <>
+                  <Link
+                    href="/instructor"
+                    className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-none sm:rounded-[4px] transition-colors shadow-xs"
+                    title="Open Instructor Studio"
+                  >
+                    <Icon name="cast_for_education" size={16} />
+                    <span>Instructor Studio</span>
+                  </Link>
+                  <Link
+                    href="/instructor"
+                    className="hidden md:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
+                  >
+                    My Courses
+                  </Link>
+                </>
+              ) : currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' ? (
+                <Link
+                  href={currentUser.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin'}
+                  className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 text-xs font-bold text-[#5022c3] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-none sm:rounded-[4px] transition-colors"
+                  title="Open Admin Console"
+                >
+                  <Icon name="admin_panel_settings" size={16} />
+                  <span>Admin Console</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/student/learning"
+                  className="hidden md:inline-flex px-3 py-2 text-sm text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] rounded transition-colors font-medium"
+                >
+                  My learning
+                </Link>
+              )}
+
+              {currentUser.role === 'STUDENT' && currentUser.hasOnboardedInstructorAccount && (
                 <Link
                   href={
                     currentUser.instructorLoginUrl ||
@@ -688,16 +697,54 @@ const UdemyNavbarInner: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Section 1: Learning */}
+                    {/* Section 1: Role-specific Portals & Learning */}
                     <div className="py-1.5 border-b border-[#d1d7dc]">
-                      <Link
-                        href="/student/learning"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
-                      >
-                        <span>My learning</span>
-                        <Icon name="school" size={16} className="text-[#6a6f73]" />
-                      </Link>
+                      {currentUser.role === 'INSTRUCTOR' ? (
+                        <>
+                          <Link
+                            href="/instructor"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors font-semibold"
+                          >
+                            <span>My Courses (Studio)</span>
+                            <Icon name="cast_for_education" size={16} className="text-purple-600" />
+                          </Link>
+                          <Link
+                            href="/instructor/dashboard"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                          >
+                            <span>Instructor Dashboard</span>
+                            <Icon name="dashboard" size={16} className="text-[#6a6f73]" />
+                          </Link>
+                          <Link
+                            href="/instructor/earnings"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                          >
+                            <span>Earnings &amp; Ledger</span>
+                            <Icon name="payments" size={16} className="text-[#6a6f73]" />
+                          </Link>
+                          <Link
+                            href="/instructor/courses/builder?new=true"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                          >
+                            <span>Create New Course</span>
+                            <Icon name="add_circle" size={16} className="text-purple-600" />
+                          </Link>
+                        </>
+                      ) : (
+                        <Link
+                          href="/student/learning"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center justify-between px-4 py-2 text-[14px] text-[#1c1d1f] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors"
+                        >
+                          <span>My learning</span>
+                          <Icon name="school" size={16} className="text-[#6a6f73]" />
+                        </Link>
+                      )}
+
                       <Link
                         href="/student/cart"
                         onClick={() => setIsUserMenuOpen(false)}
@@ -722,7 +769,7 @@ const UdemyNavbarInner: React.FC = () => {
                           </span>
                         )}
                       </Link>
-                      {!currentUser.hasOnboardedInstructorAccount && (
+                      {currentUser.role !== 'INSTRUCTOR' && !currentUser.hasOnboardedInstructorAccount && (
                         <Link
                           href="/instructor/login?mode=signup"
                           onClick={() => setIsUserMenuOpen(false)}

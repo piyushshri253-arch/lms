@@ -58,10 +58,31 @@ interface QualificationItem {
   const signupPanelRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll signup panel to top on step change or view toggle
-  useEffect(() => {
+  const resetSignupScroll = () => {
     if (signupPanelRef.current) {
-      signupPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      signupPanelRef.current.scrollTop = 0;
     }
+  };
+
+  const goToStep = (targetStep: 1 | 2 | 3 | 4) => {
+    (document.activeElement as HTMLElement)?.blur();
+    setSignupStep(targetStep);
+    resetSignupScroll();
+    requestAnimationFrame(resetSignupScroll);
+    setTimeout(resetSignupScroll, 30);
+    setTimeout(resetSignupScroll, 120);
+  };
+
+  useEffect(() => {
+    resetSignupScroll();
+    const raf = requestAnimationFrame(resetSignupScroll);
+    const t1 = setTimeout(resetSignupScroll, 30);
+    const t2 = setTimeout(resetSignupScroll, 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [signupStep, isSignUp]);
   const [signupForm, setSignupForm] = useState({
     // Step 1: Personal Details
@@ -384,7 +405,7 @@ interface QualificationItem {
 
   const rawCallback = searchParams.get('callbackUrl');
   const callbackUrl =
-    !rawCallback || rawCallback === '/instructor' ? '/instructor/dashboard' : rawCallback;
+    !rawCallback ? '/instructor/dashboard' : rawCallback;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -567,7 +588,7 @@ interface QualificationItem {
       </div>
 
       {/* Main Double-Panel Sliding Card (Matches the Instagram Reel UI Design) */}
-      <div className="relative w-full min-h-[640px] md:min-h-[720px] md:h-[720px] lg:h-[740px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
+      <div className="relative w-full min-h-[660px] md:min-h-[760px] md:h-[780px] lg:h-[820px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
         
         {/* ================= PANEL 1: SIGN IN FORM (LEFT HALF) ================= */}
         <div
@@ -758,53 +779,56 @@ interface QualificationItem {
         {/* ================= PANEL 2: SIGN UP FORM (RIGHT HALF - 4-STEP WIZARD) ================= */}
         <div
           ref={signupPanelRef}
-          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-start px-4 sm:px-8 py-6 sm:py-8 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
+          style={{ overflowAnchor: 'none' }}
+          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-start px-4 sm:px-8 py-4 sm:py-6 z-10 transition-all duration-700 ease-in-out overflow-y-auto ${
             isSignUp
               ? 'flex md:opacity-100 md:pointer-events-auto md:z-20'
               : 'hidden md:flex md:opacity-0 md:pointer-events-none md:z-1'
           }`}
         >
           <div className="w-full max-w-md lg:max-w-lg mx-auto text-center pb-6">
-            {/* Header & Stepper */}
-            <div className="mb-2">
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                Create Account
-              </h2>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Dedicated 4-Step Registration for Instructors
-              </p>
-            </div>
+            {/* Header & Stepper - Sticky so it is ALWAYS visible and never clipped */}
+            <div className="sticky top-0 bg-white/95 backdrop-blur-xs pt-2 pb-2.5 z-20 border-b border-slate-100 mb-3 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)]">
+              <div className="mb-2">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+                  Create Account
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Dedicated 4-Step Registration for Instructors
+                </p>
+              </div>
 
-            {/* Step Progress Indicators */}
-            <div className="flex items-center justify-between mb-3 px-1">
-              {[
-                { num: 1, label: 'Personal' },
-                { num: 2, label: 'CV & Qual.' },
-                { num: 3, label: 'Address' },
-                { num: 4, label: 'Security' }
-              ].map((s) => (
-                <div key={s.num} className="flex items-center gap-1">
-                  <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
-                      signupStep === s.num
-                        ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/30 ring-2 ring-violet-200'
-                        : signupStep > s.num
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 text-slate-400'
-                    }`}
-                  >
-                    {signupStep > s.num ? '✓' : s.num}
+              {/* Step Progress Indicators */}
+              <div className="flex items-center justify-between px-1">
+                {[
+                  { num: 1, label: 'Personal' },
+                  { num: 2, label: 'CV & Qual.' },
+                  { num: 3, label: 'Address' },
+                  { num: 4, label: 'Security' }
+                ].map((s) => (
+                  <div key={s.num} className="flex items-center gap-1">
+                    <div
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                        signupStep === s.num
+                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/30 ring-2 ring-violet-200'
+                          : signupStep > s.num
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {signupStep > s.num ? '✓' : s.num}
+                    </div>
+                    <span
+                      className={`text-[10px] font-semibold hidden sm:inline ${
+                        signupStep === s.num ? 'text-violet-700' : 'text-slate-400'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                    {s.num < 4 && <div className="hidden sm:block w-3 h-0.5 bg-slate-200" />}
                   </div>
-                  <span
-                    className={`text-[10px] font-semibold hidden sm:inline ${
-                      signupStep === s.num ? 'text-violet-700' : 'text-slate-400'
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                  {s.num < 4 && <div className="hidden sm:block w-3 h-0.5 bg-slate-200" />}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             {/* Error Message */}
@@ -907,7 +931,7 @@ interface QualificationItem {
                   <button
                     type="button"
                     onClick={() => {
-                      if (validateStep1()) setSignupStep(2);
+                      if (validateStep1()) goToStep(2);
                     }}
                     className="w-full py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                   >
@@ -1150,7 +1174,7 @@ interface QualificationItem {
                     type="button"
                     onClick={() => {
                       setSignupError('');
-                      setSignupStep(1);
+                      goToStep(1);
                     }}
                     className="px-4 py-2.5 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
                   >
@@ -1159,7 +1183,7 @@ interface QualificationItem {
                   <button
                     type="button"
                     onClick={() => {
-                      if (validateStep2()) setSignupStep(3);
+                      if (validateStep2()) goToStep(3);
                     }}
                     className="flex-1 py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                   >
@@ -1254,7 +1278,7 @@ interface QualificationItem {
                     type="button"
                     onClick={() => {
                       setSignupError('');
-                      setSignupStep(2);
+                      goToStep(2);
                     }}
                     className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
                   >
@@ -1263,7 +1287,7 @@ interface QualificationItem {
                   <button
                     type="button"
                     onClick={() => {
-                      if (validateStep3()) setSignupStep(4);
+                      if (validateStep3()) goToStep(4);
                     }}
                     className="flex-1 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                   >
@@ -1432,7 +1456,7 @@ interface QualificationItem {
                     type="button"
                     onClick={() => {
                       setSignupError('');
-                      setSignupStep(3);
+                      goToStep(3);
                     }}
                     className="px-4 py-2.5 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
                   >
