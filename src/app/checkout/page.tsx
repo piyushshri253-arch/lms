@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
+import { calculateInstructorPayout } from '@/lib/payout-calculator';
 
 type PaymentMethod = 'card' | 'upi' | 'netbanking';
 
@@ -39,6 +40,7 @@ function CheckoutContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(1);
   const [testSimulationMode, setTestSimulationMode] = useState<'SUCCESS' | 'FAILED' | 'TIMEOUT'>('SUCCESS');
+  const [isSimulatorModalOpen, setIsSimulatorModalOpen] = useState(false);
   const [failedOrderDetails, setFailedOrderDetails] = useState<{
     orderId: string;
     orderNumber: string;
@@ -52,6 +54,9 @@ function CheckoutContent() {
   const taxableAmount = Math.max(0, Number((subtotal - discountAmount).toFixed(2)));
   const gstAmount = taxableAmount > 0 ? Number(((taxableAmount * 18) / 100).toFixed(2)) : 0;
   const finalTotal = Math.max(0, Number((taxableAmount + gstAmount).toFixed(2)));
+
+  // Instructor Payout & Platform Fee Calculation Preview (e.g. 100 BP -> 118 Student -> 57.41 Net Payout)
+  const payoutPreview = calculateInstructorPayout(taxableAmount > 0 ? taxableAmount : 100);
 
   // Ensure card name syncs with user
   useEffect(() => {
@@ -740,7 +745,7 @@ function CheckoutContent() {
             <div>
               <button
                 type="button"
-                onClick={handlePay}
+                onClick={() => setIsSimulatorModalOpen(true)}
                 disabled={isProcessing}
                 className="w-full py-4 bg-[#5624d0] hover:bg-[#401b9c] text-white font-extrabold text-base rounded-lg shadow-md transition-all active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -749,12 +754,12 @@ function CheckoutContent() {
                 ) : (
                   <>
                     <Icon name="lock" size={18} />
-                    <span>Pay ₹{finalTotal} (incl. GST)</span>
+                    <span>Proceed to Pay • ₹{finalTotal}</span>
                   </>
                 )}
               </button>
               <p className="text-center text-xs text-[#6a6f73] mt-2.5">
-                By completing your trial purchase you agree to Morena Teach Terms of Service.
+                ⚡ Sandbox Simulator Mode: Click to test payment &amp; automated instructor revenue split.
               </p>
             </div>
           </div>
@@ -873,6 +878,121 @@ function CheckoutContent() {
           </div>
         </div>
       </main>
+
+      {/* Test / Demo Payment Simulator Modal */}
+      {isSimulatorModalOpen && !isProcessing && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200 space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-violet-500/20 shrink-0">
+                  <Icon name="account_balance_wallet" size={24} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-900">
+                      Payment Simulator
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                      Sandbox Mode
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Live Razorpay not connected yet. Testing enabled via Mock Gateway.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSimulatorModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Price & Automated Split Breakdown */}
+            <div className="space-y-3">
+              {/* Student Payment Box */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Course Base Price (BP):</span>
+                  <span className="font-bold text-slate-900">₹{payoutPreview.basePrice}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Goods &amp; Services Tax (18% GST):</span>
+                  <span className="font-bold text-slate-900">+₹{payoutPreview.gstAmount}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-sm">
+                  <span className="font-extrabold text-slate-900">Student Total Payment:</span>
+                  <span className="text-lg font-black text-violet-700">₹{payoutPreview.studentTotal}</span>
+                </div>
+              </div>
+
+              {/* Automated Backend Revenue Split Preview Box */}
+              <div className="p-4 rounded-2xl bg-violet-50/70 border border-violet-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-violet-200/60 font-black text-violet-950 uppercase tracking-wider text-[11px]">
+                  <span>Backend Revenue Split Formula</span>
+                  <span className="text-violet-700">60% / 40% Split</span>
+                </div>
+
+                <div className="flex items-center justify-between text-slate-600 text-[11px]">
+                  <span>Gateway Fee (GTF 2% on ₹{payoutPreview.studentTotal}):</span>
+                  <span className="font-bold text-rose-600">-₹{payoutPreview.gtfAmount}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px]">
+                  <span>Net Split Base (BP ₹{payoutPreview.basePrice} - GTF ₹{payoutPreview.gtfAmount}):</span>
+                  <span className="font-bold text-slate-900">₹{payoutPreview.netPool}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px]">
+                  <span>Platform Share (40%):</span>
+                  <span className="font-bold text-slate-700">₹{payoutPreview.platformShare}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px]">
+                  <span>Instructor Gross Share (60%):</span>
+                  <span className="font-bold text-slate-900">₹{payoutPreview.instructorGross}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px]">
+                  <span>Govt. TDS Deduction (2% on Instructor Share):</span>
+                  <span className="font-bold text-amber-700">-₹{payoutPreview.tdsAmount}</span>
+                </div>
+                <div className="pt-2 border-t border-violet-200/80 flex items-center justify-between">
+                  <span className="font-black text-emerald-950 text-xs">Final Instructor Wallet Credit:</span>
+                  <span className="text-base font-black text-emerald-600">₹{payoutPreview.netInstructorPayout}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Simulation Action Buttons */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSimulatorModalOpen(false);
+                  handlePay('SUCCESS');
+                }}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Icon name="check_circle" size={18} />
+                <span>Simulate Payment Success (Credit ₹{payoutPreview.netInstructorPayout})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSimulatorModalOpen(false);
+                  handlePay('FAILED');
+                }}
+                className="w-full py-2.5 rounded-xl border border-rose-300 hover:bg-rose-50 text-rose-700 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Icon name="cancel" size={16} />
+                <span>Simulate Payment Decline (Bank Reject)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Simulated Payment Modal during processing */}
       {isProcessing && (

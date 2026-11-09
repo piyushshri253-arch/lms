@@ -6,6 +6,7 @@ import { grantOrderEntitlements, recordAffiliateConversion, createGiftCourse } f
 import { issueSoftwareLicense } from '@/lib/license';
 import { bookService } from '@/lib/services';
 import { creditSellerWallet } from '@/lib/wallet';
+import { recordInstructorEarningForOrder } from '@/lib/instructor-payout';
 import { sendEmail } from '@/lib/email';
 import {
   dispatchOrderPurchasedNotifications,
@@ -294,6 +295,9 @@ export async function POST(request: Request) {
         currency: order.currency
       });
     }
+
+    // 5b. Record Exact Instructor Payout & Platform Fee Split (60% Instructor, 40% Platform, 2% GTF, 2% TDS)
+    await recordInstructorEarningForOrder(order.id, provider);
 
     // 6. Record Affiliate Conversion
     if (metadata.affiliateCode && order.organizationId) {

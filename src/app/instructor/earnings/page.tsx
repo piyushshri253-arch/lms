@@ -54,6 +54,21 @@ export default function InstructorEarningsPage() {
       subtitle="Transparent breakdown of course sales, platform fees, tax deductions, and net instructor share"
     >
       <div className="space-y-6">
+        {/* Transparent Fee & Payout Formula Banner */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-50 via-indigo-50 to-purple-50 border border-violet-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+          <div className="space-y-0.5">
+            <div className="font-bold text-violet-950 flex items-center gap-1.5">
+              <span>⚡ Transparent Instructor Payout Formula</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-violet-200 text-violet-800">
+                Instructor 60% / Platform 40% Split
+              </span>
+            </div>
+            <p className="text-slate-600 leading-relaxed text-[11px]">
+              <strong>Student Pays:</strong> Base Price + 18% GST (e.g. ₹100 + ₹18 = ₹118) • <strong>Gateway Fee (2%):</strong> -₹2.36 • <strong>Net Split Base:</strong> ₹97.64 • <strong>Instructor (60%):</strong> ₹58.58 • <strong>Govt TDS (2%):</strong> -₹1.17 • <strong>Final Instructor Payout:</strong> <span className="font-extrabold text-emerald-700">₹57.41</span>
+            </p>
+          </div>
+        </div>
+
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
@@ -62,7 +77,7 @@ export default function InstructorEarningsPage() {
               ₹{Number(summary.totalGrossSales || 0).toLocaleString('en-IN')}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              Platform Fee (60%): ₹{Number(summary.totalPlatformFees || 0).toLocaleString('en-IN')}
+              Platform Fee (40%): ₹{Number(summary.totalPlatformFees || 0).toLocaleString('en-IN')}
             </div>
           </div>
 
@@ -83,7 +98,7 @@ export default function InstructorEarningsPage() {
               ₹{Number(summary.totalNetEarnings || 0).toLocaleString('en-IN')}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              Instructor Share: 40% (less 2% TDS)
+              Instructor Share: 60% (less 2% TDS)
             </div>
           </div>
 

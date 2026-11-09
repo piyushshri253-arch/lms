@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
+import { calculateInstructorPayout } from '@/lib/instructor-payout';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -49,7 +50,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Synchronize instructor course sales with 60% platform fee, 40% instructor share, 2% TDS
+    // Synchronize instructor course sales with accurate financial model:
+    // Student: Base Price + 18% GST (e.g. 118)
+    // GTF 2%: 2.36
+    // Net Pool: 97.64
+    // Instructor 60%: 58.58
+    // Platform 40%: 39.06
+    // TDS 2%: 1.17
+    // Net Payout: 57.41
     const enrollments = await prisma.enrollment.findMany({
       where: {
         course: { instructorId: session.id }
@@ -62,12 +70,9 @@ export async function GET(req: NextRequest) {
 
     for (const enr of enrollments) {
       const ref = `TXN-${enr.id.slice(-8).toUpperCase()}`;
-      const gross = Number(enr.course?.discountPrice ?? enr.course?.price ?? 999);
-      if (gross > 0) {
-        const platformFee = Math.round(gross * 0.60);
-        const instructorShare = Math.round(gross * 0.40);
-        const taxDeduction = Math.round(instructorShare * 0.02);
-        const netAmount = instructorShare - taxDeduction;
+      const basePrice = Number(enr.course?.discountPrice ?? enr.course?.price ?? 100);
+      if (basePrice > 0) {
+        const b = calculateInstructorPayout(basePrice);
 
         await prisma.instructorEarningTransaction
           .upsert({
@@ -81,51 +86,26 @@ export async function GET(req: NextRequest) {
               studentName: enr.user?.name || 'Student',
               studentEmail: enr.user?.email || '',
               type: 'COURSE_SALE',
-              grossAmount: gross,
-              platformFee,
-              instructorShare,
-              taxDeduction,
-              netAmount,
-              paymentMethod: 'RAZORPAY',
+              grossAmount: b.studentTotal,
+              platformFee: b.platformShare,
+              instructorShare: b.instructorGross,
+              taxDeduction: b.tdsAmount,
+              netAmount: b.netInstructorPayout,
+              paymentMethod: 'MOCK_SIMULATOR',
               status: 'PAID',
+              notes: JSON.stringify(b),
               createdAt: enr.enrolledAt
             },
             update: {
-              grossAmount: gross,
-              platformFee,
-              instructorShare,
-              taxDeduction,
-              netAmount
+              grossAmount: b.studentTotal,
+              platformFee: b.platformShare,
+              instructorShare: b.instructorGross,
+              taxDeduction: b.tdsAmount,
+              netAmount: b.netInstructorPayout,
+              notes: JSON.stringify(b)
             }
           })
           .catch(() => {});
-      }
-    }
-
-    // Reconcile any existing transactions for this user to ensure 60% platform fee, 40% instructor share, 2% TDS
-    const existingTxns = await prisma.instructorEarningTransaction.findMany({
-      where: { userId: session.id }
-    });
-    for (const t of existingTxns) {
-      const gross = Number(t.grossAmount || 0);
-      if (gross > 0) {
-        const expectedFee = Math.round(gross * 0.60);
-        const expectedShare = Math.round(gross * 0.40);
-        const expectedTds = Math.round(expectedShare * 0.02);
-        const expectedNet = expectedShare - expectedTds;
-        if (t.platformFee !== expectedFee || t.instructorShare !== expectedShare) {
-          await prisma.instructorEarningTransaction
-            .update({
-              where: { id: t.id },
-              data: {
-                platformFee: expectedFee,
-                instructorShare: expectedShare,
-                taxDeduction: expectedTds,
-                netAmount: expectedNet
-              }
-            })
-            .catch(() => {});
-        }
       }
     }
 
