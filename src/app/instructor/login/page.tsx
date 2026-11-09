@@ -14,6 +14,10 @@ function InstructorLoginContent() {
   const { login, refreshUser, showToast } = useApp();
 
   const initialEmail = searchParams.get('email') || '';
+  const initialMode = searchParams.get('mode') === 'signup' ? true : false;
+  const [isSignUp, setIsSignUp] = useState(initialMode);
+
+  // Sign In State
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +29,18 @@ function InstructorLoginContent() {
   const [otpCode, setOtpCode] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
+
+  // Sign Up State
+  const [signupForm, setSignupForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [signupError, setSignupError] = useState('');
 
   const rawCallback = searchParams.get('callbackUrl');
   const callbackUrl =
@@ -42,7 +58,7 @@ function InstructorLoginContent() {
       if (user.role !== 'INSTRUCTOR') {
         setAuthError({
           code: 'USER_NOT_FOUND',
-          message: 'This email is not registered. Please sign up first.'
+          message: 'This email is not registered as an Instructor. Please sign up first.'
         });
         return;
       }
@@ -67,8 +83,11 @@ function InstructorLoginContent() {
 
       const code =
         err.code ||
-        (err.message?.toLowerCase().includes('auditor') ? 'PENDING_AUDITOR_ONBOARDING' :
-        err.message?.toLowerCase().includes('not registered') ? 'USER_NOT_FOUND' : 'INVALID_CREDENTIALS');
+        (err.message?.toLowerCase().includes('auditor')
+          ? 'PENDING_AUDITOR_ONBOARDING'
+          : err.message?.toLowerCase().includes('not registered')
+          ? 'USER_NOT_FOUND'
+          : 'INVALID_CREDENTIALS');
       const message =
         code === 'PENDING_AUDITOR_ONBOARDING'
           ? err.message ||
@@ -91,6 +110,70 @@ function InstructorLoginContent() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError('');
+
+    const cleanFirst = signupForm.firstName.trim();
+    const cleanLast = signupForm.lastName.trim();
+    const cleanEmail = signupForm.email.trim().toLowerCase();
+    const cleanPhone = signupForm.phone.trim();
+
+    if (!cleanFirst || !cleanLast) {
+      setSignupError('Please provide your First Name and Last Name.');
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setSignupError('Please provide a valid email address.');
+      return;
+    }
+    if (!cleanPhone) {
+      setSignupError('Please provide your mobile number.');
+      return;
+    }
+    if (signupForm.password.length < 8) {
+      setSignupError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    setSignupLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'INSTRUCTOR',
+          firstName: cleanFirst,
+          lastName: cleanLast,
+          name: `${cleanFirst} ${cleanLast}`,
+          email: cleanEmail,
+          phone: cleanPhone,
+          password: signupForm.password,
+          acceptedTerms: true
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Instructor registration failed.');
+      }
+
+      showToast({
+        title: 'Registration Successful! 📩',
+        description: `Verification OTP has been sent to ${cleanEmail}.`,
+        type: 'success'
+      });
+
+      setEmail(cleanEmail);
+      setRequiresOtp(true);
+      setIsSignUp(false);
+    } catch (err: any) {
+      setSignupError(err.message || 'Registration failed.');
+      showToast({ title: 'Registration Failed', description: err.message, type: 'error' });
+    } finally {
+      setSignupLoading(false);
     }
   };
 
@@ -167,37 +250,63 @@ function InstructorLoginContent() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto text-slate-900 font-sans">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/20 mb-3">
-          <Icon name="cast_for_education" size={28} />
-        </div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">
-          Instructor Studio Login
-        </h1>
-        <p className="mt-1 text-xs text-slate-500">
-          Sign in to manage your curriculum, track earnings, and teach your students.
-        </p>
+    <div className="w-full max-w-4xl mx-auto font-sans px-2 sm:px-4 py-4">
+      {/* Mobile Mode Switcher (< md screens) */}
+      <div className="flex md:hidden p-1.5 rounded-2xl bg-white border border-slate-200 shadow-sm mb-4 max-w-xs mx-auto">
+        <button
+          type="button"
+          onClick={() => {
+            setIsSignUp(false);
+            setAuthError(null);
+          }}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            !isSignUp
+              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Sign In
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsSignUp(true);
+            setAuthError(null);
+          }}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            isSignUp
+              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Sign Up
+        </button>
       </div>
 
-      <div className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-xl space-y-5">
+      {/* Main Double-Panel Sliding Card (Matches the Instagram Reel UI Design) */}
+      <div className="relative w-full min-h-[560px] md:min-h-[580px] bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-slate-200/80 overflow-hidden flex flex-col md:block">
+        
+        {/* ================= PANEL 1: SIGN IN FORM (LEFT HALF) ================= */}
+        <div
+          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:left-0 flex flex-col justify-center px-6 sm:px-12 py-8 z-10 transition-all duration-700 ease-in-out ${
+            isSignUp
+              ? 'hidden md:flex md:opacity-0 md:pointer-events-none md:z-1'
+              : 'flex md:opacity-100 md:pointer-events-auto md:z-20'
+          }`}
+        >
           {requiresOtp ? (
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-200 text-violet-600 mx-auto flex items-center justify-center">
-                  <Icon name="mark_email_read" size={24} />
-                </div>
-                <h2 className="text-xl font-black text-slate-900">Verify Your Instructor Email</h2>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  We sent a 6-digit verification OTP to{' '}
-                  <span className="font-mono font-bold text-violet-700">{email}</span>. Enter it below to verify your email and access the Instructor Studio.
-                </p>
+            /* OTP Verification Flow */
+            <form onSubmit={handleVerifyOtp} className="space-y-4 max-w-sm mx-auto w-full text-center">
+              <div className="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-200 text-violet-600 mx-auto flex items-center justify-center shadow-xs">
+                <Icon name="mark_email_read" size={24} />
               </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900">Verify Your Email</h2>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Enter the 6-digit OTP code sent to{' '}
+                <span className="font-mono font-bold text-violet-700">{email}</span>.
+              </p>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 text-center">
-                  6-Digit Verification OTP
-                </label>
                 <input
                   type="text"
                   required
@@ -212,17 +321,14 @@ function InstructorLoginContent() {
               <button
                 type="submit"
                 disabled={isVerifyingOtp || otpCode.length < 6}
-                className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-md shadow-violet-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-3 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isVerifyingOtp ? (
-                  <>
-                    <Icon name="sync" size={16} className="animate-spin" />
-                    <span>Verifying OTP...</span>
-                  </>
+                  <span>Verifying OTP...</span>
                 ) : (
                   <>
                     <Icon name="verified" size={16} />
-                    <span>Verify OTP &amp; Enter Studio</span>
+                    <span>Verify &amp; Enter Studio</span>
                   </>
                 )}
               </button>
@@ -249,137 +355,314 @@ function InstructorLoginContent() {
               </div>
             </form>
           ) : (
-            <>
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-violet-50 text-violet-600 border border-violet-200 mb-3">
-                  <Icon name="cast_for_education" size={26} />
-                </div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Instructor Studio Login
+            /* Standard Sign In Form */
+            <form onSubmit={handleSubmit} className="space-y-4 max-w-sm mx-auto w-full text-center">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                  Sign In
                 </h1>
-                <p className="text-slate-500 text-xs sm:text-sm mt-1">
-                  Sign in to manage your curriculum, courses, earnings, and payouts.
+                <p className="text-xs text-slate-500 mt-1">
+                  Access your Instructor Studio &amp; Courses
                 </p>
               </div>
 
+              {/* Social Icons (matches Instagram reel) */}
+              <div className="flex items-center justify-center gap-3 py-1">
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                  title="Sign in with Facebook"
+                >
+                  <span className="font-bold text-sm">f</span>
+                </button>
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                  title="Sign in with Google"
+                >
+                  <span className="font-bold text-sm">G</span>
+                </button>
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                  title="Sign in with LinkedIn"
+                >
+                  <span className="font-bold text-sm">in</span>
+                </button>
+              </div>
+
+              <span className="text-[11px] text-slate-400 block -mt-1">
+                or use your instructor email account
+              </span>
+
               {authError && (
                 <div
-                  className={`mb-5 p-4 rounded-xl border text-sm animate-in fade-in duration-200 ${
+                  className={`p-3 rounded-xl border text-xs text-left animate-in fade-in duration-150 ${
                     authError.code === 'USER_NOT_FOUND'
                       ? 'bg-purple-50 border-purple-200 text-purple-950'
+                      : authError.code === 'PENDING_AUDITOR_ONBOARDING'
+                      ? 'bg-amber-50 border-amber-200 text-amber-950'
                       : 'bg-rose-50 border-rose-200 text-rose-900'
                   }`}
                 >
-                  <div className="flex items-start gap-2.5">
-                    <Icon
-                      name={authError.code === 'USER_NOT_FOUND' ? 'person_add' : 'error'}
-                      size={20}
-                      className={`mt-0.5 shrink-0 ${
-                        authError.code === 'USER_NOT_FOUND' ? 'text-[#5624d0]' : 'text-rose-600'
-                      }`}
-                    />
-                    <div className="flex-1 space-y-2.5">
-                      <p className="font-bold text-xs leading-relaxed">{authError.message}</p>
-                      {authError.code === 'USER_NOT_FOUND' && (
-                        <div>
-                          <Link
-                            href={`/signup?role=INSTRUCTOR&email=${encodeURIComponent(
-                              email.trim().toLowerCase()
-                            )}`}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
-                          >
-                            <span>Sign Up for Instructor</span>
-                            <Icon name="arrow_forward" size={14} />
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <p className="font-bold leading-relaxed">{authError.message}</p>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Instructor Email
-                  </label>
+              <div className="space-y-3 text-left">
+                <div className="relative">
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="instructor@morenateach.com"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600 transition-all"
+                    placeholder="Email Address"
+                    className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                   />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Password
-                    </label>
-                    <Link
-                      href="/forgot-password"
-                      className="text-xs font-bold text-violet-600 hover:text-violet-700"
-                    >
-                      Forgot Password?
-                    </Link>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-violet-600 transition-all pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                    >
-                      <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={18} />
-                    </button>
-                  </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                  >
+                    <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={18} />
+                  </button>
                 </div>
+              </div>
 
+              <div className="text-right">
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] text-slate-500 hover:text-violet-600 transition-colors"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+
+              <div className="pt-1">
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-md shadow-violet-600/20 transition-all active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className="px-10 py-3 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-98 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-2"
                 >
-                  {isLoading ? (
-                    <span>Signing in...</span>
-                  ) : (
-                    <>
-                      <span>Sign In to Studio</span>
-                      <Icon name="arrow_forward" size={16} />
-                    </>
-                  )}
+                  {isLoading ? <span>Signing In...</span> : <span>SIGN IN</span>}
                 </button>
-              </form>
-            </>
-          )}
+              </div>
 
-          {/* Portal Switcher Footer */}
-          <div className="pt-4 border-t border-slate-200 text-center space-y-2.5">
-            <Link
-              href="/signup?role=INSTRUCTOR"
-              className="block w-full py-2.5 px-4 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-bold text-xs transition-all"
-            >
-              ✨ New Instructor? Create Instructor Account →
-            </Link>
-            <div className="flex items-center justify-center gap-4 text-xs font-medium pt-1">
-              <Link href="/reviewer/login" className="text-indigo-600 hover:underline font-bold">
-                Auditor Login →
+              <div className="pt-2 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500">
+                <Link href="/reviewer/login" className="text-indigo-600 hover:underline">
+                  Auditor Login →
+                </Link>
+                <span>•</span>
+                <Link href="/admin/login" className="text-slate-600 hover:text-slate-900">
+                  Admin Portal →
+                </Link>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* ================= PANEL 2: SIGN UP FORM (RIGHT HALF) ================= */}
+        <div
+          className={`w-full md:w-1/2 h-full md:absolute md:top-0 md:right-0 flex flex-col justify-center px-6 sm:px-12 py-8 z-10 transition-all duration-700 ease-in-out ${
+            isSignUp
+              ? 'flex md:opacity-100 md:pointer-events-auto md:z-20'
+              : 'hidden md:flex md:opacity-0 md:pointer-events-none md:z-1'
+          }`}
+        >
+          <form onSubmit={handleSignupSubmit} className="space-y-3 max-w-sm mx-auto w-full text-center">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                Create Account
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Join Morena Teach as an Instructor
+              </p>
+            </div>
+
+            {/* Social Icons (matches Instagram reel) */}
+            <div className="flex items-center justify-center gap-3 py-1">
+              <button
+                type="button"
+                className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                title="Sign up with Facebook"
+              >
+                <span className="font-bold text-sm">f</span>
+              </button>
+              <button
+                type="button"
+                className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                title="Sign up with Google"
+              >
+                <span className="font-bold text-sm">G</span>
+              </button>
+              <button
+                type="button"
+                className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
+                title="Sign up with LinkedIn"
+              >
+                <span className="font-bold text-sm">in</span>
+              </button>
+            </div>
+
+            <span className="text-[11px] text-slate-400 block -mt-1">
+              or use your email for educator registration
+            </span>
+
+            {signupError && (
+              <div className="p-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 text-xs text-left">
+                <p className="font-bold leading-relaxed">{signupError}</p>
+              </div>
+            )}
+
+            <div className="space-y-2.5 text-left">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  required
+                  value={signupForm.firstName}
+                  onChange={(e) => setSignupForm({ ...signupForm, firstName: e.target.value })}
+                  placeholder="First Name"
+                  className="w-full px-3.5 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                />
+                <input
+                  type="text"
+                  required
+                  value={signupForm.lastName}
+                  onChange={(e) => setSignupForm({ ...signupForm, lastName: e.target.value })}
+                  placeholder="Last Name"
+                  className="w-full px-3.5 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                />
+              </div>
+
+              <input
+                type="email"
+                required
+                value={signupForm.email}
+                onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                placeholder="Email Address"
+                className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+              />
+
+              <input
+                type="tel"
+                required
+                value={signupForm.phone}
+                onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
+                placeholder="Mobile Number (+91)"
+                className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+              />
+
+              <div className="relative">
+                <input
+                  type={showSignupPassword ? 'text' : 'password'}
+                  required
+                  value={signupForm.password}
+                  onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                  placeholder="Password (min 8 characters)"
+                  className="w-full px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSignupPassword(!showSignupPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <Icon name={showSignupPassword ? 'visibility_off' : 'visibility'} size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={signupLoading}
+                className="px-10 py-3 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-98 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                {signupLoading ? <span>Creating Account...</span> : <span>SIGN UP</span>}
+              </button>
+            </div>
+
+            <div className="pt-1">
+              <Link
+                href="/signup?role=INSTRUCTOR"
+                className="text-[11px] text-violet-600 hover:underline font-bold"
+              >
+                Complete Full 4-Step Application with Resume →
               </Link>
-              <Link href="/admin/login" className="text-slate-600 hover:text-slate-900">
-                Admin Portal →
-              </Link>
+            </div>
+          </form>
+        </div>
+
+        {/* ================= OVERLAY SLIDING CONTAINER (DESKTOP ONLY) ================= */}
+        <div
+          className={`hidden md:block absolute top-0 left-1/2 w-1/2 h-full overflow-hidden transition-transform duration-700 ease-in-out z-30 ${
+            isSignUp ? '-translate-x-full' : 'translate-x-0'
+          }`}
+        >
+          <div
+            className={`relative -left-full h-full w-[200%] bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 text-white flex transition-transform duration-700 ease-in-out ${
+              isSignUp ? 'translate-x-1/2' : 'translate-x-0'
+            }`}
+          >
+            {/* Left Half of Overlay: Shown when Overlay slides Left (SignUp Mode) */}
+            <div className="w-1/2 h-full flex flex-col items-center justify-center px-8 sm:px-12 text-center select-none">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white mb-4 shadow-inner">
+                <Icon name="login" size={24} />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
+                Welcome Back!
+              </h2>
+              <p className="text-xs sm:text-sm text-purple-100 max-w-xs leading-relaxed mb-6">
+                To keep connected with your students, please login with your instructor personal info
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(false);
+                  setAuthError(null);
+                }}
+                className="px-10 py-2.5 rounded-full border-2 border-white text-white font-extrabold text-xs uppercase tracking-wider hover:bg-white hover:text-violet-700 transition-all cursor-pointer shadow-lg active:scale-95"
+              >
+                SIGN IN
+              </button>
+            </div>
+
+            {/* Right Half of Overlay: Shown when Overlay is on Right (SignIn Mode) */}
+            <div className="w-1/2 h-full flex flex-col items-center justify-center px-8 sm:px-12 text-center select-none">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white mb-4 shadow-inner">
+                <Icon name="auto_awesome" size={24} />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
+                Hello, Educator!
+              </h2>
+              <p className="text-xs sm:text-sm text-purple-100 max-w-xs leading-relaxed mb-6">
+                Enter your personal details and start your teaching journey with Morena Teach today
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(true);
+                  setAuthError(null);
+                }}
+                className="px-10 py-2.5 rounded-full border-2 border-white text-white font-extrabold text-xs uppercase tracking-wider hover:bg-white hover:text-violet-700 transition-all cursor-pointer shadow-lg active:scale-95"
+              >
+                SIGN UP
+              </button>
             </div>
           </div>
         </div>
+
+      </div>
     </div>
   );
 }
@@ -388,7 +671,7 @@ export default function InstructorLoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <UdemyNavbar />
-      <main className="flex-1 flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans">
+      <main className="flex-1 flex flex-col justify-center py-8 sm:py-14 px-4 sm:px-6 lg:px-8 font-sans">
         <Suspense
           fallback={
             <div className="min-h-[50vh] flex items-center justify-center text-slate-600 text-xs font-semibold">
