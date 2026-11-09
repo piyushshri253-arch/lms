@@ -30,6 +30,29 @@ function InstructorLoginContent() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
 
+interface QualificationItem {
+  degree: string;
+  courseName: string;
+  university: string;
+  passingYear: string;
+}
+
+  // Dynamic Qualifications List (Qualification #1 is fixed Graduation, #2+ can be added/removed)
+  const [qualificationsList, setQualificationsList] = useState<QualificationItem[]>([
+    {
+      degree: 'Graduation',
+      courseName: '',
+      university: '',
+      passingYear: '2021'
+    },
+    {
+      degree: 'Post-Graduation',
+      courseName: '',
+      university: '',
+      passingYear: '2023'
+    }
+  ]);
+
   // Sign Up Multi-Step State
   const [signupStep, setSignupStep] = useState<1 | 2 | 3 | 4>(1);
   const [signupForm, setSignupForm] = useState({
@@ -38,11 +61,8 @@ function InstructorLoginContent() {
     lastName: '',
     email: initialEmail,
     phone: '',
-    // Step 2: Qualifications & Experience
-    degree: 'Graduation',
-    courseName: '',
-    university: '',
-    passingYear: '2023',
+    // Step 2: Experience & Resume
+    linkedinUrl: '',
     experienceYears: '3-5 Years',
     experience: '',
     resumeDataUrl: '',
@@ -67,6 +87,59 @@ function InstructorLoginContent() {
 
   const passingYears = Array.from({ length: 35 }, (_, i) => String(2026 - i));
 
+  // Qualification Row Helpers
+  const addQualificationRow = () => {
+    setQualificationsList((prev) => [
+      ...prev,
+      {
+        degree: 'Post-Graduation',
+        courseName: '',
+        university: '',
+        passingYear: '2023'
+      }
+    ]);
+  };
+
+  const removeQualificationRow = (index: number) => {
+    if (index === 0) return; // Graduation (index 0) is mandatory and cannot be removed
+    setQualificationsList((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const updateQualificationRow = (
+    index: number,
+    field: keyof QualificationItem,
+    value: string
+  ) => {
+    setQualificationsList((prev) =>
+      prev.map((item, idx) =>
+        idx === index
+          ? { ...item, [field]: idx === 0 && field === 'degree' ? 'Graduation' : value }
+          : item
+      )
+    );
+  };
+
+  // Word count helper for 350-word summary limit
+  const countWords = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\s+/).filter(Boolean).length;
+  };
+  const experienceWordCount = countWords(signupForm.experience);
+
+  const handleExperienceChange = (val: string) => {
+    const newWordsList = val.trim() ? val.trim().split(/\s+/).filter(Boolean) : [];
+    if (newWordsList.length > 350) {
+      const matchedChunks = val.trimStart().match(/\S+\s*/g);
+      const cappedText = matchedChunks
+        ? matchedChunks.slice(0, 350).join('').trimEnd()
+        : newWordsList.slice(0, 350).join(' ');
+      setSignupForm((prev) => ({ ...prev, experience: cappedText }));
+      return;
+    }
+    setSignupForm((prev) => ({ ...prev, experience: val }));
+  };
+
   // Password validation checks for Step 4
   const pwChecks = {
     length: signupForm.password.length >= 8,
@@ -79,6 +152,13 @@ function InstructorLoginContent() {
   const isPasswordValid = passedChecksCount === 5;
   const passwordsMatch =
     signupForm.password.length > 0 && signupForm.password === signupForm.confirmPassword;
+
+  const strengthLabel =
+    passedChecksCount <= 2
+      ? { text: 'Weak', color: 'bg-red-500', textColor: 'text-red-600' }
+      : passedChecksCount <= 4
+      ? { text: 'Good', color: 'bg-amber-500', textColor: 'text-amber-600' }
+      : { text: 'Strong', color: 'bg-emerald-500', textColor: 'text-emerald-600' };
 
   // Step 1 Validation
   const validateStep1 = () => {
@@ -103,31 +183,40 @@ function InstructorLoginContent() {
     return true;
   };
 
-  // Step 2 Validation
+  // Step 2 Validation (Validates all qualification rows + experience + resume)
   const validateStep2 = () => {
     setSignupError('');
-    if (!signupForm.degree.trim()) {
-      setSignupError('Please select your qualification degree level.');
+    if (qualificationsList.length === 0) {
+      setSignupError('Please add at least one Qualification entry.');
       return false;
     }
-    if (!signupForm.courseName.trim()) {
-      setSignupError('Please enter your course name (e.g. B.Tech CS, MCA, M.Sc).');
-      return false;
-    }
-    if (!signupForm.university.trim()) {
-      setSignupError('Please enter your University or Institute name.');
-      return false;
-    }
-    if (!signupForm.passingYear.trim()) {
-      setSignupError('Please select your graduation passing year.');
-      return false;
+    for (let i = 0; i < qualificationsList.length; i++) {
+      const q = qualificationsList[i];
+      if (!q.courseName.trim()) {
+        setSignupError(
+          `Please enter the Course Name for Qualification #${i + 1} (e.g. B.Tech CS, B.Sc).`
+        );
+        return false;
+      }
+      if (!q.university.trim()) {
+        setSignupError(`Please enter the University Name for Qualification #${i + 1}.`);
+        return false;
+      }
+      if (!q.passingYear.trim()) {
+        setSignupError(`Please select the Passing Year for Qualification #${i + 1}.`);
+        return false;
+      }
     }
     if (!signupForm.experience.trim()) {
-      setSignupError('Please enter a brief summary of your teaching / industry experience.');
+      setSignupError('Please enter your Summary Experience.');
+      return false;
+    }
+    if (countWords(signupForm.experience) > 350) {
+      setSignupError('Summary Experience cannot exceed 350 words.');
       return false;
     }
     if (!signupForm.resumeDataUrl) {
-      setSignupError('Please upload your Resume / CV (PDF, DOCX) for auditor verification.');
+      setSignupError('Please upload your Resume / CV (PDF, DOC, or DOCX) for auditor verification.');
       return false;
     }
     return true;
@@ -206,7 +295,24 @@ function InstructorLoginContent() {
     const fullName = `${cleanFirst} ${cleanLast}`.trim();
     const cleanEmail = signupForm.email.trim().toLowerCase();
     const cleanPhone = signupForm.phone.trim();
-    const formattedQualification = `${signupForm.degree}: ${signupForm.courseName.trim()} - ${signupForm.university.trim()} (${signupForm.passingYear})`;
+
+    const formattedQualificationsSummary = qualificationsList
+      .map(
+        (q) =>
+          `${q.degree}: ${q.courseName.trim()}${q.university ? ` - ${q.university.trim()}` : ''} (${q.passingYear})`
+      )
+      .join(' | ');
+
+    const primaryQual = qualificationsList[0]
+      ? `${qualificationsList[0].courseName || qualificationsList[0].degree} - ${qualificationsList[0].university} (${qualificationsList[0].passingYear})`
+      : 'Graduate';
+
+    const extraQuals = qualificationsList
+      .slice(1)
+      .map((q) => `${q.courseName || q.degree} - ${q.university} (${q.passingYear})`)
+      .filter(Boolean)
+      .join(', ');
+
     const combinedExperience = signupForm.experienceYears
       ? `${signupForm.experienceYears} — ${signupForm.experience.trim()}`
       : signupForm.experience.trim();
@@ -223,17 +329,13 @@ function InstructorLoginContent() {
           name: fullName,
           email: cleanEmail,
           phone: cleanPhone,
-          qualification: formattedQualification,
-          additionalQualifications: '',
-          qualificationsList: [
-            {
-              degree: signupForm.degree,
-              courseName: signupForm.courseName.trim(),
-              university: signupForm.university.trim(),
-              passingYear: signupForm.passingYear,
-              specialization: `${signupForm.courseName.trim()} (${signupForm.university.trim()})`
-            }
-          ],
+          linkedinUrl: signupForm.linkedinUrl?.trim() || '',
+          qualification: formattedQualificationsSummary || primaryQual,
+          additionalQualifications: extraQuals,
+          qualificationsList: qualificationsList.map((q) => ({
+            ...q,
+            specialization: `${q.courseName.trim()} (${q.university.trim()})`
+          })),
           experience: combinedExperience,
           experienceYears: signupForm.experienceYears,
           resumeDataUrl: signupForm.resumeDataUrl,
@@ -807,120 +909,211 @@ function InstructorLoginContent() {
               </div>
             )}
 
-            {/* STEP 2: QUALIFICATIONS, EXPERIENCE & RESUME */}
+            {/* STEP 2: QUALIFICATIONS, EXPERIENCE & RESUME (Matches exact dynamic add/remove qualifications structure) */}
             {signupStep === 2 && (
-              <div className="space-y-2 text-left animate-in fade-in duration-200">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                      Degree Level *
-                    </label>
-                    <select
-                      value={signupForm.degree}
-                      onChange={(e) => setSignupForm({ ...signupForm, degree: e.target.value })}
-                      className="w-full px-2.5 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 focus:outline-none transition-all cursor-pointer"
+              <div className="space-y-3 text-left animate-in fade-in duration-200">
+                {/* Academic Qualifications & Passing Year Box */}
+                <div className="p-3 sm:p-3.5 rounded-2xl bg-violet-50/70 border border-violet-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-violet-950 flex items-center gap-1.5">
+                        <Icon name="school" size={16} className="text-violet-600" />
+                        <span>Academic Qualifications &amp; Passing Year</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        Graduation is mandatory. Post-Graduation is shown below (you can remove it if not applicable, or click <strong>+ Add Qualification</strong> to add more).
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={addQualificationRow}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-xs cursor-pointer shrink-0 self-start sm:self-center active:scale-95 transition-all"
                     >
-                      <option value="Graduation">Graduation</option>
-                      <option value="Post-Graduation">Post-Graduation</option>
-                      <option value="Doctorate / PhD">Doctorate / PhD</option>
-                      <option value="Diploma">Diploma</option>
-                      <option value="Professional Certificate">Professional</option>
-                    </select>
+                      <Icon name="add" size={14} />
+                      <span>Add Qualification</span>
+                    </button>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                      Course Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={signupForm.courseName}
-                      onChange={(e) => setSignupForm({ ...signupForm, courseName: e.target.value })}
-                      placeholder="e.g. B.Tech CS, MCA"
-                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                      University / College *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={signupForm.university}
-                      onChange={(e) => setSignupForm({ ...signupForm, university: e.target.value })}
-                      placeholder="University Name"
-                      className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                      Passing Year *
-                    </label>
-                    <select
-                      value={signupForm.passingYear}
-                      onChange={(e) => setSignupForm({ ...signupForm, passingYear: e.target.value })}
-                      className="w-full px-2.5 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 focus:outline-none transition-all cursor-pointer"
-                    >
-                      {passingYears.map((yr) => (
-                        <option key={yr} value={yr}>
-                          {yr}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                  <div className="space-y-2.5">
+                    {qualificationsList.map((qItem, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700">
+                            Qualification #{idx + 1}
+                          </span>
+                          {idx > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => removeQualificationRow(idx)}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+                            >
+                              <Icon name="delete" size={14} />
+                              <span>Remove</span>
+                            </button>
+                          )}
+                        </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                    Teaching / Industry Experience *
-                  </label>
-                  <select
-                    value={signupForm.experienceYears}
-                    onChange={(e) => setSignupForm({ ...signupForm, experienceYears: e.target.value })}
-                    className="w-full px-2.5 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 focus:outline-none transition-all cursor-pointer"
-                  >
-                    <option value="0-1 Years">0–1 Years (Fresher Educator)</option>
-                    <option value="1-3 Years">1–3 Years (Early Career)</option>
-                    <option value="3-5 Years">3–5 Years (Mid-Level Educator)</option>
-                    <option value="5-10 Years">5–10 Years (Senior Faculty)</option>
-                    <option value="10+ Years">10+ Years (Master Educator / Lead)</option>
-                  </select>
-                </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                          <div className="sm:col-span-3">
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                              Qualification Level <span className="text-red-500">*</span>
+                            </label>
+                            {idx === 0 ? (
+                              <div className="w-full px-2.5 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-900 select-none text-center">
+                                Graduation
+                              </div>
+                            ) : (
+                              <select
+                                value={qItem.degree === 'Graduation' ? 'Post-Graduation' : qItem.degree}
+                                onChange={(e) => updateQualificationRow(idx, 'degree', e.target.value)}
+                                className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                              >
+                                <option value="Post-Graduation">Post-Graduation</option>
+                                <option value="Ph.D.">Ph.D.</option>
+                                <option value="Professional Certification">Professional</option>
+                                <option value="Diploma">Diploma</option>
+                              </select>
+                            )}
+                          </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                    Brief Bio / Subject Summary *
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    value={signupForm.experience}
-                    onChange={(e) => setSignupForm({ ...signupForm, experience: e.target.value })}
-                    placeholder="Describe your subject expertise, core teaching areas..."
-                    className="w-full px-3 py-1.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all resize-none"
-                  />
-                </div>
+                          <div className="sm:col-span-3">
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                              Course Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={qItem.courseName}
+                              onChange={(e) => updateQualificationRow(idx, 'courseName', e.target.value)}
+                              placeholder={idx === 0 ? 'e.g. B.Tech CS, B.Sc' : 'e.g. M.Tech, MBA, M.Sc'}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                            />
+                          </div>
 
-                {/* Resume Upload Box */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                    Resume / CV (PDF, DOCX) *
-                  </label>
-                  {signupForm.resumeFileName ? (
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Icon name="description" size={16} className="text-violet-600 shrink-0" />
-                        <span className="font-semibold truncate">{signupForm.resumeFileName}</span>
-                        <span className="text-[10px] text-violet-600 shrink-0">
-                          ({(signupForm.resumeSize / 1024).toFixed(0)} KB)
-                        </span>
+                          <div className="sm:col-span-4">
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                              University Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={qItem.university}
+                              onChange={(e) => updateQualificationRow(idx, 'university', e.target.value)}
+                              placeholder="e.g. Delhi University, RGPV"
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                              Passing Year <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={qItem.passingYear}
+                              onChange={(e) => updateQualificationRow(idx, 'passingYear', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-violet-600"
+                            >
+                              {passingYears.map((yr) => (
+                                <option key={yr} value={yr}>
+                                  {yr}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </div>
-                      <label className="text-[11px] text-violet-700 font-bold hover:underline cursor-pointer shrink-0 ml-2">
-                        Change
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                      LinkedIn Profile Link
+                    </label>
+                    <input
+                      type="text"
+                      value={signupForm.linkedinUrl}
+                      onChange={(e) => setSignupForm({ ...signupForm, linkedinUrl: e.target.value })}
+                      placeholder="https://www.linkedin.com/in/your-profile"
+                      className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Total Experience, Summary Experience & Resume Box */}
+                <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Icon name="work" size={16} className="text-emerald-600" />
+                    <span>Total Experience, Summary Experience &amp; Resume Upload</span>
+                  </h3>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                      Total Experience <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={signupForm.experienceYears}
+                      onChange={(e) => setSignupForm({ ...signupForm, experienceYears: e.target.value })}
+                      className="w-full sm:w-1/2 px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-violet-600"
+                    >
+                      <option value="0-1 Years">0–1 Years</option>
+                      <option value="1-3 Years">1–3 Years</option>
+                      <option value="3-5 Years">3–5 Years</option>
+                      <option value="5-10 Years">5–10 Years</option>
+                      <option value="10+ Years">10+ Years</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Summary Experience <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] font-bold text-violet-700 bg-violet-100/70 px-2 py-0.5 rounded-full">
+                        {experienceWordCount} / 350 Words Max
+                      </span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      required
+                      value={signupForm.experience}
+                      onChange={(e) => handleExperienceChange(e.target.value)}
+                      placeholder="Detail your teaching background, subject expertise, and achievements..."
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-600 resize-none"
+                    />
+                  </div>
+
+                  {/* Resume Upload Box */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                      Resume / CV (PDF, DOC, DOCX under 8 MB) <span className="text-red-500">*</span>
+                    </label>
+                    {signupForm.resumeFileName ? (
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-violet-50 border border-violet-200 text-xs text-violet-950">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Icon name="description" size={16} className="text-violet-600 shrink-0" />
+                          <span className="font-semibold truncate">{signupForm.resumeFileName}</span>
+                          <span className="text-[10px] text-violet-600 shrink-0">
+                            ({(signupForm.resumeSize / 1024).toFixed(0)} KB)
+                          </span>
+                        </div>
+                        <label className="text-[11px] text-violet-700 font-bold hover:underline cursor-pointer shrink-0 ml-2">
+                          Change
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            onChange={handleResumeUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-violet-300 hover:border-violet-500 bg-violet-50/50 hover:bg-violet-50 cursor-pointer transition-all text-xs font-semibold text-violet-700">
+                        <Icon name="upload_file" size={18} />
+                        <span>Upload Resume / CV (Under 8 MB) *</span>
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx"
@@ -928,19 +1121,8 @@ function InstructorLoginContent() {
                           className="hidden"
                         />
                       </label>
-                    </div>
-                  ) : (
-                    <label className="flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-violet-300 hover:border-violet-500 bg-violet-50/50 hover:bg-violet-50 cursor-pointer transition-all text-xs font-semibold text-violet-700">
-                      <Icon name="upload_file" size={18} />
-                      <span>Upload Resume / CV (Under 8 MB) *</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleResumeUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">
@@ -1074,141 +1256,156 @@ function InstructorLoginContent() {
 
             {/* STEP 4: STRONG PASSWORD & SUBMISSION */}
             {signupStep === 4 && (
-              <form onSubmit={handleFinalSignupSubmit} className="space-y-2 text-left animate-in fade-in duration-200">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                      Password *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showSignupPassword ? 'text' : 'password'}
-                        required
-                        value={signupForm.password}
-                        onChange={(e) =>
-                          setSignupForm({ ...signupForm, password: e.target.value })
-                        }
-                        placeholder="••••••••"
-                        className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-8"
+              <form onSubmit={handleFinalSignupSubmit} className="space-y-2.5 text-left animate-in fade-in duration-200">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSignupPassword ? 'text' : 'password'}
+                      required
+                      value={signupForm.password}
+                      onChange={(e) =>
+                        setSignupForm({ ...signupForm, password: e.target.value })
+                      }
+                      placeholder="e.g. Abc@12345"
+                      className="w-full px-3.5 py-2 bg-slate-50 focus:bg-white border border-slate-300 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      <Icon
+                        name={showSignupPassword ? 'visibility_off' : 'visibility'}
+                        size={16}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowSignupPassword(!showSignupPassword)}
-                        className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                      >
-                        <Icon
-                          name={showSignupPassword ? 'visibility_off' : 'visibility'}
-                          size={16}
-                        />
-                      </button>
-                    </div>
+                    </button>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                      Confirm *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showSignupConfirmPassword ? 'text' : 'password'}
-                        required
-                        value={signupForm.confirmPassword}
-                        onChange={(e) =>
-                          setSignupForm({ ...signupForm, confirmPassword: e.target.value })
-                        }
-                        placeholder="••••••••"
-                        className="w-full px-3 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-8"
+                  {/* Password Strength Meter & Live 5-Rule Checklist */}
+                  <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center justify-between text-[11px] mb-1.5">
+                      <span className="text-slate-600 font-medium">Password Strength</span>
+                      <span className={`font-bold ${strengthLabel.textColor}`}>
+                        {signupForm.password ? strengthLabel.text : 'Enter Password'} ({passedChecksCount}/5)
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2.5">
+                      <div
+                        className={`h-full transition-all duration-300 ${strengthLabel.color}`}
+                        style={{ width: `${(passedChecksCount / 5) * 100}%` }}
                       />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowSignupConfirmPassword(!showSignupConfirmPassword)
-                        }
-                        className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                      >
-                        <Icon
-                          name={showSignupConfirmPassword ? 'visibility_off' : 'visibility'}
-                          size={16}
-                        />
-                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+                      {[
+                        { key: 'length', label: 'At least 8 characters' },
+                        { key: 'uppercase', label: 'At least 1 uppercase (A-Z)' },
+                        { key: 'lowercase', label: 'At least 1 lowercase (a-z)' },
+                        { key: 'number', label: 'At least 1 number (0-9)' },
+                        { key: 'special', label: 'At least 1 special (@$!%*?&#)' }
+                      ].map((rule) => {
+                        const ok = pwChecks[rule.key as keyof typeof pwChecks];
+                        return (
+                          <div
+                            key={rule.key}
+                            className={`flex items-center gap-1.5 font-medium ${
+                              ok ? 'text-emerald-600 font-semibold' : 'text-slate-400'
+                            }`}
+                          >
+                            <Icon
+                              name={ok ? 'check_circle' : 'cancel'}
+                              size={14}
+                              className={ok ? 'text-emerald-600' : 'text-slate-300'}
+                            />
+                            <span>{rule.label}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
-                {/* 5-Rule Password Checklist */}
-                <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                  <div
-                    className={`flex items-center gap-1 ${
-                      pwChecks.length ? 'text-emerald-600 font-bold' : ''
-                    }`}
-                  >
-                    <Icon
-                      name={pwChecks.length ? 'check_circle' : 'radio_button_unchecked'}
-                      size={12}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSignupConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={signupForm.confirmPassword}
+                      onChange={(e) =>
+                        setSignupForm({ ...signupForm, confirmPassword: e.target.value })
+                      }
+                      placeholder="Re-enter your password"
+                      className="w-full px-3.5 py-2 bg-slate-50 focus:bg-white border border-slate-300 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all pr-10"
                     />
-                    <span>8+ Chars</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowSignupConfirmPassword(!showSignupConfirmPassword)
+                      }
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      <Icon
+                        name={showSignupConfirmPassword ? 'visibility_off' : 'visibility'}
+                        size={16}
+                      />
+                    </button>
                   </div>
-                  <div
-                    className={`flex items-center gap-1 ${
-                      pwChecks.uppercase ? 'text-emerald-600 font-bold' : ''
-                    }`}
-                  >
-                    <Icon
-                      name={pwChecks.uppercase ? 'check_circle' : 'radio_button_unchecked'}
-                      size={12}
-                    />
-                    <span>1 Uppercase (A-Z)</span>
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 ${
-                      pwChecks.lowercase ? 'text-emerald-600 font-bold' : ''
-                    }`}
-                  >
-                    <Icon
-                      name={pwChecks.lowercase ? 'check_circle' : 'radio_button_unchecked'}
-                      size={12}
-                    />
-                    <span>1 Lowercase (a-z)</span>
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 ${
-                      pwChecks.number ? 'text-emerald-600 font-bold' : ''
-                    }`}
-                  >
-                    <Icon
-                      name={pwChecks.number ? 'check_circle' : 'radio_button_unchecked'}
-                      size={12}
-                    />
-                    <span>1 Number (0-9)</span>
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 col-span-2 ${
-                      pwChecks.special ? 'text-emerald-600 font-bold' : ''
-                    }`}
-                  >
-                    <Icon
-                      name={pwChecks.special ? 'check_circle' : 'radio_button_unchecked'}
-                      size={12}
-                    />
-                    <span>1 Special Symbol (@$!%*?&#)</span>
-                  </div>
+                  {signupForm.confirmPassword && (
+                    <div className="mt-1 flex items-center gap-1 text-[11px]">
+                      {passwordsMatch ? (
+                        <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                          <Icon name="check_circle" size={13} />
+                          Passwords match
+                        </span>
+                      ) : (
+                        <span className="text-rose-600 font-semibold flex items-center gap-1">
+                          <Icon name="cancel" size={13} />
+                          Passwords do not match
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Terms & Conditions Checkbox */}
-                <label className="flex items-start gap-2 cursor-pointer text-left select-none pt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={signupForm.acceptedTerms}
-                    onChange={(e) =>
-                      setSignupForm({ ...signupForm, acceptedTerms: e.target.checked })
-                    }
-                    className="mt-0.5 rounded text-violet-600 focus:ring-violet-500 cursor-pointer"
-                  />
-                  <span className="text-[10px] text-slate-600 leading-tight">
-                    I agree to Morena Teach{' '}
-                    <span className="font-semibold text-violet-600">Educator Terms &amp; Policies</span>.
-                  </span>
-                </label>
+                {/* Mandatory Terms & Privacy Policy Checkbox */}
+                <div className="pt-0.5">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-violet-400 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={signupForm.acceptedTerms}
+                      onChange={(e) =>
+                        setSignupForm({ ...signupForm, acceptedTerms: e.target.checked })
+                      }
+                      className="mt-0.5 rounded text-violet-600 focus:ring-violet-500 cursor-pointer shrink-0"
+                    />
+                    <span className="text-[11px] text-slate-700 leading-tight">
+                      I have read and agree to the Morena Teach{' '}
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-violet-700 hover:underline"
+                      >
+                        Terms &amp; Conditions
+                      </Link>{' '}
+                      and{' '}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-violet-700 hover:underline"
+                      >
+                        Privacy Policy
+                      </Link>
+                      . <span className="text-red-500 font-bold">*</span>
+                    </span>
+                  </label>
+                </div>
 
                 <div className="flex items-center gap-2 pt-1">
                   <button
@@ -1217,14 +1414,14 @@ function InstructorLoginContent() {
                       setSignupError('');
                       setSignupStep(3);
                     }}
-                    className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
+                    className="px-4 py-2.5 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase cursor-pointer transition-all"
                   >
                     ← Back
                   </button>
                   <button
                     type="submit"
                     disabled={signupLoading}
-                    className="flex-1 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-98 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-98 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-violet-600/30 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {signupLoading ? (
                       <span>Submitting...</span>
