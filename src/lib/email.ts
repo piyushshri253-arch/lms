@@ -344,6 +344,41 @@ export function renderEmailHtml(
       break;
     }
 
+    case 'ANNOUNCEMENT': {
+      const ctaUrl = data.ctaUrl?.startsWith('http')
+        ? data.ctaUrl
+        : `${baseUrl}${data.ctaUrl || '/student/learning?tab=notifications'}`;
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 30px;">
+            📢
+          </div>
+        </div>
+        <div style="text-align: center; margin-bottom: 12px;">
+          <span style="display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 12px; border-radius: 9999px;">
+            ${data.courseTitle || 'Course Announcement'}
+          </span>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 20px; font-weight: 800; text-align: center; line-height: 1.4;">
+          ${data.title}
+        </h2>
+        <p style="color: #64748b; font-size: 13px; text-align: center; margin-top: 4px; margin-bottom: 20px;">
+          From your instructor: <strong>${data.instructorName || 'Your Instructor'}</strong>
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0; font-size: 14px; color: #334155; line-height: 1.7; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;">
+          ${data.message}
+        </div>
+
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${ctaUrl}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 13px 30px; border-radius: 8px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(86, 36, 208, 0.25);">
+            ${data.ctaText || 'Open Course Dashboard →'}
+          </a>
+        </div>
+      `;
+      break;
+    }
+
     case 'INSTRUCTOR_ENROLLMENT_ALERT':
       bodyContent = `
         <div style="text-align: center; margin-bottom: 20px;">

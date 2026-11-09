@@ -52,6 +52,44 @@ export default function AdminReviewersPage() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
 
+  // Auditor 2-Hour Invite Modal State
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+  const [generatedInvite, setGeneratedInvite] = useState<{
+    inviteUrl: string;
+    expiresAt: string;
+    token: string;
+  } | null>(null);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+
+  const handleGenerateAuditorInvite = async () => {
+    setIsGeneratingInvite(true);
+    try {
+      const res = await fetch('/api/admin/reviewers/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: 'Admin Generated 2-Hour Pass' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate invitation link');
+      setGeneratedInvite(data);
+      setIsInviteModalOpen(true);
+      showToast({
+        title: 'Invitation Link Generated',
+        description: 'Auditor onboarding link is active for 2 hours.',
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Error Generating Link',
+        description: err.message,
+        type: 'error'
+      });
+    } finally {
+      setIsGeneratingInvite(false);
+    }
+  };
+
   const fetchReviewers = async () => {
     try {
       setIsLoading(true);
@@ -268,14 +306,26 @@ export default function AdminReviewersPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary/90 transition-all self-start sm:self-auto cursor-pointer"
-        >
-          <Icon name="person_add" size={16} />
-          Appoint New Auditor
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
+          >
+            <Icon name="person_add" size={16} />
+            <span>Appoint New Auditor</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleGenerateAuditorInvite}
+            disabled={isGeneratingInvite}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            title="Generate a 2-hour onboarding link for a new Course Auditor"
+          >
+            <Icon name="link" size={16} />
+            <span>{isGeneratingInvite ? 'Generating...' : 'Auditor 2h Invite Link'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Navigation Sub-Tabs */}
@@ -703,6 +753,97 @@ export default function AdminReviewersPage() {
           </div>
         </Modal>
       )}
+
+      {/* 2-HOUR AUDITOR INVITATION LINK MODAL */}
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => {
+          setIsInviteModalOpen(false);
+          setCopiedInvite(false);
+        }}
+        title="🛡️ Course Auditor 2-Hour Invitation Pass"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+              <Icon name="verified_user" size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                Temporary 2-Hour Onboarding Link
+              </h4>
+              <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
+                Direct Auditor signup on the public website is disabled. Send this secure link to the appointed auditor. It expires automatically in exactly <strong>2 hours</strong>.
+              </p>
+            </div>
+          </div>
+
+          {generatedInvite && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                  Invitation URL
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={generatedInvite.inviteUrl}
+                    className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-300 rounded-xl focus:outline-none select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedInvite.inviteUrl);
+                      setCopiedInvite(true);
+                      showToast({ title: 'Copied!', description: 'Invite link copied to clipboard', type: 'success' });
+                    }}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs"
+                  >
+                    <Icon name={copiedInvite ? 'check' : 'content_copy'} size={15} />
+                    <span>{copiedInvite ? 'Copied' : 'Copy Link'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">Expires At:</span>
+                  <span className="font-mono font-bold text-rose-600">
+                    {new Date(generatedInvite.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(generatedInvite.expiresAt).toLocaleDateString()})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">Token ID:</span>
+                  <span className="font-mono text-[10px] text-slate-500">{generatedInvite.token}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsInviteModalOpen(false);
+                setCopiedInvite(false);
+              }}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleGenerateAuditorInvite}
+              disabled={isGeneratingInvite}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <Icon name="refresh" size={15} />
+              <span>Generate Fresh Link</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -30,6 +30,12 @@ const UdemyNavbarInner: React.FC = () => {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [showPromoBanner, setShowPromoBanner] = useState(true);
 
+  // Student Notifications & Announcements State
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [isNotifMenuOpen, setIsNotifMenuOpen] = useState(false);
+  const notifMenuRef = useRef<HTMLDivElement>(null);
+
   const coursesMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const isTypingRef = useRef(false);
@@ -109,6 +115,37 @@ const UdemyNavbarInner: React.FC = () => {
     loadCategories();
   }, []);
 
+  // Fetch Student Notifications & Announcements
+  const fetchNavbarNotifications = React.useCallback(async () => {
+    if (!currentUser || currentUser.role !== 'STUDENT') return;
+    try {
+      const res = await fetch('/api/notifications', { cache: 'no-store' });
+      if (res.ok) {
+        const d = await res.json();
+        setNotifications(d.notifications || []);
+        setUnreadNotifsCount(d.unreadCount || 0);
+      }
+    } catch {}
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetchNavbarNotifications();
+    const interval = setInterval(fetchNavbarNotifications, 15000); // 15s real-time sync
+    return () => clearInterval(interval);
+  }, [fetchNavbarNotifications]);
+
+  const handleMarkAllNotifsRead = async () => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true })
+      });
+      setUnreadNotifsCount(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch {}
+  };
+
   // Close menus on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -117,6 +154,9 @@ const UdemyNavbarInner: React.FC = () => {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setIsUserMenuOpen(false);
+      }
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setIsNotifMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -486,6 +526,99 @@ const UdemyNavbarInner: React.FC = () => {
                   <span>Instructor Login</span>
                 </Link>
               )}
+
+              {/* Student Real-time Notifications Bell */}
+              <div className="relative" ref={notifMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)}
+                  className="relative p-2 rounded-full text-[#2d2f31] hover:text-[#5022c3] hover:bg-[#f7f9fa] transition-colors cursor-pointer"
+                  title="Notifications & Announcements"
+                  aria-label="Notifications"
+                >
+                  <Icon name="notifications" size={22} />
+                  {unreadNotifsCount > 0 && (
+                    <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 bg-[#a435f0] text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
+                      {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                    </span>
+                  )}
+                </button>
+
+                {isNotifMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-[#d1d7dc] z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[480px] flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#d1d7dc]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1c1d1f]">Notifications</span>
+                        {unreadNotifsCount > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800">
+                            {unreadNotifsCount} new
+                          </span>
+                        )}
+                      </div>
+                      {unreadNotifsCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllNotifsRead}
+                          className="text-[11px] font-bold text-[#5022c3] hover:underline cursor-pointer"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="overflow-y-auto flex-1 divide-y divide-[#f0f2f5]">
+                      {notifications.length === 0 ? (
+                        <div className="py-10 text-center text-xs text-gray-500">
+                          <Icon name="notifications_none" size={28} className="mx-auto mb-2 text-gray-400" />
+                          No notifications or announcements yet
+                        </div>
+                      ) : (
+                        notifications.slice(0, 8).map((n) => (
+                          <Link
+                            key={n.id}
+                            href={n.link || '/student/learning?tab=notifications'}
+                            onClick={() => setIsNotifMenuOpen(false)}
+                            className={`p-3.5 hover:bg-[#f7f9fa] transition-colors flex items-start gap-3 block ${
+                              !n.isRead ? 'bg-purple-50/40' : ''
+                            }`}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
+                              <Icon name={n.type === 'ANNOUNCEMENT' ? 'campaign' : 'notifications'} size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h5 className="text-xs font-bold text-[#1c1d1f] truncate">
+                                  {n.title}
+                                </h5>
+                                {!n.isRead && (
+                                  <span className="w-2 h-2 rounded-full bg-[#a435f0] shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-gray-600 line-clamp-2 mt-0.5 break-words">
+                                {n.message}
+                              </p>
+                              <span className="text-[10px] text-gray-400 font-medium mt-1 block">
+                                {new Date(n.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="p-2.5 border-t border-[#d1d7dc] text-center bg-gray-50 rounded-b-xl">
+                      <Link
+                        href="/student/learning?tab=notifications"
+                        onClick={() => setIsNotifMenuOpen(false)}
+                        className="text-xs font-bold text-[#5022c3] hover:underline"
+                      >
+                        View all announcements in Learning Dashboard →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="relative ml-1" ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}

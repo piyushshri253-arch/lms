@@ -257,6 +257,19 @@ export async function POST(request: Request) {
     }
     const recipients = Array.from(recipientMap.values());
 
+    // Block broadcast if student count is 0 (Per user requirement: throw error and do not trigger email)
+    if (recipients.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            targetScope === 'SELECTED_COURSE'
+              ? `Cannot send announcement: There are 0 enrolled students in "${resolvedCourseTitle}". Announcements can only be dispatched when learners are actively enrolled.`
+              : 'Cannot send announcement: You currently have 0 enrolled students across your courses. Announcements can only be dispatched when learners are actively enrolled.'
+        },
+        { status: 400 }
+      );
+    }
+
     // 3. Create Announcement record in DB
     const announcement = await prisma.announcement.create({
       data: {

@@ -243,6 +243,23 @@ export async function POST(req: NextRequest) {
         }).catch(() => {});
       }
 
+      if (uData.inviteToken) {
+        const inviteKey = `auditor_invite_${uData.inviteToken}`;
+        const row = await prisma.platformSetting.findUnique({ where: { key: inviteKey } }).catch(() => null);
+        if (row) {
+          try {
+            const parsed = JSON.parse(row.value);
+            parsed.used = true;
+            parsed.usedAt = new Date().toISOString();
+            parsed.registeredUserId = updatedUser.id;
+            await prisma.platformSetting.update({
+              where: { key: inviteKey },
+              data: { value: JSON.stringify(parsed) }
+            }).catch(() => {});
+          } catch {}
+        }
+      }
+
       await prisma.notificationPreference.create({
         data: { userId: updatedUser.id }
       }).catch(() => {});

@@ -70,6 +70,15 @@ export const UdemyFooter: React.FC = () => {
                   Instructor Studio Login
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/reviewer/login"
+                  className="hover:text-white hover:underline inline-flex items-center gap-1.5 text-indigo-300 hover:text-indigo-200"
+                >
+                  <Icon name="verified_user" size={14} />
+                  <span>Auditor Login</span>
+                </Link>
+              </li>
             </ul>
           </div>
 

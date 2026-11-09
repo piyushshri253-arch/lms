@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import {
   GraduationCap,
   ShieldCheck,
@@ -45,14 +47,59 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('mode') === 'login' ? 'LOGIN' : 'SIGNUP';
-  const roleParam = searchParams.get('role')?.toUpperCase();
+  const inviteToken = searchParams.get('inviteToken') || searchParams.get('token') || '';
   const initialEmail = searchParams.get('email') || '';
 
   const [authMode, setAuthMode] = useState<'SIGNUP' | 'LOGIN'>(initialTab);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [role, setRole] = useState<'INSTRUCTOR' | 'REVIEWER'>(
-    roleParam === 'REVIEWER' || roleParam === 'AUDITOR' ? 'REVIEWER' : defaultRole
-  );
+  const [role, setRole] = useState<'INSTRUCTOR' | 'REVIEWER'>('INSTRUCTOR');
+
+  // Auditor Invite Link Verification State (2-Hour Pass)
+  const [inviteStatus, setInviteStatus] = useState<'IDLE' | 'CHECKING' | 'VALID' | 'EXPIRED' | 'INVALID'>('IDLE');
+  const [inviteDetails, setInviteDetails] = useState<{
+    valid: boolean;
+    expiresAt?: string;
+    creatorName?: string;
+    error?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!inviteToken) {
+      setRole('INSTRUCTOR');
+      setInviteStatus('IDLE');
+      return;
+    }
+
+    let isMounted = true;
+    const verifyToken = async () => {
+      setInviteStatus('CHECKING');
+      try {
+        const res = await fetch(`/api/admin/reviewers/invite?token=${encodeURIComponent(inviteToken.trim())}`);
+        const data = await res.json();
+        if (!isMounted) return;
+
+        if (res.ok && data.valid) {
+          setInviteStatus('VALID');
+          setInviteDetails(data);
+          setRole('REVIEWER');
+        } else {
+          setInviteStatus(data.expired ? 'EXPIRED' : 'INVALID');
+          setInviteDetails(data);
+          setRole('INSTRUCTOR');
+          setError(data.error || 'This Auditor invitation link has expired or is invalid. Please contact Super Admin.');
+        }
+      } catch {
+        if (!isMounted) return;
+        setInviteStatus('INVALID');
+        setError('Failed to verify Auditor invitation link.');
+      }
+    };
+
+    verifyToken();
+    return () => {
+      isMounted = false;
+    };
+  }, [inviteToken]);
 
   // Login State
   const [loginEmail, setLoginEmail] = useState(initialEmail);
@@ -373,6 +420,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role,
+          inviteToken: role === 'REVIEWER' ? inviteToken : undefined,
           ...form,
           name: fullName,
           qualification: formattedQualificationsSummary || primaryQual,
@@ -456,22 +504,59 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans text-slate-900">
       <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
         <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center gap-2.5 text-2xl font-black tracking-tight text-slate-900">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-md shadow-violet-600/25">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span>MORENA TEACH</span>
-          </Link>
-          <h1 className="mt-3 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Instructor &amp; Course Auditor Portal
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {inviteStatus === 'VALID' ? 'Course Auditor Onboarding Portal' : 'Instructor Registration Portal'}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Dedicated 4-Step Registration &amp; Sign-In exclusively for Instructors and Course Auditors.
+            {inviteStatus === 'VALID'
+              ? 'Complete your Course Auditor onboarding using your verified 2-hour Super Admin invitation.'
+              : 'Dedicated 4-Step Registration exclusively for Course Instructors.'}
           </p>
         </div>
+
+        {/* Auditor Invite Status Banners */}
+        {inviteStatus === 'CHECKING' && (
+          <div className="mb-6 p-4 rounded-2xl border border-indigo-200 bg-indigo-50 text-indigo-900 flex items-center gap-3 text-xs font-semibold">
+            <Loader2 className="w-4 h-4 animate-spin text-indigo-600 shrink-0" />
+            <span>Verifying your 2-Hour Auditor Invitation Link...</span>
+          </div>
+        )}
+
+        {inviteStatus === 'VALID' && (
+          <div className="mb-6 p-4 rounded-2xl border border-emerald-300 bg-emerald-50 text-emerald-950 flex items-start gap-3 shadow-2xs">
+            <ShieldCheck className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-xs uppercase tracking-wider text-emerald-800">
+                🛡️ Super Admin Auditor Invitation Verified (2-Hour Pass)
+              </p>
+              <p className="text-xs text-emerald-900 mt-0.5">
+                Welcome, Course Auditor! Your invitation pass is active. Complete your details below to activate your auditor credentials.
+              </p>
+              {inviteDetails?.expiresAt && (
+                <p className="text-[10px] text-emerald-700 font-mono mt-1 font-semibold">
+                  Valid until: {new Date(inviteDetails.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(inviteDetails.expiresAt).toLocaleDateString()})
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {inviteStatus === 'EXPIRED' && (
+          <div className="mb-6 p-4 rounded-2xl border border-rose-300 bg-rose-50 text-rose-950 flex items-start gap-3 shadow-2xs">
+            <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-xs uppercase tracking-wider text-rose-800">
+                ⚠️ Auditor Invitation Link Expired
+              </p>
+              <p className="text-xs text-rose-900 mt-0.5">
+                This Auditor invitation link has expired (valid for 2 hours only). Direct registration is closed. Please ask Super Admin for a fresh invitation link.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Mode Toggle Tabs: Sign Up vs Sign In */}
         <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-2xs mb-6">
@@ -489,7 +574,7 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
             }`}
           >
             <UserPlus className="w-4 h-4" />
-            <span>Create Instructor / Auditor Account</span>
+            <span>{inviteStatus === 'VALID' ? 'Create Auditor Account' : 'Create Instructor Account'}</span>
           </button>
           <button
             type="button"
@@ -656,62 +741,54 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
                 {step === 1 && (
                   <div className="space-y-5">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
-                        Create Account As
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                        Account Role
                       </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setRole('INSTRUCTOR')}
-                          className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 cursor-pointer ${
-                            role === 'INSTRUCTOR'
-                              ? 'bg-violet-50 border-violet-500 shadow-sm'
-                              : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              role === 'INSTRUCTOR'
-                                ? 'bg-violet-600 text-white'
-                                : 'bg-white border border-slate-200 text-slate-500'
-                            }`}
-                          >
-                            <GraduationCap className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-sm text-slate-900">Instructor</div>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              Create courses, teach students, track earnings &amp; payouts.
-                            </p>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setRole('REVIEWER')}
-                          className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 cursor-pointer ${
-                            role === 'REVIEWER'
-                              ? 'bg-emerald-50 border-emerald-500 shadow-sm'
-                              : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              role === 'REVIEWER'
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-white border border-slate-200 text-slate-500'
-                            }`}
-                          >
+                      {inviteStatus === 'VALID' ? (
+                        <div className="p-4 rounded-xl border border-emerald-500 bg-emerald-50 text-left flex items-start gap-3.5 shadow-xs">
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-600 text-white shadow-xs">
                             <ShieldCheck className="w-5 h-5" />
                           </div>
-                          <div>
-                            <div className="font-bold text-sm text-slate-900">Reviewer / Auditor</div>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              Audit course quality, review submissions &amp; curriculum.
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <span className="font-bold text-sm text-slate-900">Course Auditor / Reviewer</span>
+                              <span className="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2.5 py-0.5 rounded-full">
+                                Super Admin Pass Verified (2 Hours)
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1">
+                              You are registering as an official Course Auditor via Super Admin invite. Complete your details below.
                             </p>
                           </div>
-                        </button>
-                      </div>
+                        </div>
+                      ) : inviteStatus === 'EXPIRED' ? (
+                        <div className="p-4 rounded-xl border border-rose-300 bg-rose-50 text-left flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+                          <div>
+                            <h4 className="font-bold text-sm text-rose-900">Auditor Invitation Expired</h4>
+                            <p className="text-xs text-rose-700 mt-1">
+                              This 2-hour invitation link has expired. Auditor self-signup is disabled. Please contact Super Admin for a fresh invite link.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-violet-500 bg-violet-50 text-left flex items-start gap-3.5 shadow-xs">
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-600 text-white shadow-xs">
+                            <GraduationCap className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <span className="font-bold text-sm text-slate-900">Instructor Account</span>
+                              <span className="text-[10px] bg-violet-200 text-violet-900 font-bold px-2.5 py-0.5 rounded-full">
+                                Open Registration
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Create courses, teach students, and earn on Morena Teach. (Course Auditors require a 2-hour Super Admin invitation).
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -788,12 +865,14 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
                     <button
                       type="button"
+                      disabled={inviteStatus === 'EXPIRED'}
                       onClick={() => {
+                        if (inviteStatus === 'EXPIRED') return;
                         if (validateStep1()) {
                           setStep(role === 'INSTRUCTOR' ? 2 : 3);
                         }
                       }}
-                      className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
+                      className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer"
                     >
                       <span>
                         {role === 'INSTRUCTOR'
@@ -1330,14 +1409,20 @@ function PartnerAuthContent({ defaultRole = 'INSTRUCTOR' }: { defaultRole?: 'INS
 
 export default function PartnerSignupAndLoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
-        </div>
-      }
-    >
-      <PartnerAuthContent defaultRole="INSTRUCTOR" />
-    </Suspense>
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <UdemyNavbar />
+      <main className="flex-1">
+        <Suspense
+          fallback={
+            <div className="min-h-[60vh] text-slate-900 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+            </div>
+          }
+        >
+          <PartnerAuthContent defaultRole="INSTRUCTOR" />
+        </Suspense>
+      </main>
+      <UdemyFooter />
+    </div>
   );
 }

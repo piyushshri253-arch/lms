@@ -148,6 +148,16 @@ function InstructorAnnouncementsInner() {
       return;
     }
 
+    if (estimatedRecipients === 0) {
+      showToastMessage(
+        'error',
+        targetScope === 'SELECTED_COURSE'
+          ? `Cannot send announcement: There are 0 enrolled students in "${activeSelectedCourse?.title || 'the selected course'}". Announcements can only be dispatched when learners are actively enrolled.`
+          : 'Cannot send announcement: You currently have 0 enrolled students across your courses. Announcements can only be dispatched when learners are actively enrolled.'
+      );
+      return;
+    }
+
     setSending(true);
     try {
       const res = await fetch('/api/instructor/announcements', {
@@ -533,6 +543,19 @@ function InstructorAnnouncementsInner() {
             </div>
           </div>
 
+          {/* Zero Students Warning Banner */}
+          {estimatedRecipients === 0 && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0">warning</span>
+              <div>
+                <strong className="block text-amber-950 font-bold">0 Enrolled Students — Broadcast Disabled</strong>
+                {targetScope === 'SELECTED_COURSE'
+                  ? `There are 0 students currently enrolled in "${activeSelectedCourse?.title || 'this course'}". Broadcast announcements and emails will only trigger when learners purchase or enroll in the course.`
+                  : 'You do not have any enrolled students yet across your courses. Broadcast announcements and emails will only trigger when learners purchase or enroll in your courses.'}
+              </div>
+            </div>
+          )}
+
           <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-slate-500">
               Target Reach:{' '}
@@ -551,8 +574,8 @@ function InstructorAnnouncementsInner() {
 
             <button
               type="submit"
-              disabled={sending}
-              className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 shadow-md transition-all"
+              disabled={sending || estimatedRecipients === 0}
+              className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">send</span>
               {sending ? 'Broadcasting Announcement...' : 'Send Announcement Now'}
@@ -580,7 +603,7 @@ function InstructorAnnouncementsInner() {
             </div>
 
             {/* In-App Notification Preview */}
-            <div className="bg-slate-800/90 rounded-2xl p-4 border border-slate-700/80 space-y-2">
+            <div className="bg-slate-800/90 rounded-2xl p-4 border border-slate-700/80 space-y-2 overflow-hidden max-w-full">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-wider text-sky-400 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[14px]">notifications</span>
@@ -588,10 +611,10 @@ function InstructorAnnouncementsInner() {
                 </span>
                 <span className="text-[10px] text-slate-400">Just now</span>
               </div>
-              <p className="text-xs font-black text-white">
+              <p className="text-xs font-black text-white break-words break-all [overflow-wrap:anywhere]">
                 📢 {title.trim() || 'New Launch Course: Masterclass Update!'}
               </p>
-              <p className="text-xs text-slate-300 whitespace-pre-wrap line-clamp-3">
+              <p className="text-xs text-slate-300 whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] line-clamp-4 leading-relaxed">
                 [
                 {targetScope === 'ALL_OWN_COURSES'
                   ? 'All My Courses'
@@ -603,7 +626,7 @@ function InstructorAnnouncementsInner() {
             </div>
 
             {/* Email Inbox Preview */}
-            <div className="bg-white text-slate-900 rounded-2xl p-4 border border-slate-200 space-y-2.5">
+            <div className="bg-white text-slate-900 rounded-2xl p-4 border border-slate-200 space-y-3 overflow-hidden max-w-full">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[14px]">mail</span>
@@ -611,21 +634,43 @@ function InstructorAnnouncementsInner() {
                 </span>
                 <span className="text-[10px] text-slate-400 font-semibold">Morena Teach LMS</span>
               </div>
-              <div>
-                <p className="text-[11px] text-slate-500">
-                  <strong className="text-slate-700">Subject:</strong> 📢 [
+              <div className="space-y-1 text-xs">
+                <p className="text-slate-600 break-words break-all [overflow-wrap:anywhere]">
+                  <strong className="text-slate-800">Subject:</strong> 📢 [
                   {targetScope === 'ALL_OWN_COURSES'
                     ? 'All My Courses'
                     : activeSelectedCourse?.title || 'Course'}
                   ] {title.trim() || 'New Launch Course!'}
                 </p>
-                <p className="text-[11px] text-slate-500">
-                  <strong className="text-slate-700">From:</strong> {currentUser?.name || 'Instructor'} (Course Instructor)
+                <p className="text-slate-600">
+                  <strong className="text-slate-800">From:</strong> {currentUser?.name || 'Instructor'} (Course Instructor)
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
-                {message.trim() ||
-                  'Hello Student,\nYour instructor has shared a new announcement with you...'}
+
+              {/* Formatted Email Body */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 overflow-hidden max-w-full">
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                    {targetScope === 'ALL_OWN_COURSES'
+                      ? 'All My Courses'
+                      : activeSelectedCourse?.title || 'Course Announcement'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold">Inbox View</span>
+                </div>
+                <h4 className="text-xs font-black text-slate-900 break-words break-all [overflow-wrap:anywhere]">
+                  {title.trim() || 'Announcement Title'}
+                </h4>
+                <div className="text-xs text-slate-700 whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] leading-relaxed max-w-full overflow-hidden">
+                  {message.trim() ||
+                    `Hello Student,\n\nYour instructor ${currentUser?.name || 'Instructor'} has shared an announcement with you regarding your course.\n\nType your message on the left to see this live preview update!`}
+                </div>
+                {actionLink.trim() && (
+                  <div className="pt-2">
+                    <span className="inline-block px-3 py-1.5 rounded-lg bg-[#5624d0] text-white text-[11px] font-bold shadow-xs break-all">
+                      Open: {actionLink.trim()}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

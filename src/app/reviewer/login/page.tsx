@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 function ReviewerLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, refreshUser, showToast } = useApp();
+  const { currentUser, login, refreshUser, showToast } = useApp();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +25,13 @@ function ReviewerLoginContent() {
 
   const callbackUrl = searchParams.get('callbackUrl') || '/reviewer';
 
+  // Automatically redirect if already logged in as Auditor/Reviewer
+  React.useEffect(() => {
+    if (currentUser && ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
+      window.location.href = callbackUrl || '/reviewer';
+    }
+  }, [currentUser, callbackUrl]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) return;
@@ -37,7 +44,7 @@ function ReviewerLoginContent() {
       if (user.role !== 'REVIEWER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
         setAuthError({
           code: 'USER_NOT_FOUND',
-          message: 'This email is not registered. Please sign up first.'
+          message: 'This email is not registered as an Auditor. Please check credentials or contact Super Admin.'
         });
         return;
       }
@@ -48,7 +55,8 @@ function ReviewerLoginContent() {
         type: 'success'
       });
 
-      router.push(callbackUrl);
+      // Immediate hard navigation to ensure layout session & cookies are loaded without needing manual refresh
+      window.location.href = callbackUrl || '/reviewer';
     } catch (err: any) {
       if (err.requiresEmailVerification) {
         setRequiresOtp(true);
@@ -113,7 +121,7 @@ function ReviewerLoginContent() {
       });
 
       await refreshUser();
-      router.push(callbackUrl);
+      window.location.href = callbackUrl || '/reviewer';
     } catch (err: any) {
       showToast({
         title: 'Verification Failed',
@@ -244,21 +252,6 @@ function ReviewerLoginContent() {
             </form>
           ) : (
             <>
-              {/* Quick Fill Button */}
-              <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold text-indigo-950">Demo Auditor Login</p>
-                  <p className="text-[11px] text-indigo-700">reviewer@morenateach.com</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleQuickFill}
-                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                >
-                  Fill Credentials
-                </button>
-              </div>
-
               {authError && (
                 <div
                   className={`p-4 rounded-xl border text-sm animate-in fade-in duration-200 ${

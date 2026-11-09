@@ -22,6 +22,8 @@ function StudentLearningContent() {
   const [courses, setCourses] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [sortOption, setSortOption] = useState('recent');
@@ -40,7 +42,7 @@ function StudentLearningContent() {
     }
   }, [searchParams]);
 
-  // Load student enrolled courses, certificates, and orders
+  // Load student enrolled courses, certificates, orders, and announcements
   const loadStudentData = async (silent = false) => {
     if (!silent) {
       setIsLoading(true);
@@ -66,6 +68,14 @@ function StudentLearningContent() {
         const data = await ordersRes.json();
         if (data.orders) setOrders(data.orders);
       }
+
+      // 4. Fetch Announcements & Notifications
+      const notifsRes = await fetch('/api/notifications');
+      if (notifsRes.ok) {
+        const data = await notifsRes.json();
+        if (data.notifications) setNotifications(data.notifications);
+        if (typeof data.unreadCount === 'number') setUnreadCount(data.unreadCount);
+      }
     } catch (err) {
       console.error('Error loading student dashboard:', err);
     } finally {
@@ -73,6 +83,25 @@ function StudentLearningContent() {
         setIsLoading(false);
       }
     }
+  };
+
+  const handleMarkAsRead = async (id?: string) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(id ? { id, isRead: true } : { markAllAsRead: true })
+      });
+      if (id) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+      }
+    } catch {}
   };
 
   useCoursesAutoRefresh(loadStudentData, { intervalMs: 5000, enabled: true });
@@ -197,6 +226,35 @@ function StudentLearningContent() {
             </div>
           )}
 
+          {/* Top Unread Announcement Alert Banner */}
+          {unreadCount > 0 && activeTab !== 'notifications' && (
+            <div className="mb-5 rounded-xl bg-purple-900/80 border border-purple-500/50 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-9 h-9 rounded-lg bg-[#a435f0] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Icon name="campaign" size={20} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold truncate">
+                    You have {unreadCount} new announcement{unreadCount > 1 ? 's' : ''} from your instructors!
+                  </p>
+                  <p className="text-[11px] text-purple-200 truncate">
+                    {notifications.find((n) => !n.isRead)?.title || 'Check the Announcements tab for updates.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('notifications');
+                  router.push('/student/learning?tab=notifications');
+                }}
+                className="shrink-0 px-3.5 py-1.5 bg-white text-purple-950 font-extrabold text-xs rounded-lg hover:bg-purple-100 transition-colors cursor-pointer"
+              >
+                View Announcements →
+              </button>
+            </div>
+          )}
+
           {/* Navigation Tabs Bar */}
           <nav className="flex items-center gap-6 overflow-x-auto text-sm font-bold border-b border-transparent scrollbar-none">
             <button
@@ -237,6 +295,25 @@ function StudentLearningContent() {
               }`}
             >
               Completed ({completedCount})
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('notifications');
+                router.push('/student/learning?tab=notifications');
+              }}
+              className={`pb-3.5 border-b-2 whitespace-nowrap transition-colors cursor-pointer flex items-center gap-2 ${
+                activeTab === 'notifications'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <Icon name="campaign" size={17} />
+              <span>Announcements ({notifications.length})</span>
+              {unreadCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-[#a435f0] text-white">
+                  {unreadCount}
+                </span>
+              )}
             </button>
             <button
               onClick={() => {
@@ -610,6 +687,124 @@ function StudentLearningContent() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: Announcements & Notifications */}
+            {activeTab === 'notifications' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#d1d7dc]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-extrabold text-[#1c1d1f]">
+                        Instructor Announcements &amp; Updates
+                      </h2>
+                      {unreadCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#a435f0] text-white">
+                          {unreadCount} unread
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#6a6f73] mt-0.5">
+                      Direct broadcasts, new course launches, and curriculum notices sent by your instructors.
+                    </p>
+                  </div>
+
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkAsRead()}
+                      className="px-3.5 py-2 rounded-lg border border-[#2d2f31] text-xs font-bold text-[#2d2f31] hover:bg-[#f7f9fa] transition-colors self-start sm:self-auto cursor-pointer"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="border border-[#d1d7dc] rounded-lg p-12 text-center flex flex-col items-center justify-center space-y-4 my-6 bg-[#f7f9fa]/50">
+                    <div className="w-16 h-16 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center border border-purple-200">
+                      <Icon name="campaign" size={36} />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#1c1d1f]">
+                      No Announcements Yet
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#6a6f73] max-w-md">
+                      When instructors publish announcements or course updates for your enrolled courses, they will appear here in real-time.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`rounded-2xl border p-5 transition-all shadow-xs ${
+                          !notif.isRead
+                            ? 'bg-purple-50/50 border-purple-300 ring-1 ring-purple-200'
+                            : 'bg-white border-[#d1d7dc] hover:border-purple-200'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="flex items-start gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <Icon name={notif.type === 'ANNOUNCEMENT' ? 'campaign' : 'notifications'} size={20} />
+                            </div>
+                            <div className="space-y-1.5 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800">
+                                  Announcement
+                                </span>
+                                {!notif.isRead && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700">
+                                    New
+                                  </span>
+                                )}
+                                <span className="text-[11px] text-gray-500 font-medium">
+                                  {new Date(notif.createdAt).toLocaleString('en-IN', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+
+                              <h3 className="text-base font-black text-[#1c1d1f] break-words">
+                                {notif.title}
+                              </h3>
+                              <p className="text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere]">
+                                {notif.message}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0">
+                            {notif.link && (
+                              <Link
+                                href={notif.link}
+                                onClick={() => handleMarkAsRead(notif.id)}
+                                className="px-4 py-2 rounded-lg bg-[#5022c3] hover:bg-[#3f1b99] text-white text-xs font-bold transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <span>Go to Course</span>
+                                <Icon name="arrow_forward" size={14} />
+                              </Link>
+                            )}
+                            {!notif.isRead && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAsRead(notif.id)}
+                                className="text-[11px] font-bold text-gray-500 hover:text-purple-700 cursor-pointer"
+                              >
+                                Mark as read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
