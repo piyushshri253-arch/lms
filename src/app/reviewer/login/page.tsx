@@ -3,6 +3,8 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
+import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
 
@@ -166,13 +168,13 @@ function ReviewerLoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2 group mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+    <div className="w-full max-w-md mx-auto text-slate-900 font-sans">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center gap-2 mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
             <Icon name="verified" size={28} />
           </div>
-        </Link>
+        </div>
         <h2 className="text-2xl font-black tracking-tight text-slate-900">
           Course Auditor Studio
         </h2>
@@ -181,8 +183,7 @@ function ReviewerLoginContent() {
         </p>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-xl border border-slate-200 rounded-3xl sm:px-10 space-y-6">
+      <div className="bg-white py-8 px-6 shadow-xl border border-slate-200 rounded-3xl sm:px-10 space-y-6">
           {requiresOtp ? (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <div className="text-center space-y-2">
@@ -349,12 +350,15 @@ function ReviewerLoginContent() {
 
           <div className="pt-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2.5">
             <Link
-              href="/auditor/signup?role=REVIEWER"
+              href="/signup"
               className="block w-full py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs transition-all"
             >
-              ✨ New Course Auditor or Instructor? Create Account (/auditor/signup) →
+              Are you an Instructor? Sign up for Instructor (/signup) →
             </Link>
-            <div className="flex items-center justify-center gap-4 text-xs font-medium">
+            <p className="text-[11px] text-slate-400">
+              🛡️ Auditor accounts are appointed via 2-hour invitation pass from Super Admin.
+            </p>
+            <div className="flex items-center justify-center gap-4 text-xs font-medium pt-1">
               <Link href="/instructor/login" className="text-violet-600 hover:underline font-bold">
                 Instructor Login →
               </Link>
@@ -365,20 +369,25 @@ function ReviewerLoginContent() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
 export default function ReviewerLoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-600 text-xs font-semibold">
-          Loading Course Auditor Studio...
-        </div>
-      }
-    >
-      <ReviewerLoginContent />
-    </Suspense>
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <UdemyNavbar />
+      <main className="flex-1 flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans">
+        <Suspense
+          fallback={
+            <div className="min-h-[50vh] flex items-center justify-center text-slate-600 text-xs font-semibold">
+              Loading Course Auditor Studio...
+            </div>
+          }
+        >
+          <ReviewerLoginContent />
+        </Suspense>
+      </main>
+      <UdemyFooter />
+    </div>
   );
 }
