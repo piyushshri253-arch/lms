@@ -4,1535 +4,1750 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuditorPortalShell } from '@/components/reviewer/AuditorPortalShell';
-import { Icon } from '@/components/ui/Icon';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
-import { cleanSectionTitle, generateCurriculumDisplayMap } from '@/lib/course-formatting';
 import { notifyCoursesChanged } from '@/lib/courses-sync';
+import {
+  Check,
+  X,
+  RotateCcw,
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  Save,
+  ShieldCheck,
+  Play,
+  FileText,
+  HelpCircle,
+  BookOpen,
+  Sparkles,
+  AlertTriangle,
+  Send,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  MessageSquare,
+  Paperclip
+} from 'lucide-react';
 
-interface SectionIssue {
-  id: string;
-  section: 'Curriculum' | 'Video' | 'PDF' | 'Quiz' | 'Pricing' | 'Learning Outcomes' | 'SEO';
-  lessonRef?: string;
-  issue: string;
-  comment: string;
-  createdAt: string;
+type AuditStep = 1 | 2 | 3 | 4 | 5;
+type VerdictAction = 'APPROVED' | 'CHANGES_REQUESTED' | 'REJECTED';
+
+interface SectionAuditState {
+  status: VerdictAction;
+  feedback: string;
 }
 
-function getLessonResources(lesson: any): Array<{ id: string; name: string; url: string; type: string }> {
-  if (!lesson) return [];
-  const list: Array<{ id: string; name: string; url: string; type: string }> = [];
+function parseQuizData(lesson: any) {
+  let questions: any[] = [];
+  let passingScore = 70;
+  let attemptLimit = 0;
+  let title = lesson?.title || 'Quiz';
+  let description = lesson?.description || '';
 
-  if (Array.isArray(lesson.resourcesList) && lesson.resourcesList.length > 0) {
-    lesson.resourcesList.forEach((r: any, idx: number) => {
-      if (r?.url) list.push({ id: r.id || `res_${idx}`, name: r.name || 'Resource', url: r.url, type: r.type || 'DOC' });
-    });
+  if (lesson?.quizData) {
+    try {
+      const parsed = typeof lesson.quizData === 'string' ? JSON.parse(lesson.quizData) : lesson.quizData;
+      if (Array.isArray(parsed)) {
+        questions = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        questions = Array.isArray(parsed.questions) ? parsed.questions : [];
+        if (parsed.passingScore !== undefined) passingScore = Number(parsed.passingScore);
+        if (parsed.attemptLimit !== undefined) attemptLimit = Number(parsed.attemptLimit);
+        if (parsed.title) title = parsed.title;
+        if (parsed.description) description = parsed.description;
+      }
+    } catch {
+      // ignore parse error
+    }
   }
 
-  if (lesson.resources) {
+  // Fallback to relational lesson.quiz
+  if (questions.length === 0 && lesson?.quiz) {
+    passingScore = lesson.quiz.passingScore ?? 70;
+    attemptLimit = lesson.quiz.maxAttempts ?? 0;
+    title = lesson.quiz.title || title;
+    description = lesson.quiz.description || description;
+    if (Array.isArray(lesson.quiz.questions)) {
+      questions = lesson.quiz.questions.map((q: any, qIdx: number) => {
+        let opts: string[] = [];
+        let correctIdx = -1;
+        if (Array.isArray(q.options)) {
+          opts = q.options.map((o: any, idx: number) => {
+            if (o.isCorrect) correctIdx = idx;
+            return typeof o === 'string' ? o : o.text || `Option ${idx + 1}`;
+          });
+        }
+        return {
+          id: q.id || `q-${qIdx}`,
+          question: q.question,
+          options: opts.length > 0 ? opts : ['True', 'False'],
+          correctIndex: correctIdx >= 0 ? correctIdx : 0,
+          explanation: q.explanation || '',
+          points: 10
+        };
+      });
+    }
+  }
+
+  return { title, description, questions, passingScore, attemptLimit };
+}
+
+function parseResourcesData(lesson: any): Array<{ title: string; url: string; size?: string; type?: string }> {
+  const items: Array<{ title: string; url: string; size?: string; type?: string }> = [];
+
+  if (lesson?.fileUrl) {
+    items.push({
+      title: `${lesson.title} - Downloadable Attachment`,
+      url: lesson.fileUrl,
+      type: 'Direct File Download'
+    });
+  }
+  if (lesson?.pdfUrl) {
+    items.push({
+      title: `${lesson.title} - PDF Document`,
+      url: lesson.pdfUrl,
+      type: 'PDF Document'
+    });
+  }
+  if (lesson?.resources) {
     try {
       const parsed = typeof lesson.resources === 'string' ? JSON.parse(lesson.resources) : lesson.resources;
       if (Array.isArray(parsed)) {
-        parsed.forEach((r: any, idx: number) => {
-          if (r?.url && !list.some((existing) => existing.url === r.url)) {
-            list.push({ id: r.id || `db_res_${idx}`, name: r.name || 'Resource', url: r.url, type: r.type || 'DOC' });
+        parsed.forEach((r: any) => {
+          if (r && (r.url || r.fileUrl || typeof r === 'string')) {
+            const url = r.url || r.fileUrl || r;
+            items.push({
+              title: r.title || r.name || 'Resource File',
+              url: typeof url === 'string' ? url : '#',
+              size: r.size,
+              type: r.type || 'Attachment'
+            });
+          }
+        });
+      } else if (parsed && typeof parsed === 'object') {
+        const fileArr = Array.isArray(parsed.files)
+          ? parsed.files
+          : Array.isArray(parsed.resources)
+          ? parsed.resources
+          : Array.isArray(parsed.subLessons)
+          ? parsed.subLessons
+          : [];
+        fileArr.forEach((r: any) => {
+          if (r && (r.url || r.fileUrl)) {
+            items.push({
+              title: r.title || r.name || 'Resource File',
+              url: r.url || r.fileUrl,
+              size: r.size,
+              type: r.type || 'Attachment'
+            });
           }
         });
       }
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
-
-  if (lesson.pdfUrl && !list.some((existing) => existing.url === lesson.pdfUrl)) {
-    const isDoc = lesson.pdfUrl.toLowerCase().endsWith('.doc') || lesson.pdfUrl.toLowerCase().endsWith('.docx');
-    list.push({
-      id: `pdf_${lesson.id || '1'}`,
-      name: lesson.resourceFileName || (isDoc ? 'Attached Document.doc' : 'Attached Document.pdf'),
-      url: lesson.pdfUrl,
-      type: isDoc ? 'DOC' : 'PDF'
-    });
-  }
-  if (lesson.fileUrl && !list.some((existing) => existing.url === lesson.fileUrl)) {
-    list.push({
-      id: `file_${lesson.id || '1'}`,
-      name: lesson.resourceFileName || 'Study Resource',
-      url: lesson.fileUrl,
-      type: 'DOC'
-    });
-  }
-
-  return list;
+  return items;
 }
 
-export default function AuditorCourseReviewPage() {
+export default function AuditorCourseInspectPage() {
   const params = useParams();
   const router = useRouter();
   const courseId = (params?.id as string) || '';
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ title: string; desc: string; status?: number } | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    'OVERVIEW' | 'CURRICULUM_MEDIA' | 'QUIZZES' | 'OUTCOMES' | 'VERSION_DIFF' | 'ISSUES_HISTORY'
-  >('CURRICULUM_MEDIA');
+  const [error, setError] = useState<string | null>(null);
 
-  // Active Lesson in Curriculum Media Inspector
-  const [selectedLesson, setSelectedLesson] = useState<any>(null);
-  const [videoChecklist, setVideoChecklist] = useState({
-    playable: true,
-    audioWorking: true,
-    correctContent: true,
-    durationAccurate: true,
-    drmProtected: true
+  // Stepped Review Navigation (1 to 5) - Pricing & Access omitted as requested
+  const [currentStep, setCurrentStep] = useState<AuditStep>(1);
+
+  // Section Audits state
+  const [sectionAudits, setSectionAudits] = useState<Record<string, SectionAuditState>>({
+    basics: { status: 'APPROVED', feedback: '' },
+    outcomes: { status: 'APPROVED', feedback: '' },
+    seo: { status: 'APPROVED', feedback: '' },
+    curriculum: { status: 'APPROVED', feedback: '' },
+    media: { status: 'APPROVED', feedback: '' },
+    assessment: { status: 'APPROVED', feedback: '' }
   });
 
-  // Section Statuses
-  const [sectionStatuses, setSectionStatuses] = useState<{
-    curriculum: 'PASSED' | 'ISSUE' | 'PENDING';
-    video: 'PASSED' | 'ISSUE' | 'PENDING';
-    pdf: 'PASSED' | 'ISSUE' | 'PENDING';
-    quiz: 'PASSED' | 'ISSUE' | 'PENDING';
-    pricing: 'PASSED' | 'ISSUE' | 'PENDING';
-    learningOutcomes: 'PASSED' | 'ISSUE' | 'PENDING';
-  }>({
-    curriculum: 'PASSED',
-    video: 'PASSED',
-    pdf: 'PASSED',
-    quiz: 'PASSED',
-    pricing: 'PASSED',
-    learningOutcomes: 'PASSED'
-  });
+  // Specific item issues (e.g. video lecture, PDF, quiz)
+  const [itemIssues, setItemIssues] = useState<
+    Record<string, { status: VerdictAction; feedback: string; title: string; type: string }>
+  >({});
 
-  // Section-Wise Issues
-  const [sectionIssues, setSectionIssues] = useState<SectionIssue[]>([]);
-  const [newIssueSection, setNewIssueSection] = useState<SectionIssue['section']>('Video');
-  const [newIssueLessonRef, setNewIssueLessonRef] = useState('');
-  const [newIssueTitle, setNewIssueTitle] = useState('');
-  const [newIssueComment, setNewIssueComment] = useState('');
+  // Active video in curriculum player
+  const [activeVideo, setActiveVideo] = useState<{
+    id: string;
+    title: string;
+    videoUrl?: string;
+    duration?: string;
+    moduleTitle?: string;
+  } | null>(null);
 
-  // Internal Auditor Notes (Hidden from Instructor)
-  const [internalNoteInput, setInternalNoteInput] = useState('');
+  // Submitting final verdict
+  const [submittingVerdict, setSubmittingVerdict] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [overallComments, setOverallComments] = useState('');
+  const [showChangesModal, setShowChangesModal] = useState(false);
+  const [modalComment, setModalComment] = useState('');
+  // Active inspection modal state (Quiz / Article / PDF / Resource)
+  const [inspectModal, setInspectModal] = useState<{
+    type: 'QUIZ' | 'ARTICLE' | 'PDF' | 'RESOURCE';
+    lessonId: string;
+    lessonTitle: string;
+    moduleTitle: string;
+    itemType: string;
+    data: any;
+  } | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ title: string; desc?: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Modals for Approve / Request Changes / Reject
-  const [decisionModal, setDecisionModal] = useState<'APPROVE' | 'REQUEST_CHANGES' | 'REJECT' | null>(
-    null
-  );
-  const [decisionNote, setDecisionNote] = useState('');
-  const [confirmRejectCompliance, setConfirmRejectCompliance] = useState(false);
-  const [submittingDecision, setSubmittingDecision] = useState(false);
-  const [toastMsg, setToastMsg] = useState<{ title: string; desc?: string; type?: string } | null>(
-    null
-  );
+  // Step 4: Final Assessment sub-tab and quiz accordion state
+  const [assessmentSubTab, setAssessmentSubTab] = useState<'FINAL' | 'MODULE_QUIZZES'>('FINAL');
+  const [expandedQuizAccordion, setExpandedQuizAccordion] = useState<Record<string, boolean>>({});
 
-  const showToast = (msg: { title: string; desc?: string; type?: string }) => {
-    setToastMsg(msg);
+  const showToast = (title: string, desc?: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToastMsg({ title, desc, type });
     setTimeout(() => setToastMsg(null), 4500);
   };
 
-  // Interactive Request Changes Checklist State
-  interface AuditChecklistItem {
-    id: string;
-    targetName: string;
-    targetType: 'WHOLE_COURSE' | 'MODULE' | 'VIDEO' | 'ARTICLE' | 'QUIZ';
-    moduleTitle?: string;
-    flagged: boolean;
-    selectedIssues: string[];
-    customNote: string;
-  }
-
-  const [auditChecklist, setAuditChecklist] = useState<Record<string, AuditChecklistItem>>({});
-  const [checklistFilter, setChecklistFilter] = useState<'ALL' | 'FLAGGED_ONLY'>('ALL');
-  const [expandedChecklistModules, setExpandedChecklistModules] = useState<Record<string, boolean>>({});
-
-  const syncChecklistToNote = (updatedChecklist: Record<string, AuditChecklistItem>) => {
-    const flaggedItems = Object.values(updatedChecklist).filter((item) => item.flagged);
-    if (flaggedItems.length === 0) {
-      return;
-    }
-    const lines: string[] = ['⚠️ Requested Changes Breakdown:'];
-    flaggedItems.forEach((item) => {
-      const issueTags = item.selectedIssues.length > 0 ? item.selectedIssues.join(', ') : 'Quality Issue Flagged';
-      const custom = item.customNote.trim() ? ` — "${item.customNote.trim()}"` : '';
-      if (item.targetType === 'WHOLE_COURSE') {
-        lines.push(`• [Whole Course]: ${issueTags}${custom}`);
-      } else if (item.targetType === 'MODULE') {
-        lines.push(`• [Module: ${item.targetName}]: ${issueTags}${custom}`);
-      } else {
-        const prefix = item.moduleTitle ? `${item.moduleTitle} > ` : '';
-        lines.push(`• [${item.targetType}: ${prefix}${item.targetName}]: ${issueTags}${custom}`);
-      }
-    });
-    setDecisionNote(lines.join('\n'));
-  };
-
-  const toggleChecklistFlag = (id: string, initialItem?: Partial<AuditChecklistItem>) => {
-    setAuditChecklist((prev) => {
-      const existing = prev[id] || initialItem || {
-        id,
-        targetName: id,
-        targetType: 'MODULE',
-        flagged: false,
-        selectedIssues: [],
-        customNote: ''
-      };
-      const updated = {
-        ...prev,
-        [id]: {
-          ...existing,
-          flagged: !existing.flagged
-        } as AuditChecklistItem
-      };
-      syncChecklistToNote(updated);
-      return updated;
-    });
-  };
-
-  const toggleChecklistIssueTag = (id: string, tag: string, initialItem?: Partial<AuditChecklistItem>) => {
-    setAuditChecklist((prev) => {
-      const existing = prev[id] || initialItem || {
-        id,
-        targetName: id,
-        targetType: 'MODULE',
-        flagged: false,
-        selectedIssues: [],
-        customNote: ''
-      };
-      const hasTag = existing.selectedIssues.includes(tag);
-      const newIssues = hasTag
-        ? existing.selectedIssues.filter((t) => t !== tag)
-        : [...existing.selectedIssues, tag];
-      const updated = {
-        ...prev,
-        [id]: {
-          ...existing,
-          flagged: true,
-          selectedIssues: newIssues
-        } as AuditChecklistItem
-      };
-      syncChecklistToNote(updated);
-      return updated;
-    });
-  };
-
-  const updateChecklistCustomNote = (id: string, note: string, initialItem?: Partial<AuditChecklistItem>) => {
-    setAuditChecklist((prev) => {
-      const existing = prev[id] || initialItem || {
-        id,
-        targetName: id,
-        targetType: 'MODULE',
-        flagged: false,
-        selectedIssues: [],
-        customNote: ''
-      };
-      const updated = {
-        ...prev,
-        [id]: {
-          ...existing,
-          flagged: note.trim().length > 0 ? true : existing.flagged,
-          customNote: note
-        } as AuditChecklistItem
-      };
-      syncChecklistToNote(updated);
-      return updated;
-    });
-  };
-
-  const loadCourseAudit = async () => {
-    if (!courseId) return;
+  const loadCourseData = async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`);
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json.success) {
-        setData(json);
-        if (json.auditMeta?.sectionStatuses) {
-          setSectionStatuses(json.auditMeta.sectionStatuses);
-        }
-        if (Array.isArray(json.auditMeta?.sectionIssues)) {
-          setSectionIssues(json.auditMeta.sectionIssues);
-        }
-        const firstLes = json.course?.sections?.[0]?.lessons?.[0];
-        if (firstLes && !selectedLesson) {
-          setSelectedLesson({
-            ...firstLes,
-            moduleTitle: json.course.sections[0].title
-          });
-        }
-      } else {
-        if (res.status === 401) {
-          setError({
-            title: 'Auditor Login Required (401)',
-            desc: 'Your auditor session has expired or you are not signed in. Please sign in to the Course Auditor Studio.',
-            status: 401
-          });
-        } else if (res.status === 403) {
-          setError({
-            title: 'Auditor Privileges Required (403)',
-            desc: json.error || 'Your active account does not have Course Auditor / Reviewer permissions. Please sign in with an Auditor account.',
-            status: 403
-          });
-        } else if (res.status === 404) {
-          setError({
-            title: 'Course Not Found (404)',
-            desc: json.error || 'The requested course could not be found or has been removed.',
-            status: 404
-          });
-        } else {
-          setError({
-            title: 'Unable to Load Course Audit',
-            desc: json.error || 'An unexpected error occurred while fetching course audit data.',
-            status: res.status
-          });
-        }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load course details');
+
+      setData(json);
+
+      if (json.course?.reviewFeedback) {
+        setOverallComments(json.course.reviewFeedback);
+      }
+
+      // Pre-select first video if available
+      const firstSection = json.course?.sections?.[0];
+      const firstVideoLesson = firstSection?.lessons?.find((l: any) => l.videoUrl || l.type === 'VIDEO');
+      if (firstVideoLesson) {
+        setActiveVideo({
+          id: firstVideoLesson.id,
+          title: firstVideoLesson.title,
+          videoUrl: firstVideoLesson.videoUrl,
+          duration: firstVideoLesson.duration,
+          moduleTitle: firstSection.title
+        });
       }
     } catch (err: any) {
-      setError({
-        title: 'Connection / Network Error',
-        desc: err.message || 'Unable to connect to the server. Please check your internet connection and try again.',
-        status: 0
-      });
+      setError(err.message || 'Error loading course details');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCourseAudit();
+    if (courseId) {
+      loadCourseData();
+    }
   }, [courseId]);
 
-  const handleToggleSectionStatus = (key: keyof typeof sectionStatuses) => {
-    setSectionStatuses((prev) => ({
+  // Extract Final Assessment and Module Quizzes with 100% fallback reliability
+  const { finalAssessment, moduleQuizzes } = React.useMemo(() => {
+    let finalAss = data?.course?.finalAssessment || null;
+    let allQuizzes: any[] = Array.isArray(data?.course?.quizzes) ? [...data.course.quizzes] : [];
+
+    if (data?.course?.sections) {
+      const allLessons = data.course.sections.flatMap((s: any) =>
+        (s.lessons || []).map((l: any) => ({
+          ...l,
+          sectionTitle: s.title
+        }))
+      );
+
+      const quizLessons = allLessons.filter(
+        (l: any) => l.type === 'QUIZ' || l.quizData || (l.quiz && l.quiz.id)
+      );
+
+      if (!finalAss) {
+        const finalCandidate =
+          allLessons.find(
+            (l: any) =>
+              Boolean(l.isFinalAssignment) ||
+              (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam|test)/i.test(l.title || '')) ||
+              /final\s*(assessment|assignment|exam|test)/i.test(l.title || '')
+          ) || (quizLessons.length > 0 ? quizLessons[quizLessons.length - 1] : null);
+
+        if (finalCandidate) {
+          const qInfo = parseQuizData(finalCandidate);
+          finalAss = {
+            id: finalCandidate.id,
+            lessonId: finalCandidate.id,
+            sectionTitle: finalCandidate.sectionTitle || 'Course Final Module',
+            title: qInfo.title || finalCandidate.title || 'Final Assessment',
+            description: qInfo.description || finalCandidate.description || '',
+            passingScore: qInfo.passingScore || 80,
+            attemptLimit: qInfo.attemptLimit ?? 0,
+            isFinalAssessment: true,
+            questions: qInfo.questions || [],
+            totalQuestions: qInfo.questions?.length || 0
+          };
+        }
+      }
+
+      // Populate any missing quiz lessons into allQuizzes
+      quizLessons.forEach((ql: any) => {
+        if (!allQuizzes.some((q) => q.id === ql.id || q.lessonId === ql.id)) {
+          const qInfo = parseQuizData(ql);
+          const isThisFinal = finalAss && (finalAss.id === ql.id || finalAss.lessonId === ql.id);
+          allQuizzes.push({
+            id: ql.id,
+            lessonId: ql.id,
+            sectionTitle: ql.sectionTitle || 'Module Quiz',
+            title: qInfo.title || ql.title || (isThisFinal ? 'Final Assessment' : 'Quiz'),
+            description: qInfo.description || ql.description || '',
+            passingScore: qInfo.passingScore || (isThisFinal ? 80 : 70),
+            attemptLimit: qInfo.attemptLimit ?? 0,
+            isFinalAssessment: isThisFinal,
+            questions: qInfo.questions || [],
+            totalQuestions: qInfo.questions?.length || 0
+          });
+        }
+      });
+    }
+
+    const modQuizzes = allQuizzes.filter((q) => {
+      if (finalAss && (q.id === finalAss.id || q.lessonId === finalAss.lessonId || q.isFinalAssessment)) {
+        return false;
+      }
+      return true;
+    });
+
+    return {
+      finalAssessment: finalAss,
+      moduleQuizzes: modQuizzes
+    };
+  }, [data]);
+
+  const handleSetSectionStatus = (sectionKey: string, status: VerdictAction) => {
+    setSectionAudits((prev) => ({
       ...prev,
-      [key]: prev[key] === 'PASSED' ? 'ISSUE' : 'PASSED'
+      [sectionKey]: {
+        ...prev[sectionKey],
+        status
+      }
     }));
   };
 
-  const handleAddSectionIssue = () => {
-    if (!newIssueTitle.trim() || !newIssueComment.trim()) {
-      showToast({
-        title: 'Missing Fields',
-        desc: 'Please provide both the issue title and actionable comment for the instructor.',
-        type: 'error'
-      });
+  const handleSetSectionFeedback = (sectionKey: string, feedback: string) => {
+    setSectionAudits((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        ...prev[sectionKey],
+        feedback
+      }
+    }));
+  };
+
+  const handleSetItemIssue = (
+    itemId: string,
+    title: string,
+    type: string,
+    status: VerdictAction,
+    feedback: string
+  ) => {
+    setItemIssues((prev) => ({
+      ...prev,
+      [itemId]: { status, feedback, title, type }
+    }));
+  };
+
+  // Compile combined feedback for instructor
+  const getDiscrepanciesList = () => {
+    const list: Array<{ target: string; status: VerdictAction; feedback: string }> = [];
+
+    // Check main sections
+    Object.entries(sectionAudits).forEach(([sec, val]) => {
+      if (val.status !== 'APPROVED') {
+        const labels: Record<string, string> = {
+          basics: 'Course Basics & Classification',
+          outcomes: 'Learning Outcomes & Prerequisites',
+          seo: 'SEO & Search Engine Optimization',
+          curriculum: 'Course Curriculum & Syllabus',
+          media: 'Course Media & Promotional Thumbnail',
+          assessment: 'Final Assessment & Quizzes'
+        };
+        list.push({
+          target: labels[sec] || sec,
+          status: val.status,
+          feedback: val.feedback || (val.status === 'CHANGES_REQUESTED' ? 'Needs revision before publication.' : 'Non-compliant with platform standards.')
+        });
+      }
+    });
+
+    // Check specific lessons/items
+    Object.entries(itemIssues).forEach(([id, item]) => {
+      if (item.status !== 'APPROVED') {
+        list.push({
+          target: `${item.type}: "${item.title}"`,
+          status: item.status,
+          feedback: item.feedback || 'Discrepancy noted by auditor.'
+        });
+      }
+    });
+
+    return list;
+  };
+
+  // Submit Final Verdict (APPROVE / REQUEST_CHANGES / REJECT)
+  const handleSubmitVerdict = async (action: 'APPROVE' | 'REQUEST_CHANGES' | 'REJECT') => {
+    if (action === 'REQUEST_CHANGES') {
+      setModalComment(overallComments);
+      setShowChangesModal(true);
       return;
     }
 
-    const added: SectionIssue = {
-      id: `iss_${Date.now()}`,
-      section: newIssueSection,
-      lessonRef: newIssueLessonRef.trim() || undefined,
-      issue: newIssueTitle.trim(),
-      comment: newIssueComment.trim(),
-      createdAt: new Date().toISOString()
-    };
+    const discrepancies = getDiscrepanciesList();
 
-    const nextIssues = [added, ...sectionIssues];
-    setSectionIssues(nextIssues);
-
-    // Automatically mark that section as ISSUE
-    const mapKey: Record<string, keyof typeof sectionStatuses> = {
-      Curriculum: 'curriculum',
-      Video: 'video',
-      PDF: 'pdf',
-      Quiz: 'quiz',
-      Pricing: 'pricing',
-      'Learning Outcomes': 'learningOutcomes'
-    };
-    if (mapKey[newIssueSection]) {
-      setSectionStatuses((prev) => ({ ...prev, [mapKey[newIssueSection]]: 'ISSUE' }));
+    if (action === 'APPROVE' && discrepancies.length > 0) {
+      showToast(
+        'Approval Blocked',
+        `Approval is disabled because ${discrepancies.length} item(s) have requested changes or rejections. Please resolve all issues or click "Send Changes Request to Instructor".`,
+        'error'
+      );
+      return;
     }
 
-    setNewIssueTitle('');
-    setNewIssueComment('');
-    setNewIssueLessonRef('');
-    showToast({
-      title: 'Section Issue Tagged ⚠️',
-      desc: `Added issue under ${newIssueSection}.`,
-      type: 'info'
-    });
-  };
-
-  const handleRemoveIssue = (id: string) => {
-    setSectionIssues(sectionIssues.filter((i) => i.id !== id));
-  };
-
-  const handleSaveAuditDraft = async (mediaReviewedType?: 'VIDEO' | 'PDF' | 'QUIZ') => {
     try {
-      setSavingDraft(true);
+      setSubmittingVerdict(true);
+
+      let finalNote = '';
+      if (action === 'APPROVE') {
+        finalNote = overallComments.trim() || 'Congratulations! Course curriculum, video playback, and syllabus verified and approved by Auditor.';
+      } else {
+        finalNote = overallComments.trim() || 'Course submission rejected: Content does not satisfy quality guidelines.';
+      }
+
       const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'SAVE_AUDIT_DRAFT',
-          internalNote: internalNoteInput.trim() || undefined,
-          sectionStatuses,
-          sectionIssues,
-          mediaReviewedType
+          action,
+          note: finalNote,
+          confirmNonCompliance: true
         })
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to save draft');
 
-      setInternalNoteInput('');
-      showToast({
-        title: mediaReviewedType
-          ? `${mediaReviewedType} Verification Logged ✓`
-          : 'Auditor Notes & Checklist Saved ✓',
-        desc: json.message
-      });
-      await loadCourseAudit();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Review decision failed');
+
+      showToast(
+        action === 'APPROVE' ? 'Course Approved ✅' : 'Course Rejected ❌',
+        action === 'APPROVE'
+          ? 'Instructor has been notified and course is approved!'
+          : 'Rejection decision sent to instructor.',
+        'success'
+      );
+
+      notifyCoursesChanged();
+      setTimeout(() => {
+        router.push('/reviewer/inspect');
+      }, 1500);
     } catch (err: any) {
-      showToast({ title: 'Error', desc: err.message, type: 'error' });
+      showToast('Verdict Submission Failed', err.message || 'Server error', 'error');
+    } finally {
+      setSubmittingVerdict(false);
+    }
+  };
+
+  const executeSendChanges = async (instructions: string) => {
+    const discrepancies = getDiscrepanciesList();
+
+    try {
+      setSubmittingVerdict(true);
+
+      const parts: string[] = [];
+      if (instructions && instructions.trim()) {
+        parts.push(`📝 AUDITOR INSTRUCTIONS / CHANGES REQUIRED:\n${instructions.trim()}`);
+      } else if (overallComments.trim()) {
+        parts.push(`📝 AUDITOR INSTRUCTIONS / CHANGES REQUIRED:\n${overallComments.trim()}`);
+      }
+
+      if (discrepancies.length > 0) {
+        parts.push('⚠️ FLAGGED SECTION & LESSON DISCREPANCIES:');
+        discrepancies.forEach((d, idx) => {
+          parts.push(`${idx + 1}. [${d.target}] (${d.status === 'CHANGES_REQUESTED' ? 'Revision Needed' : 'Issue'}): ${d.feedback}`);
+        });
+      }
+
+      const finalNote = parts.join('\n\n') || 'Please review requested curriculum updates and resubmit.';
+
+      const mappedSectionIssues = discrepancies.map((d, idx) => ({
+        id: `iss_${Date.now()}_${idx}`,
+        section: (d.target.includes('Video')
+          ? 'Video'
+          : d.target.includes('Quiz')
+          ? 'Quiz'
+          : d.target.includes('PDF')
+          ? 'PDF'
+          : d.target.includes('Curriculum') || d.target.includes('Module')
+          ? 'Curriculum'
+          : 'Learning Outcomes') as 'Video' | 'Quiz' | 'PDF' | 'Curriculum' | 'Learning Outcomes',
+        lessonRef: d.target,
+        issue: d.status === 'CHANGES_REQUESTED' ? 'Revision Requested' : 'Rejected',
+        comment: d.feedback,
+        resolved: false,
+        createdAt: new Date().toISOString()
+      }));
+
+      const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REQUEST_CHANGES',
+          note: finalNote,
+          sectionIssues: mappedSectionIssues,
+          confirmNonCompliance: true
+        })
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to submit changes request');
+
+      setShowChangesModal(false);
+      showToast(
+        'Changes Request Sent ⚠️',
+        'Detailed critiques and required change instructions have been dispatched to the instructor.',
+        'success'
+      );
+
+      notifyCoursesChanged();
+      setTimeout(() => {
+        router.push('/reviewer/inspect');
+      }, 1500);
+    } catch (err: any) {
+      showToast('Submission Failed', err.message || 'Server error', 'error');
+    } finally {
+      setSubmittingVerdict(false);
+    }
+  };
+
+  const renderSectionActionBar = (
+    secKey: string,
+    secName: string,
+    nextStep?: AuditStep,
+    nextLabel?: string
+  ) => {
+    const audit = sectionAudits[secKey] || { status: 'APPROVED', feedback: '' };
+
+    return (
+      <div className="bg-slate-50/90 border-t border-slate-200 p-4 sm:p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleSetSectionStatus(secKey, 'APPROVED')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                audit.status === 'APPROVED'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+              }`}
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Approve Section</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSetSectionStatus(secKey, 'REJECTED')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                audit.status === 'REJECTED'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+              }`}
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Reject Section</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSetSectionStatus(secKey, 'CHANGES_REQUESTED')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                audit.status === 'CHANGES_REQUESTED'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Request Changes</span>
+            </button>
+          </div>
+
+          {nextStep && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(nextStep)}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/20"
+              >
+                <span>Next: {nextLabel}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Comment field: Auditor instructions on required changes for instructor */}
+        <div
+          className={`p-3.5 rounded-2xl border transition-all ${
+            audit.status === 'CHANGES_REQUESTED'
+              ? 'bg-amber-50/90 border-amber-300 ring-2 ring-amber-400/30'
+              : audit.status === 'REJECTED'
+              ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-400/30'
+              : 'bg-white border-slate-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold flex items-center gap-1.5 text-slate-800">
+              <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+              {audit.status === 'CHANGES_REQUESTED'
+                ? `⚠️ Required Changes for ${secName} (Auditor Feedback for Instructor):`
+                : audit.status === 'REJECTED'
+                ? `❌ Rejection Reason / Critique for ${secName}:`
+                : `💬 Auditor Feedback / Comments on ${secName} (Optional):`}
+            </span>
+            {audit.status === 'CHANGES_REQUESTED' && (
+              <span className="text-[10px] font-bold text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full">
+                Changes Required
+              </span>
+            )}
+          </div>
+          <textarea
+            rows={2}
+            value={audit.feedback}
+            onChange={(e) => handleSetSectionFeedback(secKey, e.target.value)}
+            placeholder={
+              audit.status === 'CHANGES_REQUESTED'
+                ? `Specify what the instructor needs to modify or correct in ${secName} (e.g. clarify course title, add prerequisites)...`
+                : `Enter auditor feedback or evaluation notes for ${secName}...`
+            }
+            className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium placeholder:text-slate-400"
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      setSavingDraft(true);
+      await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SAVE_AUDIT_DRAFT',
+          internalNote: 'Auditor draft progress saved.'
+        })
+      });
+      showToast('Draft Saved 💾', 'Your current section reviews have been saved.');
+    } catch (err: any) {
+      showToast('Draft Error', err.message || 'Could not save draft', 'error');
     } finally {
       setSavingDraft(false);
     }
   };
 
-  const handleSubmitDecision = async () => {
-    if (!decisionModal) return;
-    try {
-      setSubmittingDecision(true);
-      const fallbackNote =
-        decisionModal === 'APPROVE'
-          ? 'Course curriculum, video lessons, and resources approved by Auditor.'
-          : decisionModal === 'REQUEST_CHANGES'
-          ? sectionIssues.length > 0
-            ? sectionIssues.map((i) => `[${i.section}${i.lessonRef ? ' - ' + i.lessonRef : ''}]: ${i.issue} — ${i.comment}`).join('\n')
-            : 'Changes requested: Please review curriculum, lecture content, and resubmit for evaluation.'
-          : 'Course rejected: Does not meet platform review and quality standards.';
+  const course = data?.course;
+  const discrepancies = getDiscrepanciesList();
 
-      const finalNote = decisionNote.trim() || fallbackNote;
-
-      const res = await fetch(`/api/reviewer/courses/${encodeURIComponent(courseId)}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: decisionModal,
-          note: finalNote,
-          sectionStatuses,
-          sectionIssues,
-          confirmNonCompliance: true
-        })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Decision failed');
-
-      showToast({
-        title:
-          decisionModal === 'APPROVE'
-            ? 'Course Approved ✅'
-            : decisionModal === 'REQUEST_CHANGES'
-            ? 'Changes Requested Sent ⚠️'
-            : 'Course Rejected ❌',
-        desc: json.message
-      });
-
-      notifyCoursesChanged();
-
-      setDecisionModal(null);
-      setDecisionNote('');
-      await loadCourseAudit();
-    } catch (err: any) {
-      showToast({ title: 'Validation Error', desc: err.message, type: 'error' });
-    } finally {
-      setSubmittingDecision(false);
-    }
+  const stepLabels: Record<AuditStep, string> = {
+    1: 'Basic Information',
+    2: 'Course Curriculum',
+    3: 'Media & Thumbnail',
+    4: 'Final Assessment',
+    5: 'Review & Submit'
   };
 
-  if (error) {
-    return (
-      <AuditorPortalShell title="Course Audit Studio">
-        <div className="p-8 max-w-lg mx-auto bg-white rounded-2xl border border-rose-200 shadow-sm text-center space-y-4 my-8">
-          <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-            <Icon name="error" size={28} />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">{error.title}</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">{error.desc}</p>
-          <div className="flex items-center justify-center gap-3 pt-2">
-            {error.status === 401 || error.status === 403 ? (
-              <Link
-                href={`/reviewer/login?callbackUrl=${encodeURIComponent(`/reviewer/courses/${courseId}`)}`}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Log in as Course Auditor
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => loadCourseAudit()}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Try Again
-              </button>
-            )}
-            <Link
-              href="/reviewer"
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors"
-            >
-              Back to Inspect Courses
-            </Link>
-          </div>
-        </div>
-      </AuditorPortalShell>
-    );
-  }
-
-  if (loading || !data?.course) {
-    return (
-      <AuditorPortalShell title="Loading Course Audit Studio...">
-        <div className="p-12 text-center space-y-3">
-          <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <div className="text-xs text-slate-700 font-bold">
-            Loading curriculum tree, signed video streams, quizzes, and version diff...
-          </div>
-          <p className="text-[11px] text-slate-400">Please wait while the course audit data is compiled.</p>
-        </div>
-      </AuditorPortalShell>
-    );
-  }
-
-  const { course, submissionType, versionLabel, versionState, versionDiff, securityPolicy, auditMeta } =
-    data;
-
-  const lessonDisplayMap = generateCurriculumDisplayMap(course.sections || []);
-
-  const isStagedVersionReview =
-    course.status === 'PUBLISHED' && Boolean(versionState?.stagedSnapshot);
-
-  const totalChecklistFlaggedCount = Object.values(auditChecklist).filter((it) => it.flagged).length;
-
   return (
-    <AuditorPortalShell
-      title={`Course Audit: ${course.title}`}
-      subtitle={`Instructor: ${course.instructor?.name} (${course.instructor?.email}) • Course ID: ${course.id}`}
-      actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/reviewer/courses/${encodeURIComponent(course.id)}/preview`}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-xs"
+    <AuditorPortalShell>
+      <div className="space-y-6 max-w-7xl mx-auto pb-24">
+        {/* Toast */}
+        {toastMsg && (
+          <div
+            className={`p-4 rounded-2xl border text-xs font-semibold flex items-center justify-between shadow-md transition-all animate-in fade-in slide-in-from-top-2 ${
+              toastMsg.type === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
+                : toastMsg.type === 'info'
+                ? 'bg-blue-50 border-blue-200 text-blue-800'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            }`}
           >
-            <Icon name="visibility" size={16} />
-            <span>Preview as Student</span>
-          </Link>
-
-          <button
-            onClick={() => {
-              setDecisionModal('APPROVE');
-              setDecisionNote('');
-            }}
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
-            <Icon name="check_circle" size={16} />
-            <span>Approve Course ✅</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setDecisionModal('REQUEST_CHANGES');
-              if (sectionIssues.length > 0 && !decisionNote) {
-                setDecisionNote(
-                  sectionIssues
-                    .map(
-                      (i) =>
-                        `[${i.section}${i.lessonRef ? ' - ' + i.lessonRef : ''}]: ${i.issue} — ${i.comment}`
-                    )
-                    .join('\n')
-                );
-              }
-            }}
-            className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
-            <Icon name="warning" size={16} />
-            <span>Request Changes ⚠️ {totalChecklistFlaggedCount > 0 ? `(${totalChecklistFlaggedCount})` : ''}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setDecisionModal('REJECT');
-              setDecisionNote('');
-              setConfirmRejectCompliance(false);
-            }}
-            className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
-            <Icon name="cancel" size={16} />
-            <span>Reject Course ❌</span>
-          </button>
-        </div>
-      }
-    >
-      {toastMsg && (
-        <div
-          className={`mb-4 p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between ${
-            toastMsg.type === 'error'
-              ? 'bg-rose-50 border-rose-200 text-rose-800'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          }`}
-        >
-          <div>
-            <span className="font-bold">{toastMsg.title}</span>
-            {toastMsg.desc && <span className="ml-2 font-normal">{toastMsg.desc}</span>}
-          </div>
-          <button onClick={() => setToastMsg(null)}>✕</button>
-        </div>
-      )}
-
-      <div className="space-y-6">
-        {/* Prominent Auditor Decision Action Ribbon */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-700/60">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-slate-200">
-              <Icon name="gavel" size={14} className="text-emerald-400" />
-              <span>Auditor Evaluation & Final Verdict</span>
+            <div>
+              <span className="font-bold">{toastMsg.title}</span>
+              {toastMsg.desc && <span className="ml-2 font-normal">{toastMsg.desc}</span>}
             </div>
-            <h2 className="text-base sm:text-lg font-black text-white">
-              Course Audit Studio: {course.title}
-            </h2>
-            <p className="text-xs text-slate-300">
-              Status:{' '}
-              <span className="font-mono font-bold text-amber-300 uppercase">
-                {isStagedVersionReview ? 'VERSION_IN_REVIEW' : course.status}
-              </span>{' '}
-              • Instructor: {course.instructor?.name} ({course.instructor?.email})
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Link
-              href={`/reviewer/courses/${encodeURIComponent(course.id)}/preview`}
-              className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Icon name="visibility" size={15} />
-              <span>Preview as Student</span>
-            </Link>
-
-            <button
-              onClick={() => {
-                setDecisionModal('APPROVE');
-                setDecisionNote('');
-              }}
-              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-            >
-              <Icon name="check_circle" size={16} />
-              <span>Approve Course ✅</span>
+            <button onClick={() => setToastMsg(null)} className="text-slate-400 hover:text-slate-600">
+              ✕
             </button>
-
-            <button
-              onClick={() => {
-                setDecisionModal('REQUEST_CHANGES');
-                if (sectionIssues.length > 0 && !decisionNote) {
-                  setDecisionNote(
-                    sectionIssues
-                      .map(
-                        (i) =>
-                          `[${i.section}${i.lessonRef ? ' - ' + i.lessonRef : ''}]: ${i.issue} — ${i.comment}`
-                      )
-                      .join('\n')
-                  );
-                }
-              }}
-              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-            >
-              <Icon name="warning" size={16} />
-              <span>Request Changes ⚠️ {totalChecklistFlaggedCount > 0 ? `(${totalChecklistFlaggedCount})` : ''}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setDecisionModal('REJECT');
-                setDecisionNote('');
-                setConfirmRejectCompliance(true);
-              }}
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-            >
-              <Icon name="cancel" size={16} />
-              <span>Reject Course ❌</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Top Metadata & Section-Wise Status Matrix Bar */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="px-3 py-1 rounded-xl bg-slate-900 text-white font-mono text-xs font-bold">
-                Version: {versionLabel}
-              </span>
-              <span className="px-3 py-1 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono text-xs font-bold">
-                Submission Type: {submissionType}
-              </span>
-              <span className="px-3 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 font-mono text-xs font-bold">
-                Current Status: {isStagedVersionReview ? 'VERSION_IN_REVIEW' : course.status}
-              </span>
-              <span className="text-xs text-slate-500 font-mono">
-                Course ID: <strong className="text-slate-800">{course.id}</strong>
-              </span>
-            </div>
-
-            <Link
-              href={`/instructor/course/${course.id}/review`}
-              target="_blank"
-              className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
-            >
-              <Icon name="open_in_new" size={14} />
-              <span>View Instructor Feedback Page</span>
-            </Link>
-          </div>
-
-          {/* Interactive Section-Wise Status Toggles (Requirement #13) */}
-          <div>
-            <div className="text-[11px] font-mono font-bold uppercase text-slate-400 mb-2">
-              Section-Wise Audit Checklist (Click to toggle ✅ Passed / ⚠️ Issue)
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-              {(
-                [
-                  { key: 'curriculum', label: 'Curriculum' },
-                  { key: 'video', label: 'Video Streams' },
-                  { key: 'pdf', label: 'PDF / Docs' },
-                  { key: 'quiz', label: 'Quizzes' },
-                  { key: 'pricing', label: 'Pricing' },
-                  { key: 'learningOutcomes', label: 'Learning Outcomes' }
-                ] as const
-              ).map((sec) => {
-                const st = sectionStatuses[sec.key];
-                return (
-                  <button
-                    key={sec.key}
-                    onClick={() => handleToggleSectionStatus(sec.key)}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                      st === 'PASSED'
-                        ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
-                        : 'bg-rose-50 border-rose-200 text-rose-800'
-                    }`}
-                  >
-                    <span className="text-xs font-bold">{sec.label}</span>
-                    <span className="text-[11px] font-extrabold">
-                      {st === 'PASSED' ? '✅ Passed' : '⚠️ Issue'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* 6 Main Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-          {[
-            { id: 'CURRICULUM_MEDIA', label: '1. Curriculum, Video & PDF Review' },
-            { id: 'OVERVIEW', label: '2. Course Overview & Pricing' },
-            { id: 'QUIZZES', label: '3. Quiz & Assessment Review' },
-            { id: 'OUTCOMES', label: '4. Learning Outcomes Map' },
-            { id: 'VERSION_DIFF', label: `5. Version Comparison (${versionLabel})` },
-            {
-              id: 'ISSUES_HISTORY',
-              label: `6. Section Issues (${sectionIssues.length}), Internal Notes & History`
-            }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                activeTab === tab.id
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* TAB 1: CURRICULUM, PROTECTED VIDEO & PDF REVIEW (Requirements #4, #5, #6) */}
-        {activeTab === 'CURRICULUM_MEDIA' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left 5 Columns: Full Module & Lesson Tree */}
-            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 space-y-4 max-h-[760px] overflow-y-auto">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">
-                  Course Curriculum Tree ({(course.sections || []).length} Modules)
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Select any Lesson, Video, PDF, or Quiz to inspect its live protected content.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {(course.sections || []).map((sec: any, sIdx: number) => {
-                  const secTitle = cleanSectionTitle(sec.title, sIdx + 1);
-                  const isModuleFlagged = !!auditChecklist[sec.id]?.flagged;
-                  return (
-                    <div
-                      key={sec.id}
-                      className={`border rounded-xl overflow-hidden transition-all ${
-                        isModuleFlagged ? 'border-amber-300' : 'border-slate-200'
-                      }`}
-                    >
-                      <div className="bg-slate-50 px-3.5 py-2.5 border-b border-slate-200 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={isModuleFlagged}
-                            onChange={() =>
-                              toggleChecklistFlag(sec.id, {
-                                id: sec.id,
-                                targetName: `Module ${sIdx + 1}: ${secTitle}`,
-                                targetType: 'MODULE',
-                                selectedIssues: [],
-                                customNote: ''
-                              })
-                            }
-                            title="Tick to flag entire module in Request Changes"
-                            className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <span className="text-[10px] font-mono font-bold uppercase text-emerald-600 block">
-                              Module {sIdx + 1}
-                            </span>
-                            <span className="text-xs font-bold text-slate-900 truncate block">
-                              {secTitle}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isModuleFlagged && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-extrabold">
-                              ⚠️ Flagged
-                            </span>
-                          )}
-                          <span className="text-[10px] font-mono text-slate-500">
-                            {(sec.lessons || []).length} items
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="divide-y divide-slate-100">
-                        {(sec.lessons || []).map((les: any, lIdx: number) => {
-                          const isSelected = selectedLesson?.id === les.id;
-                          const isLessonFlagged = !!auditChecklist[les.id]?.flagged;
-                          return (
-                            <button
-                              key={les.id}
-                              onClick={() =>
-                                setSelectedLesson({
-                                  ...les,
-                                  moduleTitle: `Module ${sIdx + 1}: ${secTitle}`,
-                                  lessonNumber: lessonDisplayMap.get(les.id)?.itemNumber || lIdx + 1
-                                })
-                              }
-                              className={`w-full p-3 text-left flex items-center justify-between gap-2 cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'bg-emerald-50 border-l-4 border-emerald-600'
-                                  : isLessonFlagged
-                                  ? 'bg-amber-50/70 border-l-4 border-amber-500'
-                                  : 'hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
-                                    {lessonDisplayMap.get(les.id)?.typeLabel || les.type || 'VIDEO'}
-                                  </span>
-                                  <span className="text-xs font-bold text-slate-800 truncate">
-                                    {lessonDisplayMap.get(les.id)?.sidebarTitle || les.title}
-                                  </span>
-                                  {isLessonFlagged && (
-                                    <span className="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 border border-amber-300 text-[9px] font-extrabold shrink-0">
-                                      ⚠️ Flagged
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-500 font-mono">
-                                  <span>Duration: {les.duration || '10:00'}</span>
-                                  <span>•</span>
-                                  <span>{les.isFree ? 'Free Preview' : '🔒 Protected Paid'}</span>
-                                </div>
-                              </div>
-
-                              <span className="text-[11px] font-bold text-emerald-600 shrink-0">
-                                Inspect →
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right 7 Columns: Active Video / PDF / Content Inspector */}
-            <div className="lg:col-span-7 space-y-6">
-              {!selectedLesson ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs text-slate-400">
-                  Select a lecture from the curriculum tree on the left to inspect its video stream or PDF.
-                </div>
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div>
-                      <span className="text-[10px] font-mono font-bold uppercase text-emerald-600">
-                        {selectedLesson.moduleTitle}
-                      </span>
-                      <h3 className="text-base font-extrabold text-slate-900 mt-0.5">
-                        {selectedLesson.title}
-                      </h3>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setNewIssueSection(selectedLesson.type === 'PDF' ? 'PDF' : 'Video');
-                        setNewIssueLessonRef(`${selectedLesson.moduleTitle} → ${selectedLesson.title}`);
-                        setActiveTab('ISSUES_HISTORY');
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer"
-                    >
-                      ⚠️ Flag Issue on This Lecture
-                    </button>
-                  </div>
-
-                  {/* 1. Protected Video Stream Inspector (Requirement #5) */}
-                  {(selectedLesson.type === 'VIDEO' || selectedLesson.videoUrl || (!selectedLesson.type && !selectedLesson.pdfUrl && !selectedLesson.quiz)) && (
-                    <div className="space-y-4">
-                      {selectedLesson.videoUrl ? (
-                        <VideoPlayer
-                          key={selectedLesson.id}
-                          title={selectedLesson.title}
-                          videoUrl={selectedLesson.videoUrl}
-                          lessonId={selectedLesson.id}
-                          thumbnail={course.thumbnail}
-                          duration={selectedLesson.duration}
-                          isFree={true}
-                        />
-                      ) : (
-                        <div className="p-8 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 space-y-3">
-                          <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-                            <Icon name="movie" size={28} />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-white">No Video Asset Uploaded Yet</h4>
-                            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                              The instructor has created this lecture slot but has not uploaded or linked a video stream yet.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setNewIssueSection('Video');
-                              setNewIssueLessonRef(`${selectedLesson.moduleTitle} → ${selectedLesson.title}`);
-                              setNewIssueTitle('Missing Video Lecture Asset');
-                              setNewIssueComment('Please upload or attach the video lecture for this topic.');
-                              setActiveTab('ISSUES_HISTORY');
-                            }}
-                            className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black cursor-pointer inline-flex items-center gap-1.5"
-                          >
-                            ⚠️ Flag Missing Video
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-extrabold text-slate-900">
-                            Auditor Video Stream Verification Checklist
-                          </span>
-                          <button
-                            onClick={() => handleSaveAuditDraft('VIDEO')}
-                            disabled={savingDraft}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold cursor-pointer hover:bg-emerald-700 transition-colors"
-                          >
-                            Log Video Reviewed ✓
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                          {[
-                            { key: 'playable', label: 'Video Playable?' },
-                            { key: 'audioWorking', label: 'Audio Working?' },
-                            { key: 'correctContent', label: 'Correct Lecture?' },
-                            { key: 'durationAccurate', label: 'Duration Correct?' },
-                            { key: 'drmProtected', label: 'Signed DRM Protected?' }
-                          ].map((chk) => (
-                            <label
-                              key={chk.key}
-                              className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 cursor-pointer hover:border-slate-300"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={(videoChecklist as any)[chk.key]}
-                                onChange={(e) =>
-                                  setVideoChecklist({
-                                    ...videoChecklist,
-                                    [chk.key]: e.target.checked
-                                  })
-                                }
-                                className="accent-emerald-600"
-                              />
-                              <span className="font-semibold text-slate-700">{chk.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 2. Quiz / Assessment Inspector (if lecture is Quiz or has Quiz attached) */}
-                  {(selectedLesson.type === 'QUIZ' || selectedLesson.quiz || selectedLesson.quizData) && (() => {
-                    let questions: any[] = [];
-                    if (selectedLesson.quiz?.questions && Array.isArray(selectedLesson.quiz.questions)) {
-                      questions = selectedLesson.quiz.questions;
-                    } else if (selectedLesson.quizData) {
-                      try {
-                        const parsed = typeof selectedLesson.quizData === 'string' ? JSON.parse(selectedLesson.quizData) : selectedLesson.quizData;
-                        questions = parsed?.questions || [];
-                      } catch {}
-                    }
-                    const qPassing = selectedLesson.quiz?.passingScore || 70;
-                    const qTime = selectedLesson.quiz?.timeLimit || 15;
-
-                    return (
-                      <div className="space-y-4 p-5 rounded-2xl bg-indigo-50/50 border border-indigo-200/80">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
-                          <div>
-                            <span className="text-[10px] font-mono font-bold uppercase text-indigo-700">
-                              Quiz Assessment Verification
-                            </span>
-                            <h4 className="text-sm font-extrabold text-slate-900 mt-0.5">
-                              {selectedLesson.quiz?.title || selectedLesson.title} ({questions.length} Questions)
-                            </h4>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-white border border-indigo-200 text-indigo-800">
-                              Pass: {qPassing}% • Limit: {qTime}m
-                            </span>
-                            <button
-                              onClick={() => handleSaveAuditDraft('QUIZ')}
-                              disabled={savingDraft}
-                              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer"
-                            >
-                              Log Quiz Reviewed ✓
-                            </button>
-                          </div>
-                        </div>
-
-                        {questions.length === 0 ? (
-                          <p className="text-xs text-slate-500 py-3 text-center">
-                            No quiz questions configured for this assessment yet.
-                          </p>
-                        ) : (
-                          <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                            {questions.map((q: any, qIdx: number) => {
-                              let opts: string[] = [];
-                              try {
-                                opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options || [];
-                              } catch {
-                                opts = [];
-                              }
-                              return (
-                                <div key={q.id || qIdx} className="p-3.5 rounded-xl bg-white border border-indigo-100 space-y-2 text-xs">
-                                  <div className="font-bold text-slate-900">
-                                    Q{qIdx + 1}: {q.question}
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {opts.map((opt: string, oIdx: number) => {
-                                      const isCorrect = String(q.correctAnswer) === String(opt) || String(q.correctAnswer) === String(oIdx);
-                                      return (
-                                        <div
-                                          key={oIdx}
-                                          className={`p-2 rounded-lg border flex items-center justify-between text-xs ${
-                                            isCorrect
-                                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
-                                              : 'bg-slate-50 border-slate-200 text-slate-700'
-                                          }`}
-                                        >
-                                          <span>{opt}</span>
-                                          {isCorrect && (
-                                            <span className="text-[10px] font-mono text-emerald-700 font-bold">
-                                              Correct ✓
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                  {q.explanation && (
-                                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                                      <strong>Explanation:</strong> {q.explanation}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* 3. Text Article / Lecture Content Inspector */}
-                  {(selectedLesson.type === 'TEXT' || (selectedLesson.content && selectedLesson.type !== 'VIDEO')) && (
-                    <div className="space-y-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
-                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                        <span className="text-xs font-bold text-slate-900">Lecture Text Notes &amp; Reading Material</span>
-                        <span className="text-[10px] font-mono text-slate-500">Student Classroom View</span>
-                      </div>
-                      <div className="bg-white p-4 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap max-h-[380px] overflow-y-auto">
-                        {selectedLesson.content || 'No text notes provided for this lecture.'}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 4. PDF Document Verification */}
-                  {(selectedLesson.type === 'PDF' || selectedLesson.pdfUrl) && (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-bold text-rose-900">
-                            PDF Document Verification &amp; DRM Policy
-                          </div>
-                          <div className="text-[11px] text-rose-700">
-                            Download Permission:{' '}
-                            {securityPolicy?.allowPdfDownload
-                              ? 'Download Allowed'
-                              : 'View-Only (#toolbar=0)'}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleSaveAuditDraft('PDF')}
-                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors"
-                        >
-                          Log PDF Reviewed ✓
-                        </button>
-                      </div>
-
-                      {selectedLesson.pdfUrl ? (
-                        <div className="w-full h-[460px] rounded-xl overflow-hidden border border-slate-200 bg-slate-900">
-                          <iframe
-                            src={selectedLesson.pdfUrl}
-                            title={selectedLesson.title}
-                            className="w-full h-full border-0"
-                          />
-                        </div>
-                      ) : (
-                        <div className="p-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
-                          No PDF URL attached to this lesson.
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 5. Attached Multi-Format Study Resources (PDF, Doc, Image, External Links) */}
-                  {(() => {
-                    const attachedResources = getLessonResources(selectedLesson);
-                    if (attachedResources.length === 0) return null;
-
-                    return (
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">📁</span>
-                            <span className="text-xs font-extrabold text-slate-900">
-                              Attached Study Resources ({attachedResources.length})
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-slate-500 font-mono">
-                            Multi-Format Lecture Downloads &amp; Reference Docs
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {attachedResources.map((res, rIdx) => (
-                            <div
-                              key={res.id || rIdx}
-                              className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-2xs hover:border-indigo-300 transition-colors"
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-base shrink-0">
-                                  {res.type === 'PDF' ? '📄' : res.type === 'DOC' ? '📝' : res.type === 'IMAGE' ? '🖼️' : res.type === 'ZIP' ? '📦' : '🔗'}
-                                </span>
-                                <div className="min-w-0">
-                                  <div className="text-xs font-bold text-slate-800 truncate" title={res.name}>
-                                    {res.name}
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 uppercase font-mono">
-                                    {res.type} Document
-                                  </div>
-                                </div>
-                              </div>
-
-                              <a
-                                href={res.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                download={res.type !== 'LINK'}
-                                className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold border border-indigo-200 shrink-0 transition-colors flex items-center gap-1"
-                              >
-                                <span>Inspect</span>
-                                <span>↗</span>
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* 6. Active Lesson Interactive Audit Checklist & Auto-Logger */}
-                  {(() => {
-                    const currentLesId = selectedLesson.id;
-                    const currentItem = auditChecklist[currentLesId];
-                    const isFlagged = !!currentItem?.flagged;
-                    const selectedIssues = currentItem?.selectedIssues || [];
-                    const customNote = currentItem?.customNote || '';
-                    const lesType: 'VIDEO' | 'ARTICLE' | 'QUIZ' =
-                      selectedLesson.type === 'QUIZ' || selectedLesson.quiz
-                        ? 'QUIZ'
-                        : selectedLesson.type === 'PDF' || selectedLesson.pdfUrl
-                        ? 'ARTICLE'
-                        : 'VIDEO';
-
-                    const presets =
-                      lesType === 'VIDEO'
-                        ? [
-                            'Audio Unclear / Distorted',
-                            'Low Video Resolution / Blurry',
-                            'Misleading Title / Mismatch',
-                            'Missing Study Notes / PDF',
-                            'Video Cuts Off / Incomplete',
-                            'Content Inaccurate'
-                          ]
-                        : lesType === 'QUIZ'
-                        ? [
-                            'Wrong Answer Key Marked Correct',
-                            'Ambiguous / Confusing Questions',
-                            'Too Few Questions (< 5)',
-                            'Timer / Passing Mark Improper',
-                            'Missing Explanations'
-                          ]
-                        : [
-                            'Broken Document / PDF Link',
-                            'Incomplete Study Notes',
-                            'Low Quality Scan / Unreadable',
-                            'Formatting & Grammar Errors',
-                            'Missing Required Worksheets'
-                          ];
-
-                    return (
-                      <div
-                        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                          isFlagged
-                            ? 'bg-amber-50/80 border-amber-300 shadow-xs'
-                            : 'bg-slate-50 border-slate-200'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 pb-3 mb-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <input
-                              type="checkbox"
-                              id={`chk_flag_${currentLesId}`}
-                              checked={isFlagged}
-                              onChange={() =>
-                                toggleChecklistFlag(currentLesId, {
-                                  id: currentLesId,
-                                  targetName: selectedLesson.title,
-                                  targetType: lesType,
-                                  moduleTitle: selectedLesson.moduleTitle,
-                                  selectedIssues: [],
-                                  customNote: ''
-                                })
-                              }
-                              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
-                            />
-                            <label
-                              htmlFor={`chk_flag_${currentLesId}`}
-                              className="text-xs font-extrabold text-slate-900 cursor-pointer select-none"
-                            >
-                              {isFlagged ? '⚠️ Lecture Flagged for Request Changes' : 'Tick to Flag Quality Issue on This Lecture'}
-                            </label>
-                            {isFlagged && (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black uppercase">
-                                {selectedIssues.length} issues selected
-                              </span>
-                            )}
-                          </div>
-
-                          {totalChecklistFlaggedCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setDecisionModal('REQUEST_CHANGES')}
-                              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 transition-colors"
-                            >
-                              <Icon name="warning" size={14} />
-                              <span>Submit Changes Request ({totalChecklistFlaggedCount}) ⚠️</span>
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="space-y-3">
-                          <div>
-                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2">
-                              Select Issue Tags (Auto-added to Request Changes log):
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {presets.map((tag) => {
-                                const isSelected = selectedIssues.includes(tag);
-                                return (
-                                  <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() =>
-                                      toggleChecklistIssueTag(currentLesId, tag, {
-                                        id: currentLesId,
-                                        targetName: selectedLesson.title,
-                                        targetType: lesType,
-                                        moduleTitle: selectedLesson.moduleTitle,
-                                        selectedIssues: [],
-                                        customNote: ''
-                                      })
-                                    }
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                      isSelected
-                                        ? 'bg-amber-600 text-white shadow-xs'
-                                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                    }`}
-                                  >
-                                    <span>{isSelected ? '✓' : '+'}</span>
-                                    <span>{tag}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <div>
-                            <input
-                              type="text"
-                              value={customNote}
-                              onChange={(e) =>
-                                updateChecklistCustomNote(currentLesId, e.target.value, {
-                                  id: currentLesId,
-                                  targetName: selectedLesson.title,
-                                  targetType: lesType,
-                                  moduleTitle: selectedLesson.moduleTitle,
-                                  selectedIssues: [],
-                                  customNote: ''
-                                })
-                              }
-                              placeholder="Optional specific note for this lecture (e.g. video audio is out of sync at 02:40)..."
-                              className="w-full text-xs px-3.5 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-amber-500 placeholder-slate-400"
-                            />
-                          </div>
-
-                          {isFlagged && (
-                            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-900">
-                              <span className="font-semibold">
-                                ✓ Automatically recorded in Request Changes message log.
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  toggleChecklistFlag(currentLesId, {
-                                    id: currentLesId,
-                                    targetName: selectedLesson.title,
-                                    targetType: lesType,
-                                    moduleTitle: selectedLesson.moduleTitle,
-                                    selectedIssues: [],
-                                    customNote: ''
-                                  })
-                                }
-                                className="text-slate-500 hover:text-slate-800 underline text-[11px] cursor-pointer"
-                              >
-                                Untick / Clear
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
-        {/* TAB 2: COURSE OVERVIEW & COMMERCIAL / PRICING REVIEW (Requirements #3, #9) */}
-        {activeTab === 'OVERVIEW' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-              <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">
-                Course Overview & Metadata Summary
-              </h3>
+        {/* 1. Header Banner: "AUDITOR PANEL / REVIEW MODE" matching image */}
+        <div className="text-center space-y-1">
+          <div className="inline-flex items-center gap-2 px-6 py-1.5 rounded-2xl bg-gradient-to-r from-orange-100 via-rose-100 to-amber-100 border border-orange-200/80 shadow-2xs">
+            <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800">
+              AUDITOR PANEL / REVIEW MODE
+            </span>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-slate-500">Category</div>
-                  <div className="font-bold text-slate-900 mt-0.5">
-                    {course.category?.name || 'General'}
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-slate-500">Difficulty Level</div>
-                  <div className="font-bold text-slate-900 mt-0.5">{course.level}</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-slate-500">Language</div>
-                  <div className="font-bold text-slate-900 mt-0.5">{course.language}</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-slate-500">Total Duration</div>
-                  <div className="font-bold text-slate-900 mt-0.5">{course.durationHours} hrs</div>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-bold text-slate-700 mb-1">Short Description</div>
-                <p className="text-xs text-slate-600 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  {course.shortDescription || 'Not specified'}
-                </p>
-              </div>
-
-              <div>
-                <div className="text-xs font-bold text-slate-700 mb-1">Full Course Description</div>
-                <div className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  {course.description}
-                </div>
-              </div>
-            </div>
-
-            {/* Right 4 Columns: Pricing & Commercial Review */}
-            <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-extrabold text-slate-900">
-                  Pricing & Commercial Review
-                </h3>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    sectionStatuses.pricing === 'PASSED'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-rose-50 text-rose-700'
-                  }`}
-                >
-                  {sectionStatuses.pricing === 'PASSED' ? '✅ Passed' : '⚠️ Flagged'}
+        {/* Course Metadata Bar: Version, Submission Type, Status, Course ID */}
+        {course && (
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+            <div className="space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-900 text-white">
+                  ID: {course.id}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                  {data?.versionLabel || 'v1.0'}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                  {data?.submissionType === 'MAJOR_UPDATE'
+                    ? 'Major Update (v2.0)'
+                    : data?.submissionType === 'RESUBMISSION'
+                    ? 'Resubmission'
+                    : 'New Course (v1.0)'}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>{course.status}</span>
                 </span>
               </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Commercial Tier</span>
-                  <span className="font-bold text-slate-900">
-                    {course.price > 0 ? 'PAID MASTERCLASS' : 'FREE COURSE'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Final Selling Price</span>
-                  <span className="text-base font-black text-emerald-700">
-                    ₹{Number(course.price || 0).toLocaleString('en-IN')} ({course.currency || 'INR'})
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Original / List Price</span>
-                  <span className="font-bold text-slate-700">
-                    {course.discountPrice ? `₹${course.discountPrice}` : 'No discount'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Student Access Window</span>
-                  <span className="font-bold text-slate-900">
-                    {course.accessType === 'LIMITED_DAYS'
-                      ? `${course.accessDays} Days`
-                      : 'Lifetime Access'}
-                  </span>
-                </div>
+              <h1 className="text-base sm:text-lg font-black text-slate-900 truncate">
+                {course.title}
+              </h1>
+              <div className="text-xs text-slate-500">
+                Instructor: <strong className="text-slate-800">{course.instructor?.name}</strong> ({course.instructor?.email})
               </div>
+            </div>
 
-              <button
-                onClick={() => {
-                  setNewIssueSection('Pricing');
-                  setActiveTab('ISSUES_HISTORY');
-                }}
-                className="w-full py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold cursor-pointer"
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href={`/reviewer/courses/${course.id}/preview`}
+                className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
               >
-                ⚠️ Flag Suspicious / Incorrect Pricing
-              </button>
+                <Eye className="w-3.5 h-3.5" />
+                <span>Student Preview</span>
+              </Link>
+              <Link
+                href="/reviewer/inspect"
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Inspect List</span>
+              </Link>
             </div>
           </div>
         )}
 
-        {/* TAB 3: QUIZ & ASSESSMENT REVIEW (Requirement #7) */}
-        {activeTab === 'QUIZZES' && (
-          <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-              <h3 className="text-base font-extrabold text-slate-900">
-                Course Quizzes & Question Key Verification ({(course.quizzes || []).length})
-              </h3>
+        {/* 2. Step Navigation Tabs matching image (Pricing & Access excluded) */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-1.5 flex items-center gap-1 overflow-x-auto shadow-2xs">
+          {[
+            { step: 1 as AuditStep, num: '1', title: 'Basic Information', auditTag: true },
+            { step: 2 as AuditStep, num: '2', title: 'Course Curriculum', auditTag: false },
+            { step: 3 as AuditStep, num: '3', title: 'Media & Thumbnail', auditTag: false },
+            { step: 4 as AuditStep, num: '4', title: 'Final Assessment', auditTag: false },
+            { step: 5 as AuditStep, num: '5', title: 'Review & Submit', auditTag: false }
+          ].map((tab) => {
+            const isActive = currentStep === tab.step;
+            const isCompleted = currentStep > tab.step;
+            return (
+              <button
+                key={tab.step}
+                type="button"
+                onClick={() => setCurrentStep(tab.step)}
+                className={`flex-1 min-w-[150px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : isCompleted
+                    ? 'bg-slate-100/90 text-slate-800 hover:bg-slate-200'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <span
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${
+                    isActive
+                      ? 'bg-white text-blue-600'
+                      : isCompleted
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {isCompleted ? '✓' : tab.num}
+                </span>
+                <span>{tab.title}</span>
+                {tab.auditTag && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    Audit
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-              {(course.quizzes || []).length === 0 ? (
-                <p className="text-xs text-slate-500">No quizzes attached to this course yet.</p>
-              ) : (
-                <div className="space-y-6">
-                  {course.quizzes.map((qz: any) => (
-                    <div
-                      key={qz.id}
-                      className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                        <div>
-                          <h4 className="text-sm font-black text-slate-900">{qz.title}</h4>
-                          <p className="text-xs text-slate-500">{qz.description}</p>
+        {loading ? (
+          <div className="p-16 text-center bg-white rounded-3xl border border-slate-200">
+            <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <div className="text-xs font-bold text-slate-700">Loading Course Audit Data...</div>
+          </div>
+        ) : error ? (
+          <div className="p-12 text-center bg-white rounded-3xl border border-rose-200 space-y-3">
+            <XCircle className="w-12 h-12 text-rose-500 mx-auto" />
+            <div className="text-sm font-bold text-slate-900">{error}</div>
+            <button
+              onClick={() => loadCourseData()}
+              className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
+            >
+              Retry Loading
+            </button>
+          </div>
+        ) : (
+          <div>
+            {/* =========================================================================
+                STEP 1: BASIC INFORMATION (Matching user's screenshot layout)
+               ========================================================================= */}
+            {currentStep === 1 && (
+              <div className="space-y-6">
+                {/* 1. Course Basics & Classification */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900">
+                        Course Basics &amp; Classification
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Verify the essential identification, topic category, difficulty level, and core metadata.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Course Title */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                          <span>COURSE TITLE *</span>
+                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                            Review label
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] font-mono">
-                          <span className="px-2.5 py-1 rounded bg-white border border-slate-200">
-                            Passing Score: {qz.passingScore}%
-                          </span>
-                          <span className="px-2.5 py-1 rounded bg-white border border-slate-200">
-                            Time Limit: {qz.timeLimit || 15} mins
-                          </span>
+                        <input
+                          type="text"
+                          readOnly
+                          value={course.title}
+                          className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-800 cursor-default"
+                        />
+                      </div>
+
+                      {/* Slug & Category */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span>URL SLUG / IDENTIFIER</span>
+                            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                              Review label
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            readOnly
+                            value={`/courses/${course.slug}`}
+                            className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono text-slate-700 cursor-default"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span>CATEGORY *</span>
+                            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                              Category
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            readOnly
+                            value={course.category?.name || 'General'}
+                            className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-700 cursor-default"
+                          />
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        {(qz.questions || []).map((q: any, qIdx: number) => {
-                          let opts: string[] = [];
-                          try {
-                            opts = JSON.parse(q.options || '[]');
-                          } catch {}
-                          return (
-                            <div
-                              key={q.id}
-                              className="p-4 rounded-xl bg-white border border-slate-200 space-y-2 text-xs"
+                      {/* Level, Language, Duration */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span>SKILL LEVEL</span>
+                          </div>
+                          <input
+                            type="text"
+                            readOnly
+                            value={course.level || 'All Levels'}
+                            className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-700 cursor-default"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span>PRIMARY LANGUAGE</span>
+                          </div>
+                          <input
+                            type="text"
+                            readOnly
+                            value={course.language || 'English'}
+                            className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-700 cursor-default"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span>ESTIMATED DURATION</span>
+                          </div>
+                          <input
+                            type="text"
+                            readOnly
+                            value={course.duration || '12 hours'}
+                            className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-700 cursor-default"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Subtitle */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                          <span>SHORT DESCRIPTION / SUBTITLE</span>
+                        </div>
+                        <input
+                          type="text"
+                          readOnly
+                          value={course.subtitle || 'Master high-concurrency event-driven backends, service meshes, and resilient cloud deployments.'}
+                          className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-default"
+                        />
+                      </div>
+
+                      {/* Full Description */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                          <span>FULL COURSE DESCRIPTION &amp; SYLLABUS OVERVIEW *</span>
+                        </div>
+                        <textarea
+                          readOnly
+                          rows={4}
+                          value={course.description || ''}
+                          className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-default leading-relaxed"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Review Action Bar */}
+                  {renderSectionActionBar('basics', 'Course Basics & Classification')}
+                </div>
+
+                {/* 2. What You'll Learn, Requirements & Target Audience */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* What You'll Learn */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                        <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>WHAT YOU&apos;LL LEARN</span>
+                        </div>
+                        <ul className="text-xs space-y-1.5 text-slate-700 list-disc list-inside">
+                          {course.learningOutcomes?.length ? (
+                            course.learningOutcomes.map((item: string, idx: number) => (
+                              <li key={idx} className="leading-snug">{item}</li>
+                            ))
+                          ) : (
+                            <li className="text-slate-400 italic">No explicit outcomes declared.</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Before You Begin */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                        <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                          <span>BEFORE YOU BEGIN</span>
+                        </div>
+                        <ul className="text-xs space-y-1.5 text-slate-700 list-disc list-inside">
+                          {course.requirementsList?.length ? (
+                            course.requirementsList.map((item: string, idx: number) => (
+                              <li key={idx} className="leading-snug">{item}</li>
+                            ))
+                          ) : (
+                            <li className="text-slate-400 italic">Basic knowledge of course topic.</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Target Audience */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                        <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-blue-600" />
+                          <span>WHO THIS COURSE IS FOR</span>
+                        </div>
+                        <ul className="text-xs space-y-1.5 text-slate-700 list-disc list-inside">
+                          {course.audienceList?.length ? (
+                            course.audienceList.map((item: string, idx: number) => (
+                              <li key={idx} className="leading-snug">{item}</li>
+                            ))
+                          ) : (
+                            <li className="text-slate-400 italic">Software engineers, developers, and students.</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Review Action Bar */}
+                  {renderSectionActionBar('outcomes', 'Outcomes & Prerequisites')}
+                </div>
+
+                {/* 3. SEO & Search Engine Optimization */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900">
+                        SEO &amp; Search Engine Optimization
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Optimize how this course appears in Google search engine snippets and social media previews.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700">SEO TITLE TAG</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={course.seoTitle || course.title}
+                          className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-default"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700">SEO META DESCRIPTION</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={course.seoDescription || course.subtitle || course.description?.substring(0, 140)}
+                          className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-default"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Review Action Bar */}
+                  {renderSectionActionBar('seo', 'SEO Metadata', 2, 'Course Curriculum')}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================================
+                STEP 2: COURSE CURRICULUM (Videos, PDFs, Quizzes, Articles)
+               ========================================================================= */}
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                {/* Active Video Player Inspector */}
+                {activeVideo?.videoUrl && (
+                  <div className="bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 shadow-xl p-4 sm:p-6 space-y-3">
+                    <div className="flex items-center justify-between text-white text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="font-bold text-slate-300">Auditor Video Player</span>
+                        <span className="text-slate-500">•</span>
+                        <span className="font-extrabold text-white truncate max-w-md">
+                          {activeVideo.moduleTitle} &gt; {activeVideo.title}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-500/30">
+                        DRM Protected Playback
+                      </span>
+                    </div>
+
+                    <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black max-h-[480px]">
+                      <VideoPlayer
+                        videoUrl={activeVideo.videoUrl}
+                        title={activeVideo.title}
+                        lessonId={activeVideo.id}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Modules & Lectures List */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900">
+                        Course Curriculum &amp; Lecture Inspection
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Inspect playable video lessons, study PDFs, quizzes, and resources. Approve or flag revisions item by item.
+                      </p>
+                    </div>
+
+                    <span className="text-xs font-mono font-bold bg-slate-100 px-3 py-1 rounded-full text-slate-700">
+                      {course.sections?.length || 0} Modules Total
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {course.sections?.map((section: any, sIdx: number) => (
+                      <div key={section.id || sIdx} className="p-5 sm:p-6 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center">
+                              {sIdx + 1}
+                            </span>
+                            <h3 className="text-sm font-black text-slate-900">
+                              {section.title}
+                            </h3>
+                            <span className="text-xs text-slate-400 font-medium">
+                              ({section.lessons?.length || 0} items)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleSetItemIssue(section.id, section.title, 'Module', 'APPROVED', '')}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                                itemIssues[section.id]?.status === 'APPROVED'
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+                              }`}
                             >
-                              <div className="font-bold text-slate-900">
-                                Question {qIdx + 1}: {q.question}
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {opts.map((opt, oIdx) => {
-                                  const isCorrect =
-                                    String(q.correctAnswer) === String(opt) ||
-                                    String(q.correctAnswer) === String(oIdx);
-                                  return (
+                              ✓ Approve Module
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSetItemIssue(
+                                  section.id,
+                                  section.title,
+                                  'Module',
+                                  'CHANGES_REQUESTED',
+                                  itemIssues[section.id]?.feedback || ''
+                                )
+                              }
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                                itemIssues[section.id]?.status === 'CHANGES_REQUESTED'
+                                  ? 'bg-amber-500 text-slate-950 font-black'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-800'
+                              }`}
+                            >
+                              ⚠️ Request Changes
+                            </button>
+                          </div>
+                        </div>
+
+                        {itemIssues[section.id]?.status === 'CHANGES_REQUESTED' && (
+                          <div className="p-3 bg-amber-50/80 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-xs font-bold text-amber-900 shrink-0 flex items-center gap-1.5">
+                              <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                              Required Changes for Module:
+                            </span>
+                            <input
+                              type="text"
+                              value={itemIssues[section.id]?.feedback || ''}
+                              onChange={(e) =>
+                                handleSetItemIssue(section.id, section.title, 'Module', 'CHANGES_REQUESTED', e.target.value)
+                              }
+                              placeholder="e.g. Reorganize lecture order or attach introductory overview..."
+                              className="flex-1 text-xs px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+                              autoFocus
+                            />
+                          </div>
+                        )}
+
+                        {/* Lessons inside Module */}
+                        <div className="grid grid-cols-1 gap-2.5 pl-2 sm:pl-4">
+                          {section.lessons?.map((lesson: any, lIdx: number) => {
+                            const isVideo = lesson.type === 'VIDEO' || Boolean(lesson.videoUrl);
+                            const isQuiz = lesson.type === 'QUIZ' || Boolean(lesson.quizData) || Boolean(lesson.quiz);
+                            const isPdf = lesson.type === 'DOCUMENT' || lesson.type === 'PDF' || Boolean(lesson.pdfUrl);
+                            const isArticle =
+                              lesson.type === 'TEXT' ||
+                              lesson.type === 'ARTICLE' ||
+                              (!isVideo && !isPdf && !isQuiz && Boolean(lesson.content));
+                            const resourcesList = parseResourcesData(lesson);
+                            const quizInfo = isQuiz ? parseQuizData(lesson) : null;
+
+                            const itemType = isVideo
+                              ? 'Video'
+                              : isQuiz
+                              ? 'Quiz'
+                              : isPdf
+                              ? 'PDF'
+                              : isArticle
+                              ? 'Article'
+                              : 'Lesson';
+
+                            const issue = itemIssues[lesson.id];
+
+                            return (
+                              <div
+                                key={lesson.id || lIdx}
+                                className={`p-3.5 rounded-2xl border transition-all ${
+                                  issue?.status === 'CHANGES_REQUESTED'
+                                    ? 'bg-amber-50/60 border-amber-200'
+                                    : issue?.status === 'REJECTED'
+                                    ? 'bg-rose-50/60 border-rose-200'
+                                    : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3 min-w-0">
                                     <div
-                                      key={oIdx}
-                                      className={`p-2 rounded-lg border flex items-center gap-2 ${
-                                        isCorrect
-                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
-                                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                                        isVideo
+                                          ? 'bg-blue-100 text-blue-700'
+                                          : isPdf
+                                          ? 'bg-rose-100 text-rose-700'
+                                          : isQuiz
+                                          ? 'bg-amber-100 text-amber-800'
+                                          : 'bg-emerald-100 text-emerald-700'
                                       }`}
                                     >
-                                      <span>{isCorrect ? '●' : '○'}</span>
-                                      <span>{opt}</span>
+                                      {isVideo ? (
+                                        <Play className="w-4 h-4 fill-current" />
+                                      ) : isPdf ? (
+                                        <FileText className="w-4 h-4" />
+                                      ) : isQuiz ? (
+                                        <HelpCircle className="w-4 h-4" />
+                                      ) : (
+                                        <BookOpen className="w-4 h-4" />
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-xs text-slate-900 truncate">
+                                          {lIdx + 1}. {lesson.title}
+                                        </span>
+                                        <span className="text-[10px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0">
+                                          {isVideo
+                                            ? `Video • ${lesson.duration || '10:00'}`
+                                            : isPdf
+                                            ? 'PDF Notes'
+                                            : isQuiz
+                                            ? `Quiz • ${quizInfo?.questions?.length || 0} Qs`
+                                            : 'Article'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                    {/* Video Inspect Trigger */}
+                                    {isVideo && lesson.videoUrl && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setActiveVideo({
+                                            id: lesson.id,
+                                            title: lesson.title,
+                                            videoUrl: lesson.videoUrl,
+                                            duration: lesson.duration,
+                                            moduleTitle: section.title
+                                          })
+                                        }
+                                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      >
+                                        <Play className="w-3 h-3 fill-current" />
+                                        <span>Play Video</span>
+                                      </button>
+                                    )}
+
+                                    {/* Quiz Inspect Trigger */}
+                                    {isQuiz && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setInspectModal({
+                                            type: 'QUIZ',
+                                            lessonId: lesson.id,
+                                            lessonTitle: lesson.title,
+                                            moduleTitle: section.title,
+                                            itemType: 'Quiz',
+                                            data: quizInfo
+                                          })
+                                        }
+                                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                      >
+                                        <HelpCircle className="w-3.5 h-3.5" />
+                                        <span>Inspect Quiz ({quizInfo?.questions?.length || 0} Qs)</span>
+                                      </button>
+                                    )}
+
+                                    {/* Article Reader Trigger */}
+                                    {isArticle && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setInspectModal({
+                                            type: 'ARTICLE',
+                                            lessonId: lesson.id,
+                                            lessonTitle: lesson.title,
+                                            moduleTitle: section.title,
+                                            itemType: 'Article',
+                                            data: { content: lesson.content || 'No article content found.' }
+                                          })
+                                        }
+                                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                      >
+                                        <BookOpen className="w-3.5 h-3.5" />
+                                        <span>Read Article</span>
+                                      </button>
+                                    )}
+
+                                    {/* PDF Inspect Trigger */}
+                                    {isPdf && lesson.pdfUrl && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setInspectModal({
+                                            type: 'PDF',
+                                            lessonId: lesson.id,
+                                            lessonTitle: lesson.title,
+                                            moduleTitle: section.title,
+                                            itemType: 'PDF Document',
+                                            data: { pdfUrl: lesson.pdfUrl }
+                                          })
+                                        }
+                                        className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                      >
+                                        <FileText className="w-3.5 h-3.5" />
+                                        <span>Inspect PDF</span>
+                                      </button>
+                                    )}
+
+                                    {/* Resources / Attachments Trigger */}
+                                    {resourcesList.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setInspectModal({
+                                            type: 'RESOURCE',
+                                            lessonId: lesson.id,
+                                            lessonTitle: lesson.title,
+                                            moduleTitle: section.title,
+                                            itemType: 'Resources',
+                                            data: { resources: resourcesList }
+                                          })
+                                        }
+                                        className="px-2.5 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Paperclip className="w-3.5 h-3.5" />
+                                        <span>Resources ({resourcesList.length})</span>
+                                      </button>
+                                    )}
+
+                                    {/* Quick Issue / Status buttons for this item */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetItemIssue(lesson.id, lesson.title, isVideo ? 'Video' : isPdf ? 'PDF' : isQuiz ? 'Quiz' : 'Article', 'APPROVED', '')}
+                                      className={`px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer ${
+                                        issue?.status === 'APPROVED'
+                                          ? 'bg-emerald-600 text-white'
+                                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+                                      }`}
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleSetItemIssue(
+                                          lesson.id,
+                                          lesson.title,
+                                          isVideo ? 'Video' : isPdf ? 'PDF' : isQuiz ? 'Quiz' : 'Article',
+                                          'CHANGES_REQUESTED',
+                                          issue?.feedback || ''
+                                        )
+                                      }
+                                      className={`px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                                        issue?.status === 'CHANGES_REQUESTED'
+                                          ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-amber-50 hover:text-amber-800'
+                                      }`}
+                                    >
+                                      ⚠️ Request Changes
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleSetItemIssue(
+                                          lesson.id,
+                                          lesson.title,
+                                          isVideo ? 'Video' : isPdf ? 'PDF' : isQuiz ? 'Quiz' : 'Article',
+                                          'REJECTED',
+                                          issue?.feedback || ''
+                                        )
+                                      }
+                                      className={`px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                                        issue?.status === 'REJECTED'
+                                          ? 'bg-rose-600 text-white shadow-xs'
+                                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-700'
+                                      }`}
+                                    >
+                                      ✕ Reject
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Inline Comment Field for Requested Changes */}
+                                {issue?.status === 'CHANGES_REQUESTED' && (
+                                  <div className="mt-2.5 pt-2.5 border-t border-amber-200/90 flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 shrink-0">
+                                      <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>Required Changes for this {isVideo ? 'Video' : isPdf ? 'PDF' : isQuiz ? 'Quiz' : 'Lesson'}:</span>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={issue.feedback || ''}
+                                      onChange={(e) =>
+                                        handleSetItemIssue(
+                                          lesson.id,
+                                          lesson.title,
+                                          isVideo ? 'Video' : isPdf ? 'PDF' : isQuiz ? 'Quiz' : 'Article',
+                                          'CHANGES_REQUESTED',
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={`e.g. ${
+                                        isVideo
+                                          ? 'Audio volume is too low, please re-record and upload with clean audio'
+                                          : isPdf
+                                          ? 'Add missing formula explanation on page 3'
+                                          : isQuiz
+                                          ? 'Verify correct answer key for Question 2'
+                                          : 'Correct typos and format article text'
+                                      }...`}
+                                      className="flex-1 text-xs px-3.5 py-1.5 rounded-xl border border-amber-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+                                      autoFocus
+                                    />
+                                  </div>
+                                )}
+
+                                {issue?.status === 'REJECTED' && (
+                                  <div className="mt-2.5 pt-2.5 border-t border-rose-200/90 flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900 shrink-0">
+                                      <X className="w-3.5 h-3.5 text-rose-600" />
+                                      <span>Rejection Reason:</span>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={issue.feedback || ''}
+                                      onChange={(e) =>
+                                        handleSetItemIssue(
+                                          lesson.id,
+                                          lesson.title,
+                                          isVideo ? 'Video' : isPdf ? 'PDF' : isQuiz ? 'Quiz' : 'Article',
+                                          'REJECTED',
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="Reason for rejecting this lesson..."
+                                      className="flex-1 text-xs px-3.5 py-1.5 rounded-xl border border-rose-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
+                                      autoFocus
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Section Review Action Bar */}
+                  {renderSectionActionBar('curriculum', 'Course Curriculum', 3, 'Media & Thumbnail')}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================================
+                STEP 3: MEDIA & THUMBNAIL
+               ========================================================================= */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900">
+                        Course Media &amp; Promotional Asset Verification
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Inspect thumbnail dimensions, aspect ratio, text readability, and promotional video preview.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Thumbnail Preview */}
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-slate-700">Course Thumbnail (16:9)</div>
+                        <div className="aspect-video w-full rounded-2xl bg-slate-900 overflow-hidden border border-slate-200 shadow-md">
+                          {course.thumbnail ? (
+                            <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                              <span className="text-3xl mb-1">🖼</span>
+                              <span className="text-xs font-semibold">No Thumbnail Uploaded</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Promo Video */}
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-slate-700">Promotional Trailer Video</div>
+                        <div className="aspect-video w-full rounded-2xl bg-black overflow-hidden border border-slate-800 shadow-md flex items-center justify-center">
+                          {course.promotionalVideoUrl ? (
+                            <VideoPlayer videoUrl={course.promotionalVideoUrl} title="Course Trailer" />
+                          ) : (
+                            <div className="text-center text-slate-500 p-4">
+                              <Play className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <div className="text-xs font-semibold">No Promotional Video Attached</div>
+                              <div className="text-[11px] text-slate-600 mt-0.5">Optional for course approval</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Review Action Bar */}
+                  {renderSectionActionBar('media', 'Course Media & Thumbnail', 4, 'Final Assessment')}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================================
+                STEP 4: FINAL ASSESSMENT & QUIZZES (Certification Gate Studio)
+               ========================================================================= */}
+            {currentStep === 4 && (
+              <div className="space-y-6">
+                {/* 1. Header Card with Certificate Gate Overview */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-black text-sm">
+                          🎓
+                        </span>
+                        <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
+                          Final Assessment &amp; Certification Gate
+                        </h2>
+                        {finalAssessment ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Certification Exam Configured
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                            Mandatory Exam Missing
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+                        Verify that the certification exam contains accurate questions, validated answer keys, and appropriate passing criteria. Students must clear this assessment to unlock their verified Certificate of Completion.
+                      </p>
+                    </div>
+
+                    {/* Sub-tab switcher if module quizzes exist */}
+                    {moduleQuizzes.length > 0 && (
+                      <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200 shrink-0 self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => setAssessmentSubTab('FINAL')}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            assessmentSubTab === 'FINAL'
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Final Exam ({finalAssessment?.totalQuestions || 0} Qs)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAssessmentSubTab('MODULE_QUIZZES')}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            assessmentSubTab === 'MODULE_QUIZZES'
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Module Quizzes ({moduleQuizzes.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Metric Strip for Final Assessment */}
+                  {finalAssessment && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Passing Threshold
+                        </div>
+                        <div className="text-xl font-black text-slate-900 mt-0.5">
+                          {finalAssessment.passingScore || 80}%
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          {finalAssessment.passingScore >= 80 ? '✓ Standard (80%)' : '⚠️ Below 80% standard'}
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Total Questions
+                        </div>
+                        <div className="text-xl font-black text-slate-900 mt-0.5">
+                          {finalAssessment.totalQuestions} Questions
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          {finalAssessment.totalQuestions % 2 === 0
+                            ? '✓ Even count rule verified'
+                            : '⚠️ Odd question count'}
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Exam Marks
+                        </div>
+                        <div className="text-xl font-black text-slate-900 mt-0.5">
+                          {finalAssessment.totalQuestions * 10} Points
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          10 marks per question
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Retake Policy
+                        </div>
+                        <div className="text-xl font-black text-slate-900 mt-0.5">
+                          {finalAssessment.attemptLimit === 0 ? 'Unlimited' : `${finalAssessment.attemptLimit} Attempts`}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          Student attempt limit
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Main Content View: Either Final Exam Questions or Module Quizzes */}
+                {assessmentSubTab === 'FINAL' ? (
+                  finalAssessment ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between px-1">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                          Certification Exam Questions ({finalAssessment.totalQuestions} Questions)
+                        </h3>
+                        <span className="text-xs font-semibold text-slate-500">
+                          {finalAssessment.sectionTitle ? `Located in ${finalAssessment.sectionTitle}` : ''}
+                        </span>
+                      </div>
+
+                      {/* Question Cards Grid / List */}
+                      <div className="space-y-4">
+                        {finalAssessment.questions.map((q: any, qIdx: number) => {
+                          const options = Array.isArray(q.options) ? q.options : ['True', 'False'];
+                          const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+                          return (
+                            <div
+                              key={q.id || qIdx}
+                              className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 transition-all hover:border-slate-300"
+                            >
+                              {/* Question Header */}
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                <div className="space-y-1.5 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                      Question {qIdx + 1} of {finalAssessment.totalQuestions}
+                                    </span>
+                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                                      {q.points || 10} Points
+                                    </span>
+                                  </div>
+                                  <p className="text-sm font-bold text-slate-900 leading-snug">
+                                    {q.question || q.title || `Question ${qIdx + 1}`}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Options List */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                                {options.map((opt: string, optIdx: number) => {
+                                  const isCorrect = optIdx === correctIdx;
+                                  const optLetter = String.fromCharCode(65 + optIdx);
+                                  return (
+                                    <div
+                                      key={optIdx}
+                                      className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs transition-all ${
+                                        isCorrect
+                                          ? 'border-emerald-500 bg-emerald-50/70 text-emerald-950 font-bold shadow-xs'
+                                          : 'border-slate-200 bg-slate-50/50 text-slate-700 font-medium'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5 pr-2">
+                                        <span
+                                          className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-[11px] shrink-0 ${
+                                            isCorrect
+                                              ? 'bg-emerald-600 text-white'
+                                              : 'bg-slate-200 text-slate-700'
+                                          }`}
+                                        >
+                                          {optLetter}
+                                        </span>
+                                        <span>{opt}</span>
+                                      </div>
                                       {isCorrect && (
-                                        <span className="ml-auto text-[10px] font-mono text-emerald-700">
-                                          Correct Answer ✓
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-300 shrink-0">
+                                          <Check className="w-3 h-3 stroke-[3]" />
+                                          Correct Answer
                                         </span>
                                       )}
                                     </div>
                                   );
                                 })}
                               </div>
+
+                              {/* Explanation / Solution Rationale */}
                               {q.explanation && (
-                                <div className="text-[11px] text-slate-500 pt-1">
-                                  <strong>Explanation:</strong> {q.explanation}
+                                <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 text-xs text-amber-950 space-y-1">
+                                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Explanation &amp; Solution Rationale</span>
+                                  </div>
+                                  <p className="font-normal text-amber-900/90 leading-relaxed">
+                                    {q.explanation}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -1540,767 +1755,118 @@ export default function AuditorCourseReviewPage() {
                         })}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: LEARNING OUTCOMES VS CURRICULUM MAPPING (Requirement #8) */}
-        {activeTab === 'OUTCOMES' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900">
-                Learning Outcomes → Related Curriculum Lessons Alignment
-              </h3>
-              <p className="text-xs text-slate-500">
-                Verify that every promised learning outcome is backed by actual lectures in the syllabus.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {(course.outcomeMappings || []).map((item: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span className="text-emerald-600 font-black">✓</span>
-                    <span className="text-xs font-bold text-slate-900">{item.outcome}</span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] font-mono uppercase text-slate-400 mr-1">
-                      Related Lessons:
-                    </span>
-                    {(item.relatedLessons || []).map((rl: any) => (
-                      <span
-                        key={rl.id}
-                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-indigo-700"
-                      >
-                        {rl.moduleTitle}: {rl.title}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: VERSION COMPARISON DIFF (v1.0 LIVE VS v2.0 STAGED — Requirement #11 & #17) */}
-        {activeTab === 'VERSION_DIFF' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">
-                  LIVE VERSION ({versionState?.liveVersionLabel || 'v1.0'}) vs STAGED VERSION (
-                  {versionState?.pendingVersionLabel || 'v2.0'}) Diff View
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Inspect exact curriculum, video, PDF, and pricing changes without re-auditing unchanged modules blindly.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 font-mono text-xs">
-                <span className="px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
-                  LIVE: {versionState?.liveVersionLabel || 'v1.0'}
-                </span>
-                <span>→</span>
-                <span className="px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-bold">
-                  STAGED: {versionState?.pendingVersionLabel || 'v2.0'}
-                </span>
-              </div>
-            </div>
-
-            {!versionDiff || versionDiff.length === 0 ? (
-              <div className="p-8 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                This course is currently at initial version <strong>v1.0</strong> (no pending v2.0 staged delta).
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {versionDiff.map((diff: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="space-y-1">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-100 text-indigo-800">
-                        {diff.badge}
-                      </span>
-                      <div className="text-xs font-bold text-slate-900">{diff.title}</div>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs font-mono">
-                      <span className="px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                        v1.0: {diff.before}
-                      </span>
-                      <span>→</span>
-                      <span className="px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
-                        v2.0: {diff.after}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Archived Rollback Versions */}
-            {Array.isArray(auditMeta?.archivedVersions) &&
-              auditMeta.archivedVersions.length > 0 && (
-                <div className="pt-4 border-t border-slate-100 space-y-2">
-                  <h4 className="text-xs font-extrabold text-slate-800">
-                    Preserved Archived Versions (Rollback History)
-                  </h4>
-                  {auditMeta.archivedVersions.map((arch: any, i: number) => (
-                    <div
-                      key={i}
-                      className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-mono"
-                    >
-                      <span>
-                        {arch.versionLabel} → <strong>{arch.status}</strong>
-                      </span>
-                      <span className="text-slate-500">
-                        Archived: {new Date(arch.archivedAt).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-          </div>
-        )}
-
-        {/* TAB 6: SECTION-WISE ISSUES, INTERNAL AUDITOR NOTES & REVIEW HISTORY (Requirements #12, #13, #21) */}
-        {activeTab === 'ISSUES_HISTORY' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left 7 Columns: Section-Wise Issues Builder */}
-            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">
-                  Section-Wise Issues for Instructor ({sectionIssues.length})
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Tag exact module/lesson issues so the instructor knows precisely what to fix on{' '}
-                  <code>/instructor/course/{course.id}/review</code>.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Section
-                    </label>
-                    <select
-                      value={newIssueSection}
-                      onChange={(e) => setNewIssueSection(e.target.value as any)}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold bg-white"
-                    >
-                      <option value="Video">Video</option>
-                      <option value="Curriculum">Curriculum</option>
-                      <option value="PDF">PDF</option>
-                      <option value="Quiz">Quiz</option>
-                      <option value="Pricing">Pricing</option>
-                      <option value="Learning Outcomes">Learning Outcomes</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Module → Lesson Reference (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={newIssueLessonRef}
-                      onChange={(e) => setNewIssueLessonRef(e.target.value)}
-                      placeholder="e.g. Module 3 → Lesson 4"
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Issue Summary
-                  </label>
-                  <input
-                    type="text"
-                    value={newIssueTitle}
-                    onChange={(e) => setNewIssueTitle(e.target.value)}
-                    placeholder="e.g. Video quality is poor / Audio out of sync"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Actionable Comment for Instructor
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={newIssueComment}
-                    onChange={(e) => setNewIssueComment(e.target.value)}
-                    placeholder="e.g. Please replace the current video with a 1080p HD version."
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddSectionIssue}
-                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer"
-                  >
-                    + Add Section Issue
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveAuditDraft()}
-                    disabled={savingDraft}
-                    className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer"
-                  >
-                    Save Issues Checklist
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                {sectionIssues.map((iss) => (
-                  <div
-                    key={iss.id}
-                    className="p-3.5 rounded-xl bg-rose-50/60 border border-rose-200 flex items-start justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">
-                          {iss.section}
-                        </span>
-                        {iss.lessonRef && (
-                          <span className="font-mono font-bold text-rose-900">
-                            {iss.lessonRef}
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-bold text-slate-900">{iss.issue}</div>
-                      <div className="text-slate-600">{iss.comment}</div>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveIssue(iss.id)}
-                      className="text-rose-500 hover:text-rose-800 font-bold cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right 5 Columns: Internal Auditor Notes (Hidden from Instructor) & Review History */}
-            <div className="lg:col-span-5 space-y-6">
-              {/* Internal Notes (Requirement #12) */}
-              <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold">
-                      Confidential Auditor Workspace
-                    </span>
-                    <h3 className="text-sm font-extrabold">
-                      Internal Review Notes (Hidden from Instructor)
-                    </h3>
-                  </div>
-                  <Icon name="lock" size={18} className="text-emerald-400" />
-                </div>
-
-                <textarea
-                  rows={3}
-                  value={internalNoteInput}
-                  onChange={(e) => setInternalNoteInput(e.target.value)}
-                  placeholder="Add internal audit notes (e.g. Video 4 needs secondary DRM verification)..."
-                  className="w-full rounded-xl bg-slate-950 border border-white/15 p-3 text-xs text-white"
-                />
-
-                <button
-                  onClick={() => handleSaveAuditDraft()}
-                  disabled={savingDraft || !internalNoteInput.trim()}
-                  className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold cursor-pointer"
-                >
-                  Save Confidential Internal Note
-                </button>
-
-                <div className="space-y-2 max-h-44 overflow-y-auto">
-                  {(auditMeta?.internalNotes || []).map((n: any) => (
-                    <div
-                      key={n.id}
-                      className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1"
-                    >
-                      <div className="flex justify-between text-[10px] font-mono text-emerald-300">
-                        <span>{n.authorName}</span>
-                        <span>{new Date(n.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-slate-200">{n.note}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Chronological Review History (Requirement #21) */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-900">
-                  Complete Review History Timeline
-                </h3>
-                <div className="space-y-3 max-h-72 overflow-y-auto">
-                  {(auditMeta?.reviewHistory || []).length === 0 ? (
-                    <p className="text-xs text-slate-400">
-                      Initial submission queued for review.
-                    </p>
                   ) : (
-                    auditMeta.reviewHistory.map((h: any) => (
-                      <div
-                        key={h.id}
-                        className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1"
-                      >
-                        <div className="flex items-center justify-between font-mono text-[10px] text-slate-500">
-                          <span>
-                            {new Date(h.timestamp).toLocaleDateString('en-IN', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
-                          </span>
-                          <span className="font-bold text-indigo-600">{h.action}</span>
-                        </div>
-                        <div className="font-bold text-slate-800">
-                          {h.actorRole}: {h.actorName} ({h.versionLabel})
-                        </div>
-                        {h.feedback && (
-                          <p className="text-slate-600 italic">&quot;{h.feedback}&quot;</p>
-                        )}
+                    <div className="bg-white border-2 border-dashed border-rose-200 rounded-3xl p-8 sm:p-12 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto text-xl font-black">
+                        ⚠️
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* DECISION MODALS: APPROVE / REQUEST_CHANGES / REJECT */}
-      {decisionModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div
-            className={`bg-white rounded-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto ${
-              decisionModal === 'REQUEST_CHANGES'
-                ? 'max-w-3xl max-h-[92vh]'
-                : 'max-w-lg'
-            }`}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-extrabold text-slate-900">
-                  {decisionModal === 'APPROVE'
-                    ? isStagedVersionReview
-                      ? `Approve & Promote ${versionLabel} to LIVE?`
-                      : 'Approve Course?'
-                    : decisionModal === 'REQUEST_CHANGES'
-                    ? 'Request Course Changes ⚠️'
-                    : 'Reject Course ❌'}
-                </h3>
-                {decisionModal === 'REQUEST_CHANGES' && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
-                    Checklist Studio
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => setDecisionModal(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
-              {decisionModal === 'APPROVE' && (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-1.5">
-                  {isStagedVersionReview ? (
-                    <>
-                      <div className="font-extrabold">
-                        Staged Major Update ({versionLabel}) → LIVE Promotion
-                      </div>
-                      <p>
-                        Approving <strong>{versionLabel}</strong> will apply the updated curriculum/media to the live course and preserve <strong>v1.0 as ARCHIVED</strong> for rollback.
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        No Final Assessment Configured
+                      </h3>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto">
+                        This course does not currently have a dedicated Final Certification Exam attached to the curriculum. Course policy requires a final certification exam before approval.
                       </p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="font-extrabold">Status: IN_REVIEW → APPROVED</div>
-                      <p>
-                        This course will become <strong>APPROVED</strong>. The instructor will be notified and can now publish it live in 1 click.
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* REQUEST_CHANGES: Interactive Module / Lesson / Quiz Checklist */}
-              {decisionModal === 'REQUEST_CHANGES' && (
-                <div className="space-y-4">
-                  <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900">
-                    <p className="font-semibold">
-                      Tick any module, video, article, or quiz that needs changes. Click quick tags or enter notes — the critique log below automatically compiles into a structured report for the instructor.
-                    </p>
-                  </div>
-
-                  {/* 1. Whole Course Scope Checklist */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-slate-800 select-none">
-                        <input
-                          type="checkbox"
-                          checked={!!auditChecklist['whole_course']?.flagged}
-                          onChange={() =>
-                            toggleChecklistFlag('whole_course', {
-                              id: 'whole_course',
-                              targetName: 'Course-Wide Overall Quality',
-                              targetType: 'WHOLE_COURSE',
-                              selectedIssues: [],
-                              customNote: ''
-                            })
-                          }
-                          className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600"
-                        />
-                        <span>Flag Course-Wide / Overall Issues</span>
-                      </label>
-                      <span className="text-[10px] text-slate-500 font-medium">Entire Course</span>
                     </div>
-
-                    {auditChecklist['whole_course']?.flagged && (
-                      <div className="pl-6 space-y-2 pt-1 border-t border-slate-200/60 mt-1">
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          Select Overall Issues:
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[
-                            'General Audio / Video Quality Insufficient',
-                            'Missing Lesson Notes & Worksheets',
-                            'Course Overview, Outcomes & Pricing Inaccurate',
-                            'Curriculum Sequence / Structure Broken',
-                            'Platform Policy / Compliance Concerns'
-                          ].map((tag) => {
-                            const isSelected = auditChecklist['whole_course']?.selectedIssues.includes(tag);
-                            return (
-                              <button
-                                key={tag}
-                                type="button"
-                                onClick={() =>
-                                  toggleChecklistIssueTag('whole_course', tag, {
-                                    id: 'whole_course',
-                                    targetName: 'Course-Wide Overall Quality',
-                                    targetType: 'WHOLE_COURSE',
-                                    selectedIssues: [],
-                                    customNote: ''
-                                  })
-                                }
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-amber-600 text-white shadow-xs'
-                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
-                              >
-                                {isSelected ? '✓ ' : '+ '}
-                                {tag}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <input
-                          type="text"
-                          value={auditChecklist['whole_course']?.customNote || ''}
-                          onChange={(e) =>
-                            updateChecklistCustomNote('whole_course', e.target.value, {
-                              id: 'whole_course',
-                              targetName: 'Course-Wide Overall Quality',
-                              targetType: 'WHOLE_COURSE',
-                              selectedIssues: [],
-                              customNote: ''
-                            })
-                          }
-                          placeholder="Optional specific note for entire course..."
-                          className="w-full text-xs px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 2. Specific Modules, Video, Article & Quiz Checklist */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                        Modules & Content Checklist ({(data?.course?.sections || []).length} Modules)
+                  )
+                ) : (
+                  /* Module Quizzes View */
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        Curriculum Module Quizzes ({moduleQuizzes.length} Quizzes)
+                      </h3>
+                      <span className="text-xs text-slate-500">
+                        Regular progress checks throughout course modules
                       </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setChecklistFilter(checklistFilter === 'ALL' ? 'FLAGGED_ONLY' : 'ALL')
-                          }
-                          className={`text-[11px] font-bold px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                            checklistFilter === 'FLAGGED_ONLY'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          {checklistFilter === 'FLAGGED_ONLY' ? 'Showing Flagged Only' : 'Filter: All Items'}
-                        </button>
-                      </div>
                     </div>
 
-                    <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
-                      {(data?.course?.sections || []).map((sec: any, sIdx: number) => {
-                        const secId = sec.id || `sec_${sIdx}`;
-                        const secTitle = cleanSectionTitle(sec.title) || `Module ${sIdx + 1}`;
-                        const isExpanded = expandedChecklistModules[secId] !== false; // expanded by default
-                        const isModuleFlagged = !!auditChecklist[secId]?.flagged;
-                        const lessons = sec.lessons || [];
-
+                    <div className="space-y-3">
+                      {moduleQuizzes.map((quiz: any, qzIdx: number) => {
+                        const isExpanded = Boolean(expandedQuizAccordion[quiz.id || quiz.lessonId || qzIdx]);
                         return (
                           <div
-                            key={secId}
-                            className={`border rounded-xl transition-all ${
-                              isModuleFlagged
-                                ? 'border-amber-300 bg-amber-50/30'
-                                : 'border-slate-200 bg-white'
-                            }`}
+                            key={quiz.id || quiz.lessonId || qzIdx}
+                            className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden transition-all"
                           >
-                            {/* Module Header */}
-                            <div className="flex items-center justify-between p-3 bg-slate-50/70 border-b border-slate-100">
-                              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 select-none flex-1 min-w-0 pr-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isModuleFlagged}
-                                  onChange={() =>
-                                    toggleChecklistFlag(secId, {
-                                      id: secId,
-                                      targetName: secTitle,
-                                      targetType: 'MODULE',
-                                      selectedIssues: [],
-                                      customNote: ''
-                                    })
-                                  }
-                                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 shrink-0"
-                                />
-                                <span className="truncate">{secTitle}</span>
-                                <span className="text-[10px] text-slate-400 font-normal shrink-0">
-                                  ({lessons.length} items)
-                                </span>
-                              </label>
+                            <div
+                              onClick={() =>
+                                setExpandedQuizAccordion((prev) => ({
+                                  ...prev,
+                                  [quiz.id || quiz.lessonId || qzIdx]: !isExpanded
+                                }))
+                              }
+                              className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50/70 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-black text-sm shrink-0">
+                                  📝
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-extrabold text-slate-900">
+                                    {quiz.title}
+                                  </h4>
+                                  <p className="text-xs text-slate-500">
+                                    {quiz.sectionTitle ? `${quiz.sectionTitle} • ` : ''}
+                                    {quiz.totalQuestions} Questions • Passing: {quiz.passingScore}%
+                                  </p>
+                                </div>
+                              </div>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedChecklistModules((prev) => ({
-                                    ...prev,
-                                    [secId]: !isExpanded
-                                  }))
-                                }
-                                className="text-slate-400 hover:text-slate-600 text-xs px-1.5 py-0.5 rounded cursor-pointer shrink-0"
-                              >
-                                {isExpanded ? '▲ Hide' : '▼ Show Items'}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+                                  {quiz.totalQuestions} Questions
+                                </span>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 text-slate-400" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                                )}
+                              </div>
                             </div>
 
-                            {/* Module Quick Issues & Note if Flagged */}
-                            {isModuleFlagged && (
-                              <div className="p-3 bg-amber-50/60 border-b border-amber-200/60 space-y-2">
-                                <div className="text-[10px] font-bold text-amber-900 uppercase">
-                                  Module Issues:
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {[
-                                    'Incomplete Module Content',
-                                    'Missing Downloadable Materials',
-                                    'Lectures Disordered / Sequencing Error',
-                                    'Title & Scope Mismatch'
-                                  ].map((tag) => {
-                                    const isSelected = auditChecklist[secId]?.selectedIssues.includes(tag);
-                                    return (
-                                      <button
-                                        key={tag}
-                                        type="button"
-                                        onClick={() =>
-                                          toggleChecklistIssueTag(secId, tag, {
-                                            id: secId,
-                                            targetName: secTitle,
-                                            targetType: 'MODULE',
-                                            selectedIssues: [],
-                                            customNote: ''
-                                          })
-                                        }
-                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                                          isSelected
-                                            ? 'bg-amber-600 text-white'
-                                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                        }`}
-                                      >
-                                        {isSelected ? '✓ ' : '+ '}
-                                        {tag}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={auditChecklist[secId]?.customNote || ''}
-                                  onChange={(e) =>
-                                    updateChecklistCustomNote(secId, e.target.value, {
-                                      id: secId,
-                                      targetName: secTitle,
-                                      targetType: 'MODULE',
-                                      selectedIssues: [],
-                                      customNote: ''
-                                    })
-                                  }
-                                  placeholder="Specific note for this module..."
-                                  className="w-full text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
-                                />
-                              </div>
-                            )}
-
-                            {/* Lessons List Inside Module */}
-                            {isExpanded && lessons.length > 0 && (
-                              <div className="divide-y divide-slate-100">
-                                {lessons.map((les: any, lIdx: number) => {
-                                  const lesId = les.id || `les_${sIdx}_${lIdx}`;
-                                  const rawType = (
-                                    les.type ||
-                                    (les.videoUrl ? 'VIDEO' : les.pdfUrl ? 'ARTICLE' : (les.quizzes && les.quizzes.length > 0) ? 'QUIZ' : 'VIDEO')
-                                  ).toUpperCase();
-                                  const lesType: 'VIDEO' | 'ARTICLE' | 'QUIZ' =
-                                    rawType === 'QUIZ' ? 'QUIZ' : rawType === 'ARTICLE' ? 'ARTICLE' : 'VIDEO';
-                                  const lesTitle = les.title || `Lesson ${lIdx + 1}`;
-                                  const isLessonFlagged = !!auditChecklist[lesId]?.flagged;
-
-                                  if (checklistFilter === 'FLAGGED_ONLY' && !isLessonFlagged) {
-                                    return null;
-                                  }
-
-                                  const issuePresets =
-                                    lesType === 'VIDEO'
-                                      ? [
-                                          'Audio Too Low / Heavy Echo',
-                                          'Blurry Video (<720p)',
-                                          'Video Freezes / Playback Error',
-                                          'Wrong Video Attached',
-                                          'Incomplete Video'
-                                        ]
-                                      : lesType === 'QUIZ'
-                                      ? [
-                                          'Wrong Answer Key Marked Correct',
-                                          'Too Few Questions (< 5 questions)',
-                                          'Ambiguous / Confusing Questions',
-                                          'Missing Answer Explanations'
-                                        ]
-                                      : [
-                                          'Missing PDF / Resource Download',
-                                          'Corrupt File / Broken Link',
-                                          'Formatting / Typography Broken',
-                                          'Grammar / Typo Errors'
-                                        ];
-
+                            {/* Expanded questions list for module quiz */}
+                            {isExpanded && (
+                              <div className="px-5 pb-5 pt-1 border-t border-slate-100 space-y-3">
+                                {quiz.questions?.map((q: any, idx: number) => {
+                                  const opts = Array.isArray(q.options) ? q.options : ['True', 'False'];
+                                  const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
                                   return (
                                     <div
-                                      key={lesId}
-                                      className={`p-3 transition-colors ${
-                                        isLessonFlagged ? 'bg-amber-50/40' : 'hover:bg-slate-50/50'
-                                      }`}
+                                      key={q.id || idx}
+                                      className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-2.5 text-xs"
                                     >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800 select-none flex-1 min-w-0">
-                                          <input
-                                            type="checkbox"
-                                            checked={isLessonFlagged}
-                                            onChange={() =>
-                                              toggleChecklistFlag(lesId, {
-                                                id: lesId,
-                                                targetName: lesTitle,
-                                                targetType: lesType,
-                                                moduleTitle: secTitle,
-                                                selectedIssues: [],
-                                                customNote: ''
-                                              })
-                                            }
-                                            className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 shrink-0"
-                                          />
-                                          <span className="truncate">{lesTitle}</span>
-                                        </label>
-
-                                        <span
-                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
-                                            lesType === 'VIDEO'
-                                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                              : lesType === 'QUIZ'
-                                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                          }`}
-                                        >
-                                          {lesType}
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-extrabold text-slate-900">
+                                          Q{idx + 1}: {q.question || q.title}
+                                        </span>
+                                        <span className="text-[11px] font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                                          {q.points || 10} pts
                                         </span>
                                       </div>
 
-                                      {/* Expanded Controls for Flagged Lesson */}
-                                      {isLessonFlagged && (
-                                        <div className="pl-5 pt-2 space-y-1.5 mt-1 border-t border-amber-100">
-                                          <div className="flex flex-wrap gap-1">
-                                            {issuePresets.map((tag) => {
-                                              const isTagSelected =
-                                                auditChecklist[lesId]?.selectedIssues.includes(tag);
-                                              return (
-                                                <button
-                                                  key={tag}
-                                                  type="button"
-                                                  onClick={() =>
-                                                    toggleChecklistIssueTag(lesId, tag, {
-                                                      id: lesId,
-                                                      targetName: lesTitle,
-                                                      targetType: lesType,
-                                                      moduleTitle: secTitle,
-                                                      selectedIssues: [],
-                                                      customNote: ''
-                                                    })
-                                                  }
-                                                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                                                    isTagSelected
-                                                      ? 'bg-amber-600 text-white'
-                                                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                                  }`}
-                                                >
-                                                  {isTagSelected ? '✓ ' : '+ '}
-                                                  {tag}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                          <input
-                                            type="text"
-                                            value={auditChecklist[lesId]?.customNote || ''}
-                                            onChange={(e) =>
-                                              updateChecklistCustomNote(lesId, e.target.value, {
-                                                id: lesId,
-                                                targetName: lesTitle,
-                                                targetType: lesType,
-                                                moduleTitle: secTitle,
-                                                selectedIssues: [],
-                                                customNote: ''
-                                              })
-                                            }
-                                            placeholder={`Specific feedback for ${lesTitle} (e.g. timestamp or question #)...`}
-                                            className="w-full text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-amber-500"
-                                          />
-                                        </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {opts.map((opt: string, optIdx: number) => {
+                                          const isCorr = optIdx === correctIdx;
+                                          return (
+                                            <div
+                                              key={optIdx}
+                                              className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                                                isCorr
+                                                  ? 'border-emerald-500 bg-emerald-50 text-emerald-950 font-bold'
+                                                  : 'border-slate-200 bg-white text-slate-700'
+                                              }`}
+                                            >
+                                              <span>{String.fromCharCode(65 + optIdx)}. {opt}</span>
+                                              {isCorr && <span className="text-[10px] text-emerald-700 font-black">✓ Correct</span>}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {q.explanation && (
+                                        <p className="text-[11px] text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200">
+                                          💡 {q.explanation}
+                                        </p>
                                       )}
                                     </div>
                                   );
@@ -2312,123 +1878,735 @@ export default function AuditorCourseReviewPage() {
                       })}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Textarea: Feedback / Notes (Auto-compiled from Checklist) */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    {decisionModal === 'APPROVE'
-                      ? 'Optional Approval Note for Instructor'
-                      : decisionModal === 'REQUEST_CHANGES'
-                      ? 'Auto-Generated Changes Request Log (Click Submit to Send, or Edit if Needed):'
-                      : 'Rejection Reason'}
-                  </label>
-                  {decisionModal === 'REQUEST_CHANGES' && (
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      Auto-updates from checklist above
+                {/* Section Review Action Bar */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  {renderSectionActionBar('assessment', 'Final Assessment & Quizzes', 5, 'Review & Submit')}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================================
+                STEP 5: REVIEW & SUBMIT (Summary, Discrepancies Box & Instructor Notify)
+               ========================================================================= */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                {/* 1. Audit Summary Matrix */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900">
+                        Course Audit Summary Matrix
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Overview of your verification decisions across all examined sections.
+                      </p>
+                    </div>
+
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-100 text-slate-700">
+                      {discrepancies.length === 0 ? '✓ All Sections Passed' : `${discrepancies.length} Revisions Flagged`}
                     </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      { key: 'basics', title: '1. Basic Information' },
+                      { key: 'curriculum', title: '2. Course Curriculum' },
+                      { key: 'media', title: '3. Media & Thumbnail' },
+                      { key: 'assessment', title: '4. Final Assessment' }
+                    ].map((sec) => {
+                      const st = sectionAudits[sec.key]?.status || 'APPROVED';
+                      return (
+                        <div
+                          key={sec.key}
+                          className={`p-3.5 rounded-2xl border ${
+                            st === 'APPROVED'
+                              ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900'
+                              : st === 'CHANGES_REQUESTED'
+                              ? 'bg-amber-50/60 border-amber-200 text-amber-900'
+                              : 'bg-rose-50/60 border-rose-200 text-rose-900'
+                          }`}
+                        >
+                          <div className="text-xs font-bold truncate">{sec.title}</div>
+                          <div className="text-[11px] font-black mt-1 flex items-center gap-1">
+                            {st === 'APPROVED' ? '✓ Passed' : st === 'CHANGES_REQUESTED' ? '⚠️ Changes Requested' : '✕ Rejected'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Discrepancies & Issues Box (Displays items where changes were requested) */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      <h2 className="text-base font-extrabold text-slate-900">
+                        Itemized Discrepancies &amp; Feedback For Instructor
+                      </h2>
+                    </div>
+                    <span className="text-xs text-slate-500 font-semibold">
+                      Will be sent to instructor email &amp; dashboard
+                    </span>
+                  </div>
+
+                  {discrepancies.length === 0 ? (
+                    <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-1">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                      <div className="text-sm font-bold text-emerald-900">No Quality Issues Flagged!</div>
+                      <p className="text-xs text-emerald-700">
+                        This course complies with platform curriculum, video DRM, and syllabus standards. Ready for approval and live publishing.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {discrepancies.map((d, idx) => (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 flex items-start gap-3"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-extrabold text-slate-900">
+                              {d.target}{' '}
+                              <span className="ml-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200/60 text-amber-900">
+                                {d.status === 'CHANGES_REQUESTED' ? 'Revision Needed' : 'Rejected'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+                              {d.feedback}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <textarea
-                  rows={decisionModal === 'REQUEST_CHANGES' ? 5 : 4}
-                  value={decisionNote}
-                  onChange={(e) => setDecisionNote(e.target.value)}
-                  placeholder={
-                    decisionModal === 'APPROVE'
-                      ? 'Great curriculum structure and clear HD video streams!'
-                      : decisionModal === 'REQUEST_CHANGES'
-                      ? 'Select items above or write specific changes required before approval...'
-                      : 'Explain reason for rejection...'
-                  }
-                  className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
-                />
-
-                {decisionModal !== 'APPROVE' && (
-                  <div className="space-y-1.5 mt-2">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase">
-                      Quick Critique Templates:
+                {/* 3. Dedicated Auditor Comments & Change Instructions for Instructor */}
+                <div className="bg-amber-50/80 border-2 border-amber-300 rounded-3xl p-6 sm:p-7 shadow-xs space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black flex items-center justify-center text-sm shadow-xs">
+                        💬
+                      </div>
+                      <div>
+                        <h3 className="text-base font-extrabold text-slate-900">
+                          Auditor Instructions &amp; Change Requirements for Instructor
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          These instructions will be dispatched directly to the instructor via in-app dashboard notification and review decision email.
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        'Video lecture audio clarity & resolution need enhancement',
-                        'Add missing study material / PDF notes for major modules',
-                        'Curriculum sequence and lecture titles require correction',
-                        'Pricing & course overview details need adjustment'
-                      ].map((tpl) => (
-                        <button
-                          key={tpl}
-                          type="button"
-                          onClick={() =>
-                            setDecisionNote((prev) => (prev ? prev + '\n• ' + tpl : '• ' + tpl))
-                          }
-                          className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                    <span className="text-xs font-bold text-amber-900 bg-amber-200/80 px-3 py-1 rounded-full shrink-0">
+                      Instructor Notification
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={4}
+                    value={overallComments}
+                    onChange={(e) => {
+                      setOverallComments(e.target.value);
+                      setModalComment(e.target.value);
+                    }}
+                    placeholder="Enter comprehensive review instructions detailing all updates required from the instructor before this course can be approved (e.g. re-record low volume lectures in Module 2, adjust passing threshold to 70%, expand prerequisite guidelines)..."
+                    className="w-full text-xs sm:text-sm p-4 rounded-2xl border border-amber-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* 4. Final Decision Submission Bar */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-3xl p-6 sm:p-7 text-white space-y-4 shadow-xl border border-slate-700">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div>
+                      <h3 className="text-base font-black text-white">
+                        Submit Auditor Verdict &amp; Dispatch Notification
+                      </h3>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        Your decision will immediately update course status and notify instructor <strong className="text-white">{course.instructor?.name}</strong> ({course.instructor?.email}).
+                      </p>
+                    </div>
+
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/15 text-slate-200">
+                      Logged in as Auditor
+                    </span>
+                  </div>
+
+                  {/* Approval Readiness Banner */}
+                  {discrepancies.length > 0 ? (
+                    <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-400/40 flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <span className="font-extrabold text-amber-300 block">
+                          Approval Disabled: {discrepancies.length} Item(s) Marked with Changes or Rejection
+                        </span>
+                        <p className="text-slate-300 mt-0.5 leading-relaxed">
+                          Course approval is locked because revision requests or rejections exist on curriculum items. You must either approve all sections and lessons or click <strong>&quot;Send Changes Request to Instructor&quot;</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <span className="font-extrabold text-emerald-300 block">
+                          All Requirements Verified &bull; Approval Enabled
+                        </span>
+                        <p className="text-slate-300 mt-0.5 leading-relaxed">
+                          Zero pending changes or rejections found. All course curriculum sections and materials are compliant. You can now approve and publish this course live.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                    {/* Reject Button */}
+                    <button
+                      type="button"
+                      disabled={submittingVerdict}
+                      onClick={() => handleSubmitVerdict('REJECT')}
+                      className="px-5 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {submittingVerdict ? 'Submitting...' : '❌ Reject Course Submission'}
+                    </button>
+
+                    {/* Request Changes Button */}
+                    <button
+                      type="button"
+                      disabled={submittingVerdict}
+                      onClick={() => handleSubmitVerdict('REQUEST_CHANGES')}
+                      className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4 text-slate-950" />
+                      <span>{submittingVerdict ? 'Submitting...' : '⚠️ Send Changes Request to Instructor'}</span>
+                    </button>
+
+                    {/* Approve Button - strictly disabled when any changes/rejections exist */}
+                    <button
+                      type="button"
+                      disabled={submittingVerdict || discrepancies.length > 0}
+                      onClick={() => handleSubmitVerdict('APPROVE')}
+                      className={`px-6 py-3 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 ${
+                        discrepancies.length > 0 || submittingVerdict
+                          ? 'bg-slate-700/60 text-slate-400 border border-slate-600/60 cursor-not-allowed opacity-60 shadow-none'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-emerald-900/30'
+                      }`}
+                      title={
+                        discrepancies.length > 0
+                          ? `Approval is disabled: ${discrepancies.length} item(s) have requested changes or rejections.`
+                          : 'Approve and publish course'
+                      }
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{submittingVerdict ? 'Submitting...' : '✓ Approve & Publish Course'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Interactive Item Inspector Modal (Quiz, Article, PDF, Resources) */}
+        {inspectModal && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200 space-y-5 my-8 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95">
+              {/* Modal Top Bar */}
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white shadow-xs ${
+                      inspectModal.type === 'QUIZ'
+                        ? 'bg-amber-500 text-slate-950'
+                        : inspectModal.type === 'ARTICLE'
+                        ? 'bg-emerald-600'
+                        : inspectModal.type === 'PDF'
+                        ? 'bg-rose-600'
+                        : 'bg-indigo-600'
+                    }`}
+                  >
+                    {inspectModal.type === 'QUIZ' ? (
+                      <HelpCircle className="w-5 h-5 text-slate-950" />
+                    ) : inspectModal.type === 'ARTICLE' ? (
+                      <BookOpen className="w-5 h-5 text-white" />
+                    ) : inspectModal.type === 'PDF' ? (
+                      <FileText className="w-5 h-5 text-white" />
+                    ) : (
+                      <Paperclip className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                          inspectModal.type === 'QUIZ'
+                            ? 'bg-amber-100 text-amber-900'
+                            : inspectModal.type === 'ARTICLE'
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : inspectModal.type === 'PDF'
+                            ? 'bg-rose-100 text-rose-900'
+                            : 'bg-indigo-100 text-indigo-900'
+                        }`}
+                      >
+                        {inspectModal.type === 'QUIZ'
+                          ? 'Quiz Inspection'
+                          : inspectModal.type === 'ARTICLE'
+                          ? 'Article Reader'
+                          : inspectModal.type === 'PDF'
+                          ? 'Document Inspection'
+                          : 'Resources & Attachments'}
+                      </span>
+                      <span className="text-xs text-slate-400 font-mono">
+                        {inspectModal.moduleTitle}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
+                      {inspectModal.lessonTitle}
+                    </h3>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setInspectModal(null)}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 rounded-lg cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Content Body */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                {/* 1. QUIZ VIEW */}
+                {inspectModal.type === 'QUIZ' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2 p-3 bg-amber-50/70 rounded-2xl border border-amber-200 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">Total Questions</span>
+                        <span className="text-sm font-black text-slate-900">
+                          {inspectModal.data?.questions?.length || 0} Questions
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">Passing Score</span>
+                        <span className="text-sm font-black text-slate-900">
+                          {inspectModal.data?.passingScore ?? 70}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">Attempt Limit</span>
+                        <span className="text-sm font-black text-slate-900">
+                          {inspectModal.data?.attemptLimit === 0
+                            ? 'Unlimited'
+                            : `${inspectModal.data?.attemptLimit || 3} Attempts`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {inspectModal.data?.description && (
+                      <p className="text-xs text-slate-600 italic px-1">{inspectModal.data.description}</p>
+                    )}
+
+                    {(!inspectModal.data?.questions || inspectModal.data.questions.length === 0) ? (
+                      <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500">
+                        No quiz questions attached to this lesson.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {inspectModal.data.questions.map((q: any, qIdx: number) => {
+                          const correctIdx =
+                            q.correctIndex !== undefined ? q.correctIndex : q.correctOptionIndex ?? 0;
+
+                          return (
+                            <div
+                              key={q.id || qIdx}
+                              className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-2.5">
+                                  <span className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                    {qIdx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-900 leading-snug">
+                                    {q.question}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-mono font-bold text-slate-600 shrink-0">
+                                  {q.points || 10} Pts
+                                </span>
+                              </div>
+
+                              {/* Options */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 pl-8">
+                                {q.options?.map((opt: any, optIdx: number) => {
+                                  const optText =
+                                    typeof opt === 'string' ? opt : opt.text || `Option ${optIdx + 1}`;
+                                  const isCorrect = optIdx === correctIdx || opt.isCorrect === true;
+
+                                  return (
+                                    <div
+                                      key={optIdx}
+                                      className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                                        isCorrect
+                                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold ring-1 ring-emerald-500/30'
+                                          : 'bg-white border-slate-200 text-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span
+                                          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                            isCorrect
+                                              ? 'bg-emerald-600 text-white'
+                                              : 'bg-slate-100 text-slate-500'
+                                          }`}
+                                        >
+                                          {String.fromCharCode(65 + optIdx)}
+                                        </span>
+                                        <span className="truncate">{optText}</span>
+                                      </div>
+                                      {isCorrect && (
+                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
+                                          ✓ Correct
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {q.explanation && (
+                                <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[11px] text-amber-900 ml-8 leading-relaxed">
+                                  <strong>💡 Explanation:</strong> {q.explanation}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. ARTICLE / TEXT VIEW */}
+                {inspectModal.type === 'ARTICLE' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">Reading Time</span>
+                        <span className="text-sm font-black text-slate-900">
+                          {Math.max(1, Math.ceil((inspectModal.data?.content?.split(/\s+/).length || 0) / 180))} min read
+                        </span>
+                      </div>
+                      <div className="border-l border-emerald-200 pl-4">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">Word Count</span>
+                        <span className="text-sm font-black text-slate-900">
+                          {inspectModal.data?.content?.split(/\s+/).length || 0} words
+                        </span>
+                      </div>
+                      <div className="border-l border-emerald-200 pl-4">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">Format</span>
+                        <span className="text-sm font-black text-slate-900">Article Text</span>
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50/70 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 leading-relaxed font-sans space-y-3 whitespace-pre-wrap">
+                      {inspectModal.data?.content || 'No article content provided.'}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. PDF DOCUMENT VIEW */}
+                {inspectModal.type === 'PDF' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-rose-50/60 rounded-2xl border border-rose-200 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-rose-800 uppercase block">Protected Document</span>
+                        <span className="text-xs font-black text-slate-900 truncate max-w-sm block">
+                          {inspectModal.data?.pdfUrl}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a
+                          href={inspectModal.data?.pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs"
                         >
-                          + {tpl}
-                        </button>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Open in Tab</span>
+                        </a>
+                        <a
+                          href={inspectModal.data?.pdfUrl}
+                          download
+                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download PDF</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    {inspectModal.data?.pdfUrl ? (
+                      <div className="w-full h-[450px] bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden shadow-inner">
+                        <iframe
+                          src={inspectModal.data.pdfUrl}
+                          className="w-full h-full"
+                          title="PDF Document Viewer"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center bg-slate-50 rounded-2xl text-slate-500 text-xs">
+                        No PDF document attached.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. RESOURCES VIEW */}
+                {inspectModal.type === 'RESOURCE' && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-indigo-50/70 rounded-2xl border border-indigo-200 text-xs">
+                      <span className="text-[10px] font-bold text-indigo-800 uppercase block">Downloadable Course Resources</span>
+                      <span className="text-sm font-black text-slate-900">
+                        {inspectModal.data?.resources?.length || 0} Files &amp; Attachments
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {inspectModal.data?.resources?.map((resItem: any, rIdx: number) => (
+                        <div
+                          key={rIdx}
+                          className="p-3.5 rounded-2xl border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs hover:border-indigo-300 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                              <Paperclip className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-900 truncate">
+                                {resItem.title}
+                              </div>
+                              <div className="text-[10px] text-slate-500">
+                                {resItem.type || 'Attachment'} {resItem.size ? `• ${resItem.size}` : ''}
+                              </div>
+                            </div>
+                          </div>
+
+                          <a
+                            href={resItem.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download</span>
+                          </a>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
 
-              {decisionModal === 'REJECT' && (
-                <label className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={confirmRejectCompliance}
-                    onChange={(e) => setConfirmRejectCompliance(e.target.checked)}
-                    className="mt-0.5 accent-rose-600"
-                  />
-                  <span className="font-semibold">
-                    I confirm that the course does not meet platform quality or policy requirements.
-                  </span>
-                </label>
-              )}
-            </div>
+              {/* Modal Bottom Quick Action Bar */}
+              <div className="border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSetItemIssue(inspectModal.lessonId, inspectModal.lessonTitle, inspectModal.itemType, 'APPROVED', '');
+                      setInspectModal(null);
+                      showToast('Approved', `"${inspectModal.lessonTitle}" marked approved.`);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Approve {inspectModal.itemType}</span>
+                  </button>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3.5 bg-slate-50/50 shrink-0">
-              <div>
-                {decisionModal === 'REQUEST_CHANGES' && (
-                  <span className="text-xs font-bold text-amber-700">
-                    {Object.values(auditChecklist).filter((it) => it.flagged).length} items flagged
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSetItemIssue(inspectModal.lessonId, inspectModal.lessonTitle, inspectModal.itemType, 'CHANGES_REQUESTED', itemIssues[inspectModal.lessonId]?.feedback || '');
+                      setInspectModal(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Request Changes for this {inspectModal.itemType}</span>
+                  </button>
+                </div>
+
                 <button
-                  onClick={() => setDecisionModal(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+                  type="button"
+                  onClick={() => setInspectModal(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmitDecision}
-                  disabled={submittingDecision}
-                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
-                    decisionModal === 'APPROVE'
-                      ? 'bg-emerald-600 hover:bg-emerald-700'
-                      : decisionModal === 'REQUEST_CHANGES'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-rose-600 hover:bg-rose-700'
-                  }`}
-                >
-                  {submittingDecision
-                    ? 'Submitting Verdict...'
-                    : decisionModal === 'APPROVE'
-                    ? 'Confirm Approve Course ✅'
-                    : decisionModal === 'REQUEST_CHANGES'
-                    ? `Submit Changes Request (${Object.values(auditChecklist).filter((it) => it.flagged).length} Flagged) ⚠️`
-                    : 'Confirm Reject Course ❌'}
+                  Close Preview
                 </button>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Changes Request Confirmation Modal */}
+        {showChangesModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95">
+              <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-amber-500 text-slate-950 font-black flex items-center justify-center text-sm shadow-xs">
+                    ⚠️
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Request Changes from Instructor
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Instructor: <strong>{course?.instructor?.name}</strong> ({course?.instructor?.email})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowChangesModal(false)}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 rounded-lg cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+                    Required Changes &amp; Feedback for Instructor *
+                  </span>
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                    Required
+                  </span>
+                </label>
+                <textarea
+                  rows={5}
+                  value={modalComment}
+                  onChange={(e) => {
+                    setModalComment(e.target.value);
+                    setOverallComments(e.target.value);
+                  }}
+                  placeholder="Specify what changes the instructor needs to make before this course can be published (e.g. replace Video #2 due to audio distortion, update quiz answer key, refine course overview)..."
+                  className="w-full text-xs sm:text-sm p-4 rounded-2xl border border-amber-300 bg-amber-50/40 focus:bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium placeholder:text-slate-400"
+                  autoFocus
+                />
+
+                {discrepancies.length > 0 && (
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1.5">
+                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                      Flagged Items Included in Email ({discrepancies.length}):
+                    </span>
+                    <ul className="list-disc list-inside text-slate-600 text-[11px] space-y-0.5 max-h-32 overflow-y-auto">
+                      {discrepancies.map((d, i) => (
+                        <li key={i}>
+                          <strong className="text-slate-800">{d.target}:</strong> {d.feedback}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowChangesModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={submittingVerdict || (!modalComment.trim() && discrepancies.length === 0)}
+                  onClick={() => executeSendChanges(modalComment)}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-950" />
+                  <span>{submittingVerdict ? 'Sending to Instructor...' : 'Send Changes Request to Instructor'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Sticky Bottom Navigation Bar matching user's screenshot */}
+        <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-3.5 px-4 sm:px-8 shadow-lg flex items-center justify-between gap-4">
+          <div>
+            <button
+              type="button"
+              disabled={currentStep === 1}
+              onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1) as AuditStep)}
+              className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Previous</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/reviewer/courses/${courseId}/preview`}
+              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-2xs transition-colors"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Preview</span>
+            </Link>
+
+            <button
+              type="button"
+              disabled={savingDraft}
+              onClick={handleSaveDraft}
+              className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{savingDraft ? 'Saving...' : 'Save Draft'}</span>
+            </button>
+
+            {currentStep < 5 ? (
+              <button
+                type="button"
+                onClick={() => setCurrentStep((prev) => Math.min(5, prev + 1) as AuditStep)}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                <span>Next: {stepLabels[(currentStep + 1) as AuditStep]}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={submittingVerdict || discrepancies.length > 0}
+                onClick={() => handleSubmitVerdict('APPROVE')}
+                className={`px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all ${
+                  discrepancies.length > 0 || submittingVerdict
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60 shadow-none'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                }`}
+                title={
+                  discrepancies.length > 0
+                    ? `Approval is disabled: ${discrepancies.length} item(s) have requested changes or rejections.`
+                    : 'Approve Course'
+                }
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Approve Course</span>
+              </button>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </AuditorPortalShell>
   );
 }

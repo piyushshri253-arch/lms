@@ -16,6 +16,91 @@ import {
   SectionIssueItem
 } from '@/lib/course-audit';
 
+function parseQuizFromLesson(les: any, isFinal = false) {
+  let questions: any[] = [];
+  let passingScore = isFinal ? 80 : 70;
+  let attemptLimit = 0;
+  let title = les.title || (isFinal ? 'Final Assessment' : 'Quiz');
+  let description = les.description || '';
+
+  if (les.quizData) {
+    try {
+      const parsed = typeof les.quizData === 'string' ? JSON.parse(les.quizData) : les.quizData;
+      if (Array.isArray(parsed)) {
+        questions = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        questions = Array.isArray(parsed.questions) ? parsed.questions : [];
+        if (parsed.passingScore !== undefined) passingScore = Number(parsed.passingScore);
+        if (parsed.attemptLimit !== undefined) attemptLimit = Number(parsed.attemptLimit);
+        if (parsed.title) title = parsed.title;
+        if (parsed.description) description = parsed.description;
+      }
+    } catch {}
+  }
+
+  if (questions.length === 0 && les.quiz) {
+    passingScore = les.quiz.passingScore ?? (isFinal ? 80 : 70);
+    attemptLimit = les.quiz.maxAttempts ?? 0;
+    title = les.quiz.title || title;
+    description = les.quiz.description || description;
+    if (Array.isArray(les.quiz.questions)) {
+      questions = les.quiz.questions.map((q: any, qIdx: number) => {
+        let opts: string[] = [];
+        let correctIdx = 0;
+        if (Array.isArray(q.options)) {
+          opts = q.options.map((o: any, idx: number) => {
+            if (o.isCorrect) correctIdx = idx;
+            return typeof o === 'string' ? o : o.text || `Option ${idx + 1}`;
+          });
+        }
+        return {
+          id: q.id || `q-${qIdx}`,
+          question: q.question,
+          options: opts.length > 0 ? opts : ['True', 'False'],
+          correctIndex: correctIdx,
+          explanation: q.explanation || '',
+          points: 10
+        };
+      });
+    }
+  }
+
+  const normalizedQuestions = questions.map((q: any, idx: number) => {
+    let opts: string[] = [];
+    let correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+    if (Array.isArray(q.options)) {
+      opts = q.options.map((o: any, oIdx: number) => {
+        if (typeof o === 'object' && o !== null) {
+          if (o.isCorrect) correctIndex = oIdx;
+          return o.text || `Option ${oIdx + 1}`;
+        }
+        return String(o);
+      });
+    }
+    return {
+      id: q.id || `q-${idx + 1}`,
+      question: q.question || q.title || `Question ${idx + 1}`,
+      options: opts.length > 0 ? opts : ['True', 'False'],
+      correctIndex: correctIndex >= 0 ? correctIndex : 0,
+      explanation: q.explanation || '',
+      points: q.points || 10
+    };
+  });
+
+  return {
+    id: les.id,
+    lessonId: les.id,
+    sectionTitle: les.moduleTitle || les.sectionTitle || '',
+    title,
+    description,
+    passingScore,
+    attemptLimit,
+    isFinalAssessment: isFinal,
+    questions: normalizedQuestions,
+    totalQuestions: normalizedQuestions.length
+  };
+}
+
 function computeVersionDiff(liveCourse: any, stagedSnap: any) {
   if (!stagedSnap) return null;
   const changes: Array<{
@@ -150,7 +235,11 @@ export async function GET(
               include: {
                 quiz: {
                   include: {
-                    questions: true
+                    questions: {
+                      include: {
+                        options: true
+                      }
+                    }
                   }
                 }
               }
@@ -185,7 +274,11 @@ export async function GET(
           }
         },
         include: {
-          questions: true
+          questions: {
+            include: {
+              options: true
+            }
+          }
         }
       }),
       getCourseVersionState(course.id),
@@ -254,6 +347,57 @@ export async function GET(
       };
     });
 
+    // Extract and synthesize all quizzes and Final Assessment from lessons
+    const allQuizLessons = allLessons.filter(
+      (l) => l.type === 'QUIZ' || l.quizData || (l.quiz && l.quiz.id)
+    );
+
+    const finalLessonCandidate =
+      allLessons.find(
+        (l: any) =>
+          Boolean(l.isFinalAssignment) ||
+          (l.type === 'QUIZ' && /final\s*(assessment|assignment|exam|test)/i.test(l.title || '')) ||
+          /final\s*(assessment|assignment|exam|test)/i.test(l.title || '')
+      ) || (allQuizLessons.length > 0 ? allQuizLessons[allQuizLessons.length - 1] : null);
+
+    const parsedFinalAssessment = finalLessonCandidate
+      ? parseQuizFromLesson(finalLessonCandidate, true)
+      : null;
+
+    const synthesizedQuizzes: any[] = [];
+    allQuizLessons.forEach((ql) => {
+      const isFinal = Boolean(finalLessonCandidate && ql.id === finalLessonCandidate.id);
+      synthesizedQuizzes.push(parseQuizFromLesson(ql, isFinal));
+    });
+
+    // Also include any relational quizzes that weren't attached to lesson.quizData
+    courseQuizzes.forEach((rq: any) => {
+      if (!synthesizedQuizzes.some((sq) => sq.id === rq.id || sq.lessonId === rq.lessonId)) {
+        synthesizedQuizzes.push({
+          id: rq.id,
+          lessonId: rq.lessonId,
+          sectionTitle: 'Course Quiz',
+          title: rq.title,
+          description: rq.description,
+          passingScore: rq.passingScore || 70,
+          attemptLimit: rq.maxAttempts || 0,
+          isFinalAssessment: false,
+          questions: (rq.questions || []).map((q: any, idx: number) => ({
+            id: q.id || `q-${idx}`,
+            question: q.question,
+            options: (q.options || []).map((o: any) => (typeof o === 'string' ? o : o.text || '')),
+            correctIndex:
+              (q.options || []).findIndex((o: any) => o.isCorrect) >= 0
+                ? (q.options || []).findIndex((o: any) => o.isCorrect)
+                : 0,
+            explanation: q.explanation || '',
+            points: 10
+          })),
+          totalQuestions: rq.questions?.length || 0
+        });
+      }
+    });
+
     return NextResponse.json({
       success: true,
       course: {
@@ -261,7 +405,8 @@ export async function GET(
         learningOutcomes,
         requirementsList,
         audienceList,
-        quizzes: courseQuizzes,
+        quizzes: synthesizedQuizzes,
+        finalAssessment: parsedFinalAssessment,
         outcomeMappings
       },
       submissionType,
