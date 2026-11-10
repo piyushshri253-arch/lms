@@ -19,6 +19,12 @@ interface QueueCourseItem {
   versionLabel: string;
   totalLessons: number;
   totalSections: number;
+  contentCounts?: {
+    videos: number;
+    pdfs: number;
+    quizzes: number;
+    articles: number;
+  };
   updatedAt: string;
   instructor: {
     id: string;
@@ -48,12 +54,14 @@ function ReviewerDashboardContent() {
     approvedToday: 0,
     approved: 0,
     changesRequested: 0,
+    rejected: 0,
     recentlyUpdated: 0,
     avgReviewTime: '1.8 hrs',
     total: 0
   });
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('CARDS');
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingInstructorsCount, setPendingInstructorsCount] = useState(0);
 
@@ -290,7 +298,7 @@ function ReviewerDashboardContent() {
             type="button"
             onClick={() => {
               setActiveFilter('IN_REVIEW');
-              const el = document.getElementById('audit-queue-section');
+              const el = document.getElementById('inspect-courses-studio');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
             className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold flex items-center gap-2 shadow-md transition-all cursor-pointer"
@@ -311,25 +319,137 @@ function ReviewerDashboardContent() {
         </div>
       </div>
 
-      {/* 2. Two Primary Workspace Cards (Course Audit vs Instructor Applications) */}
+      {/* 2. Auditor Metric Cards Grid (Card Format for Total, Pending, Review Done, Changes Requested, Rejected) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        {[
+          {
+            key: 'ALL',
+            label: 'Total Courses',
+            count: stats.total,
+            sub: 'All submissions',
+            icon: 'library_books',
+            activeClass: 'border-slate-900 bg-slate-900 text-white shadow-md scale-[1.02]',
+            inactiveClass: 'bg-white border-slate-200 hover:border-slate-400 text-slate-900',
+            badgeBg: 'bg-slate-100 text-slate-700'
+          },
+          {
+            key: 'IN_REVIEW',
+            label: 'Pending Audit',
+            count: stats.pendingReview,
+            sub: 'Awaiting inspection',
+            icon: 'hourglass_top',
+            activeClass: 'border-amber-500 bg-amber-500 text-slate-950 shadow-md scale-[1.02]',
+            inactiveClass: 'bg-amber-50/40 border-amber-200/80 hover:border-amber-400 text-slate-900',
+            badgeBg: 'bg-amber-100 text-amber-900',
+            dot: 'bg-amber-500 animate-pulse'
+          },
+          {
+            key: 'APPROVED',
+            label: 'Review Done / Approved',
+            count: stats.approved,
+            sub: 'Verified & live',
+            icon: 'check_circle',
+            activeClass: 'border-emerald-600 bg-emerald-600 text-white shadow-md scale-[1.02]',
+            inactiveClass: 'bg-emerald-50/40 border-emerald-200/80 hover:border-emerald-400 text-slate-900',
+            badgeBg: 'bg-emerald-100 text-emerald-900'
+          },
+          {
+            key: 'CHANGES_REQUESTED',
+            label: 'Changes Requested',
+            count: stats.changesRequested,
+            sub: 'Awaiting fixes',
+            icon: 'edit_note',
+            activeClass: 'border-orange-500 bg-orange-500 text-white shadow-md scale-[1.02]',
+            inactiveClass: 'bg-orange-50/40 border-orange-200/80 hover:border-orange-400 text-slate-900',
+            badgeBg: 'bg-orange-100 text-orange-900'
+          },
+          {
+            key: 'REJECTED',
+            label: 'Rejected Courses',
+            count: stats.rejected,
+            sub: 'Non-compliant',
+            icon: 'cancel',
+            activeClass: 'border-rose-600 bg-rose-600 text-white shadow-md scale-[1.02]',
+            inactiveClass: 'bg-rose-50/40 border-rose-200/80 hover:border-rose-400 text-slate-900',
+            badgeBg: 'bg-rose-100 text-rose-900'
+          }
+        ].map((kpi) => {
+          const isSelected = activeFilter === kpi.key;
+          return (
+            <button
+              key={kpi.key}
+              type="button"
+              onClick={() => {
+                setActiveFilter(kpi.key);
+                const el = document.getElementById('inspect-courses-studio');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`p-4 rounded-3xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between space-y-2 shadow-xs group ${
+                isSelected ? kpi.activeClass : kpi.inactiveClass
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-colors ${
+                    isSelected ? 'bg-white/20 text-white' : kpi.badgeBg
+                  }`}
+                >
+                  <Icon name={kpi.icon} size={20} />
+                </div>
+                {kpi.dot && !isSelected && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                    <span className={`w-1.5 h-1.5 rounded-full ${kpi.dot}`} />
+                    Action
+                  </span>
+                )}
+              </div>
+              <div>
+                <div
+                  className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                    isSelected ? 'text-inherit' : 'text-slate-900'
+                  }`}
+                >
+                  {kpi.count}
+                </div>
+                <div
+                  className={`text-xs font-black mt-0.5 ${
+                    isSelected ? 'text-inherit' : 'text-slate-800'
+                  }`}
+                >
+                  {kpi.label}
+                </div>
+                <div
+                  className={`text-[11px] truncate mt-0.5 ${
+                    isSelected ? 'opacity-85' : 'text-slate-500'
+                  }`}
+                >
+                  {kpi.sub}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 3. Two Primary Workspace Cards (Inspect Courses vs Instructor Applications) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Card 1: Course Audit Queue */}
+        {/* Card 1: Inspect Courses Studio */}
         <div className="bg-white border-2 border-slate-200 hover:border-emerald-500 rounded-3xl p-6 shadow-xs transition-all flex flex-col justify-between space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
-                <Icon name="school" size={24} />
+                <Icon name="fact_check" size={24} />
               </div>
               <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                {stats.pendingReview} Awaiting Action
+                {stats.pendingReview} Awaiting Inspection
               </span>
             </div>
             <div>
               <h3 className="text-base font-extrabold text-slate-900">
-                Course Review &amp; Quality Inspection
+                Inspect Courses &amp; Curriculum Studio
               </h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Inspect video streaming, lecture structure, quiz questions, and pricing compliance. Give approval or request changes using the 1-click checklist.
+                Inspect video streaming, lecture structure, quiz questions, PDF notes, and pricing compliance. Give approval or request changes using the 1-click checklist.
               </p>
             </div>
           </div>
@@ -342,7 +462,7 @@ function ReviewerDashboardContent() {
               type="button"
               onClick={() => {
                 setActiveFilter('IN_REVIEW');
-                const el = document.getElementById('audit-queue-section');
+                const el = document.getElementById('inspect-courses-studio');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
               className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
@@ -429,8 +549,8 @@ function ReviewerDashboardContent() {
         </div>
       </div>
 
-      {/* 4. Course Audit Queue Section */}
-      <div id="audit-queue-section" className="space-y-4 pt-2">
+      {/* 4. Inspect Courses Studio Section */}
+      <div id="inspect-courses-studio" className="space-y-4 pt-2">
         {/* Filter Tabs & Search Bar */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -440,7 +560,8 @@ function ReviewerDashboardContent() {
                 { id: 'ALL', label: 'All Courses', count: stats.total || courses.length },
                 { id: 'IN_REVIEW', label: '🟡 Awaiting Audit', count: stats.pendingReview },
                 { id: 'CHANGES_REQUESTED', label: '⚠️ Changes Requested', count: stats.changesRequested },
-                { id: 'APPROVED', label: '✅ Approved', count: stats.approved }
+                { id: 'APPROVED', label: '✅ Approved', count: stats.approved },
+                { id: 'REJECTED', label: '❌ Rejected', count: stats.rejected }
               ].map((pill) => (
                 <button
                   key={pill.id}
@@ -511,23 +632,58 @@ function ReviewerDashboardContent() {
           </div>
         </div>
 
-        {/* 5. Main Queue Table / Cards */}
+        {/* 5. Main Inspect Courses Container (Cards or Table) */}
         <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-slate-50/80 to-white">
             <div>
-              <h2 className="text-sm font-extrabold text-slate-900">
-                Course Submissions Queue ({courses.length})
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 mb-1">
+                <Icon name="fact_check" size={13} />
+                <span>Inspect Courses Studio</span>
+              </div>
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <span>Inspect Courses</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  {courses.length} courses
+                </span>
               </h2>
               <p className="text-xs text-slate-500">
-                Click <strong className="text-slate-800">&quot;Inspect Course →&quot;</strong> to start evaluating curriculum, videos, and quizzes.
+                Click <strong className="text-slate-800">&quot;Inspect Course →&quot;</strong> on any card to evaluate curriculum videos, PDF notes, quizzes, and resources.
               </p>
+            </div>
+
+            {/* View Mode Toggle (Cards vs Table) */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('CARDS')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'CARDS'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Icon name="grid_view" size={15} />
+                <span>Cards View</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('TABLE')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'TABLE'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Icon name="view_list" size={15} />
+                <span>Table View</span>
+              </button>
             </div>
           </div>
 
           {loading ? (
             <div className="p-16 text-center space-y-3">
               <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-              <div className="text-xs font-bold text-slate-700">Loading Auditor Review Queue...</div>
+              <div className="text-xs font-bold text-slate-700">Loading Courses for Inspection...</div>
             </div>
           ) : courses.length === 0 ? (
             <div className="p-16 text-center space-y-3">
@@ -549,7 +705,170 @@ function ReviewerDashboardContent() {
                 Show All Courses
               </button>
             </div>
+          ) : viewMode === 'CARDS' ? (
+            /* Cards View */
+            <div className="p-5 sm:p-6 bg-slate-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courses.map((course) => (
+                  <div
+                    key={course.id}
+                    className="bg-white rounded-3xl border-2 border-slate-200 hover:border-emerald-500 hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
+                  >
+                    {/* Media Header */}
+                    <div className="relative aspect-video w-full bg-slate-900 overflow-hidden">
+                      {course.thumbnail ? (
+                        <img
+                          src={course.thumbnail}
+                          alt={course.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950">
+                          <Icon name="school" size={40} className="text-slate-500 mb-1" />
+                          <span className="text-xs font-semibold">Morena Teach Course</span>
+                        </div>
+                      )}
+
+                      {/* Dark Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/50 pointer-events-none" />
+
+                      {/* Top Badges */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/95 backdrop-blur-md text-slate-800 shadow-xs border border-white/40">
+                          {course.category?.name || 'General'}
+                        </span>
+                        {getStatusBadge(course.effectiveReviewStatus || course.status)}
+                      </div>
+
+                      {/* Bottom Image Badges */}
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-[11px] font-bold">
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-900/85 backdrop-blur-md border border-white/20 text-[10px] font-mono">
+                            {course.versionLabel || 'v1.0'}
+                          </span>
+                          {getTypeBadge(course.submissionType)}
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white font-mono text-xs shadow-xs">
+                          {course.price > 0 ? `₹${course.price}` : 'Free'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card Content Body */}
+                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                      <div className="space-y-3">
+                        {/* Course Title */}
+                        <Link
+                          href={`/reviewer/courses/${course.id}`}
+                          className="block font-black text-slate-900 text-sm leading-snug line-clamp-2 hover:text-emerald-600 transition-colors"
+                          title={course.title}
+                        >
+                          {course.title}
+                        </Link>
+
+                        {/* Instructor Info */}
+                        <div className="flex items-center gap-2.5 pt-1">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700 shrink-0 overflow-hidden">
+                            {course.instructor?.avatar ? (
+                              <img
+                                src={course.instructor.avatar}
+                                alt={course.instructor.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span>{course.instructor?.name?.charAt(0) || 'I'}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-800 truncate">
+                              {course.instructor?.name || 'Instructor'}
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {course.instructor?.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Curriculum Content Counters (Video, PDF, Quiz, Resources) */}
+                        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
+                          <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
+                            <Icon name="play_circle" size={15} className="text-indigo-600 shrink-0" />
+                            <span className="font-semibold truncate">
+                              {course.contentCounts?.videos ?? course.totalLessons} Videos
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
+                            <Icon name="picture_as_pdf" size={15} className="text-rose-600 shrink-0" />
+                            <span className="font-semibold truncate">
+                              {course.contentCounts?.pdfs ?? 0} PDFs
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
+                            <Icon name="quiz" size={15} className="text-amber-600 shrink-0" />
+                            <span className="font-semibold truncate">
+                              {course.contentCounts?.quizzes ?? 0} Quizzes
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
+                            <Icon name="article" size={15} className="text-emerald-600 shrink-0" />
+                            <span className="font-semibold truncate">
+                              {course.contentCounts?.articles ?? 0} Resources
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Modules count and Submitted Date */}
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono px-1">
+                          <span>{course.totalSections} Modules Total</span>
+                          <span>
+                            {new Date(course.auditMeta?.submittedAt || course.updatedAt).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card Bottom Actions: Prominent Inspect Course Button */}
+                      <div className="pt-3 border-t border-slate-100 space-y-2">
+                        <Link
+                          href={`/reviewer/courses/${course.id}`}
+                          className="w-full py-3 px-4 rounded-2xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer group-hover:scale-[1.01]"
+                        >
+                          <Icon name="fact_check" size={16} />
+                          <span>Inspect Course →</span>
+                        </Link>
+
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/reviewer/courses/${course.id}/preview`}
+                            className="flex-1 py-1.5 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-bold text-center inline-flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <Icon name="visibility" size={13} />
+                            <span>Preview</span>
+                          </Link>
+                          {course.effectiveReviewStatus !== 'APPROVED' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDecisionModal({ course, action: 'REQUEST_CHANGES' });
+                                setDecisionNote('');
+                              }}
+                              className="py-1.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-bold transition-colors cursor-pointer"
+                            >
+                              ⚠️ Changes
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
+            /* Table View */
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -840,10 +1159,10 @@ function ReviewerDashboardContent() {
 export default function ReviewerDashboardPage() {
   return (
     <AuditorPortalShell
-      title="Course Auditor Dashboard & Review Queue"
+      title="Course Auditor Dashboard & Inspect Courses Studio"
       subtitle="Inspect and verify course curriculum, protected video/PDF streams, quizzes, and instructor onboardings."
     >
-      <Suspense fallback={<div className="p-8 text-xs text-slate-500">Loading Audit Queue...</div>}>
+      <Suspense fallback={<div className="p-8 text-xs text-slate-500">Loading Inspect Courses Studio...</div>}>
         <ReviewerDashboardContent />
       </Suspense>
     </AuditorPortalShell>

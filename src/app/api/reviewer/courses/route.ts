@@ -109,6 +109,19 @@ export async function GET(request: Request) {
         } catch {}
 
         const totalLessons = c.sections.reduce((sum, s) => sum + s.lessons.length, 0);
+        let totalVideos = 0;
+        let totalPdfs = 0;
+        let totalQuizzes = 0;
+        let totalArticles = 0;
+        c.sections.forEach((s) => {
+          s.lessons.forEach((l) => {
+            if (l.type === 'QUIZ') totalQuizzes++;
+            else if (l.type === 'DOCUMENT' || l.pdfUrl) totalPdfs++;
+            else if (l.type === 'ARTICLE') totalArticles++;
+            else if (l.type === 'VIDEO' || l.videoUrl) totalVideos++;
+            else totalVideos++;
+          });
+        });
         const hasPendingVersionReview =
           c.status === 'PUBLISHED' &&
           versionState.status === 'PENDING_REVIEW' &&
@@ -153,7 +166,13 @@ export async function GET(request: Request) {
           requirementsList: reqList,
           audienceList,
           totalLessons,
-          totalSections: c.sections.length
+          totalSections: c.sections.length,
+          contentCounts: {
+            videos: totalVideos,
+            pdfs: totalPdfs,
+            quizzes: totalQuizzes,
+            articles: totalArticles
+          }
         };
       })
     );
@@ -176,10 +195,13 @@ export async function GET(request: Request) {
 
     const changesRequestedCount = enrichedCourses.filter(
       (c) =>
-        c.status === 'REJECTED' ||
         c.status === 'CHANGES_REQUESTED' ||
         c.effectiveReviewStatus === 'CHANGES_REQUESTED' ||
         c.versionState?.status === 'VERSION_REJECTED'
+    ).length;
+
+    const rejectedCount = enrichedCourses.filter(
+      (c) => c.status === 'REJECTED' && c.effectiveReviewStatus !== 'CHANGES_REQUESTED'
     ).length;
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -192,14 +214,13 @@ export async function GET(request: Request) {
     if (statusFilter !== 'ALL') {
       if (statusFilter === 'IN_REVIEW' || statusFilter === 'PENDING') {
         filtered = filtered.filter(
-          (c) => c.effectiveReviewStatus === 'IN_REVIEW' || c.status === 'IN_REVIEW'
+          (c) => c.effectiveReviewStatus === 'IN_REVIEW' || c.status === 'IN_REVIEW' || c.status === 'PENDING_APPROVAL'
         );
       } else if (statusFilter === 'CHANGES_REQUESTED') {
         filtered = filtered.filter(
           (c) =>
             c.effectiveReviewStatus === 'CHANGES_REQUESTED' ||
             c.status === 'CHANGES_REQUESTED' ||
-            c.status === 'REJECTED' ||
             c.versionState?.status === 'VERSION_REJECTED'
         );
       } else if (statusFilter === 'APPROVED') {
@@ -225,6 +246,7 @@ export async function GET(request: Request) {
           (c) => c.status === 'APPROVED' || c.status === 'PUBLISHED'
         ).length,
         changesRequested: changesRequestedCount,
+        rejected: rejectedCount,
         recentlyUpdated: recentlyUpdatedCount,
         avgReviewTime: '1.8 hrs',
         total: enrichedCourses.length

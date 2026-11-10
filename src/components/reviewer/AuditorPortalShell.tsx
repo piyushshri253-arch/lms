@@ -83,7 +83,7 @@ function AuditorPortalShellInner({
       isActive: pathname?.startsWith('/reviewer/instructors')
     },
     {
-      label: 'Pending Review Queue',
+      label: 'Inspect Courses',
       href: '/reviewer?filter=IN_REVIEW',
       icon: ClipboardCheck,
       isActive: pathname === '/reviewer' && currentFilter === 'IN_REVIEW'

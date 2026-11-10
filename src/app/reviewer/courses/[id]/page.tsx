@@ -469,7 +469,7 @@ export default function AuditorCourseReviewPage() {
               href="/reviewer"
               className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors"
             >
-              Back to Audit Queue
+              Back to Inspect Courses
             </Link>
           </div>
         </div>

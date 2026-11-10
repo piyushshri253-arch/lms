@@ -184,15 +184,15 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
           {/* Center Navigation */}
           <nav className="hidden md:flex items-center gap-1">
             <Link
-              href="/reviewer"
+              href="/reviewer?filter=IN_REVIEW"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                 pathname === '/reviewer'
                   ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Icon name="rate_review" size={18} />
-              Audit Queue
+              <Icon name="fact_check" size={18} />
+              Inspect Courses
             </Link>
           </nav>
 
