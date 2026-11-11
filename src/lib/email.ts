@@ -1181,6 +1181,8 @@ export class EmailService {
       options.text ||
       (options.template === 'OTP_VERIFY' && options.data?.otp
         ? `Hello ${options.data?.name || 'User'},\n\nYour Morena Teach email verification OTP code is: ${options.data.otp}\n\nThis verification code will expire in ${options.data?.expiresInMinutes || 10} minutes.\n\nThank you,\nMorena Teach Team`
+        : options.template === 'PASSWORD_RESET' && options.data?.resetUrl
+        ? `Hello ${options.data?.name || 'User'},\n\nWe received a request to reset the password for your Morena Teach account.\n\nPlease click the link below to reset your password:\n${options.data.resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can safely ignore this email.\n\nThank you,\nMorena Teach Team`
         : html
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .replace(/<[^>]+>/g, ' ')
@@ -1246,9 +1248,7 @@ export class EmailService {
           text: plainText,
           html,
           headers: {
-            'X-Entity-Ref-ID': messageId,
-            'X-Priority': '1 (Highest)',
-            Importance: 'High'
+            'X-Entity-Ref-ID': messageId
           }
         };
 

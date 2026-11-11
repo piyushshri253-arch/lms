@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     // Dispatch Email
     await sendEmail({
       to: normalizedEmail,
-      subject: 'Reset Your Account Password',
+      subject: 'Morena Teach — Password Reset Request',
       template: 'PASSWORD_RESET',
       userId: user.id,
       organizationId: user.organizationId,
@@ -94,9 +94,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Password reset link has been sent to your email address.',
-      resetUrl,
-      localResetUrl
+      message: 'Password reset link has been sent to your email address.'
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]:', err);
