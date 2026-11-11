@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
 
-    if (!['INSTRUCTOR', 'TEACHER', 'SUPER_ADMIN', 'LMS_ADMIN', 'ADMIN'].includes(session.role)) {
+    if (!['INSTRUCTOR', 'TEACHER', 'REVIEWER', 'AUDITOR', 'SUPER_ADMIN', 'LMS_ADMIN', 'ADMIN'].includes(session.role)) {
       return NextResponse.json({ error: 'Forbidden: Instructor access required.' }, { status: 403 });
     }
 

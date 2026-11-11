@@ -115,10 +115,10 @@ function InstructorPortalShellInner({
     },
     {
       label: 'My Courses',
-      href: '/instructor',
+      href: '/instructor/courses',
       icon: BookOpen,
       isActive:
-        pathname === '/instructor' &&
+        (pathname === '/instructor' || pathname === '/instructor/courses') &&
         !isCreate &&
         currentTab !== 'students' &&
         currentTab !== 'notifications'

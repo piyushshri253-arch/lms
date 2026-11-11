@@ -434,12 +434,49 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    if (!isLmsValid) {
-      if (pathname.startsWith('/instructor')) {
+    const effectiveInstructorSession = lmsSession || reviewerSession;
+    const isInstructorAuthValid =
+      isLmsValid ||
+      (isReviewerValid &&
+        ['REVIEWER', 'AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'INSTRUCTOR', 'TEACHER'].includes(reviewerSession?.role || ''));
+
+    // Instructor Portal Protection (/instructor and /instructor/*)
+    if (pathname.startsWith('/instructor')) {
+      if (!isInstructorAuthValid || !effectiveInstructorSession) {
         return NextResponse.redirect(
           new URL('/instructor/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
         );
       }
+
+      if (effectiveInstructorSession.emailVerified === false) {
+        return NextResponse.redirect(
+          new URL(
+            `/verify-email?email=${encodeURIComponent(effectiveInstructorSession.email || '')}&role=INSTRUCTOR`,
+            request.url
+          )
+        );
+      }
+
+      const role = effectiveInstructorSession.role;
+      const canAccessInstructor =
+        role === 'INSTRUCTOR' ||
+        role === 'TEACHER' ||
+        role === 'REVIEWER' ||
+        role === 'AUDITOR' ||
+        role === 'ADMIN' ||
+        role === 'LMS_ADMIN' ||
+        role === 'SUPER_ADMIN';
+
+      if (!canAccessInstructor) {
+        return NextResponse.redirect(
+          new URL(
+            '/instructor/login?error=' +
+              encodeURIComponent('Access denied: Only instructor accounts can access the Instructor Studio.'),
+            request.url
+          )
+        );
+      }
+    } else if (!isLmsValid) {
       if (isSalesValid) {
         return NextResponse.redirect(
           new URL(
@@ -452,36 +489,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(
         new URL('/login?callbackUrl=' + encodeURIComponent(pathname + search), request.url)
       );
-    }
-
-    // Role boundary: /instructor/* requires INSTRUCTOR, ADMIN, or SUPER_ADMIN and emailVerified !== false
-    if (pathname.startsWith('/instructor')) {
-      if (lmsSession?.emailVerified === false) {
-        return NextResponse.redirect(
-          new URL(
-            `/verify-email?email=${encodeURIComponent(lmsSession.email || '')}&role=INSTRUCTOR`,
-            request.url
-          )
-        );
-      }
-
-      const lmsRole = lmsSession?.role;
-      const canAccessInstructor =
-        lmsRole === 'INSTRUCTOR' ||
-        lmsRole === 'REVIEWER' ||
-        lmsRole === 'ADMIN' ||
-        lmsRole === 'LMS_ADMIN' ||
-        lmsRole === 'SUPER_ADMIN';
-
-      if (!canAccessInstructor) {
-        return NextResponse.redirect(
-          new URL(
-            '/instructor/login?error=' +
-              encodeURIComponent('Access denied: Only instructor accounts can access the Instructor Studio.'),
-            request.url
-          )
-        );
-      }
     }
 
     // Canonicalize legacy /dashboard and /student paths to designated student learning routes

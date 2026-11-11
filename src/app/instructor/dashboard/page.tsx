@@ -28,14 +28,35 @@ export default function InstructorDashboardPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let active = true;
+    const timeout = setTimeout(() => {
+      if (active && loading) {
+        setLoading(false);
+        setError('Loading took longer than expected. Please retry or click My Courses.');
+      }
+    }, 12000);
+
     fetch('/api/instructor/overview')
       .then((r) => r.json())
       .then((res) => {
+        if (!active) return;
         if (res.error) setError(res.error);
         else setData(res);
       })
-      .catch((e) => setError(e.message || 'Failed to load dashboard'))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (!active) return;
+        setError(e.message || 'Failed to load dashboard');
+      })
+      .finally(() => {
+        if (!active) return;
+        clearTimeout(timeout);
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
   }, []);
 
   if (loading) {
