@@ -1205,12 +1205,8 @@ export class EmailService {
             ? config.smtpUsername
             : config.fromEmail;
 
-        // Prevent hard bounces (550 5.1.1) when sending to seeded @morenateach.com addresses that don't have Google Workspace mailboxes
-        const targetToEmail =
-          options.to.toLowerCase().endsWith('@morenateach.com') &&
-          options.to.toLowerCase() !== 'morena@morenateach.com'
-            ? 'morena@morenateach.com'
-            : options.to;
+        // Direct delivery to intended recipient
+        const targetToEmail = options.to;
 
         // On serverless platforms like Vercel, port 465 (direct SSL) is recommended for Gmail because AWS Lambda blocks/throttles port 587 STARTTLS!
         const initialPort = isGmail ? 465 : config.smtpPort;
