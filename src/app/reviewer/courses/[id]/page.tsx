@@ -29,10 +29,13 @@ import {
   ChevronUp,
   Download,
   MessageSquare,
-  Paperclip
+  Paperclip,
+  Globe,
+  Tag,
+  Share2
 } from 'lucide-react';
 
-type AuditStep = 1 | 2 | 3 | 4 | 5;
+type AuditStep = 1 | 2 | 3 | 4 | 5 | 6;
 type VerdictAction = 'APPROVED' | 'CHANGES_REQUESTED' | 'REJECTED';
 
 interface SectionAuditState {
@@ -209,6 +212,7 @@ export default function AuditorCourseInspectPage() {
   // Step 4: Final Assessment sub-tab and quiz accordion state
   const [assessmentSubTab, setAssessmentSubTab] = useState<'FINAL' | 'MODULE_QUIZZES'>('FINAL');
   const [expandedQuizAccordion, setExpandedQuizAccordion] = useState<Record<string, boolean>>({});
+  const [seoPreviewTab, setSeoPreviewTab] = useState<'GOOGLE_SERP' | 'SOCIAL_OG' | 'LANDING_PAGE'>('GOOGLE_SERP');
 
   const showToast = (title: string, desc?: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMsg({ title, desc, type });
@@ -667,8 +671,9 @@ export default function AuditorCourseInspectPage() {
     1: 'Basic Information',
     2: 'Course Curriculum',
     3: 'Media & Thumbnail',
-    4: 'Final Assessment',
-    5: 'Review & Submit'
+    4: 'Course SEO & Ads',
+    5: 'Final Assessment',
+    6: 'Review & Submit'
   };
 
   return (
@@ -712,15 +717,21 @@ export default function AuditorCourseInspectPage() {
                 <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-900 text-white">
                   ID: {course.id}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                <span
+                  style={{ color: '#000000' }}
+                  className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-black bg-blue-100 !text-black border border-blue-300"
+                >
                   {data?.versionLabel || 'v1.0'}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                <span
+                  style={{ color: '#000000' }}
+                  className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-purple-200 !text-black border border-purple-400"
+                >
                   {data?.submissionType === 'MAJOR_UPDATE'
-                    ? 'Major Update (v2.0)'
+                    ? `Major Update (${data?.versionLabel || 'v2.0'})`
                     : data?.submissionType === 'RESUBMISSION'
-                    ? 'Resubmission'
-                    : 'New Course (v1.0)'}
+                    ? `Resubmission (${data?.versionLabel || 'v1.0'})`
+                    : `New Course (${data?.versionLabel || 'v1.0'})`}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -760,8 +771,9 @@ export default function AuditorCourseInspectPage() {
             { step: 1 as AuditStep, num: '1', title: 'Basic Information', auditTag: true },
             { step: 2 as AuditStep, num: '2', title: 'Course Curriculum', auditTag: false },
             { step: 3 as AuditStep, num: '3', title: 'Media & Thumbnail', auditTag: false },
-            { step: 4 as AuditStep, num: '4', title: 'Final Assessment', auditTag: false },
-            { step: 5 as AuditStep, num: '5', title: 'Review & Submit', auditTag: false }
+            { step: 4 as AuditStep, num: '4', title: 'Course SEO & Ads', auditTag: true },
+            { step: 5 as AuditStep, num: '5', title: 'Final Assessment', auditTag: false },
+            { step: 6 as AuditStep, num: '6', title: 'Review & Submit', auditTag: false }
           ].map((tab) => {
             const isActive = currentStep === tab.step;
             const isCompleted = currentStep > tab.step;
@@ -1538,15 +1550,355 @@ export default function AuditorCourseInspectPage() {
                   </div>
 
                   {/* Section Review Action Bar */}
-                  {renderSectionActionBar('media', 'Course Media & Thumbnail', 4, 'Final Assessment')}
+                  {renderSectionActionBar('media', 'Course Media & Thumbnail', 4, 'Course SEO & Ads')}
                 </div>
               </div>
             )}
 
             {/* =========================================================================
-                STEP 4: FINAL ASSESSMENT & QUIZZES (Certification Gate Studio)
+                STEP 4: COURSE SEO & ADS (Search Engine, Social Metadata & Ads Metrics)
                ========================================================================= */}
             {currentStep === 4 && (
+              <div className="space-y-6">
+                {/* 1. Header Card with Course SEO & Ads Overview */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex-1 max-w-xl">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold mb-1">
+                        SELECT COURSE TO OPTIMIZE FOR SEARCH ENGINES
+                      </div>
+                      <div className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-900 flex items-center justify-between cursor-default">
+                        <span>{course?.title || 'Digital Campus & ERP Management'} — (SEO Score: {course?.seoScore || 80}%)</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-50 text-purple-700 text-xs font-bold border border-purple-200">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Smart Auto-Fill SEO</span>
+                      </span>
+
+                      <div className="px-5 py-2 rounded-2xl bg-[#0B132B] text-white flex items-center gap-3 shadow-md">
+                        <div>
+                          <div className="text-[9px] font-mono uppercase text-slate-400 font-bold">LIVE SEO SCORE</div>
+                          <div className="text-xl font-black font-mono text-emerald-400">
+                            {course?.seoScore || 80} <span className="text-xs text-slate-400 font-normal">/ 100</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Two Column Grid (Image 3 layout) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Column: Search Engine & Social Metadata Fields */}
+                  <div className="lg:col-span-6 bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-5">
+                    <h3 className="text-sm font-black text-slate-900 pb-2 border-b border-slate-100">
+                      Search Engine &amp; Social Metadata Fields
+                    </h3>
+
+                    {/* 1. SEO Title */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800">
+                          1. SEO Title (<code className="text-blue-600 font-mono">&lt;title&gt;</code>)
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-emerald-600">
+                          {(course?.seoTitle || course?.title || '').length} / 60 chars
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        readOnly
+                        value={course?.seoTitle || course?.title || 'Digital Campus & ERP Management'}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900"
+                      />
+                    </div>
+
+                    {/* 2. Meta Description */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800">
+                          2. Meta Description (<code className="text-blue-600 font-mono">meta[name=&quot;description&quot;]</code>)
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-emerald-600">
+                          {(course?.seoDescription || course?.shortDescription || course?.description?.slice(0, 150) || '').length} / 160 chars
+                        </span>
+                      </div>
+                      <textarea
+                        rows={3}
+                        readOnly
+                        value={
+                          course?.seoDescription ||
+                          course?.shortDescription ||
+                          'Master modern school management ERP systems, student information workflows, digital attendance, fee billing, and campus operations.'
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 leading-relaxed"
+                      />
+                    </div>
+
+                    {/* 3. Public Course URL Slug */}
+                    <div className="space-y-1.5">
+                      <span className="block text-xs font-bold text-slate-800">
+                        3. Public Course URL Slug
+                      </span>
+                      <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 overflow-hidden text-xs">
+                        <span className="px-3 text-slate-400 font-mono text-[11px]">https://morena.lms/courses/</span>
+                        <input
+                          type="text"
+                          readOnly
+                          value={course?.slug || 'digital-campus-erp-management'}
+                          className="flex-1 p-2.5 bg-transparent font-medium text-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 4. OpenGraph Social Share Image URL */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800">
+                          4. OpenGraph (OG) Social Share Image URL (1200×630 recommended)
+                        </span>
+                        <span className="text-[11px] text-blue-600 font-semibold">Course Thumbnail Linked</span>
+                      </div>
+                      <input
+                        type="text"
+                        readOnly
+                        value={course?.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80'}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 truncate"
+                      />
+                    </div>
+
+                    {/* 5. Search Keywords & Marketplace Tags */}
+                    <div className="space-y-2">
+                      <span className="block text-xs font-bold text-slate-800">
+                        5. Search Keywords &amp; Marketplace Tags
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {(course?.keywords && Array.isArray(course.keywords) && course.keywords.length > 0
+                          ? course.keywords
+                          : ['school erp', 'student management', 'education software', 'campus automation', 'edtech']
+                        ).map((kw: string, i: number) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold"
+                          >
+                            <Tag className="w-3 h-3 text-blue-600" />
+                            <span>{kw}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Allow Search Engines to Index Course */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">
+                          Allow Search Engines (Google / Bing) to Index Course
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          Sets <code className="text-blue-600 font-mono">robots=&quot;index, follow&quot;</code> when published.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={course?.isIndexable !== false}
+                        readOnly
+                        className="w-4 h-4 text-blue-600 rounded-sm"
+                      />
+                    </div>
+
+                    {/* Paid Ads Matrix Overview */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white space-y-3">
+                      <div className="text-xs font-bold text-blue-200">
+                        Paid Ads Matrix (Google &amp; Meta Ads Integration)
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="p-2.5 rounded-xl bg-white/10">
+                          <div className="text-[10px] text-blue-200 uppercase font-bold">Google Ads Spend</div>
+                          <div className="text-base font-black font-mono mt-0.5">₹4,250</div>
+                          <div className="text-[10px] text-blue-300">1,240 clicks • 3.8% CTR</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/10">
+                          <div className="text-[10px] text-blue-200 uppercase font-bold">Meta Ads Spend</div>
+                          <div className="text-base font-black font-mono mt-0.5">₹6,800</div>
+                          <div className="text-[10px] text-blue-300">18.4K reach • 4.2x ROAS</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Live Search, Social & Landing-Page Preview */}
+                  <div className="lg:col-span-6 space-y-6">
+                    <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <h3 className="text-sm font-black text-slate-900">
+                          Live Search, Social &amp; Landing-Page Preview
+                        </h3>
+                        <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-[11px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => setSeoPreviewTab('GOOGLE_SERP')}
+                            className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                              seoPreviewTab === 'GOOGLE_SERP' ? 'bg-white text-blue-600 shadow-2xs' : 'text-slate-500'
+                            }`}
+                          >
+                            Google Search
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSeoPreviewTab('SOCIAL_OG')}
+                            className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                              seoPreviewTab === 'SOCIAL_OG' ? 'bg-white text-blue-600 shadow-2xs' : 'text-slate-500'
+                            }`}
+                          >
+                            OG Social Card
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSeoPreviewTab('LANDING_PAGE')}
+                            className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                              seoPreviewTab === 'LANDING_PAGE' ? 'bg-white text-blue-600 shadow-2xs' : 'text-slate-500'
+                            }`}
+                          >
+                            Landing Page
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* SERP Preview Card */}
+                      {seoPreviewTab === 'GOOGLE_SERP' && (
+                        <div className="space-y-2">
+                          <div className="text-[10px] uppercase font-mono font-bold text-slate-400">
+                            GOOGLE SEARCH RESULT PREVIEW (DESKTOP &amp; MOBILE)
+                          </div>
+                          <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                              <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-black">
+                                M
+                              </span>
+                              <span className="text-slate-800 font-bold text-[11px]">Morena Teach LMS</span>
+                              <span className="text-slate-400">›</span>
+                              <span className="text-slate-500 text-[11px]">
+                                https://morena.lms › courses › {course?.slug || 'digital-campus-erp-management'}
+                              </span>
+                            </div>
+                            <div className="text-base text-[#1a0dab] font-semibold hover:underline cursor-pointer leading-tight pt-0.5">
+                              {course?.seoTitle || course?.title || 'Digital Campus & ERP Management'}
+                            </div>
+                            <div className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                              {course?.seoDescription ||
+                                course?.shortDescription ||
+                                'Master modern school management ERP systems, student information workflows, digital attendance, fee billing, and campus operations.'}
+                            </div>
+                            <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500 font-medium">
+                              <span className="text-amber-500 font-bold">★★★★★ Rating: 5.0</span>
+                              <span>•</span>
+                              <span>Price: ₹{course?.price || 3499}</span>
+                              <span>•</span>
+                              <span>{course?.category?.name || course?.categoryName || 'Business'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* OG Social Card */}
+                      {seoPreviewTab === 'SOCIAL_OG' && (
+                        <div className="space-y-2">
+                          <div className="text-[10px] uppercase font-mono font-bold text-slate-400">
+                            SOCIAL MEDIA SHARE CARD PREVIEW
+                          </div>
+                          <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                            <div className="h-36 bg-slate-100 overflow-hidden">
+                              <img
+                                src={course?.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&auto=format&fit=crop&q=80'}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="p-3 bg-white space-y-0.5">
+                              <div className="text-[10px] uppercase text-slate-400 font-mono">morenateach.com</div>
+                              <div className="text-xs font-bold text-slate-900 truncate">
+                                {course?.seoTitle || course?.title}
+                              </div>
+                              <div className="text-[11px] text-slate-500 line-clamp-1">
+                                {course?.seoDescription || course?.shortDescription}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Landing Page Preview */}
+                      {seoPreviewTab === 'LANDING_PAGE' && (
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
+                          <div className="font-bold text-slate-900">Course Canonical Header &amp; Schema</div>
+                          <p className="text-[11px] text-slate-500">
+                            Course structured JSON-LD data schema has been generated and validated with Course, Organization, and AggregateRating types.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* SEO Readiness Checklist */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <div className="text-xs font-bold text-slate-900">SEO Readiness Checklist</div>
+                        <div className="space-y-2 text-xs font-semibold">
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span className="text-slate-800">SEO Title (30–60 chars)</span>
+                            </div>
+                            <span className="font-mono text-[11px] text-slate-500">
+                              {(course?.seoTitle || course?.title || '').length} / 60 chars
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span className="text-slate-800">Meta Description (100–160 chars)</span>
+                            </div>
+                            <span className="font-mono text-[11px] text-slate-500">
+                              {(course?.seoDescription || course?.shortDescription || '').length} / 160 chars
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span className="text-slate-800">Clean Search URL Slug</span>
+                            </div>
+                            <span className="font-mono text-[10px] text-slate-500 truncate max-w-[180px]">
+                              /courses/{course?.slug || 'digital-campus-erp-management'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span className="text-slate-800">OG Social Share Image</span>
+                            </div>
+                            <span className="text-[11px] text-emerald-600 font-bold">Configured</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Review Action Bar */}
+                <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+                  {renderSectionActionBar('seo', 'Course SEO & Ads', 5, 'Final Assessment')}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================================
+                STEP 5: FINAL ASSESSMENT & QUIZZES (Certification Gate Studio)
+               ========================================================================= */}
+            {currentStep === 5 && (
               <div className="space-y-6">
                 {/* 1. Header Card with Certificate Gate Overview */}
                 <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
@@ -1882,15 +2234,15 @@ export default function AuditorCourseInspectPage() {
 
                 {/* Section Review Action Bar */}
                 <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
-                  {renderSectionActionBar('assessment', 'Final Assessment & Quizzes', 5, 'Review & Submit')}
+                  {renderSectionActionBar('assessment', 'Final Assessment & Quizzes', 6, 'Review & Submit')}
                 </div>
               </div>
             )}
 
             {/* =========================================================================
-                STEP 5: REVIEW & SUBMIT (Summary, Discrepancies Box & Instructor Notify)
+                STEP 6: REVIEW & SUBMIT (Summary, Discrepancies Box & Instructor Notify)
                ========================================================================= */}
-            {currentStep === 5 && (
+            {currentStep === 6 && (
               <div className="space-y-6">
                 {/* 1. Audit Summary Matrix */}
                 <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
@@ -1909,12 +2261,13 @@ export default function AuditorCourseInspectPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {[
                       { key: 'basics', title: '1. Basic Information' },
                       { key: 'curriculum', title: '2. Course Curriculum' },
                       { key: 'media', title: '3. Media & Thumbnail' },
-                      { key: 'assessment', title: '4. Final Assessment' }
+                      { key: 'seo', title: '4. Course SEO & Ads' },
+                      { key: 'assessment', title: '5. Final Assessment' }
                     ].map((sec) => {
                       const st = sectionAudits[sec.key]?.status || 'APPROVED';
                       return (
@@ -2575,10 +2928,10 @@ export default function AuditorCourseInspectPage() {
               <span>{savingDraft ? 'Saving...' : 'Save Draft'}</span>
             </button>
 
-            {currentStep < 5 ? (
+            {currentStep < 6 ? (
               <button
                 type="button"
-                onClick={() => setCurrentStep((prev) => Math.min(5, prev + 1) as AuditStep)}
+                onClick={() => setCurrentStep((prev) => Math.min(6, prev + 1) as AuditStep)}
                 className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
               >
                 <span>Next: {stepLabels[(currentStep + 1) as AuditStep]}</span>

@@ -89,7 +89,11 @@ export async function POST(req: NextRequest) {
         validUsers.find((u) => ['SUPER_ADMIN', 'LMS_ADMIN'].includes(u.role));
     } else if (effectivePortal === 'REVIEWER') {
       user =
-        validUsers.find((u) => u.role === 'REVIEWER') ||
+        validUsers.find((u) => u.role === 'REVIEWER' || u.role === 'AUDITOR') ||
+        validUsers.find((u) => ['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(u.role));
+    } else if (effectivePortal === 'SEO') {
+      user =
+        validUsers.find((u) => ['SEO_MANAGER', 'SEO_SPECIALIST', 'SEO'].includes(u.role)) ||
         validUsers.find((u) => ['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(u.role));
     } else if (effectivePortal === 'PARTNER') {
       user = validUsers.find((u) => ['INSTRUCTOR', 'TEACHER', 'REVIEWER'].includes(u.role));
@@ -98,10 +102,11 @@ export async function POST(req: NextRequest) {
         ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(u.role)
       );
     } else {
-      // STUDENT portal login (/login): strictly match STUDENT account (or Admin fallback)
+      // Standard login (/login): match STUDENT first, then fallback to INSTRUCTOR, REVIEWER, or ADMIN
       user =
         validUsers.find((u) => u.role === 'STUDENT') ||
-        validUsers.find((u) => ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN'].includes(u.role));
+        validUsers.find((u) => u.role === 'INSTRUCTOR' || u.role === 'TEACHER') ||
+        validUsers.find((u) => ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'REVIEWER', 'SEO_MANAGER', 'SEO_SPECIALIST'].includes(u.role));
     }
 
     if (!user) {
@@ -167,45 +172,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Strict Portal Intent Boundaries:
-    // Home page /login (requestedPortal === 'STUDENT') is strictly reserved for Students ONLY!
-    if (effectivePortal === 'STUDENT' && user.role !== 'STUDENT') {
-      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'LMS_ADMIN') {
-        return NextResponse.json(
-          {
-            error:
-              'Administrative accounts are not permitted on the Student storefront. Please sign in through the Admin Portal at /admin/login.'
-          },
-          { status: 403 }
-        );
-      }
+    // Note: Universal login (/login) allows auto-redirection to appropriate dashboards
+    // (Instructor -> /instructor/dashboard, Admin -> /admin/dashboard, Reviewer -> /reviewer/dashboard, SEO -> /seo)
 
-      if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
-        return NextResponse.json(
-          {
-            error:
-              'Instructor accounts are not permitted on the Student login page. Please sign in through the Instructor Portal at /instructor/login.'
-          },
-          { status: 403 }
-        );
-      }
-
-      if (user.role === 'REVIEWER') {
-        return NextResponse.json(
-          {
-            error:
-              'Course Auditor accounts please sign in through the Auditor Portal at /reviewer/login or /auditor/login.'
-          },
-          { status: 403 }
-        );
-      }
-
-      return NextResponse.json(
-        {
-          error: 'This login page is strictly for Students. Please use your designated portal.'
-        },
-        { status: 403 }
-      );
-    }
 
     if (effectivePortal === 'ADMIN' && !['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN', 'REVIEWER'].includes(user.role)) {
       return NextResponse.json(
@@ -303,8 +272,10 @@ export async function POST(req: NextRequest) {
       redirectUrl = '/admin/dashboard';
     } else if (user.role === 'INSTRUCTOR' || user.role === 'TEACHER') {
       redirectUrl = '/instructor/dashboard';
-    } else if (user.role === 'REVIEWER') {
+    } else if (user.role === 'REVIEWER' || user.role === 'AUDITOR') {
       redirectUrl = '/reviewer/dashboard';
+    } else if (user.role === 'SEO_MANAGER' || user.role === 'SEO_SPECIALIST' || user.role === 'SEO') {
+      redirectUrl = '/seo';
     } else {
       redirectUrl = '/student/dashboard';
     }

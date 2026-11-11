@@ -124,6 +124,12 @@ function InstructorPortalShellInner({
         currentTab !== 'notifications'
     },
     {
+      label: 'Courses SEO & Ads',
+      href: '/instructor/course-seo',
+      icon: Globe,
+      isActive: pathname?.startsWith('/instructor/course-seo') || false
+    },
+    {
       label: 'Create Course',
       href: '/instructor/courses/builder?new=true',
       icon: PlusCircle,
@@ -134,12 +140,6 @@ function InstructorPortalShellInner({
       href: '/instructor/course-versions',
       icon: GitBranch,
       isActive: pathname?.startsWith('/instructor/course-versions') || false
-    },
-    {
-      label: 'Course SEO',
-      href: '/instructor/course-seo',
-      icon: Globe,
-      isActive: pathname?.startsWith('/instructor/course-seo') || false
     },
     {
       label: 'Student Q&A',

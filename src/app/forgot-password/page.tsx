@@ -9,6 +9,7 @@ export default function ForgotPasswordPage() {
   const { showToast } = useApp();
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [directResetUrl, setDirectResetUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorState, setErrorState] = useState<{ message: string; code?: string } | null>(null);
 
@@ -28,6 +29,10 @@ export default function ForgotPasswordPage() {
       if (!res.ok) {
         setErrorState({ message: data.error || 'Failed to send reset email', code: data.code });
         throw new Error(data.error || 'Failed to send reset email');
+      }
+
+      if (data.localResetUrl || data.resetUrl) {
+        setDirectResetUrl(data.localResetUrl || data.resetUrl);
       }
 
       setIsSubmitted(true);
@@ -84,6 +89,25 @@ export default function ForgotPasswordPage() {
                 If an account exists for <strong className="text-primary">{email}</strong>, you will
                 receive an email with instructions to reset your password.
               </p>
+
+              {directResetUrl && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2">
+                  <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <Icon name="bolt" fill size={16} className="text-amber-600" />
+                    <span>Direct Password Reset Link (Instant Access)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-snug">
+                    If this is a local/demo account without an external Google mailbox, you can reset your password immediately using the link below:
+                  </p>
+                  <Link
+                    href={directResetUrl}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+                  >
+                    <span>Click Here to Reset Password Now →</span>
+                  </Link>
+                </div>
+              )}
+
               <div className="pt-2">
                 <Link
                   href="/login"

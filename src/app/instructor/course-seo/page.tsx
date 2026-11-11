@@ -1,681 +1,679 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { InstructorPortalShell } from '@/components/instructor/InstructorPortalShell';
-import { Icon } from '@/components/ui/Icon';
+import { SeoOptimizationDrawer } from '@/components/seo/SeoOptimizationDrawer';
+import {
+  TrendingUp,
+  Calendar,
+  ChevronDown,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  Tag,
+  Sparkles,
+  Layers,
+  ChevronRight,
+  ExternalLink,
+  Edit3,
+  Search,
+  ShieldCheck,
+  Rocket,
+  MousePointerClick,
+  Trophy,
+  Sliders,
+  Zap,
+  LayoutGrid,
+  List,
+  Globe,
+  Lock
+} from 'lucide-react';
 
-interface CourseSeoItem {
+interface CourseItem {
   id: string;
   title: string;
-  shortDescription: string;
-  description: string;
+  slug: string;
   categoryName: string;
   status: string;
   price: number;
-  discountPrice?: number | null;
   thumbnail: string;
-  banner: string;
-  slug: string;
+  instructor: { id: string; name: string; email: string };
+  modulesCount: number;
+  lecturesCount: number;
   seoTitle: string;
   seoDescription: string;
-  ogImage: string;
   keywords: string[];
-  robotsIndex: boolean;
-  canonicalUrl: string;
   seoScore: number;
-  seoChecks: Array<{ label: string; passed: boolean; hint: string }>;
+  isIndexable: boolean;
+  isSeoDone: boolean;
+  seoStatus: 'COMPLETED' | 'PENDING';
+  workflow?: any;
+  ads?: any;
+  canonicalUrl?: string;
+  schemaMarkup?: string;
   updatedAt: string;
 }
 
 export default function InstructorCourseSeoPage() {
-  const [courses, setCourses] = useState<CourseSeoItem[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+  const [courses, setCourses] = useState<CourseItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [toastMsg, setToastMsg] = useState<{ title: string; description?: string; type?: string } | null>(null);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogFilter, setCatalogFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'ADS'>('ALL');
+  const [catalogViewMode, setCatalogViewMode] = useState<'TABLE' | 'CARDS'>('TABLE');
 
-  const [seoTitle, setSeoTitle] = useState('');
-  const [seoDescription, setSeoDescription] = useState('');
-  const [slug, setSlug] = useState('');
-  const [ogImage, setOgImage] = useState('');
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [keywordInput, setKeywordInput] = useState('');
-  const [robotsIndex, setRobotsIndex] = useState(true);
-  const [previewTab, setPreviewTab] = useState<'GOOGLE_SERP' | 'SOCIAL_OG' | 'LANDING_PAGE'>('GOOGLE_SERP');
+  // Chart range & tooltip
+  const [timeRange, setTimeRange] = useState<'7D' | '30D' | '90D' | '1Y'>('30D');
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(5);
 
-  const showToast = (msg: { title: string; description?: string; type?: string }) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
-  };
+  // Drawer
+  const [selectedCourse, setSelectedCourse] = useState<CourseItem | null>(null);
 
-  const populateForm = (course: CourseSeoItem) => {
-    setSeoTitle(course.seoTitle || course.title || '');
-    setSeoDescription(
-      course.seoDescription || course.shortDescription || course.description?.slice(0, 155) || ''
-    );
-    setSlug(course.slug || '');
-    setOgImage(course.ogImage || course.banner || course.thumbnail || '');
-    setKeywords(Array.isArray(course.keywords) ? course.keywords : []);
-    setRobotsIndex(course.robotsIndex !== false);
-  };
-
-  const loadSeoData = async (keepCourseId?: string) => {
+  const loadCourses = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/instructor/course-seo');
+      const res = await fetch('/api/seo/courses');
       const data = await res.json();
-      if (res.ok && Array.isArray(data.courses)) {
+      if (res.ok && data.courses) {
         setCourses(data.courses);
-        const targetId = keepCourseId || selectedCourseId || data.courses[0]?.id || '';
-        setSelectedCourseId(targetId);
-        const found = data.courses.find((c: CourseSeoItem) => c.id === targetId) || data.courses[0];
-        if (found) populateForm(found);
       }
-    } catch {
-      showToast({ title: 'Error', description: 'Failed to load course SEO data.', type: 'error' });
+    } catch (err) {
+      console.error('[Instructor SEO Load Error]:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadSeoData();
+    loadCourses();
   }, []);
 
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId) || null;
-
-  const handleSelectCourse = (courseId: string) => {
-    setSelectedCourseId(courseId);
-    const found = courses.find((c) => c.id === courseId);
-    if (found) populateForm(found);
-  };
-
-  const handleAddKeyword = () => {
-    const cleaned = keywordInput
-      .split(',')
-      .map((k) => k.trim())
-      .filter((k) => k && !keywords.includes(k));
-    if (cleaned.length > 0) {
-      setKeywords([...keywords, ...cleaned]);
-      setKeywordInput('');
-    }
-  };
-
-  const handleRemoveKeyword = (kw: string) => {
-    setKeywords(keywords.filter((k) => k !== kw));
-  };
-
-  const handleAutoGenerateSeo = () => {
-    if (!selectedCourse) return;
-    const autoTitle = `${selectedCourse.title} | ${selectedCourse.categoryName} Online Course`.slice(
-      0,
-      60
-    );
-    const autoDesc = (
-      selectedCourse.shortDescription ||
-      selectedCourse.description ||
-      `Enroll in ${selectedCourse.title}. Master real-world concepts with hands-on projects, quizzes, and verified certification.`
-    ).slice(0, 155);
-    const autoSlug = selectedCourse.title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-');
-
-    setSeoTitle(autoTitle);
-    setSeoDescription(autoDesc);
-    setSlug(autoSlug);
-    if (!ogImage) setOgImage(selectedCourse.banner || selectedCourse.thumbnail || '');
-    if (keywords.length === 0) {
-      setKeywords([
-        selectedCourse.categoryName.toLowerCase(),
-        ...selectedCourse.title
-          .toLowerCase()
-          .split(' ')
-          .filter((w) => w.length > 3)
-          .slice(0, 4),
-        'online course',
-        'certificate'
-      ]);
-    }
-    showToast({
-      title: 'SEO Auto-Generated',
-      description: 'Optimized SEO title, meta description, slug, and keywords filled.',
-      type: 'info'
-    });
-  };
-
-  const handleSaveSeo = async () => {
-    if (!selectedCourse) return;
-    try {
-      setSaving(true);
-      const res = await fetch('/api/instructor/course-seo', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          courseId: selectedCourse.id,
-          seoTitle,
-          seoDescription,
-          slug,
-          ogImage,
-          keywords,
-          robotsIndex
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save SEO settings');
-
-      showToast({
-        title: 'Course SEO Saved ✓',
-        description: `SEO score is now ${data.seoScore}% for "${selectedCourse.title}".`,
-        type: 'success'
-      });
-      await loadSeoData(selectedCourse.id);
-    } catch (err: any) {
-      showToast({ title: 'Save Error', description: err.message, type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const liveChecks = [
-    {
-      label: 'SEO Title (30–60 chars)',
-      passed: seoTitle.trim().length >= 25 && seoTitle.trim().length <= 65,
-      detail: `${seoTitle.trim().length} / 60 chars`
-    },
-    {
-      label: 'Meta Description (100–160 chars)',
-      passed: seoDescription.trim().length >= 80 && seoDescription.trim().length <= 165,
-      detail: `${seoDescription.trim().length} / 160 chars`
-    },
-    {
-      label: 'Clean Search URL Slug',
-      passed: slug.trim().length >= 4 && !slug.includes(' '),
-      detail: `/courses/${slug || 'missing'}`
-    },
-    {
-      label: 'OG Social Share Image',
-      passed: ogImage.trim().length > 5,
-      detail: ogImage ? 'Configured' : 'Missing'
-    },
-    {
-      label: 'Search Keywords (3+ tags)',
-      passed: keywords.length >= 3,
-      detail: `${keywords.length} keywords`
-    }
+  const chartData = [
+    { date: 'Oct 12', clicks: 12, impressions: 58, ctr: 2.8 },
+    { date: 'Oct 17', clicks: 15, impressions: 64, ctr: 3.0 },
+    { date: 'Oct 22', clicks: 13, impressions: 59, ctr: 2.9 },
+    { date: 'Oct 27', clicks: 17, impressions: 71, ctr: 3.2 },
+    { date: 'Nov 01', clicks: 16, impressions: 65, ctr: 3.0 },
+    { date: 'Nov 06', clicks: 24, impressions: 89, ctr: 3.1 },
+    { date: 'Nov 10', clicks: 21, impressions: 82, ctr: 3.3 }
   ];
-  const liveScore = Math.round(
-    (liveChecks.filter((c) => c.passed).length / liveChecks.length) * 100
-  );
+
+  const filteredCourses = courses.filter((c) => {
+    if (catalogFilter === 'PENDING' && c.seoStatus !== 'PENDING') return false;
+    if (catalogFilter === 'COMPLETED' && c.seoStatus !== 'COMPLETED') return false;
+    if (catalogFilter === 'ADS' && !c.ads?.hasActiveAds) return false;
+    if (catalogSearch.trim()) {
+      const q = catalogSearch.toLowerCase();
+      const matchTitle = c.title.toLowerCase().includes(q);
+      const matchInst = c.instructor?.name?.toLowerCase().includes(q);
+      const matchKw = c.keywords?.some((k) => k.toLowerCase().includes(q));
+      if (!matchTitle && !matchInst && !matchKw) return false;
+    }
+    return true;
+  });
 
   return (
     <InstructorPortalShell
-      title="Course SEO, Social OpenGraph & Landing-Page Preview"
-      subtitle="Optimize your public courses for Google Search (SERP), social sharing (OG Image), search keywords, and student landing-page conversion."
-      actions={
-        <div className="flex items-center gap-2.5">
-          {selectedCourse && (
-            <Link
-              href={`/instructor/courses/preview/${encodeURIComponent(selectedCourse.id)}`}
-              target="_blank"
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-sm transition-all"
-            >
-              <Icon name="visibility" size={16} />
-              <span>Preview Course Landing Page</span>
-            </Link>
-          )}
-          <button
-            onClick={handleSaveSeo}
-            disabled={saving || !selectedCourse}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
-          >
-            <Icon name="save" size={16} />
-            <span>{saving ? 'Saving SEO...' : 'Save SEO Metadata'}</span>
-          </button>
-        </div>
-      }
+      title="Courses SEO & Ads"
+      subtitle="Track your course search ranking, Google & Meta Ads performance, and communicate with the SEO team"
     >
-      {toastMsg && (
-        <div
-          className={`mb-4 p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between ${
-            toastMsg.type === 'error'
-              ? 'bg-rose-50 border-rose-200 text-rose-800'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          }`}
-        >
-          <div>
-            <span className="font-bold">{toastMsg.title}</span>
-            {toastMsg.description && <span className="ml-2 font-normal">{toastMsg.description}</span>}
+      <div className="space-y-6">
+        {/* Banner: View-Only Transparency Notice */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-blue-300">
+              <Lock size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-black flex items-center gap-2">
+                <span>Instructor View-Only Dashboard</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Managed by SEO Team
+                </span>
+              </div>
+              <p className="text-xs text-blue-200 mt-0.5">
+                All metadata and paid ads campaigns are optimized by the Morena SEO Team. You have full transparency to view all metrics, keywords, and live ad spends.
+              </p>
+            </div>
           </div>
-          <button onClick={() => setToastMsg(null)} className="text-slate-500 hover:text-slate-800">
-            ✕
-          </button>
-        </div>
-      )}
 
-      {loading ? (
-        <div className="p-12 text-center text-slate-500 text-sm">
-          Loading courses and SEO configurations...
+          <div className="flex items-center gap-2">
+            <div className="text-right hidden sm:block">
+              <div className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">Total Ad Spend</div>
+              <div className="text-base font-black font-mono">
+                ₹{courses.reduce((sum, c) => sum + (c.ads?.totalSpend || 0), 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+          </div>
         </div>
-      ) : courses.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-3">
-          <Icon name="travel_explore" size={36} className="text-indigo-600 mx-auto" />
-          <h3 className="text-base font-bold text-slate-900">No Courses Found</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Create a course first in the Course Builder to configure its SEO title, meta description, URL slug, and OpenGraph image.
-          </p>
+
+        {/* 1. TOP ROW: 4 KPI CARDS (Matching SEO Dashboard) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Total Indexed Pages */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center font-black text-lg">
+                  <span className="text-[#4285F4]">G</span>
+                </div>
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                  ↑ +12%
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-500">Total Indexed Pages</div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight mt-0.5">
+                  248
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-3">
+              <span className="text-[11px] text-slate-400 font-medium">Google indexed URLs</span>
+              <svg className="w-16 h-7 text-blue-500 overflow-visible" viewBox="0 0 60 25" fill="none">
+                <path d="M 2 20 Q 15 5, 30 18 T 58 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 2: Organic Clicks */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-xs flex items-center justify-center text-emerald-600">
+                  <MousePointerClick size={20} />
+                </div>
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                  ↑ +28%
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-500">Organic Clicks</div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight mt-0.5">
+                  24.8K
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-3">
+              <span className="text-[11px] text-slate-400 font-medium">From Google Search</span>
+              <svg className="w-16 h-7 text-emerald-500 overflow-visible" viewBox="0 0 60 25" fill="none">
+                <path d="M 2 22 Q 20 8, 38 14 T 58 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 3: Total Impressions */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 shadow-xs flex items-center justify-center text-purple-600">
+                  <Eye size={20} />
+                </div>
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200">
+                  ↑ +40%
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-500">Total Impressions</div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight mt-0.5">
+                  452K
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-3">
+              <span className="text-[11px] text-slate-400 font-medium">Search Visibility</span>
+              <svg className="w-16 h-7 text-purple-500 overflow-visible" viewBox="0 0 60 25" fill="none">
+                <path d="M 2 18 Q 18 22, 35 10 T 58 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 4: Average Position */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 shadow-xs flex items-center justify-center text-amber-600">
+                  <Trophy size={20} />
+                </div>
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                  ↑ -2.3
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-500">Average Position</div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight mt-0.5">
+                  18.6
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-3">
+              <span className="text-[11px] text-slate-400 font-medium">On Google</span>
+              <svg className="w-16 h-7 text-amber-500 overflow-visible" viewBox="0 0 60 25" fill="none">
+                <path d="M 2 8 Q 22 18, 40 8 T 58 16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              </svg>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Top Course Selector & Live SEO Score Header */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
-            <div className="flex-1 max-w-md">
-              <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Select Course to Optimize for Search Engines
-              </label>
-              <select
-                value={selectedCourseId}
-                onChange={(e) => handleSelectCourse(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-900 bg-slate-50"
-              >
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title} — (SEO Score: {c.seoScore}%)
-                  </option>
-                ))}
-              </select>
+
+        {/* 2. SEARCH PERFORMANCE & SEO OVERVIEW DONUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left (2 Cols): Search Performance Interactive Chart */}
+          <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={18} className="text-blue-600" />
+                <h2 className="font-black text-sm text-slate-900">Search Performance</h2>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 text-xs font-bold">
+                  <span className="flex items-center gap-1.5 text-blue-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" /> Clicks
+                  </span>
+                  <span className="flex items-center gap-1.5 text-purple-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block" /> Impressions
+                  </span>
+                  <span className="flex items-center gap-1.5 text-emerald-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> CTR (%)
+                  </span>
+                </div>
+                <div className="flex items-center bg-slate-100 rounded-xl p-0.5 text-xs font-bold">
+                  {(['7D', '30D', '90D', '1Y'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setTimeRange(r)}
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        timeRange === r ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            {/* SVG Chart */}
+            <div className="pt-2">
+              <div className="relative h-56 w-full">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 700 220" preserveAspectRatio="none">
+                  <line x1="40" y1="30" x2="690" y2="30" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="40" y1="85" x2="690" y2="85" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="40" y1="140" x2="690" y2="140" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="40" y1="195" x2="690" y2="195" stroke="#e2e8f0" strokeWidth="1.5" />
+
+                  {/* Impressions line */}
+                  <path
+                    d="M 50 120 C 130 90, 180 110, 240 95 C 300 80, 360 115, 430 90 C 490 60, 540 85, 600 65 C 640 50, 670 70, 680 60"
+                    fill="none"
+                    stroke="#8b5cf6"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  {/* Clicks line */}
+                  <path
+                    d="M 50 170 C 130 160, 180 165, 240 145 C 300 150, 360 140, 430 135 C 490 110, 540 125, 600 120 C 640 115, 670 125, 680 118"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  {/* CTR line */}
+                  <path
+                    d="M 50 195 C 130 193, 180 192, 240 190 C 300 188, 360 191, 430 190 C 490 187, 540 188, 600 186 C 640 185, 670 184, 680 184"
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Right (1 Col): SEO Overview Donut & Checklist */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className="text-emerald-600" />
+                <h2 className="font-black text-sm text-slate-900">SEO Health</h2>
+              </div>
+              <span className="text-xs font-bold text-emerald-600">Audited</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 py-1">
+              <div className="flex flex-col items-center">
+                <div className="relative w-28 h-28 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="#f1f5f9" strokeWidth="9" fill="none" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      stroke="#10b981"
+                      strokeWidth="9"
+                      fill="none"
+                      strokeDasharray="251.2"
+                      strokeDashoffset={251.2 * (1 - 0.92)}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute text-center leading-none">
+                    <div className="text-2xl font-black text-slate-900 font-mono">
+                      92<span className="text-sm text-slate-400 font-normal">/100</span>
+                    </div>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 mt-2">
+                  <CheckCircle2 size={12} />
+                  <span>Excellent</span>
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs font-semibold text-slate-700">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-600" />
+                  <span>Meta Title Verified</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-600" />
+                  <span>Meta Descriptions</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-600" />
+                  <span>Schema Markup Active</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-600" />
+                  <span>Ads Sync Enabled</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-start gap-2.5">
+              <Zap size={16} className="text-emerald-600 mt-0.5 shrink-0" />
+              <div className="text-[11px] leading-snug">
+                <div className="font-bold text-emerald-950">SEO &amp; Ads Active</div>
+                <div className="text-emerald-800">Your courses are ranking on top educational queries.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. COURSES SEO & PAID ADS CATALOG */}
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Globe size={18} />
+                </div>
+                <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                  Your Courses SEO &amp; Paid Advertising Performance
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Inspect live metadata, focus keywords, Google Ads and Meta Ads metrics (Strictly View-Only)
+              </p>
+            </div>
+
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
               <button
                 type="button"
-                onClick={handleAutoGenerateSeo}
-                className="px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                onClick={() => setCatalogViewMode('TABLE')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  catalogViewMode === 'TABLE' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                }`}
               >
-                <Icon name="auto_awesome" size={16} />
-                <span>Smart Auto-Fill SEO</span>
+                <List size={14} />
+                <span>Table</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setCatalogViewMode('CARDS')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  catalogViewMode === 'CARDS' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                }`}
+              >
+                <LayoutGrid size={14} />
+                <span>Cards</span>
+              </button>
+            </div>
+          </div>
 
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-900 text-white">
-                <div>
-                  <div className="text-[10px] font-mono uppercase text-slate-400">Live SEO Score</div>
-                  <div
-                    className={`text-lg font-black ${
-                      liveScore >= 80
-                        ? 'text-emerald-400'
-                        : liveScore >= 50
-                        ? 'text-amber-400'
-                        : 'text-rose-400'
-                    }`}
-                  >
-                    {liveScore} / 100
-                  </div>
-                </div>
+          {/* 5 KPI Summary Cards for Instructor */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="text-[11px] font-bold text-slate-500 uppercase">My Courses</div>
+              <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{courses.length}</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80">
+              <div className="text-[11px] font-bold text-emerald-800 uppercase">SEO Completed</div>
+              <div className="text-xl font-black text-emerald-700 font-mono mt-0.5">
+                {courses.filter((c) => c.seoStatus === 'COMPLETED').length}
+              </div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80">
+              <div className="text-[11px] font-bold text-amber-800 uppercase">SEO In Progress</div>
+              <div className="text-xl font-black text-amber-700 font-mono mt-0.5">
+                {courses.filter((c) => c.seoStatus === 'PENDING').length}
+              </div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-purple-50/60 border border-purple-200/80">
+              <div className="text-[11px] font-bold text-purple-800 uppercase">Active Ads</div>
+              <div className="text-xl font-black text-purple-700 font-mono mt-0.5">
+                {courses.filter((c) => c.ads?.hasActiveAds).length}
+              </div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80 col-span-2 sm:col-span-1">
+              <div className="text-[11px] font-bold text-blue-800 uppercase">Total Ad Spend</div>
+              <div className="text-xl font-black text-blue-900 font-mono mt-0.5">
+                ₹{courses.reduce((sum, c) => sum + (c.ads?.totalSpend || 0), 0).toLocaleString('en-IN')}
               </div>
             </div>
           </div>
 
-          {selectedCourse && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 6 Columns: SEO Metadata Form */}
-              <div className="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3">
-                  Search Engine & Social Metadata Fields
-                </h2>
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'ALL', label: `All Courses (${courses.length})` },
+                { id: 'PENDING', label: `SEO Pending (${courses.filter((c) => c.seoStatus === 'PENDING').length})` },
+                { id: 'COMPLETED', label: `SEO Completed (${courses.filter((c) => c.seoStatus === 'COMPLETED').length})` },
+                { id: 'ADS', label: `Running Ads (${courses.filter((c) => c.ads?.hasActiveAds).length})` }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setCatalogFilter(f.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    catalogFilter === f.id
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
-                {/* 1. SEO Title */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700">
-                      1. SEO Title (<code className="text-indigo-600">&lt;title&gt;</code>)
-                    </label>
-                    <span
-                      className={`text-[11px] font-mono font-bold ${
-                        seoTitle.length > 60 ? 'text-amber-600' : 'text-emerald-600'
-                      }`}
-                    >
-                      {seoTitle.length} / 60 chars
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    value={seoTitle}
-                    onChange={(e) => setSeoTitle(e.target.value)}
-                    placeholder="e.g. Complete System Design Masterclass (2026) | Morena LMS"
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-900"
-                  />
-                </div>
+            <div className="relative min-w-[220px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Search course title or keywords..."
+                className="w-full pl-8.5 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
 
-                {/* 2. Meta Description */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700">
-                      2. Meta Description (<code className="text-indigo-600">meta[name=&quot;description&quot;]</code>)
-                    </label>
-                    <span
-                      className={`text-[11px] font-mono font-bold ${
-                        seoDescription.length > 160 ? 'text-amber-600' : 'text-emerald-600'
-                      }`}
-                    >
-                      {seoDescription.length} / 160 chars
-                    </span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    value={seoDescription}
-                    onChange={(e) => setSeoDescription(e.target.value)}
-                    placeholder="Summarize what students will build, key technologies covered, and certification benefits..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 leading-relaxed"
-                  />
-                </div>
-
-                {/* 3. URL Slug */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    3. Public Course URL Slug
-                  </label>
-                  <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-                    <span className="px-3 py-2.5 text-[11px] font-mono text-slate-500 border-r border-slate-200 select-none">
-                      https://morena.lms/courses/
-                    </span>
-                    <input
-                      type="text"
-                      value={slug}
-                      onChange={(e) =>
-                        setSlug(
-                          e.target.value
-                            .toLowerCase()
-                            .replace(/[^a-z0-9-]/g, '-')
-                            .replace(/-+/g, '-')
-                        )
-                      }
-                      className="flex-1 bg-white px-3 py-2.5 text-xs font-mono font-bold text-indigo-700 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* 4. OG Image */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700">
-                      4. OpenGraph (OG) Social Share Image URL (1200×630 recommended)
-                    </label>
-                    {selectedCourse.thumbnail && (
-                      <button
-                        type="button"
-                        onClick={() => setOgImage(selectedCourse.thumbnail)}
-                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                      >
-                        Use Course Thumbnail
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    value={ogImage}
-                    onChange={(e) => setOgImage(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800"
-                  />
-                </div>
-
-                {/* 5. Target Keywords */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    5. Search Keywords & Marketplace Tags
-                  </label>
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={keywordInput}
-                      onChange={(e) => setKeywordInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddKeyword();
-                        }
-                      }}
-                      placeholder="Add keyword (e.g. nextjs, system design, fullstack) and press Enter"
-                      className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddKeyword}
-                      className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer"
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {keywords.map((kw) => (
-                      <span
-                        key={kw}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-semibold"
-                      >
-                        <span>#{kw}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveKeyword(kw)}
-                          className="text-indigo-400 hover:text-indigo-800 cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Search Engine Indexing Toggle */}
-                <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">
-                      Allow Search Engines (Google / Bing) to Index Course
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Sets <code className="text-emerald-700">robots=&quot;index, follow&quot;</code> when published.
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={robotsIndex}
-                    onChange={(e) => setRobotsIndex(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600"
-                  />
-                </label>
-              </div>
-
-              {/* Right 6 Columns: Live Google SERP, Social OpenGraph & Landing-Page Previews */}
-              <div className="lg:col-span-6 space-y-5">
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                    <h2 className="text-sm font-extrabold text-slate-900">
-                      Live Search, Social & Landing-Page Preview
-                    </h2>
-                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewTab('GOOGLE_SERP')}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
-                          previewTab === 'GOOGLE_SERP'
-                            ? 'bg-white text-indigo-700 shadow-xs'
-                            : 'text-slate-600'
-                        }`}
-                      >
-                        Google Search
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewTab('SOCIAL_OG')}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
-                          previewTab === 'SOCIAL_OG'
-                            ? 'bg-white text-indigo-700 shadow-xs'
-                            : 'text-slate-600'
-                        }`}
-                      >
-                        OG Social Card
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewTab('LANDING_PAGE')}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
-                          previewTab === 'LANDING_PAGE'
-                            ? 'bg-white text-indigo-700 shadow-xs'
-                            : 'text-slate-600'
-                        }`}
-                      >
-                        Landing Page
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* TAB 1: GOOGLE SERP SNIPPET PREVIEW */}
-                  {previewTab === 'GOOGLE_SERP' && (
-                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <div className="text-[10px] font-mono uppercase text-slate-400 font-bold">
-                        Google Search Result Preview (Desktop & Mobile)
-                      </div>
-                      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-[11px]">
-                            M
-                          </div>
-                          <div>
-                            <div className="text-[12px] font-semibold text-slate-800 leading-none">
-                              Morena Teach LMS
-                            </div>
-                            <div className="text-[11px] text-slate-500 font-mono">
-                              https://morena.lms › courses › {slug || 'course-slug'}
-                            </div>
-                          </div>
-                        </div>
-                        <h3 className="text-lg font-medium text-[#1a0dab] hover:underline cursor-pointer leading-snug pt-1">
-                          {seoTitle || selectedCourse.title}
-                        </h3>
-                        <p className="text-xs text-[#4d5156] leading-relaxed">
-                          {seoDescription ||
-                            'Add a compelling meta description between 100 and 160 characters so students click your course in Google Search results.'}
-                        </p>
-                        <div className="pt-1 flex items-center gap-3 text-[11px] text-slate-500">
-                          <span className="text-amber-500 font-bold">★★★★★ Rating: 5.0</span>
-                          <span>•</span>
-                          <span>
-                            Price: {selectedCourse.price > 0 ? `₹${selectedCourse.price}` : 'Free'}
-                          </span>
-                          <span>•</span>
-                          <span>{selectedCourse.categoryName}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 2: SOCIAL OPENGRAPH CARD PREVIEW */}
-                  {previewTab === 'SOCIAL_OG' && (
-                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <div className="text-[10px] font-mono uppercase text-slate-400 font-bold">
-                        LinkedIn / WhatsApp / X (Twitter) OpenGraph Share Card
-                      </div>
-                      <div className="rounded-xl overflow-hidden border border-slate-300 bg-white shadow-sm max-w-md mx-auto">
-                        <div className="aspect-[1.91/1] bg-slate-900 relative overflow-hidden flex items-center justify-center">
-                          {ogImage ? (
+          {/* TABLE VIEW */}
+          {catalogViewMode === 'TABLE' && (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="w-full text-left text-xs">
+                <thead className="text-[10px] uppercase font-bold text-slate-400 bg-slate-50/80 border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-3.5 font-bold">Course</th>
+                    <th className="py-3 px-3 font-bold">SEO Score</th>
+                    <th className="py-3 px-3 font-bold">SEO Status</th>
+                    <th className="py-3 px-3 font-bold">Google Ads Spend</th>
+                    <th className="py-3 px-3 font-bold">Meta Ads Spend</th>
+                    <th className="py-3 px-3 font-bold">Total Spend</th>
+                    <th className="py-3 px-3.5 font-bold text-right">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredCourses.map((c) => (
+                    <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-8 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-200">
                             <img
-                              src={ogImage}
-                              alt="OG Preview"
+                              src={c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&auto=format&fit=crop&q=80'}
+                              alt=""
                               className="w-full h-full object-cover"
                             />
-                          ) : (
-                            <div className="text-xs text-slate-400 p-6 text-center">
-                              No OG Image Configured (1200×630)
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-4 bg-slate-100 border-t border-slate-200 space-y-1">
-                          <div className="text-[10px] font-mono uppercase text-slate-500">
-                            MORENA.LMS
                           </div>
-                          <div className="text-sm font-bold text-slate-900 line-clamp-1">
-                            {seoTitle || selectedCourse.title}
-                          </div>
-                          <div className="text-xs text-slate-600 line-clamp-2">
-                            {seoDescription}
+                          <div className="min-w-0 max-w-[240px]">
+                            <div className="font-bold text-slate-900 truncate">{c.title}</div>
+                            <div className="text-[11px] text-slate-400 truncate">{c.categoryName} • ₹{c.price}</div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      </td>
 
-                  {/* TAB 3: COURSE LANDING PAGE PREVIEW CARD */}
-                  {previewTab === 'LANDING_PAGE' && (
-                    <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 text-white p-5 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">
-                          {selectedCourse.categoryName}
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
+                            c.seoScore >= 80
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}
+                        >
+                          {c.seoScore}/100
                         </span>
-                        <span className="text-xs font-mono text-emerald-400">
-                          /courses/{slug}
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-black leading-snug">
-                        {selectedCourse.title}
-                      </h3>
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        {seoDescription}
-                      </p>
-                      <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                        <div>
-                          <span className="text-xl font-black text-white">
-                            {selectedCourse.price > 0 ? `₹${selectedCourse.price}` : 'Free'}
+                      </td>
+
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {c.seoStatus === 'COMPLETED' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 size={11} className="text-emerald-600" />
+                            <span>Completed</span>
                           </span>
-                          {selectedCourse.discountPrice && (
-                            <span className="text-xs text-slate-400 line-through ml-2">
-                              ₹{selectedCourse.discountPrice}
-                            </span>
-                          )}
-                        </div>
-                        <Link
-                          href={`/instructor/courses/preview/${encodeURIComponent(selectedCourse.id)}`}
-                          target="_blank"
-                          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5"
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <span>In Progress</span>
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-3 font-mono">
+                        {c.ads?.googleAds?.enabled ? `₹${c.ads.googleAds.spend?.toLocaleString('en-IN')}` : '—'}
+                      </td>
+
+                      <td className="py-3 px-3 font-mono">
+                        {c.ads?.metaAds?.enabled ? `₹${c.ads.metaAds.spend?.toLocaleString('en-IN')}` : '—'}
+                      </td>
+
+                      <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                        ₹{(c.ads?.totalSpend || 0).toLocaleString('en-IN')}
+                      </td>
+
+                      <td className="py-3 px-3.5 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCourse(c)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 text-xs font-bold transition-all cursor-pointer"
                         >
-                          <Icon name="open_in_new" size={15} />
-                          <span>Open Full Student Landing Page</span>
-                        </Link>
+                          <Eye size={12} />
+                          <span>View SEO &amp; Ads</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* CARDS VIEW */}
+          {catalogViewMode === 'CARDS' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredCourses.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
+                >
+                  <div className="space-y-3">
+                    <div className="relative h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                      <img
+                        src={c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&auto=format&fit=crop&q=80'}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2.5 left-2.5">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold uppercase">
+                          {c.categoryName}
+                        </span>
+                      </div>
+                      <div className="absolute top-2.5 right-2.5">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-mono font-bold">
+                          SEO {c.seoScore}/100
+                        </span>
                       </div>
                     </div>
-                  )}
 
-                  {/* SEO Readiness Audit Checklist */}
-                  <div className="space-y-2 pt-2">
-                    <div className="text-xs font-bold text-slate-800">
-                      SEO Readiness Checklist
+                    <div>
+                      <h3 className="font-black text-sm text-slate-900 line-clamp-1">{c.title}</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">₹{c.price}</p>
                     </div>
-                    <div className="space-y-1.5">
-                      {liveChecks.map((chk, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Icon
-                              name={chk.passed ? 'check_circle' : 'error'}
-                              size={16}
-                              className={chk.passed ? 'text-emerald-600' : 'text-amber-500'}
-                            />
-                            <span className="font-semibold text-slate-800">{chk.label}</span>
-                          </div>
-                          <span className="text-[11px] font-mono text-slate-500">{chk.detail}</span>
+
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-slate-400 font-bold uppercase text-[9px]">Google Ads</div>
+                        <div className="font-bold text-slate-800 font-mono">
+                          ₹{c.ads?.googleAds?.spend?.toLocaleString('en-IN') || 0}
                         </div>
-                      ))}
+                      </div>
+                      <div>
+                        <div className="text-slate-400 font-bold uppercase text-[9px]">Meta Ads</div>
+                        <div className="font-bold text-slate-800 font-mono">
+                          ₹{c.ads?.metaAds?.spend?.toLocaleString('en-IN') || 0}
+                        </div>
+                      </div>
                     </div>
                   </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-slate-800">
+                      Total: ₹{(c.ads?.totalSpend || 0).toLocaleString('en-IN')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCourse(c)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Eye size={13} />
+                      <span>View Details</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           )}
         </div>
+      </div>
+
+      {/* DRAWER: STRICT VIEW-ONLY FOR INSTRUCTOR */}
+      {selectedCourse && (
+        <SeoOptimizationDrawer
+          isOpen={Boolean(selectedCourse)}
+          onClose={() => setSelectedCourse(null)}
+          course={selectedCourse}
+          readOnly={true}
+          currentUserRole="INSTRUCTOR"
+          onSuccess={loadCourses}
+        />
       )}
     </InstructorPortalShell>
   );

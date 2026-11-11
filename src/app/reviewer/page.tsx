@@ -395,8 +395,13 @@ function ReviewerDashboardContent() {
                           { day: '2-digit', month: 'short', year: 'numeric' }
                         )}
                       </td>
-                      <td className="py-3 px-2 text-slate-600 font-mono text-[11px]">
-                        {course.versionLabel || 'v1.0'}
+                      <td className="py-3 px-2 whitespace-nowrap">
+                        <span
+                          style={{ color: '#000000' }}
+                          className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 font-mono font-black !text-black text-[10px] inline-block"
+                        >
+                          {course.versionLabel || 'v1.0'}
+                        </span>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
                         {getStatusBadge(course.effectiveReviewStatus || course.status)}

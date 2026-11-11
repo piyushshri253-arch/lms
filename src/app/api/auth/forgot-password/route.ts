@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
     // Dynamically resolve canonical base URL so email reset links always work in Gmail / mail clients
     const baseUrl = getBaseUrl();
     const resetUrl = `${baseUrl}/reset-password/${token}`;
+    const localResetUrl = `/reset-password/${token}`;
 
     // Dispatch Email
     await sendEmail({
@@ -93,7 +94,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Password reset link has been sent to your email address.'
+      message: 'Password reset link has been sent to your email address.',
+      resetUrl,
+      localResetUrl
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]:', err);

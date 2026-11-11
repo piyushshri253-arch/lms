@@ -127,9 +127,13 @@ export async function GET(request: Request) {
           versionState.status === 'PENDING_REVIEW' &&
           Boolean(versionState.stagedSnapshot);
 
+        const versionLabel = (hasPendingVersionReview || Boolean(versionState.stagedSnapshot))
+          ? versionState.pendingVersionLabel || 'v2.0'
+          : versionState.liveVersionLabel || 'v1.0';
+
         // Determine submission type (NEW vs MAJOR_UPDATE vs RESUBMISSION)
         let submissionType: 'NEW' | 'MAJOR_UPDATE' | 'RESUBMISSION' = auditMeta.submissionType || 'NEW';
-        if (hasPendingVersionReview || (versionState.stagedSnapshot && c.status === 'PUBLISHED')) {
+        if (hasPendingVersionReview || (versionState.stagedSnapshot && c.status === 'PUBLISHED') || versionLabel.startsWith('v2')) {
           submissionType = 'MAJOR_UPDATE';
         } else if (
           auditMeta.reviewHistory.some((h) => h.action === 'RESUBMITTED') ||
@@ -137,10 +141,6 @@ export async function GET(request: Request) {
         ) {
           submissionType = 'RESUBMISSION';
         }
-
-        const versionLabel = hasPendingVersionReview
-          ? versionState.pendingVersionLabel || 'v2.0'
-          : versionState.liveVersionLabel || 'v1.0';
 
         const effectiveReviewStatus = hasPendingVersionReview
           ? 'IN_REVIEW'

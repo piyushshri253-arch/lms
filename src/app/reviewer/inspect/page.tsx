@@ -224,24 +224,34 @@ function InspectCoursesContent() {
     }
   };
 
-  const getTypeBadge = (type: string) => {
+  const getTypeBadge = (type: string, versionLabel?: string) => {
+    const v = versionLabel || (type === 'MAJOR_UPDATE' ? 'v2.0' : 'v1.0');
     if (type === 'MAJOR_UPDATE') {
       return (
-        <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-slate-950 border border-purple-300 shadow-2xs inline-block">
-          Major Update (v2.0)
+        <span
+          style={{ color: '#000000' }}
+          className="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-200 !text-black border border-purple-400 shadow-2xs inline-block tracking-tight"
+        >
+          Major Update ({v})
         </span>
       );
     }
     if (type === 'RESUBMISSION') {
       return (
-        <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-slate-950 border border-amber-300 shadow-2xs inline-block">
-          Resubmission
+        <span
+          style={{ color: '#000000' }}
+          className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-200 !text-black border border-amber-400 shadow-2xs inline-block tracking-tight"
+        >
+          Resubmission ({v})
         </span>
       );
     }
     return (
-      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-sky-100 text-slate-950 border border-sky-300 shadow-2xs inline-block">
-        New Course (v1.0)
+      <span
+        style={{ color: '#000000' }}
+        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-sky-200 !text-black border border-sky-400 shadow-2xs inline-block tracking-tight"
+      >
+        New Course ({v})
       </span>
     );
   };
@@ -565,10 +575,10 @@ function InspectCoursesContent() {
                     {/* Bottom Image Badges */}
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-[11px] font-bold">
                       <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-md bg-slate-900/85 backdrop-blur-md border border-white/20 text-[10px] font-mono">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-900/90 text-white backdrop-blur-md border border-white/20 text-[10px] font-mono font-bold">
                           {course.versionLabel || 'v1.0'}
                         </span>
-                        {getTypeBadge(course.submissionType)}
+                        {getTypeBadge(course.submissionType, course.versionLabel)}
                       </div>
                       <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white font-mono text-xs shadow-xs">
                         {course.price > 0 ? `₹${course.price}` : 'Free'}
@@ -762,10 +772,13 @@ function InspectCoursesContent() {
                       {/* 3. Version & Submission Type */}
                       <td className="py-4 px-4 align-middle">
                         <div className="space-y-1">
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 font-mono font-black text-slate-950 text-[10px] inline-block">
+                          <span
+                            style={{ color: '#000000' }}
+                            className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 font-mono font-black !text-black text-[10px] inline-block"
+                          >
                             {course.versionLabel || 'v1.0'}
                           </span>
-                          <div>{getTypeBadge(course.submissionType)}</div>
+                          <div>{getTypeBadge(course.submissionType, course.versionLabel)}</div>
                         </div>
                       </td>
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser, getReviewerCurrentUser, requireReviewerAuth, validateTenantOwnership } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { createNotification } from '@/lib/notification';
+import { notifySeoTeamOnAuditorApproval } from '@/lib/seo-workflow';
 import { EmailService } from '@/lib/email';
 import {
   getCourseVersionState,
@@ -687,6 +688,13 @@ export async function POST(
           }).catch((err) => console.error('[Version Approved Email Error]:', err));
         }
 
+        // Notify SEO team that course version is approved and ready for SEO
+        notifySeoTeamOnAuditorApproval({
+          id: course.id,
+          title: course.title,
+          organizationId: course.organizationId
+        }).catch((err) => console.error('[Seo Notify Error]:', err));
+
         return NextResponse.json({
           success: true,
           versionState: applied,
@@ -830,6 +838,13 @@ export async function POST(
             organizationId: course.organizationId
           }).catch((err) => console.error('[Standard Course Approved Email Error]:', err));
         }
+
+        // Notify SEO team that course is approved and ready for SEO
+        notifySeoTeamOnAuditorApproval({
+          id: course.id,
+          title: course.title,
+          organizationId: course.organizationId
+        }).catch((err) => console.error('[Seo Notify Error]:', err));
       } else {
         await createNotification({
           organizationId: course.organizationId,
