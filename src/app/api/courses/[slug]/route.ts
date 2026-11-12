@@ -18,6 +18,7 @@ import {
 } from '@/lib/course-versioning';
 import { getCourseSecurityPolicy } from '@/lib/content-security';
 import { createNotification } from '@/lib/notification';
+import { dispatchCourseApprovalNotification } from '@/lib/team-notifications';
 
 export async function GET(
   request: Request,
@@ -662,6 +663,14 @@ export async function PUT(
             }
           }
 
+          await dispatchCourseApprovalNotification({
+            courseId: course.id,
+            courseTitle: course.title,
+            courseSlug: course.slug,
+            instructorName: user.name || 'Instructor',
+            instructorEmail: user.email
+          }).catch(() => {});
+
           await prisma.auditLog.create({
             data: {
               organizationId: course.organizationId,
@@ -1000,6 +1009,14 @@ export async function PUT(
           });
         }
       }
+
+      await dispatchCourseApprovalNotification({
+        courseId: course.id,
+        courseTitle: course.title,
+        courseSlug: course.slug,
+        instructorName: user.name || 'Instructor',
+        instructorEmail: user.email
+      }).catch(() => {});
     }
 
     await prisma.auditLog.create({

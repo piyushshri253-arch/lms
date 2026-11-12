@@ -62,13 +62,28 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get('courseId');
 
+    // Strictly isolate courses to the logged-in instructor's authored courses
+    const isPlatformAdmin = ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN'].includes(user.role);
+    const whereClause: any = {};
+    if (!isPlatformAdmin || user.role === 'INSTRUCTOR') {
+      whereClause.instructorId = user.id;
+    } else {
+      const queryInstructorId = searchParams.get('instructorId');
+      if (queryInstructorId) {
+        whereClause.instructorId = queryInstructorId;
+      } else {
+        const adminCoursesCount = await prisma.course.count({ where: { instructorId: user.id } });
+        if (adminCoursesCount > 0) {
+          whereClause.instructorId = user.id;
+        }
+      }
+    }
+    if (courseId) {
+      whereClause.id = courseId;
+    }
+
     const courses = await prisma.course.findMany({
-      where:
-        user.role === 'INSTRUCTOR'
-          ? { instructorId: user.id, ...(courseId ? { id: courseId } : {}) }
-          : courseId
-          ? { id: courseId }
-          : {},
+      where: whereClause,
       include: {
         category: { select: { name: true } }
       },
@@ -139,7 +154,28 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    return NextResponse.json({ courses: items });
+    const totalCourses = items.length;
+    const avgScore =
+      totalCourses > 0
+        ? Math.round(items.reduce((acc, c) => acc + c.seoScore, 0) / totalCourses)
+        : 0;
+    const optimizedCount = items.filter((c) => c.seoScore >= 80).length;
+    const indexedCount = items.filter((c) => c.robotsIndex).length;
+
+    return NextResponse.json({
+      courses: items,
+      instructor: {
+        id: user.id,
+        name: user.name || 'Instructor',
+        email: user.email
+      },
+      stats: {
+        totalCourses,
+        avgScore,
+        optimizedCount,
+        indexedCount
+      }
+    });
   } catch (error) {
     console.error('GET /api/instructor/course-seo error:', error);
     return NextResponse.json({ error: 'Failed to load course SEO settings' }, { status: 500 });
@@ -149,8 +185,11 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || !['INSTRUCTOR', 'ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user || !['ADMIN', 'LMS_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'View-only access: Only SEO team and admins can modify SEO metadata.' },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
@@ -175,13 +214,6 @@ export async function PUT(req: NextRequest) {
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
-    }
-
-    if (user.role === 'INSTRUCTOR' && course.instructorId !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden: You can only edit SEO for your own courses.' },
-        { status: 403 }
-      );
     }
 
     const cleanSlug = sanitizeSlug(slug || course.slug || course.title);

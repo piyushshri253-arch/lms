@@ -27,37 +27,61 @@ export default function InstructorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [retryKey, setRetryKey] = useState(0);
+
   useEffect(() => {
     let active = true;
+    let completed = false;
+    setLoading(true);
+    setError('');
+
     const timeout = setTimeout(() => {
-      if (active && loading) {
+      if (active && !completed) {
         setLoading(false);
-        setError('Loading took longer than expected. Please retry or click My Courses.');
+        setError('Loading took longer than expected. Please retry or visit My Courses directly.');
       }
-    }, 12000);
+    }, 30000); // 30 seconds for cold starts
 
     fetch('/api/instructor/overview')
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          if (r.status === 401) {
+            window.location.href = '/instructor/login?callbackUrl=' + encodeURIComponent('/instructor/dashboard');
+            return null;
+          }
+          const text = await r.text();
+          let errData: any = {};
+          try { errData = JSON.parse(text); } catch { errData = { error: 'Failed to load dashboard' }; }
+          throw new Error(errData.error || `Server error (${r.status})`);
+        }
+        return r.json();
+      })
       .then((res) => {
-        if (!active) return;
+        if (!active || !res) return;
+        completed = true;
+        clearTimeout(timeout);
         if (res.error) setError(res.error);
         else setData(res);
       })
       .catch((e) => {
         if (!active) return;
+        completed = true;
+        clearTimeout(timeout);
         setError(e.message || 'Failed to load dashboard');
       })
       .finally(() => {
         if (!active) return;
+        completed = true;
         clearTimeout(timeout);
         setLoading(false);
       });
 
     return () => {
       active = false;
+      completed = true;
       clearTimeout(timeout);
     };
-  }, []);
+  }, [retryKey]);
 
   if (loading) {
     return (
@@ -75,14 +99,22 @@ export default function InstructorDashboardPage() {
   if (error || !data) {
     return (
       <InstructorPortalShell title="Instructor Dashboard">
-        <div className="p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center justify-between">
+        <div className="p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <span>{error || 'Unable to load instructor overview.'}</span>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs"
-          >
-            Retry
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/instructor/courses"
+              className="px-4 py-2 rounded-xl bg-violet-600 text-white font-bold text-xs hover:bg-violet-700 transition-colors"
+            >
+              Go to My Courses
+            </Link>
+            <button
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-900 transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </InstructorPortalShell>
     );
@@ -335,7 +367,7 @@ export default function InstructorDashboardPage() {
               </p>
             </div>
             <Link
-              href="/instructor/transactions"
+              href="/instructor/earnings"
               className="text-xs font-bold text-violet-600 hover:text-violet-700 inline-flex items-center gap-1"
             >
               Full Financial Ledger <ChevronRight className="w-3.5 h-3.5" />
@@ -365,7 +397,7 @@ export default function InstructorDashboardPage() {
 
             {/* 7. Total Earnings */}
             <Link
-              href="/instructor/transactions"
+              href="/instructor/earnings"
               className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all group block shadow-xs"
             >
               <div className="flex items-center justify-between">
@@ -531,10 +563,10 @@ export default function InstructorDashboardPage() {
                 </p>
               </div>
               <Link
-                href="/instructor/transactions"
+                href="/instructor/earnings"
                 className="text-xs font-bold text-violet-600 hover:text-violet-700"
               >
-                View Full Ledger →
+                View Earnings Ledger →
               </Link>
             </div>
 

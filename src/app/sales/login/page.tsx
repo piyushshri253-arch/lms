@@ -21,7 +21,10 @@ function SalesLoginContent() {
   useEffect(() => {
     const msg = searchParams.get('msg');
     const unauthorized = searchParams.get('unauthorized');
-    if (msg) {
+    const reason = searchParams.get('reason');
+    if (reason === 'inactivity') {
+      setUnauthNotice('You have been logged out due to inactivity. Please log in again.');
+    } else if (msg) {
       setUnauthNotice(msg);
     } else if (unauthorized === 'lms_user') {
       setUnauthNotice('You are currently logged into an LMS account. Accessing Sales requires logging into or creating a separate Sales account.');

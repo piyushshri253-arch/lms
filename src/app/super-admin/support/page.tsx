@@ -174,7 +174,12 @@ export default function SuperAdminSupportPage() {
                       <p className="font-extrabold text-on-surface truncate">{t.subject}</p>
                       <p className="text-[11px] text-outline truncate mt-0.5">{t.latestMessage}</p>
                     </td>
-                    <td className="p-4 font-mono text-[10px] uppercase font-bold">{t.category}</td>
+                    <td className="p-4">
+                      <div className="font-mono text-[10px] uppercase font-bold text-on-surface">{t.category}</div>
+                      {t.assignedTo && (
+                        <div className="text-[10px] text-primary font-bold mt-0.5">{t.assignedTo}</div>
+                      )}
+                    </td>
                     <td className="p-4">
                       <span
                         className={`px-2 py-0.5 rounded text-[9px] font-mono font-extrabold uppercase ${

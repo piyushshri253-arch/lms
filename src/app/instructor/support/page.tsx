@@ -20,6 +20,7 @@ interface SupportTicketItem {
   category: string;
   priority: string;
   status: string;
+  assignedTo?: string;
   createdAt: string;
   updatedAt: string;
   messages: TicketMessageItem[];
@@ -28,16 +29,22 @@ interface SupportTicketItem {
 const ISSUE_CATEGORIES = [
   {
     id: 'PAYMENT_ISSUE',
-    label: 'Payment & Payout Issue',
+    label: 'Payment and Payout Issues',
     icon: 'payments',
     badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    primaryTeam: 'Accounts',
+    primaryBadgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    notificationRouting: 'Super Admin, Admin, Accounts and Technical team (Primary Accounts)',
     desc: 'Missing settlement, payout hold, commission calculation, or transaction reconciliation.'
   },
   {
     id: 'COURSE_APPROVAL_ISSUE',
-    label: 'Course Approval Issue',
+    label: 'Course Approval Issues',
     icon: 'verified',
     badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    primaryTeam: 'Auditor',
+    primaryBadgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    notificationRouting: 'Super Admin, Admin, Auditor and Technical team (Primary Auditor)',
     desc: 'Pending course review, auditor feedback clarification, or staged version approval.'
   },
   {
@@ -45,14 +52,20 @@ const ISSUE_CATEGORIES = [
     label: 'Bank Verification Issue',
     icon: 'account_balance',
     badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    primaryTeam: 'Accounts',
+    primaryBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+    notificationRouting: 'Super Admin, Admin, Accounts and Technical team (Primary Accounts)',
     desc: 'NEFT/IMPS account verification, IFSC mismatch, penny-drop status, or KYC update.'
   },
   {
     id: 'TECHNICAL_ISSUE',
-    label: 'Technical / Platform Issue',
+    label: 'Technical Issue',
     icon: 'build',
     badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-    desc: 'Signed video stream DRM, PDF upload, quiz builder, or course curriculum bug.'
+    primaryTeam: 'Tech. Team',
+    primaryBadgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
+    notificationRouting: 'Super Admin, Admin, and Technical team (Primary Tech. Team)',
+    desc: 'Video DRM player, lesson uploads, quiz editor, or platform functionality bug.'
   }
 ];
 
@@ -255,20 +268,35 @@ export default function InstructorSupportPage() {
               onClick={() => openQuickRaise(cat.id)}
               className="bg-white hover:bg-slate-50/90 border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 text-left transition-all shadow-xs flex flex-col justify-between gap-3 cursor-pointer group"
             >
-              <div className="flex items-center justify-between">
-                <span
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border inline-flex items-center gap-1.5 ${cat.badgeClass}`}
-                >
-                  <Icon name={cat.icon} size={15} />
-                  <span>{cat.label}</span>
-                </span>
-                <Icon
-                  name="arrow_outward"
-                  size={15}
-                  className="text-slate-400 group-hover:text-indigo-600 transition-colors"
-                />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border inline-flex items-center gap-1.5 ${cat.badgeClass}`}
+                  >
+                    <Icon name={cat.icon} size={15} />
+                    <span>{cat.label}</span>
+                  </span>
+                  <Icon
+                    name="arrow_outward"
+                    size={15}
+                    className="text-slate-400 group-hover:text-indigo-600 transition-colors"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${cat.primaryBadgeClass}`}>
+                    Primary: {cat.primaryTeam}
+                  </span>
+                </div>
               </div>
+
               <p className="text-[11px] text-slate-500 leading-relaxed">{cat.desc}</p>
+
+              <div className="pt-2.5 border-t border-slate-100 text-[10px] text-slate-500 flex items-start gap-1.5">
+                <Icon name="campaign" size={13} className="text-indigo-500 shrink-0 mt-0.5" />
+                <span className="leading-snug">
+                  <strong className="text-slate-700">Notification:</strong> {cat.notificationRouting}
+                </span>
+              </div>
             </button>
           ))}
         </div>
@@ -409,6 +437,11 @@ export default function InstructorSupportPage() {
                       <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono">
                         Priority: {selectedTicket.priority}
                       </span>
+                      {selectedTicket.assignedTo && (
+                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                          Assigned: {selectedTicket.assignedTo}
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-base font-extrabold text-slate-900 mt-1">
                       {selectedTicket.subject}
@@ -551,6 +584,34 @@ export default function InstructorSupportPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Dynamic Team Notification Routing Indicator */}
+              {(() => {
+                const currentRouting =
+                  ISSUE_CATEGORIES.find((c) => c.id === newCategory) || ISSUE_CATEGORIES[0];
+                return (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <Icon name="verified_user" size={15} className="text-indigo-600" />
+                        <span>Primary Handling Team:</span>
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-extrabold border ${currentRouting.primaryBadgeClass}`}
+                      >
+                        {currentRouting.primaryTeam}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 leading-snug">
+                      <strong className="text-slate-800">Notification Routing:</strong> {currentRouting.notificationRouting}
+                    </div>
+                    <div className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1.5 pt-1.5 border-t border-slate-200/60">
+                      <Icon name="check_circle" size={13} className="text-emerald-600 shrink-0" />
+                      <span>Instant in-app dashboard notification + email alert sent to all designated teams.</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

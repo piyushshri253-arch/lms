@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
@@ -21,6 +21,16 @@ function LoginContent() {
   const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(null);
 
   const callbackUrl = searchParams.get('callbackUrl');
+
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    if (reason === 'inactivity') {
+      setAuthError({
+        code: 'INACTIVITY_TIMEOUT',
+        message: 'You have been logged out due to inactivity. Please log in again.'
+      });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,17 +148,29 @@ function LoginContent() {
           {authError && (
             <div
               className={`p-4 rounded-md border text-sm animate-in fade-in duration-200 ${
-                authError.code === 'USER_NOT_FOUND'
+                authError.code === 'INACTIVITY_TIMEOUT'
+                  ? 'bg-amber-50 border-amber-300 text-amber-950 shadow-xs'
+                  : authError.code === 'USER_NOT_FOUND'
                   ? 'bg-purple-50 border-purple-200 text-purple-950'
                   : 'bg-rose-50 border-rose-200 text-rose-900'
               }`}
             >
               <div className="flex items-start gap-2.5">
                 <Icon
-                  name={authError.code === 'USER_NOT_FOUND' ? 'person_add' : 'error'}
+                  name={
+                    authError.code === 'INACTIVITY_TIMEOUT'
+                      ? 'schedule'
+                      : authError.code === 'USER_NOT_FOUND'
+                      ? 'person_add'
+                      : 'error'
+                  }
                   size={20}
                   className={`mt-0.5 shrink-0 ${
-                    authError.code === 'USER_NOT_FOUND' ? 'text-[#5624d0]' : 'text-rose-600'
+                    authError.code === 'INACTIVITY_TIMEOUT'
+                      ? 'text-amber-600'
+                      : authError.code === 'USER_NOT_FOUND'
+                      ? 'text-[#5624d0]'
+                      : 'text-rose-600'
                   }`}
                 />
                 <div className="flex-1 space-y-2.5">

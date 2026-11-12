@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
@@ -8,9 +8,33 @@ import { Icon } from '@/components/ui/Icon';
 export default function ForgotPasswordPage() {
   const { showToast } = useApp();
   const [email, setEmail] = useState('');
+  const [portal, setPortal] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorState, setErrorState] = useState<{ message: string; code?: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const portalParam = (params.get('portal') || '').toUpperCase();
+      const emailParam = params.get('email') || '';
+      if (portalParam) setPortal(portalParam);
+      if (emailParam) setEmail(emailParam);
+    }
+  }, []);
+
+  const backToLoginHref =
+    portal === 'REVIEWER'
+      ? '/reviewer/login'
+      : portal === 'INSTRUCTOR'
+      ? '/instructor/login'
+      : portal === 'ADMIN'
+      ? '/admin/login'
+      : portal === 'SEO'
+      ? '/seo/login'
+      : portal === 'SALES'
+      ? '/sales/login'
+      : '/login';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +45,10 @@ export default function ForgotPasswordPage() {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() })
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          requestedPortal: portal || undefined
+        })
       });
 
       const data = await res.json();
@@ -87,7 +114,7 @@ export default function ForgotPasswordPage() {
 
               <div className="pt-2">
                 <Link
-                  href="/login"
+                  href={backToLoginHref}
                   className="w-full py-3 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 hover:bg-primary-container transition-all"
                 >
                   <Icon name="arrow_back" size={16} />
@@ -166,7 +193,7 @@ export default function ForgotPasswordPage() {
           )}
 
           <div className="pt-2 border-t border-outline-variant/40 text-center text-xs text-on-surface-variant">
-            <Link href="/login" className="text-primary font-bold hover:underline">
+            <Link href={backToLoginHref} className="text-primary font-bold hover:underline">
               Back to Login
             </Link>
           </div>

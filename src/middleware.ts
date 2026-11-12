@@ -10,6 +10,8 @@ const SALES_COOKIE = 'sales_session_token';
 const LMS_COOKIE = 'lms_session_token';
 const REVIEWER_COOKIE = 'reviewer_session_token';
 const LEGACY_COOKIE = 'aadhyara_session_token';
+const ACTIVITY_COOKIE = 'mt_last_activity';
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes = 900,000 ms
 
 interface TokenPayload {
   id: string;
@@ -63,6 +65,83 @@ export async function middleware(request: NextRequest) {
       !lmsSession.platform);
   const isReviewerValid =
     !!reviewerSession && (reviewerSession.role === 'REVIEWER' || isAuthorizedAdminRole(reviewerSession.role));
+
+  const hasAnySession = isSalesValid || isLmsValid || isReviewerValid;
+  const lastActivityCookie = request.cookies.get(ACTIVITY_COOKIE)?.value;
+  const now = Date.now();
+  let isIdleExpired = false;
+
+  if (hasAnySession && lastActivityCookie) {
+    const lastActivity = Number(lastActivityCookie);
+    if (!isNaN(lastActivity) && lastActivity > 0) {
+      if (now - lastActivity > IDLE_TIMEOUT_MS) {
+        isIdleExpired = true;
+      }
+    }
+  }
+
+  // Enforce server-side 15-minute inactivity termination globally
+  if (isIdleExpired) {
+    if (pathname.startsWith('/api/')) {
+      const apiRes = NextResponse.json(
+        {
+          error: 'You have been logged out due to inactivity. Please log in again.',
+          code: 'SESSION_IDLE_TIMEOUT'
+        },
+        { status: 401 }
+      );
+      apiRes.cookies.delete(SALES_COOKIE);
+      apiRes.cookies.delete(LMS_COOKIE);
+      apiRes.cookies.delete(REVIEWER_COOKIE);
+      apiRes.cookies.delete(LEGACY_COOKIE);
+      apiRes.cookies.delete(ACTIVITY_COOKIE);
+      return apiRes;
+    }
+
+    let targetLogin =
+      '/login?reason=inactivity&error=' +
+      encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    if (pathname.startsWith('/instructor')) {
+      targetLogin =
+        '/instructor/login?reason=inactivity&error=' +
+        encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    } else if (pathname.startsWith('/reviewer') || pathname.startsWith('/auditor')) {
+      targetLogin =
+        '/reviewer/login?reason=inactivity&error=' +
+        encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    } else if (pathname.startsWith('/admin')) {
+      targetLogin =
+        '/admin/login?reason=inactivity&error=' +
+        encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    } else if (pathname.startsWith('/super-admin')) {
+      targetLogin =
+        '/super-admin/login?reason=inactivity&error=' +
+        encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    } else if (pathname.startsWith('/seo')) {
+      targetLogin =
+        '/seo/login?reason=inactivity&error=' +
+        encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    } else if (pathname.startsWith('/sales')) {
+      targetLogin =
+        '/sales/login?reason=inactivity&error=' +
+        encodeURIComponent('You have been logged out due to inactivity. Please log in again.');
+    }
+
+    const redirectRes = NextResponse.redirect(new URL(targetLogin, request.url));
+    redirectRes.cookies.delete(SALES_COOKIE);
+    redirectRes.cookies.delete(LMS_COOKIE);
+    redirectRes.cookies.delete(REVIEWER_COOKIE);
+    redirectRes.cookies.delete(LEGACY_COOKIE);
+    redirectRes.cookies.delete(ACTIVITY_COOKIE);
+    redirectRes.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    redirectRes.headers.set('Pragma', 'no-cache');
+    redirectRes.headers.set('Expires', '0');
+    return redirectRes;
+  }
+
+  const shouldRefreshActivity =
+    hasAnySession &&
+    (!lastActivityCookie || now - Number(lastActivityCookie) > 10000);
 
   // Clone headers and forward current pathname for Server Components
   const requestHeaders = new Headers(request.headers);
@@ -572,19 +651,57 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const isProtectedPath =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/reviewer') ||
+    pathname.startsWith('/super-admin') ||
+    pathname.startsWith('/instructor') ||
+    pathname.startsWith('/student') ||
+    pathname.startsWith('/learning') ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/sales') ||
+    pathname.startsWith('/seo') ||
+    pathname.startsWith('/user') ||
+    pathname.startsWith('/learn');
+
   return createSecureResponse(
     NextResponse.next({
       request: { headers: requestHeaders }
-    })
+    }),
+    isProtectedPath,
+    shouldRefreshActivity
   );
 }
 
-function createSecureResponse(response: NextResponse): NextResponse {
+function createSecureResponse(
+  response: NextResponse,
+  isProtected = false,
+  refreshActivity = false
+): NextResponse {
   response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+
+  if (isProtected) {
+    // Prevent access to protected dashboard pages through browser Back navigation (anti-bfcache)
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+  }
+
+  if (refreshActivity) {
+    response.cookies.set(ACTIVITY_COOKIE, String(Date.now()), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
+    });
+  }
+
   return response;
 }
 
@@ -607,6 +724,9 @@ export const config = {
     '/instructor/:path*',
     '/dashboard/:path*',
     '/student/:path*',
-    '/learn/:path*'
+    '/learn/:path*',
+    '/seo',
+    '/seo/:path*',
+    '/api/seo/:path*'
   ]
 };

@@ -124,7 +124,13 @@ function AdminLoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [fastLoadingRole, setFastLoadingRole] = useState<string | null>(null);
 
-  const errorParam = searchParams.get('error');
+  const reasonParam = searchParams.get('reason');
+  const errorParam =
+    searchParams.get('error') ||
+    (reasonParam === 'inactivity'
+      ? 'You have been logged out due to inactivity. Please log in again.'
+      : null);
+  const isInactivity = reasonParam === 'inactivity';
   const callbackUrl = searchParams.get('callbackUrl') || '/admin';
 
   const handleLoginSubmit = async (loginEmail?: string, loginPassword?: string, roleLabel?: string) => {
@@ -242,15 +248,29 @@ function AdminLoginContent() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-r from-indigo-100/60 via-purple-100/50 to-pink-100/40 blur-3xl -z-10 rounded-full pointer-events-none" />
 
         <div className="w-full max-w-[500px] space-y-5">
-          {/* Status Alert for Direct Access Denials */}
+          {/* Status Alert for Direct Access Denials or Session Timeout */}
           {errorParam && (
-            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800 text-xs shadow-xs">
-              <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5 font-bold">
+            <div
+              className={`p-4 rounded-xl border flex items-start gap-3 text-xs shadow-xs ${
+                isInactivity
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold ${
+                  isInactivity ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-600'
+                }`}
+              >
                 !
               </div>
               <div>
-                <p className="font-bold text-rose-900">Access Restricted</p>
-                <p className="mt-0.5 text-rose-700">{errorParam}</p>
+                <p className={`font-bold ${isInactivity ? 'text-amber-950' : 'text-rose-900'}`}>
+                  {isInactivity ? 'Session Expired' : 'Access Restricted'}
+                </p>
+                <p className={`mt-0.5 ${isInactivity ? 'text-amber-800' : 'text-rose-700'}`}>
+                  {errorParam}
+                </p>
               </div>
             </div>
           )}

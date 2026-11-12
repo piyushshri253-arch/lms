@@ -330,7 +330,7 @@ function InspectCoursesContent() {
             <span>Course Inspection &amp; Quality Verification</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Inspect Courses Studio 🔍
+            Course Audit Workspace
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
             Select any course below and click <strong>&quot;Inspect Course →&quot;</strong> to examine all modules, playable video lessons, study PDFs, quiz answer keys, and submit audit verdicts.
@@ -345,6 +345,67 @@ function InspectCoursesContent() {
             <Icon name="arrow_back" size={16} />
             <span>Back to Dashboard</span>
           </Link>
+        </div>
+      </div>
+
+      {/* HOW COURSE AUDIT WORKS (3 SIMPLE STEPS) */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-800">
+          <span className="text-amber-500 text-sm">💡</span>
+          <span>How Course Audit Works (3 Simple Steps):</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Step 1 */}
+          <div className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex flex-col justify-between gap-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center shrink-0">
+                  1
+                </span>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Pick Course from Queue
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Click the dark &quot;Inspect Course →&quot; button on any pending submission below to open its curriculum tree.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="p-4 rounded-2xl border border-amber-200/80 bg-amber-50/40 flex flex-col justify-between gap-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <span className="w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shrink-0">
+                  2
+                </span>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Inspect &amp; Document issues
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Verify video, PDF notes, and Quiz Keys. Type a detailed remark for issue that require change
+              </p>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="p-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/40 flex flex-col justify-between gap-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">
+                  3
+                </span>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Submit Verdict in 1 Click
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Click Approve ✅ to publish, or Submit Changes Request ⚠️ to send your review notes to the instructor.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1131,10 +1192,10 @@ function InspectCoursesContent() {
 export default function InspectCoursesPage() {
   return (
     <AuditorPortalShell
-      title="Inspect Courses Studio"
+      title="Course Audit Workspace"
       subtitle="Inspect course curriculum, video lessons, PDF notes, quiz questions, and resources submitted by instructors."
     >
-      <Suspense fallback={<div className="p-8 text-xs text-slate-500">Loading Inspect Courses Studio...</div>}>
+      <Suspense fallback={<div className="p-8 text-xs text-slate-500">Loading Course Audit Workspace...</div>}>
         <InspectCoursesContent />
       </Suspense>
     </AuditorPortalShell>

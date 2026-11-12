@@ -97,6 +97,8 @@ export async function GET(req: NextRequest) {
               createdAt: enr.enrolledAt
             },
             update: {
+              courseTitle: enr.course?.title || 'Course Enrollment',
+              studentName: enr.user?.name || 'Student',
               grossAmount: b.studentTotal,
               platformFee: b.platformShare,
               instructorShare: b.instructorGross,
@@ -124,21 +126,41 @@ export async function GET(req: NextRequest) {
     });
 
     // Calculate summary metrics
-    const totalGrossSales = allForUser
-      .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
-      .reduce((s, t) => s + Number(t.grossAmount || 0), 0);
+    const paidCourseSales = allForUser.filter(
+      (t) => t.type === 'COURSE_SALE' && t.status === 'PAID'
+    );
 
-    const totalPlatformFees = allForUser
-      .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
-      .reduce((s, t) => s + Number(t.platformFee || 0), 0);
+    const extractBasePrice = (t: any): number => {
+      if (t.notes) {
+        try {
+          const parsed = JSON.parse(t.notes);
+          if (parsed && typeof parsed.basePrice === 'number' && !isNaN(parsed.basePrice)) {
+            return Number(parsed.basePrice);
+          }
+        } catch {}
+      }
+      return Number((Number(t.grossAmount || 0) / 1.18).toFixed(2));
+    };
 
-    const totalTaxDeductions = allForUser
-      .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
-      .reduce((s, t) => s + Number(t.taxDeduction || 0), 0);
+    const totalGrossSales = Number(
+      paidCourseSales.reduce((s, t) => s + Number(t.grossAmount || 0), 0).toFixed(2)
+    );
 
-    const totalNetEarnings = allForUser
-      .filter((t) => t.type === 'COURSE_SALE' && t.status === 'PAID')
-      .reduce((s, t) => s + Number(t.netAmount || 0), 0);
+    const totalNetCourseValue = Number(
+      paidCourseSales.reduce((s, t) => s + extractBasePrice(t), 0).toFixed(2)
+    );
+
+    const totalPlatformFees = Number(
+      paidCourseSales.reduce((s, t) => s + Number(t.platformFee || 0), 0).toFixed(2)
+    );
+
+    const totalTaxDeductions = Number(
+      paidCourseSales.reduce((s, t) => s + Number(t.taxDeduction || 0), 0).toFixed(2)
+    );
+
+    const totalNetEarnings = Number(
+      paidCourseSales.reduce((s, t) => s + Number(t.netAmount || 0), 0).toFixed(2)
+    );
 
     const pendingClearance = allForUser
       .filter((t) => t.type === 'COURSE_SALE' && (t.status === 'PENDING' || t.status === 'PROCESSING'))
@@ -154,10 +176,38 @@ export async function GET(req: NextRequest) {
 
     const availableBalance = Math.max(0, totalNetEarnings - totalPaidOut - pendingPayoutAmount);
 
-    // Filter transactions for table
-    let filtered = await prisma.instructorEarningTransaction.findMany({
+    // Filter transactions for table and resolve real student names (strip student email ID)
+    const rawFiltered = await prisma.instructorEarningTransaction.findMany({
       where,
       orderBy: { createdAt: 'desc' }
+    });
+
+    const studentIds = Array.from(
+      new Set(rawFiltered.map((t) => t.studentId).filter((id): id is string => Boolean(id)))
+    );
+    const studentUsers =
+      studentIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: studentIds } },
+            select: { id: true, name: true }
+          })
+        : [];
+    const studentNameMap = new Map(studentUsers.map((u) => [u.id, u.name]));
+
+    let filtered = rawFiltered.map((t) => {
+      const liveName = t.studentId ? studentNameMap.get(t.studentId) : undefined;
+      const resolvedName =
+        liveName && liveName.trim()
+          ? liveName.trim()
+          : t.studentName && t.studentName !== 'Student Name'
+          ? t.studentName
+          : 'Student';
+
+      const { studentEmail: _omittedEmail, ...safeTxn } = t;
+      return {
+        ...safeTxn,
+        studentName: resolvedName
+      };
     });
 
     if (search) {
@@ -165,8 +215,7 @@ export async function GET(req: NextRequest) {
         (t) =>
           t.transactionRef.toLowerCase().includes(search) ||
           (t.courseTitle || '').toLowerCase().includes(search) ||
-          (t.studentName || '').toLowerCase().includes(search) ||
-          (t.studentEmail || '').toLowerCase().includes(search)
+          (t.studentName || '').toLowerCase().includes(search)
       );
     }
 
@@ -179,6 +228,7 @@ export async function GET(req: NextRequest) {
         success: true,
         summary: {
           totalGrossSales,
+          totalNetCourseValue,
           totalPlatformFees,
           totalTaxDeductions,
           totalNetEarnings,

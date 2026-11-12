@@ -78,6 +78,7 @@ export async function recordInstructorEarningForOrder(
           createdAt: new Date()
         },
         update: {
+          studentName: order.user?.name || 'Student',
           grossAmount: breakdown.studentTotal,
           platformFee: breakdown.platformShare,
           instructorShare: breakdown.instructorGross,

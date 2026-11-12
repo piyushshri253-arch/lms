@@ -33,22 +33,46 @@ interface CourseItem {
   };
 }
 
+function formatTimeAgo(isoString?: string): string {
+  if (!isoString) return 'recently';
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 function ReviewerDashboardContent() {
   const { currentUser } = useApp();
   const [courses, setCourses] = useState<CourseItem[]>([]);
   const [stats, setStats] = useState({
-    pendingReview: 12,
-    inReview: 3,
-    approvedToday: 5,
-    approved: 48,
-    changesRequested: 6,
-    rejected: 4,
+    pendingReview: 0,
+    inReview: 0,
+    approvedToday: 0,
+    approved: 0,
+    changesRequested: 0,
+    rejected: 0,
+    overdueCount: 0,
+    maxOverdueDays: 0,
     avgReviewTime: '1.8 hrs',
-    total: 66
+    total: 0
   });
+  const [recentActivities, setRecentActivities] = useState<
+    Array<{
+      id: string;
+      icon: string;
+      iconColor: string;
+      title: string;
+      createdAt: string;
+    }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [courseTooltip, setCourseTooltip] = useState<{ text: string; left: number; top: number } | null>(null);
 
   const reviewerName = currentUser?.name || 'Amit Sharma';
 
@@ -59,6 +83,7 @@ function ReviewerDashboardContent() {
         if (data?.success) {
           if (data.courses) setCourses(data.courses);
           if (data.stats) setStats((prev) => ({ ...prev, ...data.stats }));
+          if (data.recentActivities) setRecentActivities(data.recentActivities);
         }
       })
       .catch(() => {})
@@ -156,29 +181,29 @@ function ReviewerDashboardContent() {
         </div>
       </div>
 
-      {/* 2. Top 4 Metric KPI Cards (Row of 4 matching reference image) */}
+      {/* 2. Top 4 Metric KPI Cards (Aligned single-line headings & uniform baseline) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Pending Reviews */}
         <Link
           href="/reviewer/inspect?filter=IN_REVIEW"
-          className="bg-[#eff6ff] hover:bg-blue-50/90 border border-blue-100 rounded-2xl p-5 flex items-center justify-between transition-all duration-150 hover:shadow-md group cursor-pointer"
+          className="bg-[#eff6ff] hover:bg-blue-50/90 border border-blue-100 rounded-2xl p-4 xl:p-5 flex items-center justify-between gap-2.5 transition-all duration-150 hover:shadow-md group cursor-pointer"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-              <Icon name="assignment" size={24} />
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 xl:w-11 xl:h-11 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+              <Icon name="assignment" size={22} />
             </div>
-            <div>
-              <div className="text-xs font-bold text-slate-700">Pending Reviews</div>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-700 whitespace-nowrap">Pending Reviews</div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1.5">
                 {stats.pendingReview}
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
-                <Icon name="schedule" size={13} className="text-slate-400" />
-                <span>Need your attention</span>
+              <div className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1 font-medium whitespace-nowrap">
+                <Icon name="schedule" size={13} className="text-slate-400 shrink-0" />
+                <span className="truncate">Need your attention</span>
               </div>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-blue-200/50 text-blue-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
+          <div className="w-7 h-7 shrink-0 rounded-full bg-blue-200/50 text-blue-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
             →
           </div>
         </Link>
@@ -186,23 +211,23 @@ function ReviewerDashboardContent() {
         {/* Card 2: Approved */}
         <Link
           href="/reviewer/inspect?filter=APPROVED"
-          className="bg-[#f0fdf4] hover:bg-emerald-50/90 border border-emerald-100 rounded-2xl p-5 flex items-center justify-between transition-all duration-150 hover:shadow-md group cursor-pointer"
+          className="bg-[#f0fdf4] hover:bg-emerald-50/90 border border-emerald-100 rounded-2xl p-4 xl:p-5 flex items-center justify-between gap-2.5 transition-all duration-150 hover:shadow-md group cursor-pointer"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-              <Icon name="check_circle" size={24} />
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 xl:w-11 xl:h-11 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <Icon name="check_circle" size={22} />
             </div>
-            <div>
-              <div className="text-xs font-bold text-slate-700">Approved</div>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-700 whitespace-nowrap">Approved</div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1.5">
                 {stats.approved}
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 font-medium">
+              <div className="text-[11px] text-slate-500 mt-1.5 font-medium whitespace-nowrap truncate">
                 Total approved courses
               </div>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-emerald-200/50 text-emerald-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
+          <div className="w-7 h-7 shrink-0 rounded-full bg-emerald-200/50 text-emerald-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
             →
           </div>
         </Link>
@@ -210,24 +235,24 @@ function ReviewerDashboardContent() {
         {/* Card 3: Changes Requested */}
         <Link
           href="/reviewer/inspect?filter=CHANGES_REQUESTED"
-          className="bg-[#fff7ed] hover:bg-amber-50/90 border border-orange-100 rounded-2xl p-5 flex items-center justify-between transition-all duration-150 hover:shadow-md group cursor-pointer"
+          className="bg-[#fff7ed] hover:bg-amber-50/90 border border-orange-100 rounded-2xl p-4 xl:p-5 flex items-center justify-between gap-2.5 transition-all duration-150 hover:shadow-md group cursor-pointer"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-              <Icon name="sync" size={24} />
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 xl:w-11 xl:h-11 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+              <Icon name="sync" size={22} />
             </div>
-            <div>
-              <div className="text-xs font-bold text-slate-700">Changes Requested</div>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-700 whitespace-nowrap">Changes Requested</div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1.5">
                 {stats.changesRequested}
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
-                <Icon name="schedule" size={13} className="text-slate-400" />
-                <span>Awaiting updates</span>
+              <div className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1 font-medium whitespace-nowrap">
+                <Icon name="schedule" size={13} className="text-slate-400 shrink-0" />
+                <span className="truncate">Awaiting updates</span>
               </div>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-orange-200/50 text-orange-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
+          <div className="w-7 h-7 shrink-0 rounded-full bg-orange-200/50 text-orange-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
             →
           </div>
         </Link>
@@ -235,23 +260,23 @@ function ReviewerDashboardContent() {
         {/* Card 4: Reviewed Today */}
         <Link
           href="/reviewer/inspect?filter=APPROVED"
-          className="bg-[#faf5ff] hover:bg-purple-50/90 border border-purple-100 rounded-2xl p-5 flex items-center justify-between transition-all duration-150 hover:shadow-md group cursor-pointer"
+          className="bg-[#faf5ff] hover:bg-purple-50/90 border border-purple-100 rounded-2xl p-4 xl:p-5 flex items-center justify-between gap-2.5 transition-all duration-150 hover:shadow-md group cursor-pointer"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-              <Icon name="history" size={24} />
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 xl:w-11 xl:h-11 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+              <Icon name="history" size={22} />
             </div>
-            <div>
-              <div className="text-xs font-bold text-slate-700">Reviewed Today</div>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1">
-                {stats.approvedToday || 5}
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-700 whitespace-nowrap">Reviewed Today</div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 leading-none mt-1.5">
+                {stats.approvedToday}
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 font-medium">
+              <div className="text-[11px] text-slate-500 mt-1.5 font-medium whitespace-nowrap truncate">
                 Completed reviews
               </div>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-full bg-purple-200/50 text-purple-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
+          <div className="w-7 h-7 shrink-0 rounded-full bg-purple-200/50 text-purple-700 flex items-center justify-center text-xs group-hover:translate-x-0.5 transition-transform">
             →
           </div>
         </Link>
@@ -337,15 +362,15 @@ function ReviewerDashboardContent() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400">
-                  <th className="py-2.5 px-3">#</th>
-                  <th className="py-2.5 px-3">Course</th>
-                  <th className="py-2.5 px-3">Instructor</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">Submitted</th>
-                  <th className="py-2.5 px-2">Version</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-2">Assigned To</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">#</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Course</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Instructor</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Category</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Submitted</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Version</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Status</th>
+                  <th className="py-2.5 px-2 whitespace-nowrap">Assigned To</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -364,9 +389,9 @@ function ReviewerDashboardContent() {
                 ) : (
                   filteredCourses.slice(0, 6).map((course, idx) => (
                     <tr key={course.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2.5 min-w-[180px] max-w-[220px]">
+                      <td className="py-3 px-2 text-slate-400 font-mono text-[11px] whitespace-nowrap">{idx + 1}</td>
+                      <td className="py-3 px-2">
+                        <div className="flex items-center gap-2 max-w-[148px]">
                           <div className="w-8 h-8 rounded-lg bg-slate-900 overflow-hidden shrink-0 border border-slate-200">
                             {course.thumbnail ? (
                               <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
@@ -376,20 +401,32 @@ function ReviewerDashboardContent() {
                           </div>
                           <Link
                             href={`/reviewer/courses/${course.id}`}
-                            className="font-bold text-slate-900 hover:text-blue-600 truncate transition-colors"
+                            className="font-bold text-slate-900 hover:text-blue-600 truncate block transition-colors"
                             title={course.title}
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setCourseTooltip({
+                                text: course.title,
+                                left: rect.left,
+                                top: rect.top - 8
+                              });
+                            }}
+                            onMouseLeave={() => setCourseTooltip(null)}
                           >
                             {course.title}
                           </Link>
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-slate-700 font-medium truncate max-w-[120px]">
+                      <td
+                        className="py-3 px-2 text-slate-700 font-medium truncate max-w-[100px] whitespace-nowrap"
+                        title={course.instructor?.name || 'Instructor'}
+                      >
                         {course.instructor?.name || 'Instructor'}
                       </td>
-                      <td className="py-3 px-3 text-slate-600 font-medium">
+                      <td className="py-3 px-2 text-slate-600 font-medium whitespace-nowrap">
                         {course.category?.name || 'General'}
                       </td>
-                      <td className="py-3 px-3 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                      <td className="py-3 px-2 text-slate-500 font-mono text-[11px] whitespace-nowrap">
                         {new Date(course.auditMeta?.submittedAt || course.updatedAt).toLocaleDateString(
                           'en-GB',
                           { day: '2-digit', month: 'short', year: 'numeric' }
@@ -403,13 +440,13 @@ function ReviewerDashboardContent() {
                           {course.versionLabel || 'v1.0'}
                         </span>
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td className="py-3 px-2 whitespace-nowrap">
                         {getStatusBadge(course.effectiveReviewStatus || course.status)}
                       </td>
-                      <td className="py-3 px-2 text-slate-500 text-[11px]">
+                      <td className="py-3 px-2 text-slate-500 text-[11px] whitespace-nowrap">
                         {idx === 2 ? 'You' : '—'}
                       </td>
-                      <td className="py-3 px-3 text-right whitespace-nowrap">
+                      <td className="py-3 px-2 text-right whitespace-nowrap">
                         <Link
                           href={`/reviewer/courses/${course.id}`}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1 transition-all ${
@@ -428,6 +465,20 @@ function ReviewerDashboardContent() {
               </tbody>
             </table>
           </div>
+
+          {/* Hover Tooltip showing full Course Title above shortened text */}
+          {courseTooltip && (
+            <div
+              style={{
+                left: courseTooltip.left,
+                top: courseTooltip.top,
+                transform: 'translateY(-100%)'
+              }}
+              className="fixed z-[9999] pointer-events-none px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-semibold shadow-xl max-w-xs whitespace-normal break-words border border-slate-700"
+            >
+              {courseTooltip.text}
+            </div>
+          )}
         </div>
 
         {/* Right Column (4 cols): Side Widgets matching reference design */}
@@ -448,35 +499,43 @@ function ReviewerDashboardContent() {
             </div>
 
             <div className="space-y-2.5">
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-xs font-bold text-slate-800">3 Courses overdue</span>
+              <Link
+                href="/reviewer/inspect?filter=IN_REVIEW"
+                className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-100 flex items-center justify-between transition-colors group cursor-pointer block"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      stats.overdueCount > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'
+                    }`}
+                  />
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-slate-800 block truncate">
+                      {stats.overdueCount} {stats.overdueCount === 1 ? 'Course overdue' : 'Courses overdue'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {stats.overdueCount > 0
+                        ? 'Pending audit > 24 hours'
+                        : 'All reviews on track within 24h SLA'}
+                    </span>
+                  </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">
-                  &gt; 3 days
+                <span
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ml-2 ${
+                    stats.overdueCount > 0
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {stats.overdueCount > 0
+                    ? `> ${stats.maxOverdueDays} ${stats.maxOverdueDays === 1 ? 'day' : 'days'}`
+                    : 'On Track'}
                 </span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-xs font-bold text-slate-800">5 Pending for 5+ days</span>
-                </div>
-                <span className="text-[11px] text-slate-400 font-semibold">Priority</span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-xs font-bold text-slate-800">High priority courses</span>
-                </div>
-                <span className="text-[11px] text-slate-400 font-semibold">Action needed</span>
-              </div>
+              </Link>
             </div>
           </div>
 
-          {/* Widget 2: Recent Activity */}
+          {/* Widget 2: Recent Activity (Real Data from Database) */}
           <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-900 font-extrabold text-sm">
@@ -484,7 +543,7 @@ function ReviewerDashboardContent() {
                 <span>Recent Activity</span>
               </div>
               <Link
-                href="/reviewer/inspect?filter=HISTORY"
+                href="/reviewer/inspect?filter=APPROVED"
                 className="text-xs font-bold text-blue-600 hover:text-blue-700"
               >
                 View All →
@@ -492,41 +551,31 @@ function ReviewerDashboardContent() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                  ✓
-                </span>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-slate-800">
-                    Approved &quot;Machine Learning Basics&quot;
-                  </div>
-                  <div className="text-[11px] text-slate-400">2 hours ago</div>
+              {recentActivities.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  No recent audit activity logged yet.
                 </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                  ↺
-                </span>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-slate-800">
-                    Requested changes for &quot;Graphic Design Course&quot;
+              ) : (
+                recentActivities.slice(0, 5).map((act) => (
+                  <div key={act.id} className="flex items-start gap-3">
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5 ${
+                        act.iconColor || 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {act.icon}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-slate-800 truncate" title={act.title}>
+                        {act.title}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {formatTimeAgo(act.createdAt)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-400">3 hours ago</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                  ✕
-                </span>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-slate-800">
-                    Rejected &quot;Advanced Excel&quot;
-                  </div>
-                  <div className="text-[11px] text-slate-400">5 hours ago</div>
-                </div>
-              </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -541,84 +590,89 @@ function ReviewerDashboardContent() {
               <span className="text-blue-500">📊</span>
               <span>Review Statistics</span>
             </div>
-            <button
-              type="button"
-              className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg"
-            >
-              Last 30 Days ⌄
-            </button>
+            <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+              Real-Time
+            </span>
           </div>
 
-          <div className="flex items-center justify-around py-2">
-            {/* SVG Donut Chart */}
-            <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                {/* Background Ring */}
-                <path
-                  className="text-slate-100"
-                  strokeWidth="3.8"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* Approved segment 86% */}
-                <path
-                  className="text-emerald-500"
-                  strokeDasharray="86, 100"
-                  strokeWidth="3.8"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* Changes Requested segment 8% */}
-                <path
-                  className="text-amber-500"
-                  strokeDasharray="8, 100"
-                  strokeDashoffset="-86"
-                  strokeWidth="3.8"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* Rejected segment 6% */}
-                <path
-                  className="text-rose-500"
-                  strokeDasharray="6, 100"
-                  strokeDashoffset="-94"
-                  strokeWidth="3.8"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-sm font-black text-slate-900 leading-none">86%</span>
-                <span className="text-[9px] text-slate-400 font-medium">Approved</span>
-              </div>
-            </div>
+          {(() => {
+            const totalEvaluated = stats.approved + stats.changesRequested + stats.rejected;
+            const approvedPct = totalEvaluated > 0 ? Math.round((stats.approved / totalEvaluated) * 100) : 100;
+            const changesPct = totalEvaluated > 0 ? Math.round((stats.changesRequested / totalEvaluated) * 100) : 0;
+            const rejectedPct = totalEvaluated > 0 ? Math.max(0, 100 - approvedPct - changesPct) : 0;
+            return (
+              <div className="flex items-center justify-around py-2">
+                {/* SVG Donut Chart */}
+                <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    {/* Background Ring */}
+                    <path
+                      className="text-slate-100"
+                      strokeWidth="3.8"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    {/* Approved segment */}
+                    <path
+                      className="text-emerald-500"
+                      strokeDasharray={`${approvedPct}, 100`}
+                      strokeWidth="3.8"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    {/* Changes Requested segment */}
+                    <path
+                      className="text-amber-500"
+                      strokeDasharray={`${changesPct}, 100`}
+                      strokeDashoffset={String(-approvedPct)}
+                      strokeWidth="3.8"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    {/* Rejected segment */}
+                    <path
+                      className="text-rose-500"
+                      strokeDasharray={`${rejectedPct}, 100`}
+                      strokeDashoffset={String(-(approvedPct + changesPct))}
+                      strokeWidth="3.8"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center">
+                    <span className="text-sm font-black text-slate-900 leading-none">{approvedPct}%</span>
+                    <span className="text-[9px] text-slate-400 font-medium">Approved</span>
+                  </div>
+                </div>
 
-            {/* Legend */}
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                <span className="text-slate-600 font-medium">Approved</span>
-                <strong className="text-slate-900 font-bold ml-auto pl-2">86%</strong>
+                {/* Legend */}
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-slate-600 font-medium">Approved</span>
+                    <strong className="text-slate-900 font-bold ml-auto pl-2">{approvedPct}%</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="text-slate-600 font-medium">Changes Requested</span>
+                    <strong className="text-slate-900 font-bold ml-auto pl-2">{changesPct}%</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <span className="text-slate-600 font-medium">Rejected</span>
+                    <strong className="text-slate-900 font-bold ml-auto pl-2">{rejectedPct}%</strong>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className="text-slate-600 font-medium">Changes Requested</span>
-                <strong className="text-slate-900 font-bold ml-auto pl-2">8%</strong>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                <span className="text-slate-600 font-medium">Rejected</span>
-                <strong className="text-slate-900 font-bold ml-auto pl-2">6%</strong>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* Card 2: Your Performance */}

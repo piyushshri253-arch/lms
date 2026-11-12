@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 import { EmailService } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
+import { dispatchBankVerificationNotification } from '@/lib/team-notifications';
 
 function maskBankAccountNumber(acct: string): string {
   const clean = acct.replace(/\s+/g, '');
@@ -440,24 +441,15 @@ export async function POST(req: NextRequest) {
       { bankName: saved.bankName, accountNumberMasked: saved.accountNumberMasked, ifscCode: saved.ifscCode }
     ).catch(() => {});
 
-    // Notify Super Admins & Admins to verify bank account with KYC docs
-    try {
-      const admins = await prisma.user.findMany({
-        where: { role: { in: ['SUPER_ADMIN', 'LMS_ADMIN', 'ADMIN'] } },
-        select: { id: true }
-      });
-      for (const admin of admins) {
-        await prisma.notification.create({
-          data: {
-            userId: admin.id,
-            title: `Bank & KYC Verification Needed: ${registeredInstructorName}`,
-            message: `Instructor ${registeredInstructorName} (${session.email}) submitted bank account (${saved.bankName} - ${saved.accountNumberMasked}, IFSC: ${saved.ifscCode}, PAN: ${saved.panNumber}) along with PAN, Aadhaar & Bank Proof documents for payout approval.`,
-            type: 'ACCOUNT',
-            link: '/super-admin/users'
-          }
-        });
-      }
-    } catch {}
+    // Notify Super Admin, Admin, Accounts & Technical team (Primary: Accounts) on Dashboard + Email
+    await dispatchBankVerificationNotification({
+      instructorName: registeredInstructorName,
+      instructorEmail: session.email,
+      bankName: saved.bankName,
+      accountNumberMasked: saved.accountNumberMasked,
+      ifscCode: saved.ifscCode,
+      panNumber: saved.panNumber || undefined
+    }).catch((e) => console.error('[Dispatch Bank Verification Notification Error]:', e));
 
     await createAuditLog({
       actorId: session.id,

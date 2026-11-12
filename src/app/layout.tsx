@@ -1,8 +1,10 @@
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { Geist, Inter } from 'next/font/google';
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 import { ToastContainer } from '@/components/ui/ToastContainer';
+import { GlobalIdleSessionTracker } from '@/components/auth/GlobalIdleSessionTracker';
 import { RoleSwitcher } from '@/components/layout/RoleSwitcher';
 import { SuperAdminSupportBanner } from '@/components/layout/SuperAdminSupportBanner';
 import { AiSupportFloatingBot } from '@/components/ai/AiSupportFloatingBot';
@@ -62,6 +64,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-white text-[#2d2f31] flex flex-col antialiased">
         <AppProvider>
+          <Suspense fallback={null}>
+            <GlobalIdleSessionTracker />
+          </Suspense>
           <SuperAdminSupportBanner />
           {children}
           <ToastContainer />

@@ -1,22 +1,20 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useApp } from '@/context/AppContext';
 import {
   LayoutDashboard,
   User,
   BookOpen,
   PlusCircle,
-  FolderKanban,
   Users,
   DollarSign,
-  Receipt,
   Landmark,
   Wallet,
   Bell,
   Settings,
-  Shield,
   LogOut,
   Menu,
   X,
@@ -24,14 +22,12 @@ import {
   Moon,
   CheckCircle2,
   AlertTriangle,
-  Sparkles,
-  FileQuestion,
-  Database,
   MessageSquare,
   Megaphone,
   GitBranch,
   Globe,
-  LifeBuoy
+  LifeBuoy,
+  ChevronDown
 } from 'lucide-react';
 
 interface InstructorPortalShellProps {
@@ -46,6 +42,7 @@ interface InstructorPortalShellProps {
     status?: string;
     emailVerified?: boolean;
     bankStatus?: string;
+    avatar?: string | null;
   };
 }
 
@@ -59,8 +56,78 @@ function InstructorPortalShellInner({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { currentUser, logout } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [cachedUser, setCachedUser] = useState<{
+    name?: string;
+    avatar?: string | null;
+    emailVerified?: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mt_instructor_cached_profile');
+      if (stored) setCachedUser(JSON.parse(stored));
+    } catch {}
+
+    if (profile?.name && profile?.avatar !== undefined) return;
+    if (currentUser?.name && currentUser?.avatar !== undefined) return;
+
+    fetch('/api/instructor/profile')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && data?.profile) {
+          const prof = {
+            name: data.profile.name,
+            avatar: data.profile.avatar || null,
+            emailVerified: Boolean(data.profile.emailVerified)
+          };
+          setCachedUser(prof);
+          try {
+            localStorage.setItem('mt_instructor_cached_profile', JSON.stringify(prof));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, [profile?.name, profile?.avatar, currentUser?.name, currentUser?.avatar]);
+
+  const effectiveName = profile?.name || currentUser?.name || cachedUser?.name || 'Instructor';
+  const effectiveAvatar = profile?.avatar || currentUser?.avatar || cachedUser?.avatar || null;
+  const effectiveEmailVerified =
+    profile?.emailVerified !== undefined
+      ? profile.emailVerified
+      : (currentUser as any)?.emailVerified !== undefined
+      ? (currentUser as any).emailVerified
+      : cachedUser?.emailVerified !== undefined
+      ? cachedUser.emailVerified
+      : true;
+  const initialLetter = (effectiveName && effectiveName !== 'Instructor' ? effectiveName[0] : 'I').toUpperCase();
 
   useEffect(() => {
     const saved = (localStorage.getItem('mt_theme') || localStorage.getItem('mt_instructor_theme_light_v2')) as 'light' | 'dark' | null;
@@ -92,9 +159,15 @@ function InstructorPortalShellInner({
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem('mt_instructor_cached_profile');
+    } catch {}
+    try {
       await fetch('/api/auth/logout?portal=INSTRUCTOR', { method: 'POST' });
     } catch {}
-    router.push('/instructor/login');
+    try {
+      await logout({ silent: true });
+    } catch {}
+    router.replace('/instructor/login');
   };
 
   const currentTab = searchParams?.get('tab') || '';
@@ -124,22 +197,29 @@ function InstructorPortalShellInner({
         currentTab !== 'notifications'
     },
     {
-      label: 'Courses SEO & Ads',
-      href: '/instructor/course-seo',
-      icon: Globe,
-      isActive: pathname?.startsWith('/instructor/course-seo') || false
-    },
-    {
       label: 'Create Course',
       href: '/instructor/courses/builder?new=true',
       icon: PlusCircle,
-      isActive: pathname === '/instructor/courses/builder' && !searchParams?.get('courseId') && !searchParams?.get('id') && !searchParams?.get('slug')
+      isActive:
+        pathname === '/instructor/courses/builder' &&
+        !searchParams?.get('courseId') &&
+        !searchParams?.get('id') &&
+        !searchParams?.get('slug')
     },
     {
       label: 'Course Versions',
       href: '/instructor/course-versions',
       icon: GitBranch,
       isActive: pathname?.startsWith('/instructor/course-versions') || false
+    },
+    {
+      label: 'Courses SEO & Ads',
+      href: '/instructor/course-seo',
+      icon: Globe,
+      isActive:
+        pathname?.startsWith('/instructor/course-seo') ||
+        pathname?.startsWith('/instructor/seo-ads') ||
+        false
     },
     {
       label: 'Student Q&A',
@@ -160,22 +240,16 @@ function InstructorPortalShellInner({
       isActive: pathname === '/instructor' && currentTab === 'students'
     },
     {
-      label: 'Earnings',
-      href: '/instructor/earnings',
-      icon: DollarSign,
-      isActive: pathname === '/instructor/earnings'
-    },
-    {
-      label: 'Transactions',
-      href: '/instructor/transactions',
-      icon: Receipt,
-      isActive: pathname === '/instructor/transactions'
-    },
-    {
       label: 'Bank Details',
       href: '/instructor/bank-details',
       icon: Landmark,
       isActive: pathname === '/instructor/bank-details'
+    },
+    {
+      label: 'Earnings',
+      href: '/instructor/earnings',
+      icon: DollarSign,
+      isActive: pathname === '/instructor/earnings' || pathname === '/instructor/transactions'
     },
     {
       label: 'Payouts',
@@ -184,27 +258,21 @@ function InstructorPortalShellInner({
       isActive: pathname === '/instructor/payouts'
     },
     {
-      label: 'Support & Help',
-      href: '/instructor/support',
-      icon: LifeBuoy,
-      isActive: pathname?.startsWith('/instructor/support') || false
-    },
-    {
       label: 'Notifications',
       href: '/instructor?tab=notifications',
       icon: Bell,
       isActive: pathname === '/instructor' && currentTab === 'notifications'
     },
     {
+      label: 'Support & Help',
+      href: '/instructor/support',
+      icon: LifeBuoy,
+      isActive: pathname?.startsWith('/instructor/support') || false
+    },
+    {
       label: 'Settings',
       href: '/instructor/profile#settings',
       icon: Settings,
-      isActive: false
-    },
-    {
-      label: 'Security',
-      href: '/instructor/profile#security',
-      icon: Shield,
       isActive: false
     }
   ];
@@ -225,9 +293,9 @@ function InstructorPortalShellInner({
         />
       )}
 
-      {/* Unified Left Sidebar (Matches First Screenshot) */}
+      {/* Unified Left Sidebar (Sticky + Scrollable Middle Navigation) */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 shrink-0 flex flex-col border-r transition-transform duration-200 ${
+        className={`fixed lg:sticky top-0 inset-y-0 left-0 z-50 w-64 shrink-0 h-screen flex flex-col border-r transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${
           isLight
@@ -236,13 +304,22 @@ function InstructorPortalShellInner({
         }`}
       >
         <div
-          className={`h-16 px-5 flex items-center justify-between border-b ${
+          className={`shrink-0 h-16 px-5 flex items-center justify-between border-b ${
             isLight ? 'border-slate-200' : 'border-slate-800/40'
           }`}
         >
-          <Link href="/instructor/dashboard" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-violet-600/25">
-              <Sparkles className="w-4 h-4" />
+          <Link
+            href="/"
+            title="Go to Homepage"
+            className="flex items-center gap-2.5 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 p-1 flex items-center justify-center shadow-2xs shrink-0 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="Morena Teach Logo"
+                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
+              />
             </div>
             <div>
               <div
@@ -265,7 +342,7 @@ function InstructorPortalShellInner({
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain sidebar-scrollbar py-4 px-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -289,13 +366,15 @@ function InstructorPortalShellInner({
         </nav>
 
         <div
-          className={`p-3 border-t ${
+          className={`shrink-0 p-3 border-t ${
             isLight ? 'border-slate-200' : 'border-slate-800/40'
           }`}
         >
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-red-600 transition-all cursor-pointer ${
+              isLight ? 'hover:bg-red-50' : 'hover:bg-red-950/30'
+            }`}
           >
             <LogOut className="w-4 h-4" />
             <span>Logout</span>
@@ -339,15 +418,15 @@ function InstructorPortalShellInner({
           <div className="flex items-center gap-3">
             {actions}
             {/* Account & Bank Status Badges */}
-            {profile?.emailVerified !== undefined && (
+            {effectiveEmailVerified !== undefined && (
               <span
                 className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
-                  profile.emailVerified
+                  effectiveEmailVerified
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : 'bg-amber-50 text-amber-700 border border-amber-200'
                 }`}
               >
-                {profile.emailVerified ? (
+                {effectiveEmailVerified ? (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     Email Verified
@@ -373,21 +452,120 @@ function InstructorPortalShellInner({
               {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
-            <Link
-              href="/instructor/profile"
-              className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                isLight
-                  ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
-                  : 'bg-slate-900 border-slate-800 text-slate-200'
-              }`}
-            >
-              <div className="w-6 h-6 rounded-full bg-violet-600 text-white flex items-center justify-center font-bold text-[11px]">
-                {(profile?.name || 'I')[0]?.toUpperCase()}
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                aria-expanded={profileMenuOpen}
+                aria-haspopup="menu"
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                  profileMenuOpen
+                    ? isLight
+                      ? 'bg-violet-50 border-violet-300 text-violet-900 shadow-xs'
+                      : 'bg-slate-800 border-violet-500/50 text-white shadow-xs'
+                    : isLight
+                    ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
+                    : 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {effectiveAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={effectiveAvatar}
+                    alt={effectiveName}
+                    className="w-6 h-6 rounded-full object-cover border border-violet-300 shrink-0"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-violet-600 text-white flex items-center justify-center font-bold text-[11px] shrink-0">
+                    {initialLetter}
+                  </div>
+                )}
+                <span className="hidden sm:inline truncate max-w-[130px] capitalize">
+                  {effectiveName}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ease-out ${
+                    profileMenuOpen
+                      ? 'rotate-180 text-violet-600'
+                      : 'rotate-0 text-slate-400'
+                  }`}
+                />
+              </button>
+
+              {/* Smooth Animated Instructor Profile Dropdown */}
+              <div
+                role="menu"
+                className={`absolute right-0 mt-2 w-56 rounded-2xl border shadow-xl origin-top-right transition-all duration-200 ease-out z-50 overflow-hidden ${
+                  profileMenuOpen
+                    ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                    : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                } ${
+                  isLight
+                    ? 'bg-white border-slate-200 text-slate-800 shadow-slate-200/70'
+                    : 'bg-[#101622] border-slate-800 text-slate-200 shadow-black/50'
+                }`}
+              >
+                <div
+                  className={`px-4 py-3 border-b ${
+                    isLight ? 'border-slate-100 bg-slate-50/70' : 'border-slate-800/80 bg-slate-900/50'
+                  }`}
+                >
+                  <div className="text-xs font-bold truncate capitalize">
+                    {effectiveName}
+                  </div>
+                  <div className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider mt-0.5">
+                    Instructor Studio
+                  </div>
+                </div>
+
+                <div className="p-1.5 space-y-0.5">
+                  <Link
+                    href="/instructor/profile"
+                    onClick={() => setProfileMenuOpen(false)}
+                    role="menuitem"
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                      isLight
+                        ? 'text-slate-700 hover:bg-violet-50 hover:text-violet-700'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-4 h-4 shrink-0 text-violet-600" />
+                    <span>My Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/instructor/profile#settings"
+                    onClick={() => setProfileMenuOpen(false)}
+                    role="menuitem"
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                      isLight
+                        ? 'text-slate-700 hover:bg-violet-50 hover:text-violet-700'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4 shrink-0 text-indigo-500" />
+                    <span>Settings</span>
+                  </Link>
+
+                  <div className={`my-1 border-t ${isLight ? 'border-slate-100' : 'border-slate-800/80'}`} />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    role="menuitem"
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-red-600 transition-colors cursor-pointer ${
+                      isLight ? 'hover:bg-red-50' : 'hover:bg-red-950/30'
+                    }`}
+                  >
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
-              <span className="hidden sm:inline truncate max-w-[130px]">
-                {profile?.name || 'Instructor'}
-              </span>
-            </Link>
+            </div>
           </div>
         </header>
 

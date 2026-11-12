@@ -209,6 +209,141 @@ export async function GET(request: Request) {
       (c) => new Date(c.updatedAt) >= sevenDaysAgo
     ).length;
 
+    // Overdue Courses Calculation (24 Hours SLA Rule)
+    // Any course pending review (IN_REVIEW, PENDING, PENDING_APPROVAL) that has been waiting >= 24 hours is 1+ days overdue
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+    const pendingCourses = enrichedCourses.filter(
+      (c) =>
+        c.effectiveReviewStatus === 'IN_REVIEW' ||
+        c.status === 'IN_REVIEW' ||
+        c.status === 'PENDING_APPROVAL' ||
+        c.status === 'PENDING'
+    );
+
+    const overdueCourses = pendingCourses
+      .map((c) => {
+        const submittedTimestamp = new Date(c.auditMeta?.submittedAt || c.updatedAt || c.createdAt).getTime();
+        const elapsedMs = now - submittedTimestamp;
+        const isOverdue = elapsedMs >= TWENTY_FOUR_HOURS_MS;
+        const overdueDays = isOverdue ? Math.max(1, Math.floor(elapsedMs / TWENTY_FOUR_HOURS_MS)) : 0;
+        return {
+          id: c.id,
+          title: c.title,
+          instructorName: c.instructor?.name || 'Instructor',
+          submittedAt: c.auditMeta?.submittedAt || c.updatedAt,
+          elapsedHours: Math.round(elapsedMs / (1000 * 60 * 60)),
+          overdueDays,
+          isOverdue
+        };
+      })
+      .filter((c) => c.isOverdue);
+
+    const overdueCount = overdueCourses.length;
+    const maxOverdueDays = overdueCourses.length > 0
+      ? Math.max(...overdueCourses.map((c) => c.overdueDays))
+      : 0;
+
+    // Fetch Real Auditor Recent Activities from Database Audit Logs
+    const rawAuditLogs = await prisma.auditLog.findMany({
+      where: {
+        action: {
+          in: [
+            'COURSE_APPROVED',
+            'AUDIT_COURSE_APPROVED',
+            'COURSE_CHANGES_REQUESTED',
+            'AUDIT_COURSE_CHANGES_REQUESTED',
+            'COURSE_REJECTED',
+            'AUDIT_COURSE_REJECTED',
+            'SUBMIT_COURSE_UPDATES_FOR_REVIEW',
+            'UPDATE_COURSE'
+          ]
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 6
+    });
+
+    const recentActivities: Array<{
+      id: string;
+      icon: string;
+      iconColor: string;
+      title: string;
+      createdAt: string;
+    }> = [];
+
+    for (const log of rawAuditLogs) {
+      let icon = '⚡';
+      let iconColor = 'text-blue-600 bg-blue-100';
+      let title = log.description || log.action;
+
+      if (log.action.includes('APPROVED')) {
+        icon = '✓';
+        iconColor = 'text-emerald-600 bg-emerald-100';
+      } else if (log.action.includes('CHANGES_REQUESTED')) {
+        icon = '↺';
+        iconColor = 'text-amber-600 bg-amber-100';
+      } else if (log.action.includes('REJECTED')) {
+        icon = '✕';
+        iconColor = 'text-rose-600 bg-rose-100';
+      } else if (log.action.includes('SUBMIT')) {
+        icon = '↑';
+        iconColor = 'text-indigo-600 bg-indigo-100';
+      }
+
+      const match = log.description?.match(/course\s+"([^"]+)"/i);
+      const courseTitle = match ? match[1] : null;
+
+      if (courseTitle) {
+        if (log.action.includes('APPROVED')) {
+          title = `Approved "${courseTitle}"`;
+        } else if (log.action.includes('CHANGES_REQUESTED')) {
+          title = `Requested changes for "${courseTitle}"`;
+        } else if (log.action.includes('REJECTED')) {
+          title = `Rejected "${courseTitle}"`;
+        } else if (log.action.includes('SUBMIT')) {
+          title = `Submitted updates for "${courseTitle}"`;
+        }
+      }
+
+      recentActivities.push({
+        id: log.id,
+        icon,
+        iconColor,
+        title,
+        createdAt: log.createdAt.toISOString()
+      });
+    }
+
+    // Fallback: If no audit log records exist yet, populate from real evaluated courses
+    if (recentActivities.length === 0) {
+      enrichedCourses
+        .filter((c) => ['APPROVED', 'CHANGES_REQUESTED', 'REJECTED'].includes(c.status) || c.reviewedAt)
+        .slice(0, 5)
+        .forEach((c) => {
+          let icon = '✓';
+          let iconColor = 'text-emerald-600 bg-emerald-100';
+          let title = `Approved "${c.title}"`;
+          if (c.status === 'CHANGES_REQUESTED') {
+            icon = '↺';
+            iconColor = 'text-amber-600 bg-amber-100';
+            title = `Requested changes for "${c.title}"`;
+          } else if (c.status === 'REJECTED') {
+            icon = '✕';
+            iconColor = 'text-rose-600 bg-rose-100';
+            title = `Rejected "${c.title}"`;
+          }
+          recentActivities.push({
+            id: c.id,
+            icon,
+            iconColor,
+            title,
+            createdAt: (c.reviewedAt ? new Date(c.reviewedAt) : new Date(c.updatedAt)).toISOString()
+          });
+        });
+    }
+
     // Apply status & type filters
     let filtered = enrichedCourses;
     if (statusFilter !== 'ALL') {
@@ -248,9 +383,13 @@ export async function GET(request: Request) {
         changesRequested: changesRequestedCount,
         rejected: rejectedCount,
         recentlyUpdated: recentlyUpdatedCount,
+        overdueCount,
+        maxOverdueDays,
+        overdueCourses,
         avgReviewTime: '1.8 hrs',
         total: enrichedCourses.length
       },
+      recentActivities,
       courses: filtered
     });
   } catch (err: any) {

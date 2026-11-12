@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 import { EmailService } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
+import { dispatchPayoutRequestNotification } from '@/lib/team-notifications';
 
 const MIN_PAYOUT_AMOUNT = 500;
 
@@ -187,6 +188,19 @@ export async function POST(req: NextRequest) {
       { id: user.id, name: user.name, email: user.email },
       { amount: payout.amount, netAmount: payout.netAmount, status: 'REQUESTED' }
     ).catch(() => {});
+
+    // Notify Super Admin, Admin, Accounts & Technical team (Primary: Accounts) on Dashboard + Email
+    await dispatchPayoutRequestNotification({
+      payoutId: payout.id,
+      amount: payout.amount,
+      netAmount: payout.netAmount,
+      payoutMethod,
+      instructorName: user.name || 'Instructor',
+      instructorEmail: user.email,
+      bankName: user.bankAccount?.bankName,
+      accountNumberMasked: user.bankAccount?.accountNumberMasked,
+      ifscCode: user.bankAccount?.ifscCode
+    }).catch((e) => console.error('[Dispatch Payout Notification Error]:', e));
 
     await createAuditLog({
       actorId: user.id,

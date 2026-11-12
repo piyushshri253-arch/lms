@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Course, CourseCategory, MarketingCampaign, PlatformSettings } from '@/types';
 
 export interface UserSession {
@@ -56,7 +56,7 @@ interface AppContextType {
   isLoadingUser: boolean;
   login: (email: string, pass: string, requestedPortal?: string) => Promise<UserSession>;
   register: (name: string, email: string, pass: string, role?: 'STUDENT' | 'INSTRUCTOR') => Promise<UserSession>;
-  logout: () => Promise<void>;
+  logout: (optionsOrEvent?: { silent?: boolean } | React.SyntheticEvent) => Promise<void>;
   refreshUser: () => Promise<void>;
 
   activeRole: 'public' | 'student' | 'admin';
@@ -107,7 +107,7 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   supportEmail: 'support@morenateach.com',
   defaultLanguage: 'English (US)',
   twoFactorAuth: true,
-  sessionTimeoutMinutes: 60,
+  sessionTimeoutMinutes: 15,
   stripeActive: true,
   stripePublishableKey: 'pk_live_51M89x91...',
   paypalActive: true,
@@ -227,6 +227,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveRoleState(role);
   };
 
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const showToast = useCallback(
+    (toastOrTitle: string | Omit<ToastMessage, 'id'>, type?: 'success' | 'error' | 'info') => {
+      const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      let toastObj: ToastMessage;
+      if (typeof toastOrTitle === 'string') {
+        toastObj = { id, title: toastOrTitle, type: type || 'info' };
+      } else {
+        toastObj = { ...toastOrTitle, id };
+      }
+      setToasts((prev) => {
+        const isDuplicate = prev.some(
+          (t) => t.title === toastObj.title && t.description === toastObj.description
+        );
+        if (isDuplicate) return prev;
+        return [...prev, toastObj];
+      });
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+    },
+    [removeToast]
+  );
+
   const login = async (email: string, pass: string, requestedPortal?: string): Promise<UserSession> => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -328,25 +355,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return data.user;
   };
 
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    setCurrentUser(null);
-    setActiveRoleState('public');
-    setWishlistCourseIds([]);
-    // Clear cart on logout so website opens fresh for guest / logged-out user
-    setCartItems([]);
-    try {
-      localStorage.removeItem('teach_cart_items_guest');
-      localStorage.removeItem('teach_cart_items');
-    } catch {}
-    showToast({
-      title: 'Signed Out',
-      description: 'You have been safely signed out.',
-      type: 'info'
-    });
-  };
+  const logout = useCallback(
+    async (optionsOrEvent?: { silent?: boolean } | React.SyntheticEvent) => {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch {}
+      setCurrentUser(null);
+      setActiveRoleState('public');
+      setWishlistCourseIds([]);
+      // Clear cart on logout so website opens fresh for guest / logged-out user
+      setCartItems([]);
+      try {
+        localStorage.removeItem('teach_cart_items_guest');
+        localStorage.removeItem('teach_cart_items');
+      } catch {}
+      const isSilent =
+        Boolean(optionsOrEvent && typeof optionsOrEvent === 'object' && 'silent' in optionsOrEvent && optionsOrEvent.silent);
+      if (!isSilent) {
+        showToast({
+          title: 'Signed Out',
+          description: 'You have been safely signed out.',
+          type: 'info'
+        });
+      }
+    },
+    [showToast]
+  );
 
   const toggleWishlist = async (courseId: string) => {
     if (!currentUser) {
@@ -691,24 +725,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const isInCart = (courseIdOrSlug: string) => {
     if (!courseIdOrSlug) return false;
     return cartItems.some((item) => item.id === courseIdOrSlug || item.slug === courseIdOrSlug);
-  };
-
-  const showToast = (toastOrTitle: string | Omit<ToastMessage, 'id'>, type?: 'success' | 'error' | 'info') => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    let toastObj: ToastMessage;
-    if (typeof toastOrTitle === 'string') {
-      toastObj = { id, title: toastOrTitle, type: type || 'info' };
-    } else {
-      toastObj = { ...toastOrTitle, id };
-    }
-    setToasts((prev) => [...prev, toastObj]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
   return (

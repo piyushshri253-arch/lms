@@ -22,7 +22,28 @@ function InstructorLoginContent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(null);
+  const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(() => {
+    const r = searchParams.get('reason');
+    if (r === 'inactivity') {
+      return {
+        code: 'INACTIVITY_TIMEOUT',
+        message: 'You have been logged out due to inactivity. Please log in again.'
+      };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    const reason =
+      searchParams.get('reason') ||
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('reason') : null);
+    if (reason === 'inactivity') {
+      setAuthError({
+        code: 'INACTIVITY_TIMEOUT',
+        message: 'You have been logged out due to inactivity. Please log in again.'
+      });
+    }
+  }, [searchParams]);
 
   // OTP Verification State
   const [requiresOtp, setRequiresOtp] = useState(false);
@@ -704,8 +725,8 @@ interface QualificationItem {
                   className={`p-3 rounded-xl border text-xs text-left animate-in fade-in duration-150 ${
                     authError.code === 'USER_NOT_FOUND'
                       ? 'bg-purple-50 border-purple-200 text-purple-950'
-                      : authError.code === 'PENDING_AUDITOR_ONBOARDING'
-                      ? 'bg-amber-50 border-amber-200 text-amber-950'
+                      : authError.code === 'PENDING_AUDITOR_ONBOARDING' || authError.code === 'INACTIVITY_TIMEOUT'
+                      ? 'bg-amber-50 border-amber-300 text-amber-950'
                       : 'bg-rose-50 border-rose-200 text-rose-900'
                   }`}
                 >
@@ -746,7 +767,7 @@ interface QualificationItem {
 
               <div className="text-right">
                 <Link
-                  href="/forgot-password"
+                  href="/forgot-password?portal=INSTRUCTOR"
                   className="text-[11px] text-slate-500 hover:text-violet-600 transition-colors"
                 >
                   Forgot your password?
@@ -761,16 +782,6 @@ interface QualificationItem {
                 >
                   {isLoading ? <span>Signing In...</span> : <span>SIGN IN</span>}
                 </button>
-              </div>
-
-              <div className="pt-2 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500">
-                <Link href="/reviewer/login" className="text-indigo-600 hover:underline">
-                  Auditor Login →
-                </Link>
-                <span>•</span>
-                <Link href="/admin/login" className="text-slate-600 hover:text-slate-900">
-                  Admin Portal →
-                </Link>
               </div>
             </form>
           )}

@@ -7,13 +7,14 @@ import { getBaseUrl } from '@/lib/base-url';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email } = body;
+    const { email, requestedPortal } = body;
 
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email address is required.' }, { status: 400 });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const effectivePortal = requestedPortal ? String(requestedPortal).toUpperCase() : '';
 
     // 1. Rate Limiting: Max 3 password reset requests per 15 minutes
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
@@ -30,10 +31,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Lookup User
-    const user = await prisma.user.findFirst({
+    // 2. Lookup User (portal-aware so multi-role emails target the right role account)
+    const matchingUsers = await prisma.user.findMany({
       where: { email: normalizedEmail }
     });
+
+    let user = matchingUsers[0] || null;
+    if (matchingUsers.length > 0 && effectivePortal) {
+      if (effectivePortal === 'REVIEWER') {
+        user =
+          matchingUsers.find((u) => ['REVIEWER', 'AUDITOR'].includes(String(u.role))) ||
+          matchingUsers[0];
+      } else if (effectivePortal === 'INSTRUCTOR') {
+        user =
+          matchingUsers.find((u) => ['INSTRUCTOR', 'TEACHER'].includes(String(u.role))) ||
+          matchingUsers[0];
+      } else if (effectivePortal === 'ADMIN') {
+        user =
+          matchingUsers.find((u) =>
+            ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN', 'SALES_ADMIN'].includes(String(u.role))
+          ) || matchingUsers[0];
+      } else if (effectivePortal === 'STUDENT') {
+        user =
+          matchingUsers.find((u) => String(u.role) === 'STUDENT') || matchingUsers[0];
+      }
+    }
 
     if (!user) {
       return NextResponse.json(

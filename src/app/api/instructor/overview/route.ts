@@ -13,48 +13,47 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Instructor access required.' }, { status: 403 });
     }
 
-    const user: any = await prisma.user.findUnique({
-      where: { id: session.id },
-      include: {
-        bankAccount: true,
-        coursesAuthored: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            category: { select: { id: true, name: true } },
-            _count: { select: { enrollments: true } }
-          }
-        },
-        instructorPayouts: {
-          orderBy: { requestedAt: 'desc' },
-          take: 10
-        },
-        instructorTransactions: {
-          orderBy: { createdAt: 'desc' },
-          take: 15
-        },
-        notifications: {
-          orderBy: { createdAt: 'desc' },
-          take: 10
+    const [user, coursesAuthored, allTransactions, allPayouts, notifications] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.id },
+        include: { bankAccount: true }
+      }),
+      prisma.course.findMany({
+        where: { instructorId: session.id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: { select: { id: true, name: true } },
+          _count: { select: { enrollments: true } }
         }
-      }
-    });
+      }),
+      prisma.instructorEarningTransaction.findMany({
+        where: { userId: session.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50
+      }),
+      prisma.instructorPayout.findMany({
+        where: { userId: session.id },
+        orderBy: { requestedAt: 'desc' },
+        take: 30
+      }),
+      prisma.notification.findMany({
+        where: { userId: session.id },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      })
+    ]);
 
     if (!user) {
       return NextResponse.json({ error: 'Instructor account not found.' }, { status: 404 });
     }
 
-    const courseIds = user.coursesAuthored.map((c: any) => c.id);
+    const courseIds = coursesAuthored.map((c: any) => c.id);
 
-    // Fetch total enrollments count & unique learners count across instructor courses
-    const [totalEnrollmentsCount, uniqueStudentsRows, enrollments] = courseIds.length
+    // Fetch total enrollments count & learners across instructor courses in parallel
+    const [totalEnrollmentsCount, enrollments] = courseIds.length
       ? await Promise.all([
           prisma.enrollment.count({
             where: { courseId: { in: courseIds } }
-          }),
-          prisma.enrollment.findMany({
-            where: { courseId: { in: courseIds } },
-            select: { userId: true },
-            distinct: ['userId']
           }),
           prisma.enrollment.findMany({
             where: { courseId: { in: courseIds } },
@@ -63,119 +62,28 @@ export async function GET(req: NextRequest) {
               course: { select: { id: true, title: true, price: true, discountPrice: true } }
             },
             orderBy: { enrolledAt: 'desc' },
-            take: 25
+            take: 20
           })
         ])
-      : [0, [], []];
+      : [0, []];
 
-    const totalStudents = uniqueStudentsRows.length;
-
-    // Idempotently sync any course sales into InstructorEarningTransaction if missing
-    if (enrollments.length > 0) {
-      const existingRefs = new Set(
-        user.instructorTransactions.map((t: any) => t.transactionRef)
-      );
-
-      for (const enr of enrollments) {
-        const ref = `TXN-${enr.id.slice(-8).toUpperCase()}`;
-        if (!existingRefs.has(ref)) {
-          const gross = Number(enr.course?.discountPrice ?? enr.course?.price ?? 999);
-          if (gross > 0) {
-            const platformFee = Math.round(gross * 0.60); // 60% Platform cut
-            const instructorShare = Math.round(gross * 0.40); // 40% Instructor share
-            const taxDeduction = Math.round(instructorShare * 0.02); // 2% TDS on instructor share
-            const netAmount = instructorShare - taxDeduction; // Net amount credited to instructor
-
-            await prisma.instructorEarningTransaction
-              .upsert({
-                where: { transactionRef: ref },
-                create: {
-                  transactionRef: ref,
-                  userId: user.id,
-                  courseId: enr.courseId,
-                  courseTitle: enr.course?.title || 'Course Enrollment',
-                  studentId: enr.userId,
-                  studentName: enr.user?.name || 'Student',
-                  studentEmail: enr.user?.email || '',
-                  type: 'COURSE_SALE',
-                  grossAmount: gross,
-                  platformFee,
-                  instructorShare,
-                  taxDeduction,
-                  netAmount,
-                  paymentMethod: 'RAZORPAY',
-                  status: 'PAID',
-                  createdAt: enr.enrolledAt
-                },
-                update: {
-                  grossAmount: gross,
-                  platformFee,
-                  instructorShare,
-                  taxDeduction,
-                  netAmount
-                }
-              })
-              .catch(() => {});
-            existingRefs.add(ref);
-          }
-        }
-      }
-    }
-
-    // Reconcile any existing transactions to ensure 60% platform fee, 40% instructor share, 2% TDS
-    const userTxns = await prisma.instructorEarningTransaction.findMany({
-      where: { userId: user.id }
-    });
-    for (const t of userTxns) {
-      const gross = Number(t.grossAmount || 0);
-      if (gross > 0) {
-        const expectedFee = Math.round(gross * 0.60);
-        const expectedShare = Math.round(gross * 0.40);
-        const expectedTds = Math.round(expectedShare * 0.02);
-        const expectedNet = expectedShare - expectedTds;
-        if (t.platformFee !== expectedFee || t.instructorShare !== expectedShare) {
-          await prisma.instructorEarningTransaction
-            .update({
-              where: { id: t.id },
-              data: {
-                platformFee: expectedFee,
-                instructorShare: expectedShare,
-                taxDeduction: expectedTds,
-                netAmount: expectedNet
-              }
-            })
-            .catch(() => {});
-        }
-      }
-    }
-
-    // Re-query transactions and payouts for accurate real totals
-    const [allTransactions, allPayouts] = await Promise.all([
-      prisma.instructorEarningTransaction.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.instructorPayout.findMany({
-        where: { userId: user.id },
-        orderBy: { requestedAt: 'desc' }
-      })
-    ]);
+    const totalStudents = totalEnrollmentsCount;
 
     // 1. Courses Breakdown (Real DB values)
-    const totalCourses = user.coursesAuthored.length;
-    const activeCourses = user.coursesAuthored.filter((c: any) => {
+    const totalCourses = coursesAuthored.length;
+    const activeCourses = coursesAuthored.filter((c: any) => {
       const s = (c.status || '').toUpperCase();
       return s === 'PUBLISHED' || s === 'APPROVED' || c.isPublished === true;
     }).length;
-    const pendingApprovalCourses = user.coursesAuthored.filter((c: any) => {
+    const pendingApprovalCourses = coursesAuthored.filter((c: any) => {
       const s = (c.status || '').toUpperCase();
       return ['IN_REVIEW', 'PENDING', 'UNDER_REVIEW'].includes(s);
     }).length;
-    const draftCourses = user.coursesAuthored.filter((c: any) => {
+    const draftCourses = coursesAuthored.filter((c: any) => {
       const s = (c.status || '').toUpperCase();
       return s === 'DRAFT' || (!s && !c.isPublished);
     }).length;
-    const inactiveCourses = user.coursesAuthored.filter((c: any) => {
+    const inactiveCourses = coursesAuthored.filter((c: any) => {
       const s = (c.status || '').toUpperCase();
       return ['ARCHIVED', 'REJECTED', 'INACTIVE', 'DISABLED'].includes(s);
     }).length;
@@ -202,6 +110,27 @@ export async function GET(req: NextRequest) {
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
     const outstandingAmount = Math.max(0, totalEarnings - paidAmount - pendingPayout);
+
+    const studentNameById = new Map<string, string>();
+    for (const e of enrollments as any[]) {
+      if (e.userId && e.user?.name) {
+        studentNameById.set(e.userId, e.user.name);
+      }
+    }
+    const sanitizedRecentTransactions = allTransactions.slice(0, 10).map((t: any) => {
+      const liveName = t.studentId ? studentNameById.get(t.studentId) : undefined;
+      const resolvedName =
+        liveName && liveName.trim()
+          ? liveName.trim()
+          : t.studentName && t.studentName !== 'Student Name'
+          ? t.studentName
+          : 'Student';
+      const { studentEmail: _omittedEmail, ...safeTxn } = t;
+      return {
+        ...safeTxn,
+        studentName: resolvedName
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -269,11 +198,11 @@ export async function GET(req: NextRequest) {
         // Bank Status
         bankAccountStatus: user.bankAccount?.status || 'NOT_ADDED'
       },
-      recentCourses: user.coursesAuthored.slice(0, 8),
+      recentCourses: coursesAuthored.slice(0, 8),
       recentEnrollments: enrollments.slice(0, 8),
-      recentTransactions: allTransactions.slice(0, 10),
+      recentTransactions: sanitizedRecentTransactions,
       recentPayouts: allPayouts.slice(0, 10),
-      notifications: user.notifications
+      notifications: notifications
     });
   } catch (err: any) {
     console.error('[Instructor Overview API Error]:', err);

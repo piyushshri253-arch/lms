@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { createNotification } from '@/lib/notification';
+import { dispatchTicketNotification, ISSUE_ROUTING_CONFIGS } from '@/lib/team-notifications';
 
 export async function GET(req: NextRequest) {
   try {
@@ -112,6 +113,7 @@ export async function POST(req: NextRequest) {
 
     const randomCode = Math.floor(100000 + Math.random() * 900000);
     const ticketNumber = `INST-${randomCode}`;
+    const routingConfig = ISSUE_ROUTING_CONFIGS[category] || ISSUE_ROUTING_CONFIGS.PAYMENT_ISSUE;
 
     const createdTicket = await prisma.supportTicket.create({
       data: {
@@ -122,6 +124,7 @@ export async function POST(req: NextRequest) {
         category,
         priority,
         status: 'OPEN',
+        assignedTo: `${routingConfig.primaryTeam} (Primary)`,
         messages: {
           create: [
             {
@@ -132,12 +135,9 @@ export async function POST(req: NextRequest) {
             },
             {
               senderId: 'system-support-bot',
-              senderName: 'Instructor Priority Desk',
+              senderName: `${routingConfig.primaryTeam} Priority Desk`,
               senderRole: 'ADMIN',
-              message: `Ticket #${ticketNumber} has been logged under [${category.replace(
-                /_/g,
-                ' '
-              )}] with ${priority} priority. Our Finance, Course Audit, or Engineering team will respond shortly.`
+              message: `Ticket #${ticketNumber} has been logged under [${routingConfig.label}] with ${priority} priority.\nAssigned Primary Handler: ${routingConfig.primaryTeam}.\nNotification sent to: ${routingConfig.summary}.`
             }
           ]
         }
@@ -149,22 +149,25 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Notify Admins / Super Admins
-    try {
-      const admins = await prisma.user.findMany({
-        where: { role: { in: ['SUPER_ADMIN', 'ADMIN', 'LMS_ADMIN'] } },
-        select: { id: true },
-        take: 5
-      });
-      for (const admin of admins) {
-        await createNotification({
-          userId: admin.id,
-          title: `New Instructor Ticket (${ticketNumber})`,
-          message: `${user.name} raised a ${category.replace(/_/g, ' ')} ticket: "${subject.trim()}"`,
-          type: 'SYSTEM'
-        });
-      }
-    } catch {}
+    // Dispatch instant multi-team Dashboard & Email Notifications
+    let relatedCourseTitle: string | null = null;
+    if (courseId) {
+      const crs = await prisma.course.findUnique({ where: { id: courseId }, select: { title: true } });
+      relatedCourseTitle = crs?.title || null;
+    }
+
+    await dispatchTicketNotification({
+      ticketNumber,
+      ticketId: createdTicket.id,
+      category,
+      priority,
+      subject: subject.trim(),
+      description: fullFirstMessage,
+      instructorName: user.name || 'Instructor',
+      instructorEmail: user.email,
+      courseTitle: relatedCourseTitle,
+      referenceId: referenceId?.trim() || null
+    }).catch((e) => console.error('[Dispatch Ticket Notification Error]:', e));
 
     return NextResponse.json({
       success: true,

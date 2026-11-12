@@ -13,6 +13,8 @@ const JWT_SECRET = new TextEncoder().encode(
 export const SALES_COOKIE_NAME = 'sales_session_token';
 export const LMS_COOKIE_NAME = 'lms_session_token';
 export const REVIEWER_COOKIE_NAME = 'reviewer_session_token';
+export const SESSION_ACTIVITY_COOKIE_NAME = 'mt_last_activity';
+export const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes = 900,000 ms
 
 // Legacy cookies for backward compatibility
 export const LEGACY_COOKIE_NAME = 'aadhyara_session_token';
@@ -92,6 +94,14 @@ export async function setSalesSessionCookie(user: AuthSessionUser) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 7 days
     });
+    // Set active timestamp for 15-minute global idle logout tracking
+    cookieStore.set(SESSION_ACTIVITY_COOKIE_NAME, String(Date.now()), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
+    });
   } catch {
     // Gracefully handle calls outside Next.js request scope (e.g. test runners)
   }
@@ -101,6 +111,7 @@ export async function clearSalesSessionCookie() {
   try {
     const cookieStore = await cookies();
     cookieStore.delete(SALES_COOKIE_NAME);
+    cookieStore.delete(SESSION_ACTIVITY_COOKIE_NAME);
   } catch {
     // Gracefully handle calls outside Next.js request scope
   }
@@ -218,6 +229,14 @@ export async function setLmsSessionCookie(user: AuthSessionUser) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7
     });
+    // Set active timestamp for 15-minute global idle logout tracking
+    cookieStore.set(SESSION_ACTIVITY_COOKIE_NAME, String(Date.now()), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
+    });
   } catch {
     // Gracefully handle calls outside Next.js request scope (e.g. test runners)
   }
@@ -230,6 +249,7 @@ export async function clearLmsSessionCookie() {
     cookieStore.delete(LEGACY_COOKIE_NAME);
     cookieStore.delete(IMPERSONATION_COOKIE);
     cookieStore.delete(LEGACY_IMPERSONATION_COOKIE);
+    cookieStore.delete(SESSION_ACTIVITY_COOKIE_NAME);
   } catch {
     // Gracefully handle calls outside Next.js request scope
   }
@@ -363,6 +383,14 @@ export async function setReviewerSessionCookie(user: AuthSessionUser) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 7 days
     });
+    // Set active timestamp for 15-minute global idle logout tracking
+    cookieStore.set(SESSION_ACTIVITY_COOKIE_NAME, String(Date.now()), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
+    });
   } catch {
     // Gracefully handle calls outside Next.js request scope
   }
@@ -372,6 +400,7 @@ export async function clearReviewerSessionCookie() {
   try {
     const cookieStore = await cookies();
     cookieStore.delete(REVIEWER_COOKIE_NAME);
+    cookieStore.delete(SESSION_ACTIVITY_COOKIE_NAME);
   } catch {
     // Gracefully handle calls outside Next.js request scope
   }
@@ -498,6 +527,30 @@ export async function clearSessionCookie(portal?: string) {
   await clearSalesSessionCookie();
   await clearLmsSessionCookie();
   await clearReviewerSessionCookie();
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_ACTIVITY_COOKIE_NAME);
+  } catch {}
+}
+
+export async function updateSessionActivityCookie(): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_ACTIVITY_COOKIE_NAME, String(Date.now()), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
+    });
+  } catch {}
+}
+
+export async function clearSessionActivityCookie(): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_ACTIVITY_COOKIE_NAME);
+  } catch {}
 }
 
 export async function getCurrentUser(): Promise<AuthSessionUser | null> {

@@ -6,10 +6,12 @@ import { prisma } from '@/lib/prisma';
 export async function POST(req: NextRequest) {
   try {
     let portal = req.nextUrl.searchParams.get('portal')?.toUpperCase();
-    if (!portal) {
+    let reason = req.nextUrl.searchParams.get('reason');
+    if (!portal || !reason) {
       try {
         const body = await req.json();
-        portal = body.portal?.toUpperCase();
+        if (!portal) portal = body.portal?.toUpperCase();
+        if (!reason) reason = body.reason;
       } catch {}
     }
 
@@ -21,8 +23,9 @@ export async function POST(req: NextRequest) {
       await logSecurityEvent({
         userId: user.id,
         email: user.email,
-        eventType: 'LOGOUT',
-        req
+        eventType: reason === 'inactivity' ? 'LOGOUT_INACTIVITY' : 'LOGOUT',
+        req,
+        metadata: { reason: reason || 'user_action' }
       });
     }
 

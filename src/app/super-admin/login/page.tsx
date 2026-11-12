@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -14,6 +14,16 @@ export default function SuperAdminLoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [inactivityMsg, setInactivityMsg] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'inactivity') {
+        setInactivityMsg('You have been logged out due to inactivity. Please log in again.');
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +77,12 @@ export default function SuperAdminLoginPage() {
 
         {/* Card Form */}
         <div className="bg-slate-900/80 backdrop-blur-2xl p-6 sm:p-8 rounded-3xl border border-slate-700/80 shadow-2xl space-y-6">
+          {inactivityMsg && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
+              <Icon name="schedule" size={18} className="text-amber-400 shrink-0" />
+              <span>{inactivityMsg}</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-[11px] font-mono font-extrabold uppercase tracking-wider text-slate-300">
