@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, generateOtp, logSecurityEvent, checkRateLimit } from '@/lib/security';
-import { validateStrongPassword } from '@/lib/auth';
+import {
+  clearLmsSessionCookie,
+  getLmsCurrentUser,
+  validateStrongPassword
+} from '@/lib/auth';
 import { EmailService } from '@/lib/email';
 import { createAuditLog } from '@/lib/audit';
+import {
+  GOOGLE_SIGNUP_PREFILL_COOKIE,
+  verifyGoogleSignupPrefillToken
+} from '@/lib/google-oauth';
+import { finalizeVerifiedSignup } from '@/lib/signup-finalizer';
 
 export async function POST(req: NextRequest) {
   try {
@@ -290,8 +299,94 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Hash Password & Store Pending Registration (DO NOT save in prisma.user until OTP is verified!)
+    // 4. Hash Password & Prepare Verified Registration Payload
     const passwordHash = await hashPassword(password);
+    const googleCookie = req.cookies.get(GOOGLE_SIGNUP_PREFILL_COOKIE)?.value;
+    const googleProfile =
+      normalizedRole === 'INSTRUCTOR' && googleCookie
+        ? await verifyGoogleSignupPrefillToken(googleCookie)
+        : null;
+    const isVerifiedViaGoogle = Boolean(
+      googleProfile && googleProfile.email.toLowerCase() === normalizedEmail
+    );
+
+    const userData = {
+      organizationId: effectiveOrgId,
+      name: computedFullName,
+      firstName: cleanFirstName || computedFullName.split(' ')[0] || '',
+      lastName: cleanLastName || computedFullName.split(' ').slice(1).join(' ') || '',
+      email: normalizedEmail,
+      password: passwordHash,
+      phone: cleanPhone || null,
+      address: address ? String(address).trim() : null,
+      city: city ? String(city).trim() : null,
+      state: state ? String(state).trim() : null,
+      country: country ? String(country).trim() : null,
+      pincode: pincode ? String(pincode).trim() : null,
+      bio: bio
+        ? String(bio).trim()
+        : normalizedRole === 'INSTRUCTOR'
+        ? `${String(qualification || '').trim()}${
+            additionalQualifications ? ` • ${String(additionalQualifications).trim()}` : ''
+          } • ${String(experience || '').trim()}`
+        : null,
+      avatar: avatar || googleProfile?.avatar || null,
+      qualification: qualification ? String(qualification).trim() : null,
+      additionalQualifications: additionalQualifications
+        ? String(additionalQualifications).trim()
+        : null,
+      linkedinUrl: linkedinUrl ? String(linkedinUrl).trim() : null,
+      qualificationsList: Array.isArray(qualificationsList) ? qualificationsList : [],
+      experience: experience ? String(experience).trim() : null,
+      experienceYears: experienceYears ? String(experienceYears).trim() : null,
+      resumeDataUrl: resumeDataUrl || null,
+      resumeFileName: resumeFileName || 'Instructor_Resume.pdf',
+      resumeMimeType: resumeMimeType || 'application/pdf',
+      resumeSize: resumeSize || 0,
+      inviteToken: inviteToken || null,
+      role: normalizedRole,
+      customRole:
+        normalizedRole === 'REVIEWER'
+          ? 'Course Auditor'
+          : normalizedRole === 'INSTRUCTOR'
+          ? 'Instructor'
+          : null,
+      platform:
+        normalizedRole === 'INSTRUCTOR'
+          ? 'INSTRUCTOR'
+          : normalizedRole === 'REVIEWER'
+          ? 'REVIEWER'
+          : 'LMS'
+    };
+
+    // If verified via Google OAuth for Instructor signup, finalize immediately (skip duplicate Email OTP)
+    if (isVerifiedViaGoogle) {
+      const finalized = await finalizeVerifiedSignup({
+        userData,
+        verificationMethod: 'GOOGLE_OAUTH',
+        req,
+        sendInstructorConfirmationEmail: true
+      });
+
+      const existingLmsUser = await getLmsCurrentUser();
+      if (!existingLmsUser || existingLmsUser.role !== 'STUDENT') {
+        await clearLmsSessionCookie();
+      }
+
+      const res = NextResponse.json({
+        success: true,
+        verifiedViaGoogle: true,
+        pendingAuditorApproval: finalized.isPendingInstructorOnboarding,
+        email: finalized.updatedUser.email,
+        name: finalized.updatedUser.name,
+        requiresEmailVerification: false,
+        message:
+          'Your Gmail is verified via Google and your Instructor application is now Under Review! Our Auditor team will review your profile within 24 - 48 hours.'
+      });
+      res.cookies.delete(GOOGLE_SIGNUP_PREFILL_COOKIE);
+      return res;
+    }
+
     const { otp, hash: otpHash } = generateOtp(6);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -302,52 +397,7 @@ export async function POST(req: NextRequest) {
       expiresAt: expiresAt.toISOString(),
       attempts: 0,
       createdAt: new Date().toISOString(),
-      userData: {
-        organizationId: effectiveOrgId,
-        name: computedFullName,
-        firstName: cleanFirstName || computedFullName.split(' ')[0] || '',
-        lastName: cleanLastName || computedFullName.split(' ').slice(1).join(' ') || '',
-        email: normalizedEmail,
-        password: passwordHash,
-        phone: cleanPhone || null,
-        address: address ? String(address).trim() : null,
-        city: city ? String(city).trim() : null,
-        state: state ? String(state).trim() : null,
-        country: country ? String(country).trim() : null,
-        pincode: pincode ? String(pincode).trim() : null,
-        bio: bio
-          ? String(bio).trim()
-          : normalizedRole === 'INSTRUCTOR'
-          ? `${String(qualification || '').trim()}${
-              additionalQualifications ? ` • ${String(additionalQualifications).trim()}` : ''
-            } • ${String(experience || '').trim()}`
-          : null,
-        avatar: avatar || null,
-        qualification: qualification ? String(qualification).trim() : null,
-        additionalQualifications: additionalQualifications ? String(additionalQualifications).trim() : null,
-        linkedinUrl: linkedinUrl ? String(linkedinUrl).trim() : null,
-        qualificationsList: Array.isArray(qualificationsList) ? qualificationsList : [],
-        experience: experience ? String(experience).trim() : null,
-        experienceYears: experienceYears ? String(experienceYears).trim() : null,
-        resumeDataUrl: resumeDataUrl || null,
-        resumeFileName: resumeFileName || 'Instructor_Resume.pdf',
-        resumeMimeType: resumeMimeType || 'application/pdf',
-        resumeSize: resumeSize || 0,
-        inviteToken: inviteToken || null,
-        role: normalizedRole,
-        customRole:
-          normalizedRole === 'REVIEWER'
-            ? 'Course Auditor'
-            : normalizedRole === 'INSTRUCTOR'
-            ? 'Instructor'
-            : null,
-        platform:
-          normalizedRole === 'INSTRUCTOR'
-            ? 'INSTRUCTOR'
-            : normalizedRole === 'REVIEWER'
-            ? 'REVIEWER'
-            : 'LMS'
-      }
+      userData
     };
 
     await prisma.platformSetting.upsert({

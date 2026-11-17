@@ -385,7 +385,7 @@ function InspectCoursesContent() {
                 </h3>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Verify video, PDF notes, and Quiz Keys. Type a detailed remark for issue that require change
+                Verify video, PDF notes, and Quiz keys. Type a detailed remark for issues that require change.
               </p>
             </div>
           </div>
@@ -402,7 +402,7 @@ function InspectCoursesContent() {
                 </h3>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Click Approve ✅ to publish, or Submit Changes Request ⚠️ to send your review notes to the instructor.
+                Click Approve ✅ to publish, or Submit Change Request ⚠️ to send your review notes to the instructor.
               </p>
             </div>
           </div>

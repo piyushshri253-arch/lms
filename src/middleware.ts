@@ -260,6 +260,49 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // Dedicated SEO Login Page (/seo/login)
+  if (pathname === '/seo/login') {
+    const isAuth = isLmsValid || isSalesValid;
+    const session = lmsSession || salesSession;
+    if (isAuth && session && (['SEO_MANAGER', 'SEO_SPECIALIST', 'SEO'].includes(session.role) || isAuthorizedAdminRole(session.role))) {
+      return NextResponse.redirect(new URL('/seo', request.url));
+    }
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 1.8. SEO ROUTE PROTECTION (/seo and /seo/*)
+  // -------------------------------------------------------------------------
+  if (pathname === '/seo' || pathname.startsWith('/seo/')) {
+    const session = lmsSession || salesSession;
+    const isAuth = isLmsValid || isSalesValid;
+
+    if (!isAuth || !session) {
+      const callback = encodeURIComponent(pathname + (search || ''));
+      return NextResponse.redirect(new URL(`/seo/login?callbackUrl=${callback}`, request.url));
+    }
+
+    const role = session.role;
+    if (!['SEO_MANAGER', 'SEO_SPECIALIST', 'SEO'].includes(role) && !isAuthorizedAdminRole(role)) {
+      return NextResponse.redirect(
+        new URL(
+          '/seo/login?error=' + encodeURIComponent('Access denied: SEO Specialist or Administrator privileges required.'),
+          request.url
+        )
+      );
+    }
+
+    return createSecureResponse(
+      NextResponse.next({
+        request: { headers: requestHeaders }
+      })
+    );
+  }
+
   // -------------------------------------------------------------------------
   // 2. ADMIN ROUTE PROTECTION (/admin and /admin/*)
   // -------------------------------------------------------------------------

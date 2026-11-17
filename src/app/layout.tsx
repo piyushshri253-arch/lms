@@ -5,6 +5,7 @@ import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { GlobalIdleSessionTracker } from '@/components/auth/GlobalIdleSessionTracker';
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 import { RoleSwitcher } from '@/components/layout/RoleSwitcher';
 import { SuperAdminSupportBanner } from '@/components/layout/SuperAdminSupportBanner';
 import { AiSupportFloatingBot } from '@/components/ai/AiSupportFloatingBot';
@@ -64,6 +65,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-white text-[#2d2f31] flex flex-col antialiased">
         <AppProvider>
+          <Suspense fallback={null}>
+            <GoogleAnalytics />
+          </Suspense>
           <Suspense fallback={null}>
             <GlobalIdleSessionTracker />
           </Suspense>

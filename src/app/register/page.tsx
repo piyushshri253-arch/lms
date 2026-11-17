@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { Icon } from '@/components/ui/Icon';
+import { GoogleLogo, mapGoogleOAuthError } from '@/components/auth/GoogleLogo';
 import { useApp } from '@/context/AppContext';
 
 function RegisterContent() {
@@ -24,6 +25,7 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [registerError, setRegisterError] = useState<{ message: string; code?: string } | null>(null);
 
   // OTP State
@@ -34,15 +36,38 @@ function RegisterContent() {
 
   const callbackUrl = searchParams.get('callbackUrl') || '/student/learning';
 
-  // Check if verifyEmail parameter was provided in query string
+  // Check if verifyEmail or googleError parameter was provided in query string
   useEffect(() => {
     const qEmail = searchParams.get('verifyEmail');
+    const gError = searchParams.get('googleError');
+
     if (qEmail) {
       setEmail(qEmail);
       setStep('otp');
       setResendCooldown(15);
+    } else if (gError) {
+      const mapped = mapGoogleOAuthError(gError, 'STUDENT');
+      setRegisterError({ code: mapped.code, message: mapped.message });
+      showToast({
+        title: 'Google Sign-Up Notice',
+        description: mapped.message,
+        type: mapped.code === 'GOOGLE_CANCELLED' ? 'info' : 'error'
+      });
     }
   }, [searchParams]);
+
+  const handleGoogleSignUp = () => {
+    setIsGoogleRedirecting(true);
+    const params = new URLSearchParams({
+      intent: 'signup',
+      portal: 'STUDENT',
+      callbackUrl:
+        callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+          ? callbackUrl
+          : '/student/learning'
+    });
+    window.location.href = `/api/auth/google?${params.toString()}`;
+  };
 
   // Countdown timer for Resend OTP
   useEffect(() => {
@@ -266,28 +291,71 @@ function RegisterContent() {
                 </p>
               </div>
 
-              {/* Inline Already Registered Alert */}
+              {/* Inline Error / Already Registered Alert */}
               {registerError && (
-                <div className="p-4 rounded-md border border-purple-200 bg-purple-50 text-purple-950 text-sm animate-in fade-in duration-200">
+                <div
+                  className={`p-4 rounded-md border text-sm animate-in fade-in duration-200 ${
+                    registerError.code === 'ALREADY_REGISTERED'
+                      ? 'border-purple-200 bg-purple-50 text-purple-950'
+                      : registerError.code === 'GOOGLE_CANCELLED'
+                      ? 'border-amber-300 bg-amber-50 text-amber-950'
+                      : 'border-rose-200 bg-rose-50 text-rose-900'
+                  }`}
+                >
                   <div className="flex items-start gap-2.5">
-                    <Icon name="info" size={20} className="mt-0.5 shrink-0 text-[#5624d0]" />
+                    <Icon
+                      name={registerError.code === 'ALREADY_REGISTERED' ? 'info' : 'error'}
+                      size={20}
+                      className={`mt-0.5 shrink-0 ${
+                        registerError.code === 'ALREADY_REGISTERED'
+                          ? 'text-[#5624d0]'
+                          : registerError.code === 'GOOGLE_CANCELLED'
+                          ? 'text-amber-600'
+                          : 'text-rose-600'
+                      }`}
+                    />
                     <div className="flex-1 space-y-2">
                       <p className="font-semibold text-xs leading-relaxed">{registerError.message}</p>
-                      <div>
-                        <Link
-                          href={`/login?email=${encodeURIComponent(email.trim().toLowerCase())}${
-                            callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''
-                          }`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded shadow-xs transition-colors"
-                        >
-                          <span>Log in to Morena Teach</span>
-                          <Icon name="arrow_forward" size={14} />
-                        </Link>
-                      </div>
+                      {registerError.code === 'ALREADY_REGISTERED' && (
+                        <div>
+                          <Link
+                            href={`/login?email=${encodeURIComponent(email.trim().toLowerCase())}${
+                              callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''
+                            }`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5624d0] hover:bg-[#401b9c] text-white text-xs font-bold rounded shadow-xs transition-colors"
+                          >
+                            <span>Log in to Morena Teach</span>
+                            <Icon name="arrow_forward" size={14} />
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* Google Sign-Up */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  disabled={isGoogleRedirecting}
+                  onClick={handleGoogleSignUp}
+                  className="w-full h-11 px-4 border border-[#2d2f31] bg-white hover:bg-slate-50 text-[#1c1d1f] font-bold text-sm rounded-[2px] transition-colors inline-flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+                >
+                  <GoogleLogo className="w-4 h-4 shrink-0" />
+                  <span>
+                    {isGoogleRedirecting ? 'Connecting to Google...' : 'Sign up with Google'}
+                  </span>
+                </button>
+
+                <div className="relative flex items-center py-0.5">
+                  <div className="flex-grow border-t border-[#d1d7dc]" />
+                  <span className="shrink mx-3 text-[11px] font-medium text-[#6a6f73]">
+                    or sign up with email
+                  </span>
+                  <div className="flex-grow border-t border-[#d1d7dc]" />
+                </div>
+              </div>
 
               {/* Registration Form */}
               <form onSubmit={handleRegisterSubmit} className="space-y-4">

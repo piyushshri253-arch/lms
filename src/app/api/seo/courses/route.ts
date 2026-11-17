@@ -30,6 +30,37 @@ interface CourseAdsMeta {
   hasActiveAds: boolean;
 }
 
+function getEmptyAdsData(): CourseAdsMeta {
+  return {
+    googleAds: {
+      enabled: false,
+      status: 'INACTIVE',
+      campaignName: '',
+      dailyBudget: 0,
+      spend: 0,
+      impressions: 0,
+      clicks: 0,
+      cpc: 0,
+      ctr: 0,
+      conversions: 0
+    },
+    metaAds: {
+      enabled: false,
+      status: 'INACTIVE',
+      campaignName: '',
+      dailyBudget: 0,
+      spend: 0,
+      reach: 0,
+      clicks: 0,
+      cpr: 0,
+      roas: 0,
+      conversions: 0
+    },
+    totalSpend: 0,
+    hasActiveAds: false
+  };
+}
+
 // Generate realistic deterministic seed ads data if not explicitly configured in DB
 function generateDefaultAdsData(courseId: string, title: string, index: number, isPublished: boolean): CourseAdsMeta {
   // Turn on ads for some published courses (~40% of catalog)
@@ -89,6 +120,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search')?.toLowerCase() || '';
     const statusFilter = searchParams.get('filter') || 'ALL'; // ALL, COMPLETED, PENDING, ACTIVE_ADS
+    const mode = searchParams.get('mode') || 'REAL';
 
     const courses = await prisma.course.findMany({
       where: {
@@ -171,8 +203,10 @@ export async function GET(req: NextRequest) {
       const isSeoDone = hasCustomSeo || (seoScore >= 70 && c.status === 'PUBLISHED' && (index % 2 === 0 || index % 3 === 0));
       const seoStatus: 'COMPLETED' | 'PENDING' = isSeoDone ? 'COMPLETED' : 'PENDING';
 
-      // Load or generate ads data
-      const ads: CourseAdsMeta = adsMap[c.id] || generateDefaultAdsData(c.id, c.title, index, c.status === 'PUBLISHED');
+      // In REAL mode (default), only return active ads if verified in DB via real ad sync; otherwise honest 0 ads
+      const ads: CourseAdsMeta = mode === 'DEMO'
+        ? (adsMap[c.id] || generateDefaultAdsData(c.id, c.title, index, c.status === 'PUBLISHED'))
+        : (adsMap[c.id] || getEmptyAdsData());
 
       // Workflow state
       const defaultWorkflowStatus = c.status === 'IN_REVIEW'

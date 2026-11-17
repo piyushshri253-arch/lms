@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Icon } from '../ui/Icon';
@@ -26,6 +26,7 @@ interface NavSection {
   requiredAnyPermissions?: string[];
   superAdminOnly?: boolean;
   subItems?: NavSubItem[];
+  badge?: string;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
@@ -36,14 +37,32 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
 
   // Track expanded accordion sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    'Accounts & Finance': true,
     Students: true,
     Courses: true,
     Instructors: false,
     Enrollments: false,
     'Payments & Transactions': false,
     Certificates: false,
+    'Support & Helpdesk': true,
     'Reports & Analytics': false
   });
+
+  // Auto-expand Accounts & Finance or Support when on relevant routes
+  useEffect(() => {
+    if (pathname.startsWith('/super-admin/finance')) {
+      setExpandedSections((prev) => ({
+        ...prev,
+        'Accounts & Finance': true
+      }));
+    }
+    if (pathname.includes('/support')) {
+      setExpandedSections((prev) => ({
+        ...prev,
+        'Support & Helpdesk': true
+      }));
+    }
+  }, [pathname]);
 
   const toggleSection = (title: string) => {
     setExpandedSections((prev) => ({
@@ -63,6 +82,28 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       icon: 'admin_panel_settings',
       href: '/admin/admins',
       superAdminOnly: true
+    },
+    {
+      title: 'Accounts & Finance',
+      icon: 'account_balance_wallet',
+      badge: '14 Hubs',
+      requiredAnyPermissions: ['finance.view', 'payment.export', 'payment.refund'],
+      subItems: [
+        { label: 'Financial Overview', href: '/super-admin/finance' },
+        { label: 'All Instructors', href: '/super-admin/finance/instructors' },
+        { label: 'All Courses', href: '/super-admin/finance/courses' },
+        { label: 'Courses Sold', href: '/super-admin/finance/sales' },
+        { label: 'Courses Refunded', href: '/super-admin/finance/refunds' },
+        { label: 'Instructor Payments', href: '/super-admin/finance/payouts' },
+        { label: 'Instructor Bank Details', href: '/super-admin/finance/bank-details' },
+        { label: 'TDS Management', href: '/super-admin/finance/tds' },
+        { label: 'GST Management', href: '/super-admin/finance/gst' },
+        { label: 'Payment Gateway Fees', href: '/super-admin/finance/gateway-fees' },
+        { label: 'Transaction History', href: '/super-admin/finance/transactions' },
+        { label: 'Failed Transactions', href: '/super-admin/finance/failed-transactions' },
+        { label: 'Financial Reports', href: '/super-admin/finance/reports' },
+        { label: 'Communication Center', href: '/super-admin/finance/communications' }
+      ]
     },
     {
       title: 'Students',
@@ -144,6 +185,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       ]
     },
     {
+      title: 'Support & Helpdesk',
+      icon: 'support_agent',
+      badge: 'Tech Desk',
+      requiredAnyPermissions: ['support.view', 'notification.view', 'setting.view'],
+      subItems: [
+        { label: 'All Support Tickets', href: '/admin/support' },
+        { label: 'Payment & Payout Issues', href: '/admin/support?category=PAYMENT_ISSUE' },
+        { label: 'Course Approval Issues', href: '/admin/support?category=COURSE_APPROVAL_ISSUE' },
+        { label: 'Bank Verification Desk', href: '/admin/support?category=BANK_VERIFICATION_ISSUE' },
+        { label: 'Technical & Bug Desk', href: '/admin/support?category=TECHNICAL_ISSUE' },
+        { label: 'Faculty Support Desk', href: '/admin/support?role=INSTRUCTOR' },
+        { label: 'Student Helpdesk', href: '/admin/support?role=STUDENT' }
+      ]
+    },
+    {
       title: 'Notifications',
       icon: 'notifications',
       href: '/admin/notifications',
@@ -185,7 +241,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
     if (href === '/admin') {
       return pathname === '/admin' && (!searchParams.get('tab') || searchParams.get('tab') === 'overview');
     }
-    return currentUrl === href || pathname === href.split('?')[0];
+    return currentUrl === href || pathname === href || pathname === href.split('?')[0];
   };
 
   return (
@@ -226,10 +282,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
 
           // RBAC Guard for parent item
           if (sec.requiredPermission && !hasPermission(sec.requiredPermission)) {
-            return null; // Auto-hide if lacking required permission!
+            return null;
           }
           if (sec.requiredAnyPermissions && !hasAnyPermission(sec.requiredAnyPermissions)) {
-            return null; // Auto-hide if lacking all required permissions!
+            return null;
           }
 
           // Render direct link item (e.g. Dashboard, Coupons, Notifications, Profile, Settings)
@@ -264,21 +320,28 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
           });
 
           if (visibleSubItems.length === 0) {
-            return null; // Auto-hide if no sub-items are permitted!
+            return null;
           }
 
           const isExpanded = expandedSections[sec.title];
           const hasActiveChild = visibleSubItems.some((sub) => isRouteActive(sub.href));
 
           return (
-            <div key={sec.title} className="space-y-1">
+            <div
+              key={sec.title}
+              className={`space-y-1 rounded-2xl transition-all ${
+                sec.title === 'Accounts & Finance'
+                  ? 'bg-primary/[0.04] p-1 border border-primary/20'
+                  : ''
+              }`}
+            >
               {/* Accordion Header */}
               <button
                 type="button"
                 onClick={() => toggleSection(sec.title)}
                 className={`w-full flex items-center justify-between py-2 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                   hasActiveChild
-                    ? 'text-primary bg-primary/5 font-extrabold'
+                    ? 'text-primary bg-primary/10 font-extrabold'
                     : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
                 }`}
               >
@@ -288,18 +351,25 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
                     size={18}
                     className={hasActiveChild ? 'text-primary' : 'text-primary/70'}
                   />
-                  <span>{sec.title}</span>
+                  <span className="tracking-tight">{sec.title}</span>
                 </div>
-                <Icon
-                  name="expand_more"
-                  size={16}
-                  className={`text-outline transition-transform duration-200 ${isExpanded ? 'rotate-180 text-primary' : ''}`}
-                />
+                <div className="flex items-center gap-1.5">
+                  {sec.badge && (
+                    <span className="px-1.5 py-0.5 rounded-md font-mono text-[9px] font-extrabold bg-primary text-on-primary">
+                      {sec.badge}
+                    </span>
+                  )}
+                  <Icon
+                    name="expand_more"
+                    size={16}
+                    className={`text-outline transition-transform duration-200 ${isExpanded ? 'rotate-180 text-primary' : ''}`}
+                  />
+                </div>
               </button>
 
               {/* Accordion Sub-items */}
               {isExpanded && (
-                <div className="pl-7 pr-1 space-y-1 pt-0.5">
+                <div className="pl-6 pr-1 space-y-0.5 pt-0.5 pb-1">
                   {visibleSubItems.map((sub) => {
                     const active = isRouteActive(sub.href);
                     return (

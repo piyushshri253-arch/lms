@@ -83,6 +83,24 @@ const PERMISSION_GROUPS = [
       { key: ADMIN_PERMISSIONS.NOTIFICATION_SEND, label: 'Publish Announcements' },
       { key: ADMIN_PERMISSIONS.SETTING_VIEW, label: 'View Platform Settings' }
     ]
+  },
+  {
+    name: 'Support & Helpdesk',
+    icon: 'support_agent',
+    permissions: [
+      { key: ADMIN_PERMISSIONS.SUPPORT_VIEW, label: 'View Incident & Support Queues' },
+      { key: ADMIN_PERMISSIONS.SUPPORT_REPLY, label: 'Reply to Faculty & Students' },
+      { key: ADMIN_PERMISSIONS.SUPPORT_MANAGE, label: 'Reassign Teams & Change Priorities' }
+    ]
+  },
+  {
+    name: 'Accounts & Finance',
+    icon: 'account_balance_wallet',
+    permissions: [
+      { key: ADMIN_PERMISSIONS.FINANCE_VIEW, label: 'Access Financial Overview & Hubs' },
+      { key: ADMIN_PERMISSIONS.FINANCE_PAYOUTS, label: 'Manage & Authorize Instructor Payouts' },
+      { key: ADMIN_PERMISSIONS.FINANCE_TAX, label: 'TDS & GST Compliance & Certificates' }
+    ]
   }
 ];
 
@@ -531,6 +549,20 @@ export default function ManageAdminsPage() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => handleApplyPreset('SUPPORT_ADMIN')}
+                    className="px-3 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-bold text-xs hover:bg-rose-200 transition-colors cursor-pointer"
+                  >
+                    + Support &amp; Tech Admin Preset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('FINANCE_ADMIN')}
+                    className="px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-bold text-xs hover:bg-amber-200 transition-colors cursor-pointer"
+                  >
+                    + Finance &amp; Accounts Admin Preset
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleApplyPreset('FULL_ADMIN')}
                     className="px-3 py-1.5 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold text-xs hover:bg-purple-200 transition-colors cursor-pointer"
                   >
@@ -673,7 +705,21 @@ export default function ManageAdminsPage() {
                     onClick={() => handleApplyPreset('PAYMENT_ADMIN')}
                     className="px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs hover:bg-emerald-200 transition-colors cursor-pointer"
                   >
-                    Payment Admin (Finance & Orders Only)
+                    Payment Admin (Finance &amp; Orders Only)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('SUPPORT_ADMIN')}
+                    className="px-3 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-bold text-xs hover:bg-rose-200 transition-colors cursor-pointer"
+                  >
+                    Support &amp; Tech Admin (Tickets &amp; Desk)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('FINANCE_ADMIN')}
+                    className="px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-bold text-xs hover:bg-amber-200 transition-colors cursor-pointer"
+                  >
+                    Finance &amp; Accounts Admin
                   </button>
                   <button
                     type="button"

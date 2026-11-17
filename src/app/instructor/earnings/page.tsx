@@ -132,7 +132,7 @@ export default function InstructorEarningsPage() {
               </span>
               <span className="text-slate-400">•</span>
               <span className="whitespace-nowrap">
-                <strong>Gateway Fee (2%)</strong>
+                <strong>Gateway Fee:</strong> 2%
               </span>
               <span className="text-slate-400">•</span>
               <span className="whitespace-nowrap">
@@ -140,7 +140,7 @@ export default function InstructorEarningsPage() {
               </span>
               <span className="text-slate-400">•</span>
               <span className="whitespace-nowrap">
-                <strong>Govt TDS (2%)</strong>
+                <strong>Govt TDS:</strong> 2%
               </span>
             </p>
           </div>
@@ -251,31 +251,31 @@ export default function InstructorEarningsPage() {
               No transactions match your current filter criteria.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/90 shadow-2xs bg-white">
+              <table className="w-full text-left text-xs border-collapse min-w-[1100px]">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 bg-slate-50/70">
-                    <th className="py-3 px-2.5 font-semibold whitespace-nowrap">Transaction ID</th>
-                    <th className="py-3 px-2.5 font-semibold whitespace-nowrap">Course Name</th>
-                    <th className="py-3 px-2.5 font-semibold whitespace-nowrap">Student Name</th>
-                    <th className="py-3 px-2.5 font-semibold whitespace-nowrap">Date</th>
-                    <th className="py-3 px-2.5 font-semibold text-right whitespace-nowrap">Gross</th>
-                    <th className="py-3 px-2.5 font-semibold text-right whitespace-nowrap">Platform Fee</th>
-                    <th className="py-3 px-2.5 font-semibold text-right whitespace-nowrap">Instructor Share</th>
-                    <th className="py-3 px-2.5 font-semibold text-right whitespace-nowrap">TDS</th>
-                    <th className="py-3 px-2.5 font-semibold text-right whitespace-nowrap">Net Amount</th>
-                    <th className="py-3 px-2.5 font-semibold text-center whitespace-nowrap">Status</th>
+                  <tr className="border-b border-slate-200 text-slate-600 bg-slate-50/90 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Transaction ID</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Course Name</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Student Name</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Date</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Gross</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Platform Fee</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Instructor Share</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">TDS</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Net Amount</th>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {transactions.map((t: any) => (
                     <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-2.5 font-mono text-slate-600 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left font-mono text-slate-600 whitespace-nowrap">
                         {t.transactionRef}
                       </td>
-                      <td className="py-3.5 px-2.5 font-semibold text-slate-900 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left font-semibold text-slate-900 whitespace-nowrap">
                         <span
-                          className="inline-block max-w-[145px] truncate align-middle cursor-help"
+                          className="inline-block max-w-[200px] truncate align-middle cursor-help"
                           title={t.courseTitle || 'Course Enrollment'}
                           onMouseEnter={(e) => {
                             const text = t.courseTitle || 'Course Enrollment';
@@ -291,9 +291,9 @@ export default function InstructorEarningsPage() {
                           {t.courseTitle || 'Course Enrollment'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-2.5 text-slate-800 font-semibold whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left text-slate-800 font-semibold whitespace-nowrap">
                         <span
-                          className="inline-block max-w-[120px] truncate align-middle"
+                          className="inline-block max-w-[180px] truncate align-middle"
                           title={t.studentName || 'Student'}
                           onMouseEnter={(e) => {
                             const text = t.studentName || 'Student';
@@ -311,29 +311,29 @@ export default function InstructorEarningsPage() {
                           {t.studentName || 'Student'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-2.5 text-slate-500 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left text-slate-500 whitespace-nowrap">
                         {new Date(t.createdAt).toLocaleDateString('en-IN', {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric'
                         })}
                       </td>
-                      <td className="py-3.5 px-2.5 text-right tabular-nums text-slate-800 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left tabular-nums text-slate-800 font-medium whitespace-nowrap">
                         ₹{Number(t.grossAmount).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-2.5 text-right tabular-nums text-amber-600 font-medium whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left tabular-nums text-amber-600 font-medium whitespace-nowrap">
                         -₹{Number(t.platformFee).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-2.5 text-right tabular-nums text-slate-800 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left tabular-nums text-slate-800 font-medium whitespace-nowrap">
                         ₹{Number(t.instructorShare).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-2.5 text-right tabular-nums text-slate-500 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left tabular-nums text-slate-500 font-medium whitespace-nowrap">
                         -₹{Number(t.taxDeduction).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-2.5 text-right tabular-nums font-extrabold text-emerald-600 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left tabular-nums font-extrabold text-emerald-600 whitespace-nowrap">
                         ₹{Number(t.netAmount).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-2.5 text-center whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-left whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
                             t.status === 'PAID'

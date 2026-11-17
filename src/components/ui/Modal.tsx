@@ -10,6 +10,7 @@ interface ModalProps {
   subtitle?: string;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '5xl' | '6xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '5xl' | '6xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -18,7 +19,8 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   subtitle,
   children,
-  maxWidth = 'md'
+  maxWidth = 'md',
+  size
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,6 +38,8 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
+  const widthKey = size || maxWidth || 'md';
+
   const maxWidthClass = {
     sm: 'max-w-[480px]',
     md: 'max-w-[580px]',
@@ -45,42 +49,48 @@ export const Modal: React.FC<ModalProps> = ({
     '4xl': 'max-w-[1200px]',
     '5xl': 'max-w-[1300px]',
     '6xl': 'max-w-[1400px]'
-  }[maxWidth] || 'max-w-[900px]';
+  }[widthKey] || 'max-w-[900px]';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/65 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Clickable Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
       <div
-        className="fixed inset-0"
+        className="fixed inset-0 bg-scrim/40 backdrop-blur-xs transition-opacity animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal Dialog Box */}
+      {/* Modal Dialog */}
       <div
-        className={`relative w-full ${maxWidthClass} bg-surface-container-lowest border-2 border-outline-variant/80 rounded-3xl shadow-2xl overflow-hidden z-10 mx-auto my-auto animate-in zoom-in-95 duration-200 flex flex-col`}
+        className={`relative w-full ${maxWidthClass} max-h-[90vh] flex flex-col bg-surface-container-lowest border border-outline-variant/80 rounded-3xl shadow-xl z-10 overflow-hidden animate-scale-in`}
+        role="dialog"
+        aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-outline-variant/60 bg-surface-container-low/50">
+        <div className="flex items-center justify-between p-6 border-b border-outline-variant/60 shrink-0">
           <div>
-            <h3 className="font-extrabold text-lg sm:text-xl text-on-surface tracking-tight">
+            <h2 className="text-xl font-black text-on-surface tracking-tight">
               {title}
-            </h3>
+            </h2>
             {subtitle && (
-              <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">{subtitle}</p>
+              <p className="text-xs text-on-surface-variant mt-0.5 font-medium">
+                {subtitle}
+              </p>
             )}
           </div>
           <button
-            type="button"
             onClick={onClose}
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full transition-colors cursor-pointer"
+            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-xl transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <Icon name="close" size={20} />
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="p-6 sm:p-8 max-h-[85vh] overflow-y-auto">{children}</div>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {children}
+        </div>
       </div>
     </div>
   );

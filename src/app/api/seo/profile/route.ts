@@ -19,19 +19,24 @@ export async function GET() {
       }
     } catch {}
 
-    const name = customProfile?.name || session?.name || 'Piyush AI';
-    const email = customProfile?.email || session?.email || 'seo@morenateach.com';
-    const avatar = customProfile?.avatar || session?.avatar || DEFAULT_AVATAR;
-    const roleTitle = customProfile?.roleTitle || 'SEO Admin';
+    const isSpecialist = session?.role === 'SEO_SPECIALIST' || session?.role === 'SEO';
+
+    const name = (isSpecialist ? session?.name : customProfile?.name || session?.name) || 'SEO User';
+    const email = (isSpecialist ? session?.email : customProfile?.email || session?.email) || 'seo@morenateach.com';
+    const avatar = (isSpecialist ? session?.avatar : customProfile?.avatar || session?.avatar) || DEFAULT_AVATAR;
+    const role = session?.role || (email === 'seo@morenateach.com' ? 'SEO_MANAGER' : 'SEO_SPECIALIST');
+    const roleTitle = session?.customRole || (isSpecialist ? 'SEO Specialist' : customProfile?.roleTitle || 'SEO Manager');
 
     return NextResponse.json({
       success: true,
       profile: {
-        id: session?.id || 'seo-admin',
+        id: session?.id || 'seo-user',
         name,
         email,
         avatar,
-        roleTitle
+        role,
+        roleTitle,
+        isSpecialist
       }
     });
   } catch (err: any) {

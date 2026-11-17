@@ -7,6 +7,7 @@ import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { useApp } from '@/context/AppContext';
 import { Icon } from '@/components/ui/Icon';
+import { GoogleLogo, mapGoogleOAuthError } from '@/components/auth/GoogleLogo';
 
 function InstructorLoginContent() {
   const router = useRouter();
@@ -50,6 +51,57 @@ function InstructorLoginContent() {
   const [otpCode, setOtpCode] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
+
+  // Google OAuth Signup State
+  const [googleVerified, setGoogleVerified] = useState(false);
+  const [googleAvatar, setGoogleAvatar] = useState<string | null>(null);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
+
+  useEffect(() => {
+    const gError = searchParams.get('googleError');
+    const gVerified = searchParams.get('googleVerified');
+    const fromSignin = searchParams.get('fromSignin');
+
+    if (gError) {
+      const mapped = mapGoogleOAuthError(gError, 'INSTRUCTOR');
+      setAuthError({ code: mapped.code, message: mapped.message });
+      if (isSignUp) setSignupError(mapped.message);
+      showToast({
+        title: mapped.code === 'PENDING_AUDITOR_ONBOARDING' ? 'Pending Auditor Onboarding' : 'Google Sign-In Notice',
+        description: mapped.message,
+        type: mapped.code === 'PENDING_AUDITOR_ONBOARDING' || mapped.code === 'GOOGLE_CANCELLED' ? 'info' : 'error'
+      });
+    }
+
+    if (gVerified === '1' || searchParams.get('mode') === 'signup') {
+      fetch('/api/auth/google/prefill', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.verified && res?.email) {
+            setIsSignUp(true);
+            setGoogleVerified(true);
+            setGoogleAvatar(res.avatar || null);
+            setSignupForm((prev) => ({
+              ...prev,
+              firstName: prev.firstName || res.firstName || '',
+              lastName: prev.lastName || res.lastName || '',
+              email: res.email
+            }));
+            if (gVerified === '1') {
+              showToast({
+                title: 'Gmail Verified via Google ✓',
+                description:
+                  fromSignin === '1'
+                    ? 'No Instructor account found for this Gmail yet. Complete Steps 1–4 below to apply!'
+                    : 'Your Gmail is verified! Complete Steps 1–4 to submit your Instructor application.',
+                type: fromSignin === '1' ? 'info' : 'success'
+              });
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [searchParams]);
 
 interface QualificationItem {
   degree: string;
@@ -392,6 +444,7 @@ interface QualificationItem {
           resumeFileName: signupForm.resumeFileName,
           resumeMimeType: signupForm.resumeMimeType,
           resumeSize: signupForm.resumeSize,
+          avatar: googleAvatar || undefined,
           address: signupForm.address.trim(),
           city: signupForm.city.trim(),
           state: signupForm.state.trim(),
@@ -405,6 +458,29 @@ interface QualificationItem {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Instructor registration failed.');
+      }
+
+      if (data.verifiedViaGoogle || data.pendingAuditorApproval) {
+        showToast({
+          title: 'Application Submitted for Review 📋',
+          description:
+            data.message ||
+            'Gmail verified via Google. Our Auditor team will review your profile within 24 - 48 hours.',
+          type: 'success'
+        });
+
+        setEmail(cleanEmail);
+        setGoogleVerified(false);
+        setGoogleAvatar(null);
+        setRequiresOtp(false);
+        setAuthError({
+          code: 'PENDING_AUDITOR_ONBOARDING',
+          message:
+            data.message ||
+            'Your Gmail is verified via Google and your Instructor application is now Under Auditor Review (24 - 48 hours).'
+        });
+        setIsSignUp(false);
+        return;
       }
 
       showToast({
@@ -427,6 +503,23 @@ interface QualificationItem {
   const rawCallback = searchParams.get('callbackUrl');
   const callbackUrl =
     !rawCallback ? '/instructor/dashboard' : rawCallback;
+
+  const handleGoogleAuth = (intent: 'signin' | 'signup') => {
+    setIsGoogleRedirecting(true);
+    const params = new URLSearchParams({
+      intent,
+      portal: 'INSTRUCTOR',
+      callbackUrl
+    });
+    window.location.href = `/api/auth/google?${params.toString()}`;
+  };
+
+  const handleResetGooglePrefill = async () => {
+    setGoogleVerified(false);
+    setGoogleAvatar(null);
+    setSignupForm((prev) => ({ ...prev, email: '' }));
+    await fetch('/api/auth/google/prefill', { method: 'DELETE' }).catch(() => {});
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -691,32 +784,21 @@ interface QualificationItem {
                 </p>
               </div>
 
-              {/* Social Icons (matches Instagram reel) */}
-              <div className="flex items-center justify-center gap-3 py-1">
+              {/* Google Sign-In Only (Facebook & LinkedIn removed) */}
+              <div className="py-1">
                 <button
                   type="button"
-                  className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                  title="Sign in with Facebook"
+                  disabled={isGoogleRedirecting}
+                  onClick={() => handleGoogleAuth('signin')}
+                  className="w-full py-2.5 px-4 rounded-xl border border-slate-300/90 bg-white hover:bg-slate-50 hover:border-violet-400 text-slate-800 font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs disabled:opacity-60"
+                  title="Continue with Google"
                 >
-                  <span className="font-bold text-sm">f</span>
-                </button>
-                <button
-                  type="button"
-                  className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                  title="Sign in with Google"
-                >
-                  <span className="font-bold text-sm">G</span>
-                </button>
-                <button
-                  type="button"
-                  className="w-10 h-10 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                  title="Sign in with LinkedIn"
-                >
-                  <span className="font-bold text-sm">in</span>
+                  <GoogleLogo className="w-4 h-4 shrink-0" />
+                  <span>{isGoogleRedirecting ? 'Connecting to Google...' : 'Continue with Google'}</span>
                 </button>
               </div>
 
-              <span className="text-[11px] text-slate-400 block -mt-1">
+              <span className="text-[11px] text-slate-400 block">
                 or use your instructor email account
               </span>
 
@@ -852,34 +934,50 @@ interface QualificationItem {
             {/* STEP 1: PERSONAL DETAILS */}
             {signupStep === 1 && (
               <div className="space-y-2 text-left animate-in fade-in duration-200">
-                {/* Social Icons (matches Instagram reel) */}
-                <div className="flex items-center justify-center gap-3 py-0.5">
-                  <button
-                    type="button"
-                    className="w-9 h-9 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                    title="Sign up with Facebook"
-                  >
-                    <span className="font-bold text-xs">f</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="w-9 h-9 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                    title="Sign up with Google"
-                  >
-                    <span className="font-bold text-xs">G</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="w-9 h-9 rounded-full border border-slate-300/80 flex items-center justify-center text-slate-700 hover:border-violet-600 hover:text-violet-600 hover:bg-violet-50 transition-all cursor-pointer shadow-2xs"
-                    title="Sign up with LinkedIn"
-                  >
-                    <span className="font-bold text-xs">in</span>
-                  </button>
-                </div>
+                {/* Google-Only Signup (Facebook & LinkedIn removed) */}
+                {googleVerified ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GoogleLogo className="w-4 h-4 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-bold text-emerald-800">
+                          Gmail verified via Google ✓
+                        </div>
+                        <div className="text-[11px] text-emerald-700 truncate">
+                          {signupForm.email}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetGooglePrefill}
+                      className="text-[11px] font-bold text-violet-700 hover:underline shrink-0 cursor-pointer"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="py-0.5">
+                      <button
+                        type="button"
+                        disabled={isGoogleRedirecting}
+                        onClick={() => handleGoogleAuth('signup')}
+                        className="w-full py-2 px-4 rounded-xl border border-slate-300/90 bg-white hover:bg-slate-50 hover:border-violet-400 text-slate-800 font-bold text-xs inline-flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs disabled:opacity-60"
+                        title="Sign up with Google (Gmail)"
+                      >
+                        <GoogleLogo className="w-4 h-4 shrink-0" />
+                        <span>
+                          {isGoogleRedirecting ? 'Connecting to Google...' : 'Sign up with Google (Gmail)'}
+                        </span>
+                      </button>
+                    </div>
 
-                <span className="text-[11px] text-slate-400 text-center block -mt-1">
-                  or enter your instructor personal details
-                </span>
+                    <span className="text-[11px] text-slate-400 text-center block">
+                      or enter your instructor personal details
+                    </span>
+                  </>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -911,16 +1009,32 @@ interface QualificationItem {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5 block">
-                    Email Address *
-                  </label>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                      Email Address *
+                    </label>
+                    {googleVerified && (
+                      <span className="text-[10px] font-bold text-emerald-700">
+                        Verified via Google ✓
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="email"
                     required
+                    readOnly={googleVerified}
                     value={signupForm.email}
-                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                    onChange={(e) => {
+                      if (!googleVerified) {
+                        setSignupForm({ ...signupForm, email: e.target.value });
+                      }
+                    }}
                     placeholder="instructor@example.com"
-                    className="w-full h-9 px-3 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-slate-200/70 focus:border-violet-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                    className={`w-full h-9 px-3 border rounded-xl text-xs focus:outline-none transition-all ${
+                      googleVerified
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 cursor-not-allowed'
+                        : 'bg-slate-100/80 hover:bg-slate-100 focus:bg-white border-slate-200/70 focus:border-violet-600 text-slate-900 placeholder-slate-400'
+                    }`}
                   />
                 </div>
 

@@ -428,6 +428,7 @@ model User {
   bankAccount             InstructorBankAccount?
   instructorPayouts       InstructorPayout[]
   instructorTransactions  InstructorEarningTransaction[]
+  tdsCertificates         TdsCertificate[]
 
   @@unique([email, platform])
 }
@@ -2074,6 +2075,56 @@ model InstructorEarningTransaction {
 
   @@index([userId])
   @@index([status])
+  @@index([createdAt])
+}
+
+model TdsCertificate {
+  id                String    @id @default(cuid())
+  instructorId      String
+  instructor        User      @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  financialYear     String    // e.g. "2025-2026"
+  quarter           String    // Q1, Q2, Q3, Q4, ANNUAL
+  certificateNumber String    @unique // e.g. TDS-2026-Q3-XXXXX
+  panNumber         String?
+  grossAmount       Float
+  tdsRate           Float     @default(2.0)
+  tdsAmount         Float
+  status            String    @default("GENERATED") // GENERATED, UPLOADED, SENT
+  certificateUrl    String?
+  notes             String?
+  issuedAt          DateTime  @default(now())
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([instructorId])
+  @@index([financialYear])
+}
+
+model FinancialLedgerEntry {
+  id              String   @id @default(cuid())
+  entryNumber     String   @unique // e.g. FLE-2026-XXXXX
+  type            String   // COURSE_SALE, INSTRUCTOR_PAYOUT, REFUND, TDS_DEDUCTION, GST_ENTRY, GATEWAY_CHARGE, ADJUSTMENT
+  orderId         String?
+  payoutId        String?
+  refundId        String?
+  userId          String?
+  instructorId    String?
+  courseId        String?
+  debit           Float    @default(0.0)
+  credit          Float    @default(0.0)
+  balance         Float    @default(0.0)
+  currency        String   @default("INR")
+  description     String
+  referenceId     String?
+  paymentMethod   String   @default("RAZORPAY")
+  status          String   @default("COMPLETED") // COMPLETED, PENDING, REVERSED
+  metadata        String?  // JSON
+  createdAt       DateTime @default(now())
+
+  @@index([type])
+  @@index([instructorId])
+  @@index([orderId])
   @@index([createdAt])
 }
 

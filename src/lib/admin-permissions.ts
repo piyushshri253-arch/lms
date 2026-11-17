@@ -64,7 +64,17 @@ export const ADMIN_PERMISSIONS = {
 
   // 10. Settings Permissions
   SETTING_VIEW: 'setting.view',
-  SETTING_EDIT: 'setting.edit'
+  SETTING_EDIT: 'setting.edit',
+
+  // 11. Support & Helpdesk Permissions
+  SUPPORT_VIEW: 'support.view',
+  SUPPORT_REPLY: 'support.reply',
+  SUPPORT_MANAGE: 'support.manage',
+
+  // 12. Accounts & Finance Permissions
+  FINANCE_VIEW: 'finance.view',
+  FINANCE_PAYOUTS: 'finance.payouts',
+  FINANCE_TAX: 'finance.tax'
 } as const;
 
 export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS];
@@ -144,6 +154,30 @@ export const ADMIN_ROLE_PRESETS = {
       ADMIN_PERMISSIONS.REPORT_PAYMENT,
       ADMIN_PERMISSIONS.COUPON_VIEW,
       ADMIN_PERMISSIONS.COUPON_CREATE
+    ]
+  },
+  SUPPORT_ADMIN: {
+    name: 'Support & Tech Admin',
+    description: 'Manages incident tickets, payment inquiries, course approvals, and user communications',
+    permissions: [
+      ADMIN_PERMISSIONS.SUPPORT_VIEW,
+      ADMIN_PERMISSIONS.SUPPORT_REPLY,
+      ADMIN_PERMISSIONS.SUPPORT_MANAGE,
+      ADMIN_PERMISSIONS.NOTIFICATION_VIEW,
+      ADMIN_PERMISSIONS.NOTIFICATION_SEND
+    ]
+  },
+  FINANCE_ADMIN: {
+    name: 'Finance & Accounts Admin',
+    description: 'Institutional financial ledger, instructor payouts, TDS/GST compliance, and reports',
+    permissions: [
+      ADMIN_PERMISSIONS.FINANCE_VIEW,
+      ADMIN_PERMISSIONS.FINANCE_PAYOUTS,
+      ADMIN_PERMISSIONS.FINANCE_TAX,
+      ADMIN_PERMISSIONS.PAYMENT_VIEW,
+      ADMIN_PERMISSIONS.PAYMENT_EXPORT,
+      ADMIN_PERMISSIONS.PAYMENT_REFUND,
+      ADMIN_PERMISSIONS.REPORT_PAYMENT
     ]
   },
   FULL_ADMIN: {

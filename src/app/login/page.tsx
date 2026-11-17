@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { UdemyNavbar } from '@/components/layout/UdemyNavbar';
 import { UdemyFooter } from '@/components/landing/UdemyFooter';
 import { Icon } from '@/components/ui/Icon';
+import { GoogleLogo, mapGoogleOAuthError } from '@/components/auth/GoogleLogo';
 import { useApp } from '@/context/AppContext';
 
 function LoginContent() {
@@ -18,19 +19,43 @@ function LoginContent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [authError, setAuthError] = useState<{ message: string; code?: string } | null>(null);
 
   const callbackUrl = searchParams.get('callbackUrl');
 
   useEffect(() => {
     const reason = searchParams.get('reason');
+    const gError = searchParams.get('googleError');
+
     if (reason === 'inactivity') {
       setAuthError({
         code: 'INACTIVITY_TIMEOUT',
         message: 'You have been logged out due to inactivity. Please log in again.'
       });
+    } else if (gError) {
+      const mapped = mapGoogleOAuthError(gError, 'STUDENT');
+      setAuthError({ code: mapped.code, message: mapped.message });
+      showToast({
+        title: 'Google Sign-In Notice',
+        description: mapped.message,
+        type: mapped.code === 'GOOGLE_CANCELLED' ? 'info' : 'error'
+      });
     }
   }, [searchParams]);
+
+  const handleGoogleSignIn = () => {
+    setIsGoogleRedirecting(true);
+    const params = new URLSearchParams({
+      intent: 'signin',
+      portal: 'STUDENT',
+      callbackUrl:
+        callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+          ? callbackUrl
+          : '/student/learning'
+    });
+    window.location.href = `/api/auth/google?${params.toString()}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,6 +228,29 @@ function LoginContent() {
             </div>
           )}
 
+          {/* Google Sign-In */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={isGoogleRedirecting}
+              onClick={handleGoogleSignIn}
+              className="w-full h-11 px-4 border border-[#2d2f31] bg-white hover:bg-slate-50 text-[#1c1d1f] font-bold text-sm rounded-[2px] transition-colors inline-flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+            >
+              <GoogleLogo className="w-4 h-4 shrink-0" />
+              <span>
+                {isGoogleRedirecting ? 'Connecting to Google...' : 'Continue with Google'}
+              </span>
+            </button>
+
+            <div className="relative flex items-center py-0.5">
+              <div className="flex-grow border-t border-[#d1d7dc]" />
+              <span className="shrink mx-3 text-[11px] font-medium text-[#6a6f73]">
+                or log in with email
+              </span>
+              <div className="flex-grow border-t border-[#d1d7dc]" />
+            </div>
+          </div>
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -277,32 +325,6 @@ function LoginContent() {
                 Sign up
               </Link>
             </p>
-
-            <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-[#6a6f73]">
-              <Link
-                href="/instructor/login"
-                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
-              >
-                <Icon name="cast_for_education" size={13} />
-                <span>Instructor Studio &rarr;</span>
-              </Link>
-              <span className="text-gray-300">•</span>
-              <Link
-                href="/reviewer/login"
-                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
-              >
-                <Icon name="rate_review" size={13} />
-                <span>Reviewer Portal &rarr;</span>
-              </Link>
-              <span className="text-gray-300">•</span>
-              <Link
-                href="/admin/login"
-                className="text-[#5022c3] font-bold hover:underline inline-flex items-center gap-1"
-              >
-                <Icon name="admin_panel_settings" size={13} />
-                <span>Admin Console &rarr;</span>
-              </Link>
-            </div>
 
             <p className="text-[11px] text-gray-400 pt-1">
               By logging in, you agree to our Terms of Use and Privacy Policy.
