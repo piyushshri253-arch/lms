@@ -30,13 +30,20 @@ export default function SuperAdminLoginPage() {
     setIsLoading(true);
     try {
       const user = await login(email, password);
-      if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
+      if (user.role === 'SUPER_ADMIN') {
         showToast({
           title: 'Super Admin Access Granted',
           description: `Welcome back, ${user.name}.`,
           type: 'success'
         });
         router.push('/super-admin');
+      } else if (user.role === 'ADMIN' || user.role === 'LMS_ADMIN') {
+        showToast({
+          title: 'Admin Console Access',
+          description: `Welcome, ${user.name}. Opening your designated Admin Console.`,
+          type: 'info'
+        });
+        router.push('/admin');
       } else {
         showToast({
           title: 'Access Forbidden',

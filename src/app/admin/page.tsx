@@ -48,6 +48,9 @@ export default function AdminDashboardPage() {
     recentActivity: []
   });
 
+  const [lastSynced, setLastSynced] = useState<Date>(new Date());
+  const [isLiveSyncing, setIsLiveSyncing] = useState(false);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -55,24 +58,34 @@ export default function AdminDashboardPage() {
     return 'Good evening';
   };
 
-  const fetchDashboardData = async () => {
-    setIsLoading(true);
+  const fetchDashboardData = async (isBackground = false) => {
+    if (!isBackground) setIsLoading(true);
+    else setIsLiveSyncing(true);
+
     try {
       const url = `/api/admin/dashboard`;
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        setLastSynced(new Date());
       }
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err);
     } finally {
-      setIsLoading(false);
+      if (!isBackground) setIsLoading(false);
+      setIsLiveSyncing(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(false);
+
+    // Continuous real-time LMS data polling every 8 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData(true);
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const adminFirstName = currentUser?.name?.split(' ')[0] || 'Administrator';
@@ -117,6 +130,15 @@ export default function AdminDashboardPage() {
                   <Icon name="payments" size={16} className="text-emerald-300" />
                   <span>₹{(stats.totalRevenue ?? 0).toLocaleString('en-IN')} Revenue</span>
                 </div>
+              )}
+              {isSuperAdmin && (
+                <Link
+                  href="/admin/hierarchy"
+                  className="flex items-center gap-1.5 bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-400/40 px-3 py-1.5 rounded-xl font-bold transition-all shadow-sm"
+                >
+                  <Icon name="account_tree" size={16} className="text-amber-300" />
+                  <span>Team Org Chart</span>
+                </Link>
               )}
             </div>
           </div>
@@ -216,6 +238,28 @@ export default function AdminDashboardPage() {
               </p>
             )}
         </div>
+      </div>
+
+      {/* Live Telemetry Status Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 text-xs font-mono font-black">
+            <span className={`w-2 h-2 rounded-full bg-emerald-500 ${isLiveSyncing ? 'animate-ping' : 'animate-pulse'}`} />
+            REAL-TIME LMS TELEMETRY
+          </span>
+          <span className="text-[11px] font-mono text-outline hidden sm:inline">
+            Auto-refreshing every 8s • Last synced {lastSynced.toLocaleTimeString()}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => fetchDashboardData(true)}
+          disabled={isLiveSyncing}
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary/80 bg-surface-container-low hover:bg-surface-container px-3 py-1 rounded-xl transition-all cursor-pointer border border-outline-variant/60"
+        >
+          <Icon name="sync" size={13} className={isLiveSyncing ? 'animate-spin text-primary' : ''} />
+          <span>{isLiveSyncing ? 'Syncing...' : 'Sync Now'}</span>
+        </button>
       </div>
 
       {/* 3. Permission-Driven KPI Cards */}

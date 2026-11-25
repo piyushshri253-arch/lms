@@ -191,7 +191,10 @@ export function SeoTeamProgressView({
                           </span>
                         </div>
 
-                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{t.courseTitle}</h4>
+                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
+                          {t.issueKey ? <span className="font-mono text-blue-600 mr-1.5">[{t.issueKey}]</span> : null}
+                          {t.title || t.courseTitle}
+                        </h4>
                         <p className="text-[11px] text-slate-500 line-clamp-2">{t.instructions}</p>
 
                         {/* Progress Bar */}
@@ -222,16 +225,26 @@ export function SeoTeamProgressView({
                       {/* Action */}
                       <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
                         <span className="text-[10px] text-slate-400 font-mono">Due: {t.targetDueDate}</span>
-                        {onOpenAuditCourse && (
+                        {onOpenAuditCourse && (t.courseId ? (
                           <button
                             type="button"
-                            onClick={() => onOpenAuditCourse(t.courseId)}
+                            onClick={() => onOpenAuditCourse(t.courseId || '')}
                             className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 cursor-pointer"
                           >
                             <span>Inspect Course SEO</span>
                             <ArrowRight size={12} />
                           </button>
-                        )}
+                        ) : t.targetUrl ? (
+                          <a
+                            href={t.targetUrl.startsWith('http') ? t.targetUrl : `https://${t.targetUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Open URL</span>
+                            <ArrowRight size={12} />
+                          </a>
+                        ) : null)}
                       </div>
                     </div>
                   ))}

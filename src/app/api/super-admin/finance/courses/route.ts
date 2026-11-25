@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth';
+import { requireFinanceAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculateInstructorPayout } from '@/lib/payout-calculator';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSuperAdmin();
+    await requireFinanceAdmin();
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search')?.toLowerCase() || '';

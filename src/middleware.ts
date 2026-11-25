@@ -677,14 +677,28 @@ export async function middleware(request: NextRequest) {
   // -------------------------------------------------------------------------
   if (pathname.startsWith('/super-admin')) {
     if (pathname === '/super-admin/login') {
-      if (lmsSession && lmsSession.role === 'SUPER_ADMIN') {
-        return NextResponse.redirect(new URL('/super-admin', request.url));
+      if (lmsSession && (lmsSession.role === 'SUPER_ADMIN' || isAuthorizedAdminRole(lmsSession.role))) {
+        return NextResponse.redirect(new URL(lmsSession.role === 'SUPER_ADMIN' ? '/super-admin' : '/admin', request.url));
       }
       return createSecureResponse(
         NextResponse.next({
           request: { headers: requestHeaders }
         })
       );
+    }
+
+    // If an authorized admin (e.g. role === 'ADMIN' like Finance/Support Admin) navigates to /super-admin/finance or /super-admin/support,
+    // seamlessly route them to /admin/finance or /admin/support keeping their AdminConsole layout intact!
+    if (lmsSession && isAuthorizedAdminRole(lmsSession.role) && lmsSession.role !== 'SUPER_ADMIN') {
+      if (pathname.startsWith('/super-admin/finance')) {
+        return NextResponse.redirect(new URL(pathname.replace('/super-admin/finance', '/admin/finance') + search, request.url));
+      }
+      if (pathname.startsWith('/super-admin/support')) {
+        return NextResponse.redirect(new URL(pathname.replace('/super-admin/support', '/admin/support') + search, request.url));
+      }
+      // Any other /super-admin route (e.g. /super-admin, /super-admin/admins, /super-admin/settings, etc.):
+      // Strictly forbidden for Sub-Admins! Bounce them directly to their own /admin console.
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
 
     if (!lmsSession || lmsSession.role !== 'SUPER_ADMIN') {

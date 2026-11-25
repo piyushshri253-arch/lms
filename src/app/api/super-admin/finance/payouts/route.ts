@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth';
+import { requireFinanceAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createLedgerEntry } from '@/lib/finance-service';
 import { calculateInstructorPayout } from '@/lib/payout-calculator';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSuperAdmin();
+    await requireFinanceAdmin();
 
     const payouts = await prisma.instructorPayout.findMany({
       include: {
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireFinanceAdmin();
     const body = await req.json();
     const { action, payoutId, instructorId, amount, referenceNumber, adminNotes, rejectionReason, paymentProofUrl } = body;
 

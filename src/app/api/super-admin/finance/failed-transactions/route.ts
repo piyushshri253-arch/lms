@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth';
+import { requireFinanceAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSuperAdmin();
+    await requireFinanceAdmin();
 
     // Fetch payments that failed or pending abandoned orders
     const [failedPayments, pendingOrders] = await Promise.all([
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireFinanceAdmin();
     const body = await req.json();
     const { action, id, email, studentName, courseTitle, amount } = body;
 

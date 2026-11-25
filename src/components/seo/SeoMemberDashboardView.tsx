@@ -105,6 +105,7 @@ export function SeoMemberDashboardView({
   const [editStatus, setEditStatus] = useState<string>('IN_PROGRESS');
   const [editProgress, setEditProgress] = useState<number>(50);
   const [editNote, setEditNote] = useState<string>('');
+  const [editDeliverableLink, setEditDeliverableLink] = useState<string>('');
   const [savingUpdate, setSavingUpdate] = useState(false);
   const [updateToast, setUpdateToast] = useState<string | null>(null);
 
@@ -359,15 +360,20 @@ export function SeoMemberDashboardView({
 
   // Filtered tasks for TASKS view (scoped to selected course if single course is active)
   const filteredAssignments = scopedAssignments.filter((a) => {
+    const heading = (a.title || a.courseTitle || '').toLowerCase();
+    const key = (a.issueKey || '').toLowerCase();
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      a.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (a.instructions && a.instructions.toLowerCase().includes(searchQuery.toLowerCase()));
+      heading.includes(q) ||
+      key.includes(q) ||
+      (a.instructions && a.instructions.toLowerCase().includes(q));
 
     const matchesDuty =
       filterDuty === 'ALL' ||
+      a.taskType === filterDuty ||
       (filterDuty === 'GOOGLE_ADS' && a.taskType === 'GOOGLE_ADS') ||
       (filterDuty === 'META_ADS' && a.taskType === 'META_ADS') ||
-      (filterDuty === 'SEO_METADATA' && (a.taskType === 'SEO_METADATA' || a.taskType === 'FULL_OPTIMIZATION'));
+      (filterDuty === 'SEO_METADATA' && (a.taskType === 'SEO_METADATA' || a.taskType === 'ON_PAGE' || a.taskType === 'FULL_OPTIMIZATION'));
 
     const matchesStatus =
       filterStatus === 'ALL' ||
@@ -383,6 +389,7 @@ export function SeoMemberDashboardView({
     setEditStatus(a.status || 'IN_PROGRESS');
     setEditProgress(a.progress ?? 50);
     setEditNote(a.latestNote || '');
+    setEditDeliverableLink(a.deliverableLink || '');
   };
 
   const handleSaveProgress = async (assignmentId: string) => {
@@ -395,7 +402,8 @@ export function SeoMemberDashboardView({
           assignmentId,
           status: editStatus,
           progress: Number(editProgress),
-          latestNote: editNote.trim()
+          latestNote: editNote.trim(),
+          deliverableLink: editDeliverableLink.trim()
         })
       });
 
@@ -502,6 +510,46 @@ export function SeoMemberDashboardView({
           <button type="button" onClick={() => setUpdateToast(null)} className="text-slate-400 hover:text-slate-600">
             ✕
           </button>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 0. ⚡ BHAI TASK AAYA HAI! LIVE NOTIFICATION BANNER         */}
+      {/* ======================================================== */}
+      {myAssignments.filter((a) => a.status === 'PENDING' || a.status === 'IN_PROGRESS' || a.status === 'SUBMITTED').length > 0 && (
+        <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 rounded-3xl p-5 sm:p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-blue-400/40 relative overflow-hidden animate-in fade-in">
+          <div className="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-start gap-3.5 relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+              <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-900 font-black text-[10px] uppercase tracking-wider shadow-xs">
+                  ⚡ Bhai Task Aaya Hai!
+                </span>
+                <span className="text-blue-200 text-xs font-mono">
+                  {myAssignments.filter((a) => a.status === 'PENDING' || a.status === 'IN_PROGRESS').length} Active Task(s) Assigned to You
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-snug">
+                SEO Manager has assigned YouTrack tasks to your dashboard
+              </h3>
+              <p className="text-xs text-blue-100/90 font-medium">
+                Latest: &quot;{myAssignments[0]?.title || myAssignments[0]?.courseTitle}&quot; • Key: <strong className="text-amber-300 font-mono">{myAssignments[0]?.issueKey || 'SEO-101'}</strong> • Due: <strong className="text-white">{myAssignments[0]?.targetDueDate || 'This week'}</strong>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0 relative z-10">
+            <button
+              type="button"
+              onClick={() => onNavigateTab?.('Task Management')}
+              className="px-4 py-2.5 rounded-2xl bg-white hover:bg-blue-50 text-indigo-700 font-extrabold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>View Assigned Tasks</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1245,28 +1293,35 @@ export function SeoMemberDashboardView({
                           />
                         </div>
 
-                        <div className="space-y-1">
+                        <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                              ID: {assignment.courseId}
+                            <span className="text-[11px] font-mono font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                              {assignment.issueKey || 'SEO'}
                             </span>
-                            {/* Task Duty Badge */}
-                            {assignment.taskType === 'GOOGLE_ADS' ? (
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
-                                <Megaphone size={11} className="text-emerald-600" />
-                                <span>Google Ads Campaign</span>
-                              </span>
-                            ) : assignment.taskType === 'META_ADS' ? (
-                              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-bold flex items-center gap-1">
-                                <Globe size={11} className="text-blue-600" />
-                                <span>Meta &amp; Instagram Ads</span>
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-1">
-                                <Search size={11} className="text-purple-600" />
-                                <span>On-Page SEO &amp; Keywords</span>
+
+                            {/* Priority Badge */}
+                            {assignment.priority && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  assignment.priority === 'CRITICAL'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : assignment.priority === 'HIGH'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                                }`}
+                              >
+                                {assignment.priority === 'CRITICAL'
+                                  ? '🔥 Critical'
+                                  : assignment.priority === 'HIGH'
+                                  ? '⚡ High'
+                                  : '📌 Medium'}
                               </span>
                             )}
+
+                            {/* Task Duty Badge */}
+                            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold">
+                              {assignment.taskType?.replace(/_/g, ' ')}
+                            </span>
 
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -1290,16 +1345,28 @@ export function SeoMemberDashboardView({
                           </div>
 
                           <h3 className="text-lg font-black text-slate-900 tracking-tight leading-snug">
-                            {assignment.courseTitle}
+                            {assignment.title || assignment.courseTitle}
                           </h3>
 
-                          <p className="text-xs text-slate-500 font-medium">
-                            Instructor: <strong>{matchedCourse?.instructor?.name || 'Faculty'}</strong> • Category:{' '}
-                            <span className="text-slate-700 font-semibold">{matchedCourse?.categoryName || 'Training'}</span>
-                            {assignment.targetDueDate && (
-                              <span> • Due Date: <strong className="text-rose-600">{assignment.targetDueDate}</strong></span>
-                            )}
-                          </p>
+                          {(assignment.courseTitle || assignment.targetUrl) && (
+                            <p className="text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
+                              {assignment.courseTitle && <span>Course: <strong className="text-slate-700">{assignment.courseTitle}</strong></span>}
+                              {assignment.targetUrl && (
+                                <a
+                                  href={assignment.targetUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 hover:underline flex items-center gap-0.5 font-mono text-[11px]"
+                                >
+                                  <span>{assignment.targetUrl}</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                              {assignment.targetDueDate && (
+                                <span> • Due Date: <strong className="text-rose-600 font-mono">{assignment.targetDueDate}</strong></span>
+                              )}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -1359,6 +1426,25 @@ export function SeoMemberDashboardView({
                         <div>
                           <strong>Your Latest Update:</strong> {assignment.latestNote}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Submitted Deliverable Link */}
+                    {assignment.deliverableLink && !isEditing && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 truncate">
+                          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                          <span className="font-bold">Deliverable Proof:</span>
+                          <a
+                            href={assignment.deliverableLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline truncate font-mono text-[11px]"
+                          >
+                            {assignment.deliverableLink}
+                          </a>
+                        </div>
+                        <ExternalLink size={12} className="text-slate-400 shrink-0" />
                       </div>
                     )}
 
@@ -1451,6 +1537,19 @@ export function SeoMemberDashboardView({
                           />
                         </div>
 
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                            Deliverable Link / Work Proof URL (Google Doc, Sheet, PR, Live Webpage)
+                          </label>
+                          <input
+                            type="text"
+                            value={editDeliverableLink}
+                            onChange={(e) => setEditDeliverableLink(e.target.value)}
+                            placeholder="https://docs.google.com/spreadsheets/d/... or https://morenateach.com/blog/..."
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 font-medium"
+                          />
+                        </div>
+
                         <div className="flex items-center justify-end gap-2 pt-1">
                           <button
                             type="button"
@@ -1475,15 +1574,27 @@ export function SeoMemberDashboardView({
                     {/* Action Buttons on Task Card */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                       <div className="flex items-center gap-2">
-                        {/* Button 1: Work on Course SEO */}
-                        <button
-                          type="button"
-                          onClick={() => onWorkOnCourse(assignment.courseId)}
-                          className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer hover:gap-2.5"
-                        >
-                          <Eye size={14} />
-                          <span>Inspect Course SEO</span>
-                        </button>
+                        {/* Button 1: Work on Course SEO or Open URL */}
+                        {assignment.courseId ? (
+                          <button
+                            type="button"
+                            onClick={() => onWorkOnCourse(assignment.courseId || '')}
+                            className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer hover:gap-2.5"
+                          >
+                            <Eye size={14} />
+                            <span>Inspect Course SEO</span>
+                          </button>
+                        ) : assignment.targetUrl ? (
+                          <a
+                            href={assignment.targetUrl.startsWith('http') ? assignment.targetUrl : `https://${assignment.targetUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer hover:gap-2.5"
+                          >
+                            <Eye size={14} />
+                            <span>Open Target URL</span>
+                          </a>
+                        ) : null}
 
                         {/* Button 2: Update Progress Note */}
                         {!isEditing && (
@@ -1514,7 +1625,7 @@ export function SeoMemberDashboardView({
                         {/* Button 4: Talk to Manager */}
                         <button
                           type="button"
-                          onClick={() => handleOpenCourseQuery(assignment.courseId, assignment.courseTitle)}
+                          onClick={() => handleOpenCourseQuery(assignment.courseId || '', assignment.courseTitle || assignment.title || 'General SEO Task')}
                           className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
                           <HelpCircle size={13} className="text-purple-600" />

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 
 interface FinancePageHeaderProps {
@@ -27,16 +28,22 @@ export const FinancePageHeader: React.FC<FinancePageHeaderProps> = ({
   onExport,
   actions
 }) => {
+  const pathname = usePathname();
+  const isAdminPortal = pathname?.startsWith('/admin');
+  const portalRoot = isAdminPortal ? '/admin' : '/super-admin';
+  const portalLabel = isAdminPortal ? 'Admin Console' : 'Super Admin';
+  const financeRoot = isAdminPortal ? '/admin/finance' : '/super-admin/finance';
+
   return (
     <div className="flex flex-col gap-4 bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/80 shadow-xs">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant mb-1">
-            <Link href="/super-admin" className="hover:text-primary transition-colors">
-              Super Admin
+            <Link href={portalRoot} className="hover:text-primary transition-colors">
+              {portalLabel}
             </Link>
             <span>/</span>
-            <Link href="/super-admin/finance" className="hover:text-primary transition-colors font-medium">
+            <Link href={financeRoot} className="hover:text-primary transition-colors font-medium">
               Accounts &amp; Finance
             </Link>
             <span>/</span>

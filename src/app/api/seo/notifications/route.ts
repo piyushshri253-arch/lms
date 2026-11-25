@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
     // If Specialist: Inject member-specific task notifications first!
     if (isSpecialist) {
       try {
-        const row = await prisma.platformSetting.findUnique({
-          where: { key: 'seo_task_assignments' }
+        const row = await prisma.platformSetting.findFirst({
+          where: { key: { in: ['seo_team_assignments', 'seo_task_assignments'] } }
         });
         if (row?.value) {
           const allAssignments = JSON.parse(row.value);
@@ -41,15 +41,16 @@ export async function GET(req: NextRequest) {
           );
 
           memberAssignments.forEach((a: any, idx: number) => {
-            const duty = a.taskType === 'GOOGLE_ADS' ? 'Google Ads Campaign' : a.taskType === 'META_ADS' ? 'Meta Ads Campaign' : 'On-Page SEO';
+            const taskHeading = a.title || a.courseTitle || 'SEO Task';
+            const issueKey = a.issueKey || `SEO-${101 + idx}`;
             liveNotifications.push({
               id: `notif-member-task-${a.id || idx}`,
               category: 'TASK',
-              title: `Task Assigned: ${duty} (${a.courseTitle})`,
-              desc: `Manager assigned: Target due date ${a.targetDueDate || 'this week'}. Daily budget: ₹${a.dailyBudget || 500}. Current progress: ${a.progress || 0}%.`,
-              time: 'Recent',
+              title: `⚡ Bhai Task Aaya Hai: [${issueKey}] ${taskHeading}`,
+              desc: `Manager assigned: Target due date ${a.targetDueDate || 'this week'}. Priority: ${a.priority || 'HIGH'}. Current status: ${a.status || 'PENDING'}.`,
+              time: 'Just now',
               unread: (a.progress || 0) < 100,
-              priority: 'HIGH',
+              priority: a.priority || 'HIGH',
               targetNav: 'Task Management'
             });
           });

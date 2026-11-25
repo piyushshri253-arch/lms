@@ -37,30 +37,36 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
 
   // Track expanded accordion sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    'Accounts & Finance': true,
+    'Accounts & Finance': false,
     Students: true,
-    Courses: true,
+    Courses: false,
     Instructors: false,
     Enrollments: false,
     'Payments & Transactions': false,
     Certificates: false,
-    'Support & Helpdesk': true,
+    'Support & Helpdesk': false,
     'Reports & Analytics': false
   });
 
-  // Auto-expand Accounts & Finance or Support when on relevant routes
+  // Auto-expand on relevant active routes
   useEffect(() => {
-    if (pathname.startsWith('/super-admin/finance')) {
-      setExpandedSections((prev) => ({
-        ...prev,
-        'Accounts & Finance': true
-      }));
+    if (pathname.includes('/finance')) {
+      setExpandedSections((prev) => ({ ...prev, 'Accounts & Finance': true }));
     }
     if (pathname.includes('/support')) {
-      setExpandedSections((prev) => ({
-        ...prev,
-        'Support & Helpdesk': true
-      }));
+      setExpandedSections((prev) => ({ ...prev, 'Support & Helpdesk': true }));
+    }
+    if (pathname.includes('/students')) {
+      setExpandedSections((prev) => ({ ...prev, Students: true }));
+    }
+    if (pathname.includes('/courses')) {
+      setExpandedSections((prev) => ({ ...prev, Courses: true }));
+    }
+    if (pathname.includes('/instructors')) {
+      setExpandedSections((prev) => ({ ...prev, Instructors: true }));
+    }
+    if (pathname.includes('/payments')) {
+      setExpandedSections((prev) => ({ ...prev, 'Payments & Transactions': true }));
     }
   }, [pathname]);
 
@@ -78,6 +84,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
       href: '/admin'
     },
     {
+      title: 'Team Org Chart & Hierarchy',
+      icon: 'account_tree',
+      href: '/admin/hierarchy',
+      superAdminOnly: true
+    },
+    {
       title: 'Manage Admins',
       icon: 'admin_panel_settings',
       href: '/admin/admins',
@@ -86,23 +98,22 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
     {
       title: 'Accounts & Finance',
       icon: 'account_balance_wallet',
-      badge: '14 Hubs',
       requiredAnyPermissions: ['finance.view', 'payment.export', 'payment.refund'],
       subItems: [
-        { label: 'Financial Overview', href: '/super-admin/finance' },
-        { label: 'All Instructors', href: '/super-admin/finance/instructors' },
-        { label: 'All Courses', href: '/super-admin/finance/courses' },
-        { label: 'Courses Sold', href: '/super-admin/finance/sales' },
-        { label: 'Courses Refunded', href: '/super-admin/finance/refunds' },
-        { label: 'Instructor Payments', href: '/super-admin/finance/payouts' },
-        { label: 'Instructor Bank Details', href: '/super-admin/finance/bank-details' },
-        { label: 'TDS Management', href: '/super-admin/finance/tds' },
-        { label: 'GST Management', href: '/super-admin/finance/gst' },
-        { label: 'Payment Gateway Fees', href: '/super-admin/finance/gateway-fees' },
-        { label: 'Transaction History', href: '/super-admin/finance/transactions' },
-        { label: 'Failed Transactions', href: '/super-admin/finance/failed-transactions' },
-        { label: 'Financial Reports', href: '/super-admin/finance/reports' },
-        { label: 'Communication Center', href: '/super-admin/finance/communications' }
+        { label: 'Financial Overview', href: '/admin/finance' },
+        { label: 'All Instructors', href: '/admin/finance/instructors' },
+        { label: 'All Courses', href: '/admin/finance/courses' },
+        { label: 'Courses Sold', href: '/admin/finance/sales' },
+        { label: 'Courses Refunded', href: '/admin/finance/refunds' },
+        { label: 'Instructor Payments', href: '/admin/finance/payouts' },
+        { label: 'Instructor Bank Details', href: '/admin/finance/bank-details' },
+        { label: 'TDS Management', href: '/admin/finance/tds' },
+        { label: 'GST Management', href: '/admin/finance/gst' },
+        { label: 'Payment Gateway Fees', href: '/admin/finance/gateway-fees' },
+        { label: 'Transaction History', href: '/admin/finance/transactions' },
+        { label: 'Failed Transactions', href: '/admin/finance/failed-transactions' },
+        { label: 'Financial Reports', href: '/admin/finance/reports' },
+        { label: 'Communication Center', href: '/admin/finance/communications' }
       ]
     },
     {
@@ -187,7 +198,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
     {
       title: 'Support & Helpdesk',
       icon: 'support_agent',
-      badge: 'Tech Desk',
       requiredAnyPermissions: ['support.view', 'notification.view', 'setting.view'],
       subItems: [
         { label: 'All Support Tickets', href: '/admin/support' },
@@ -327,14 +337,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
           const hasActiveChild = visibleSubItems.some((sub) => isRouteActive(sub.href));
 
           return (
-            <div
-              key={sec.title}
-              className={`space-y-1 rounded-2xl transition-all ${
-                sec.title === 'Accounts & Finance'
-                  ? 'bg-primary/[0.04] p-1 border border-primary/20'
-                  : ''
-              }`}
-            >
+            <div key={sec.title} className="space-y-1">
               {/* Accordion Header */}
               <button
                 type="button"

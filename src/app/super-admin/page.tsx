@@ -21,9 +21,10 @@ export default function SuperAdminDashboardPage() {
   const [range, setRange] = useState('30D');
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [lastSyncedTime, setLastSyncedTime] = useState<Date>(new Date());
 
-  const fetchOverviewAndAnalytics = async (r: string) => {
-    setIsLoading(true);
+  const fetchOverviewAndAnalytics = async (r: string, isBackground = false) => {
+    if (!isBackground) setIsLoading(true);
     try {
       const [ovRes, anRes, stRes] = await Promise.all([
         fetch('/api/super-admin/overview'),
@@ -44,15 +45,26 @@ export default function SuperAdminDashboardPage() {
         setStudents(stData.students || []);
         if (stData.courses) setCourses(stData.courses);
       }
+      setLastSyncedTime(new Date());
     } catch {
     } finally {
-      setIsLoading(false);
+      if (!isBackground) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOverviewAndAnalytics(range);
-  }, [range]);
+    if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
+      window.location.href = '/admin';
+      return;
+    }
+    fetchOverviewAndAnalytics(range, false);
+
+    // Continuous real-time LMS data polling every 10 seconds
+    const interval = setInterval(() => {
+      fetchOverviewAndAnalytics(range, true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [range, currentUser]);
 
   const handleBankDecision = async (userId: string, actionType: 'VERIFY_BANK' | 'REJECT_BANK') => {
     let reason = '';
@@ -274,6 +286,13 @@ export default function SuperAdminDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 relative z-10">
+          <Link
+            href="/super-admin/hierarchy"
+            className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+          >
+            <Icon name="account_tree" size={16} />
+            <span>Team Org Chart &amp; Hierarchy</span>
+          </Link>
           <Link
             href="/super-admin/instructors"
             className="px-4 py-2.5 bg-amber-500 text-slate-950 hover:bg-amber-400 font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"

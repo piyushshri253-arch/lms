@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { FinancePageHeader } from '@/components/finance/FinancePageHeader';
 import { FinanceMetricCard } from '@/components/finance/FinanceMetricCard';
 import { formatINR } from '@/lib/finance-service';
 
 export default function FinancialOverviewPage() {
+  const pathname = usePathname();
+  const base = pathname?.startsWith('/admin') ? '/admin/finance' : '/super-admin/finance';
+
   const [range, setRange] = useState('all');
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,14 +52,14 @@ export default function FinancialOverviewPage() {
   };
 
   const quickLinks = [
-    { label: 'Instructor Payouts', href: '/super-admin/finance/payouts', count: 'Action Needed', icon: 'payments', color: 'emerald' },
-    { label: 'Courses Sold', href: '/super-admin/finance/sales', count: `${kpi.successfulPaymentsCount} Sales`, icon: 'shopping_bag', color: 'primary' },
-    { label: 'TDS Ledger', href: '/super-admin/finance/tds', count: formatINR(kpi.totalTdsDeducted), icon: 'receipt', color: 'amber' },
-    { label: 'GST Management', href: '/super-admin/finance/gst', count: formatINR(kpi.totalGstCollected), icon: 'percent', color: 'indigo' },
-    { label: 'Refunds Center', href: '/super-admin/finance/refunds', count: `${kpi.refundsCount} Cases`, icon: 'replay', color: 'rose' },
-    { label: 'Gateway Fees', href: '/super-admin/finance/gateway-fees', count: formatINR(kpi.totalGatewayFees), icon: 'credit_card', color: 'cyan' },
-    { label: 'Bank Approvals', href: '/super-admin/finance/bank-details', count: 'Verification', icon: 'account_balance', color: 'violet' },
-    { label: 'Full Ledger', href: '/super-admin/finance/transactions', count: 'Audit Log', icon: 'receipt_long', color: 'primary' }
+    { label: 'Instructor Payouts', href: `${base}/payouts`, count: 'Action Needed', icon: 'payments', color: 'emerald' },
+    { label: 'Courses Sold', href: `${base}/sales`, count: `${kpi.successfulPaymentsCount} Sales`, icon: 'shopping_bag', color: 'primary' },
+    { label: 'TDS Ledger', href: `${base}/tds`, count: formatINR(kpi.totalTdsDeducted), icon: 'receipt', color: 'amber' },
+    { label: 'GST Management', href: `${base}/gst`, count: formatINR(kpi.totalGstCollected), icon: 'percent', color: 'indigo' },
+    { label: 'Refunds Center', href: `${base}/refunds`, count: `${kpi.refundsCount} Cases`, icon: 'replay', color: 'rose' },
+    { label: 'Gateway Fees', href: `${base}/gateway-fees`, count: formatINR(kpi.totalGatewayFees), icon: 'credit_card', color: 'cyan' },
+    { label: 'Bank Approvals', href: `${base}/bank-details`, count: 'Verification', icon: 'account_balance', color: 'violet' },
+    { label: 'Full Ledger', href: `${base}/transactions`, count: 'Audit Log', icon: 'receipt_long', color: 'primary' }
   ];
 
   return (

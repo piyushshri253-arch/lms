@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth';
+import { requireFinanceAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
 import { calculateInstructorPayout } from '@/lib/payout-calculator';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSuperAdmin();
+    await requireFinanceAdmin();
 
     const { searchParams } = new URL(req.url);
     const fy = searchParams.get('fy') || '2025-2026';
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireSuperAdmin();
+    const admin = await requireFinanceAdmin();
     const body = await req.json();
     const { action, instructorId, financialYear, quarter, grossAmount, tdsRate, certificateNumber, notes, certificateId } = body;
 

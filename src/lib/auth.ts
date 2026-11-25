@@ -630,6 +630,17 @@ export async function requireSuperAdmin(): Promise<AuthSessionUser> {
   return user;
 }
 
+export async function requireFinanceAdmin(): Promise<AuthSessionUser> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AuthError('Authentication required. Please log into an administrator account.', 401);
+  }
+  if (user.role === 'SUPER_ADMIN' || isAdminRole(user.role)) {
+    return user;
+  }
+  throw new AuthError('Access denied: Insufficient finance administrator privileges.', 403);
+}
+
 export async function requireTenantAdmin(): Promise<AuthSessionUser> {
   const user = await getCurrentUser();
   if (!user) {

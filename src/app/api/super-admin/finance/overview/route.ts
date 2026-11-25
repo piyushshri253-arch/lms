@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth';
+import { requireFinanceAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getDateFilterWhere, ensureLedgerInitialized, DateFilter } from '@/lib/finance-service';
 import { calculateInstructorPayout } from '@/lib/payout-calculator';
 
 export async function GET(req: NextRequest) {
   try {
-    await requireSuperAdmin();
+    await requireFinanceAdmin();
     await ensureLedgerInitialized();
 
     const { searchParams } = new URL(req.url);

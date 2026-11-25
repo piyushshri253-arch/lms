@@ -36,6 +36,7 @@ export type EmailTemplateType =
   | 'INSTRUCTOR_ONBOARDED'
   | 'COURSE_APPROVED'
   | 'COURSE_REJECTED'
+  | 'TASK_ASSIGNED'
   | 'NOTIFICATION';
 
 export interface SmtpConfigData {
@@ -838,6 +839,97 @@ export function renderEmailHtml(
       break;
     }
 
+    case 'TASK_ASSIGNED': {
+      const priorityColor =
+        data.priority === 'CRITICAL'
+          ? '#dc2626'
+          : data.priority === 'HIGH'
+          ? '#ea580c'
+          : data.priority === 'MEDIUM'
+          ? '#2563eb'
+          : '#16a34a';
+
+      const taskLink = data.taskUrl || `${baseUrl}/seo?nav=Task+Management`;
+
+      bodyContent = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 50%; width: 64px; height: 64px; line-height: 64px; font-size: 30px;">
+            ⚡
+          </div>
+        </div>
+        <h2 style="color: ${brandDark}; margin-top: 0; font-size: 22px; font-weight: 800; text-align: center;">
+          New Task Assigned: ${data.issueKey ? `[${data.issueKey}] ` : ''}${data.title}
+        </h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+          Hello <strong>${data.memberName || 'Team Member'}</strong>, a new task has been assigned to you by <strong>${data.assignedBy || 'SEO Manager'}</strong>.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; margin: 24px 0; font-size: 13px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            ${data.issueKey ? `
+            <tr>
+              <td style="padding: 7px 0; color: #64748b; width: 130px;"><strong>Issue Key:</strong></td>
+              <td style="padding: 7px 0; color: #1e293b; font-family: monospace; font-weight: 800; font-size: 14px;">${data.issueKey}</td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td style="padding: 7px 0; color: #64748b;"><strong>Task Title:</strong></td>
+              <td style="padding: 7px 0; color: #0f172a; font-weight: 700;">${data.title}</td>
+            </tr>
+            <tr>
+              <td style="padding: 7px 0; color: #64748b;"><strong>Priority:</strong></td>
+              <td style="padding: 7px 0;">
+                <span style="display: inline-block; background: ${priorityColor}15; color: ${priorityColor}; font-weight: 800; font-size: 11px; padding: 3px 10px; border-radius: 6px; border: 1px solid ${priorityColor}30;">
+                  ${data.priority || 'NORMAL'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 7px 0; color: #64748b;"><strong>Target Deadline:</strong></td>
+              <td style="padding: 7px 0; color: #1e293b; font-weight: 600;">📅 ${data.targetDueDate || 'As specified'}</td>
+            </tr>
+            ${data.courseTitle ? `
+            <tr>
+              <td style="padding: 7px 0; color: #64748b;"><strong>Course:</strong></td>
+              <td style="padding: 7px 0; color: #334155;">${data.courseTitle}</td>
+            </tr>
+            ` : ''}
+            ${data.targetUrl ? `
+            <tr>
+              <td style="padding: 7px 0; color: #64748b;"><strong>Target URL:</strong></td>
+              <td style="padding: 7px 0;">
+                <a href="${data.targetUrl}" style="color: ${brandPrimary}; word-break: break-all; text-decoration: underline;">
+                  ${data.targetUrl}
+                </a>
+              </td>
+            </tr>
+            ` : ''}
+            ${data.instructions ? `
+            <tr>
+              <td style="padding: 10px 0 4px 0; color: #64748b; vertical-align: top;" colspan="2">
+                <strong>Instructions &amp; Requirements:</strong>
+                <div style="margin-top: 6px; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155; line-height: 1.5; font-size: 13px;">
+                  ${data.instructions}
+                </div>
+              </td>
+            </tr>
+            ` : ''}
+          </table>
+        </div>
+
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${taskLink}" style="display: inline-block; background: ${brandPrimary}; color: #ffffff; text-decoration: none; padding: 14px 34px; border-radius: 10px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 14px rgba(86, 36, 208, 0.25);">
+            View Task on Dashboard →
+          </a>
+        </div>
+
+        <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px; line-height: 1.5;">
+          Log in with your specialist account at <a href="${baseUrl}/seo/login" style="color: ${brandPrimary};">${baseUrl}/seo/login</a> to update progress and attach deliverable links.
+        </p>
+      `;
+      break;
+    }
+
     default: {
       const actionLink = data.actionUrl
         ? (data.actionUrl.startsWith('http') ? data.actionUrl : `${baseUrl}${data.actionUrl.startsWith('/') ? data.actionUrl : `/${data.actionUrl}`}`)
@@ -1631,7 +1723,43 @@ export class EmailService {
       }
     });
   }
+
+  static async sendTaskAssignedEmail(params: {
+    to: string;
+    memberName: string;
+    issueKey: string;
+    title: string;
+    priority: string;
+    targetDueDate: string;
+    courseTitle?: string;
+    targetUrl?: string;
+    instructions?: string;
+    assignedBy?: string;
+    userId?: string | null;
+  }) {
+    const baseUrl = getBaseUrl();
+    const subject = `⚡ New Task Assigned: [${params.issueKey}] ${params.title} — Morena Teach`;
+    return EmailService.sendEmail({
+      to: params.to,
+      userId: params.userId || null,
+      subject,
+      template: 'TASK_ASSIGNED',
+      data: {
+        memberName: params.memberName,
+        issueKey: params.issueKey,
+        title: params.title,
+        priority: params.priority,
+        targetDueDate: params.targetDueDate,
+        courseTitle: params.courseTitle,
+        targetUrl: params.targetUrl,
+        instructions: params.instructions,
+        assignedBy: params.assignedBy || 'SEO Manager',
+        taskUrl: `${baseUrl}/seo?nav=Task+Management`
+      }
+    });
+  }
 }
 
 // Backward-compatible direct function exports
 export const sendEmail = EmailService.sendEmail;
+export const sendTaskAssignedEmail = EmailService.sendTaskAssignedEmail;

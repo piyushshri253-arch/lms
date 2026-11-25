@@ -58,6 +58,7 @@ export const SuperAdminSidebar: React.FC = () => {
       group: 'Core Platform',
       items: [
         { label: 'Platform Overview', href: '/super-admin', icon: 'dashboard' },
+        { label: 'Team Org Chart & Hierarchy', href: '/super-admin/hierarchy', icon: 'account_tree' },
         { label: 'Tenant Organizations', href: '/super-admin/admins', icon: 'domain' },
         { label: 'Student Directory', href: '/super-admin/students', icon: 'school' },
         { label: 'Faculty & Auditors', href: '/super-admin/instructors', icon: 'groups' },
@@ -147,56 +148,48 @@ export const SuperAdminSidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* EXPANDABLE ACCOUNTS & FINANCE MODULE */}
-        <div className="space-y-1 rounded-2xl bg-surface-container-low/60 p-1.5 border border-outline-variant/60">
-          <div className="flex items-center justify-between px-2 pt-1 pb-1">
-            <span className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-primary flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              FINANCIAL CORE
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
-              14 MODULES
-            </span>
-          </div>
-
+        {/* ACCOUNTS & FINANCE MODULE */}
+        <div className="space-y-1">
           <button
             type="button"
             onClick={() => setFinanceExpanded(!financeExpanded)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               isFinanceRoute
-                ? 'bg-primary/15 text-primary border border-primary/20'
-                : 'text-on-surface hover:bg-surface-container'
+                ? 'bg-primary/10 text-primary font-extrabold'
+                : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
             }`}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <Icon name="payments" size={17} />
-              </div>
-              <span className="truncate tracking-tight font-black text-xs">Accounts &amp; Finance</span>
+            <div className="flex items-center gap-3 min-w-0">
+              <Icon
+                name="account_balance_wallet"
+                size={18}
+                fill={isFinanceRoute}
+                className={isFinanceRoute ? 'text-primary' : 'text-primary/70'}
+              />
+              <span className="truncate tracking-tight font-bold">Accounts &amp; Finance</span>
             </div>
             <Icon
-              name={financeExpanded ? 'expand_less' : 'expand_more'}
-              size={18}
-              className="text-outline transition-transform"
+              name="expand_more"
+              size={16}
+              className={`text-outline transition-transform duration-200 ${financeExpanded ? 'rotate-180 text-primary' : ''}`}
             />
           </button>
 
           {financeExpanded && (
-            <div className="space-y-0.5 pt-1 pb-1 pl-1">
+            <div className="pl-6 pr-1 space-y-0.5 pt-0.5 pb-1">
               {financeSubmodules.map((sub) => {
                 const isSubActive = pathname === sub.href;
                 return (
                   <Link
                     key={sub.href}
                     href={sub.href}
-                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                    className={`block py-1.5 px-3 rounded-lg text-[12px] font-semibold transition-all ${
                       isSubActive
-                        ? 'bg-primary text-on-primary shadow-xs font-extrabold'
-                        : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                        ? 'bg-primary text-on-primary font-bold shadow-2xs'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
                     }`}
                   >
-                    <Icon name={sub.icon} size={15} fill={isSubActive} />
-                    <span className="truncate">{sub.label}</span>
+                    {sub.label}
                   </Link>
                 );
               })}
@@ -204,56 +197,48 @@ export const SuperAdminSidebar: React.FC = () => {
           )}
         </div>
 
-        {/* EXPANDABLE SUPPORT & HELPDESK MODULE */}
-        <div className="space-y-1 rounded-2xl bg-surface-container-low/60 p-1.5 border border-outline-variant/60">
-          <div className="flex items-center justify-between px-2 pt-1 pb-1">
-            <span className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-primary flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              INCIDENT &amp; TECH DESK
-            </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
-              7 QUEUES
-            </span>
-          </div>
-
+        {/* SUPPORT & HELPDESK MODULE */}
+        <div className="space-y-1">
           <button
             type="button"
             onClick={() => setSupportExpanded(!supportExpanded)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               isSupportRoute
-                ? 'bg-primary/15 text-primary border border-primary/20'
-                : 'text-on-surface hover:bg-surface-container'
+                ? 'bg-primary/10 text-primary font-extrabold'
+                : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
             }`}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <Icon name="support_agent" size={17} />
-              </div>
-              <span className="truncate tracking-tight font-black text-xs">Support &amp; Helpdesk</span>
+            <div className="flex items-center gap-3 min-w-0">
+              <Icon
+                name="support_agent"
+                size={18}
+                fill={isSupportRoute}
+                className={isSupportRoute ? 'text-primary' : 'text-primary/70'}
+              />
+              <span className="truncate tracking-tight font-bold">Support &amp; Helpdesk</span>
             </div>
             <Icon
-              name={supportExpanded ? 'expand_less' : 'expand_more'}
-              size={18}
-              className="text-outline transition-transform"
+              name="expand_more"
+              size={16}
+              className={`text-outline transition-transform duration-200 ${supportExpanded ? 'rotate-180 text-primary' : ''}`}
             />
           </button>
 
           {supportExpanded && (
-            <div className="space-y-0.5 pt-1 pb-1 pl-1">
+            <div className="pl-6 pr-1 space-y-0.5 pt-0.5 pb-1">
               {supportSubmodules.map((sub) => {
                 const isSubActive = pathname === sub.href;
                 return (
                   <Link
                     key={sub.href}
                     href={sub.href}
-                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                    className={`block py-1.5 px-3 rounded-lg text-[12px] font-semibold transition-all ${
                       isSubActive
-                        ? 'bg-primary text-on-primary shadow-xs font-extrabold'
-                        : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                        ? 'bg-primary text-on-primary font-bold shadow-2xs'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
                     }`}
                   >
-                    <Icon name={sub.icon} size={15} fill={isSubActive} />
-                    <span className="truncate">{sub.label}</span>
+                    {sub.label}
                   </Link>
                 );
               })}

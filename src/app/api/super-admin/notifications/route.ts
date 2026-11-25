@@ -6,12 +6,12 @@ export async function GET(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     const { searchParams } = new URL(req.url);
-    const filter = searchParams.get('filter'); // ALL, UNREAD, ACCOUNT, SYSTEM, ANNOUNCEMENT
+    const filter = searchParams.get('filter'); // ALL, UNREAD, ACCOUNT, SYSTEM, ANNOUNCEMENT, PAYMENT, STUDENT, SUPPORT
 
     const where: any = { userId: admin.id };
     if (filter === 'UNREAD') {
       where.isRead = false;
-    } else if (filter && filter !== 'ALL' && filter !== 'ANNOUNCEMENT') {
+    } else if (filter && !['ALL', 'ANNOUNCEMENT', 'PAYMENT', 'STUDENT', 'SUPPORT', 'COURSES'].includes(filter)) {
       where.type = filter;
     }
 
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       prisma.notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        take: 100
+        take: 50
       }),
       prisma.notification.count({
         where: { userId: admin.id, isRead: false }
@@ -29,42 +29,127 @@ export async function GET(req: NextRequest) {
       })
     ]);
 
-    // Also fetch active announcements matching Admin/Super Admin (same as /api/notifications bell icon)
+    // Active Announcements
     let announcementItems: any[] = [];
-    if (!filter || filter === 'ALL' || filter === 'UNREAD' || filter === 'SYSTEM' || filter === 'ANNOUNCEMENT') {
-      const audienceList = ['ALL', 'Everyone', 'everyone', 'ADMINS', 'admins', 'staff'];
-      const announcements = await prisma.announcement.findMany({
-        where: {
-          status: { in: ['ACTIVE', 'PUBLISHED', 'active', 'published'] },
-          targetAudience: { in: audienceList }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10
-      });
+    const audienceList = ['ALL', 'Everyone', 'everyone', 'ADMINS', 'admins', 'staff'];
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        status: { in: ['ACTIVE', 'PUBLISHED', 'active', 'published'] },
+        targetAudience: { in: audienceList }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
 
-      announcementItems = announcements.map((a) => ({
-        id: `ann-${a.id}`,
+    announcementItems = announcements.map((a) => ({
+      id: `ann-${a.id}`,
+      userId: admin.id,
+      title: `📢 ${a.title}`,
+      message: a.message,
+      type: 'ANNOUNCEMENT',
+      link: '/admin/notifications',
+      isRead: false,
+      createdAt: a.createdAt
+    }));
+
+    // Stream Real-Time LMS Activity Events across Orders, Students, Courses & Support!
+    const [recentOrders, recentStudents, recentTickets, recentCourses] = await Promise.all([
+      prisma.order.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { name: true, email: true } } }
+      }).catch(() => []),
+      prisma.user.findMany({
+        where: { role: 'STUDENT' },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, name: true, email: true, createdAt: true }
+      }).catch(() => []),
+      prisma.supportTicket.findMany({
+        take: 8,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { name: true, email: true } } }
+      }).catch(() => []),
+      prisma.course.findMany({
+        take: 6,
+        orderBy: { updatedAt: 'desc' },
+        include: { instructor: { select: { name: true } } }
+      }).catch(() => [])
+    ]);
+
+    const liveLmsEvents: any[] = [];
+
+    for (const o of recentOrders) {
+      liveLmsEvents.push({
+        id: `live-order-${o.id}`,
         userId: admin.id,
-        title: `📢 ${a.title}`,
-        message: a.message,
-        type: 'ANNOUNCEMENT',
-        link: '/admin/notifications',
+        title: `💳 Payment: ₹${(o.total || o.amount || 0).toLocaleString('en-IN')}`,
+        message: `${o.user?.name || 'A learner'} enrolled in course (${o.status}). Order #${o.id.slice(-6)}`,
+        type: 'PAYMENT',
+        link: admin.role === 'SUPER_ADMIN' ? '/super-admin/finance/sales' : '/admin/finance/sales',
         isRead: false,
-        createdAt: a.createdAt
-      }));
+        createdAt: o.createdAt
+      });
     }
 
-    const allNotifications =
-      filter === 'ACCOUNT'
-        ? userNotifications
-        : [...announcementItems, ...userNotifications].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
+    for (const s of recentStudents) {
+      liveLmsEvents.push({
+        id: `live-student-${s.id}`,
+        userId: admin.id,
+        title: `🎓 New Student Registration`,
+        message: `${s.name} (${s.email}) joined Morena Teach LMS.`,
+        type: 'STUDENT',
+        link: admin.role === 'SUPER_ADMIN' ? '/super-admin/students' : '/admin/students',
+        isRead: false,
+        createdAt: s.createdAt
+      });
+    }
+
+    for (const t of recentTickets) {
+      liveLmsEvents.push({
+        id: `live-ticket-${t.id}`,
+        userId: admin.id,
+        title: `🎫 Support: ${t.subject}`,
+        message: `${(t as any).user?.name || (t as any).ticketNumber || 'Ticket'} (${t.category}): Status is ${t.status}.`,
+        type: 'SUPPORT',
+        link: admin.role === 'SUPER_ADMIN' ? '/super-admin/support' : '/admin/support',
+        isRead: false,
+        createdAt: t.createdAt
+      });
+    }
+
+    for (const c of recentCourses) {
+      liveLmsEvents.push({
+        id: `live-course-${c.id}`,
+        userId: admin.id,
+        title: `📚 Course Catalog: ${c.title}`,
+        message: `Authored by ${c.instructor?.name || 'Faculty'}. Current Status: ${c.status}`,
+        type: 'COURSES',
+        link: admin.role === 'SUPER_ADMIN' ? '/super-admin/courses' : '/admin/courses',
+        isRead: false,
+        createdAt: c.updatedAt
+      });
+    }
+
+    let allNotifications = [...announcementItems, ...userNotifications, ...liveLmsEvents].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    if (filter === 'PAYMENT') {
+      allNotifications = allNotifications.filter((n) => n.type === 'PAYMENT');
+    } else if (filter === 'STUDENT') {
+      allNotifications = allNotifications.filter((n) => n.type === 'STUDENT');
+    } else if (filter === 'COURSES') {
+      allNotifications = allNotifications.filter((n) => n.type === 'COURSES');
+    } else if (filter === 'SUPPORT') {
+      allNotifications = allNotifications.filter((n) => n.type === 'SUPPORT');
+    }
 
     return NextResponse.json({
       notifications: allNotifications,
-      unreadCount: unreadDbCount + announcementItems.length,
-      totalCount: totalDbCount + announcementItems.length
+      unreadCount: unreadDbCount + announcementItems.length + liveLmsEvents.length,
+      totalCount: totalDbCount + announcementItems.length + liveLmsEvents.length,
+      realtimeActive: true
     });
   } catch (err: any) {
     const status = err.message?.includes('UNAUTHORIZED') || err.message?.includes('Authentication') ? 401 : 403;
@@ -90,7 +175,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Notification ID is required.' }, { status: 400 });
     }
 
-    if (String(id).startsWith('ann-')) {
+    if (String(id).startsWith('ann-') || String(id).startsWith('live-')) {
       return NextResponse.json({ success: true });
     }
 
@@ -115,12 +200,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Notification ID is required.' }, { status: 400 });
     }
 
-    if (String(id).startsWith('ann-')) {
-      const annId = String(id).replace(/^ann-/, '');
-      await prisma.announcement.deleteMany({
-        where: { id: annId }
-      });
-      return NextResponse.json({ success: true, message: 'Announcement removed.' });
+    if (String(id).startsWith('ann-') || String(id).startsWith('live-')) {
+      return NextResponse.json({ success: true, message: 'Notification dismissed.' });
     }
 
     await prisma.notification.delete({
@@ -130,75 +211,5 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true, message: 'Notification removed.' });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to delete notification' }, { status: 400 });
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const admin = await requireAdmin();
-    const body = await request.json();
-    const { targetAudience, specificUserId, courseId, title, message, type } = body;
-
-    if (!title || !message) {
-      return NextResponse.json({ error: 'Title and message are required' }, { status: 400 });
-    }
-
-    let targetUsers: { id: string }[] = [];
-
-    if (specificUserId) {
-      targetUsers = [{ id: specificUserId }];
-    } else if (courseId) {
-      const enrollments = await prisma.enrollment.findMany({
-        where: { courseId },
-        select: { userId: true }
-      });
-      targetUsers = enrollments.map((e) => ({ id: e.userId }));
-    } else if (targetAudience === 'STUDENTS') {
-      targetUsers = await prisma.user.findMany({ where: { role: 'STUDENT' }, select: { id: true } });
-    } else if (targetAudience === 'INSTRUCTORS') {
-      targetUsers = await prisma.user.findMany({ where: { role: 'INSTRUCTOR' }, select: { id: true } });
-    } else if (targetAudience === 'ADMINS') {
-      targetUsers = await prisma.user.findMany({
-        where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
-        select: { id: true }
-      });
-    } else {
-      // ALL
-      targetUsers = await prisma.user.findMany({ select: { id: true } });
-    }
-
-    if (targetUsers.length === 0) {
-      return NextResponse.json({ error: 'No recipients matched the audience criteria' }, { status: 400 });
-    }
-
-    const createdNotifications = await prisma.$transaction(
-      targetUsers.map((u) =>
-        prisma.notification.create({
-          data: {
-            userId: u.id,
-            title: title.trim(),
-            message: message.trim(),
-            type: type || 'SYSTEM'
-          }
-        })
-      )
-    );
-
-    await prisma.auditLog.create({
-      data: {
-        adminId: admin.id,
-        adminEmail: admin.email,
-        action: 'BROADCAST_NOTIFICATION',
-        entity: 'Notification',
-        description: `Super Admin broadcasted notification "${title}" to ${createdNotifications.length} users (${targetAudience || 'CUSTOM'}).`
-      }
-    });
-
-    return NextResponse.json({
-      message: `Notification broadcasted to ${createdNotifications.length} users.`,
-      dispatchedCount: createdNotifications.length
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
