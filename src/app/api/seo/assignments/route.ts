@@ -234,24 +234,12 @@ export async function POST(req: NextRequest) {
         create: { key: SETTING_ASSIGNMENTS_KEY, value: JSON.stringify(updatedList) }
       });
 
-      // Send in-app notification
-      try {
-        await createNotification({
-          userId: specialistId,
-          title: `⚡ Bhai Task Aaya Hai (${createdList.length} Tasks)`,
-          message: `SEO Manager has allocated ${createdList.length} new tasks to your dashboard. Check Task Management.`,
-          type: 'COURSES',
-          category: 'COURSES',
-          link: `/seo?nav=Task+Management`
-        });
-      } catch {}
+      // Resolve real user record from database
+      let recipientEmail = specialistEmail?.trim();
+      let recipientName = specialistName?.trim();
+      let validUserId: string | null = null;
 
-      // Send email notification to the member's registered email address
       try {
-        let recipientEmail = specialistEmail?.trim();
-        let recipientName = specialistName?.trim();
-        let validUserId: string | null = null;
-
         const userObj = await prisma.user.findFirst({
           where: {
             OR: [
@@ -267,7 +255,24 @@ export async function POST(req: NextRequest) {
           recipientEmail = recipientEmail || userObj.email;
           recipientName = recipientName || userObj.name;
         }
+      } catch {}
 
+      // Send in-app notification if valid database user
+      if (validUserId) {
+        try {
+          await createNotification({
+            userId: validUserId,
+            title: `⚡ Bhai Task Aaya Hai (${createdList.length} Tasks)`,
+            message: `SEO Manager has allocated ${createdList.length} new tasks to your dashboard. Check Task Management.`,
+            type: 'COURSES',
+            category: 'COURSES',
+            link: `/seo?nav=Task+Management`
+          });
+        } catch {}
+      }
+
+      // Send email notification to the member's registered email address
+      try {
         if (recipientEmail && createdList.length > 0) {
           const firstTask = createdList[0];
           await sendTaskAssignedEmail({
@@ -369,24 +374,12 @@ export async function POST(req: NextRequest) {
       create: { key: SETTING_ASSIGNMENTS_KEY, value: JSON.stringify(updatedList) }
     });
 
-    // Notify the assigned member: "Bhai task aaya hai!" (In-app notification)
-    try {
-      await createNotification({
-        userId: specialistId,
-        title: `⚡ Bhai Task Aaya Hai: [${resolvedIssueKey}] ${resolvedTitle}`,
-        message: `SEO Manager has assigned you "${resolvedTitle}". Priority: ${priority || 'HIGH'} • Deadline: ${targetDueDate || '1 week'}. Check your Task Management workbench.`,
-        type: 'COURSES',
-        category: 'COURSES',
-        link: `/seo?nav=Task+Management`
-      });
-    } catch {}
+    // Resolve real user record from database
+    let recipientEmail = specialistEmail?.trim();
+    let recipientName = specialistName?.trim();
+    let validUserId: string | null = null;
 
-    // Send email notification to member's account email ID
     try {
-      let recipientEmail = specialistEmail?.trim();
-      let recipientName = specialistName?.trim();
-      let validUserId: string | null = null;
-
       const userObj = await prisma.user.findFirst({
         where: {
           OR: [
@@ -402,7 +395,24 @@ export async function POST(req: NextRequest) {
         recipientEmail = recipientEmail || userObj.email;
         recipientName = recipientName || userObj.name;
       }
+    } catch {}
 
+    // Notify the assigned member: "Bhai task aaya hai!" (In-app notification)
+    if (validUserId) {
+      try {
+        await createNotification({
+          userId: validUserId,
+          title: `⚡ Bhai Task Aaya Hai: [${resolvedIssueKey}] ${resolvedTitle}`,
+          message: `SEO Manager has assigned you "${resolvedTitle}". Priority: ${priority || 'HIGH'} • Deadline: ${targetDueDate || '1 week'}. Check your Task Management workbench.`,
+          type: 'COURSES',
+          category: 'COURSES',
+          link: `/seo?nav=Task+Management`
+        });
+      } catch {}
+    }
+
+    // Send email notification to member's account email ID
+    try {
       if (recipientEmail) {
         await sendTaskAssignedEmail({
           to: recipientEmail,
@@ -508,23 +518,11 @@ export async function PUT(req: NextRequest) {
 
     // If re-assigned to a new specialist, notify the new specialist
     if (specialistId && specialistId !== prev.specialistId) {
-      try {
-        await createNotification({
-          userId: specialistId,
-          title: `⚡ Bhai Task Aaya Hai: [${updatedAssignment.issueKey || 'SEO'}] ${updatedAssignment.title}`,
-          message: `SEO Manager has assigned you "${updatedAssignment.title}". Priority: ${updatedAssignment.priority}. Check your Task Management workbench.`,
-          type: 'COURSES',
-          category: 'COURSES',
-          link: `/seo?nav=Task+Management`
-        });
-      } catch {}
+      let recipientEmail = specialistEmail?.trim() || updatedAssignment.specialistEmail?.trim();
+      let recipientName = specialistName?.trim() || updatedAssignment.specialistName?.trim();
+      let validUserId: string | null = null;
 
-      // Send email notification to new member's account email ID
       try {
-        let recipientEmail = specialistEmail?.trim() || updatedAssignment.specialistEmail?.trim();
-        let recipientName = specialistName?.trim() || updatedAssignment.specialistName?.trim();
-        let validUserId: string | null = null;
-
         const userObj = await prisma.user.findFirst({
           where: {
             OR: [
@@ -540,7 +538,23 @@ export async function PUT(req: NextRequest) {
           recipientEmail = recipientEmail || userObj.email;
           recipientName = recipientName || userObj.name;
         }
+      } catch {}
 
+      if (validUserId) {
+        try {
+          await createNotification({
+            userId: validUserId,
+            title: `⚡ Bhai Task Aaya Hai: [${updatedAssignment.issueKey || 'SEO'}] ${updatedAssignment.title}`,
+            message: `SEO Manager has assigned you "${updatedAssignment.title}". Priority: ${updatedAssignment.priority}. Check your Task Management workbench.`,
+            type: 'COURSES',
+            category: 'COURSES',
+            link: `/seo?nav=Task+Management`
+          });
+        } catch {}
+      }
+
+      // Send email notification to new member's account email ID
+      try {
         if (recipientEmail) {
           await sendTaskAssignedEmail({
             to: recipientEmail,
